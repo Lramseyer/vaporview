@@ -1,0 +1,90 @@
+{
+  "name": "vaporview",
+  "displayName": "VaporView",
+  "description": "Waveform Viewer for VS code",
+  "version": "0.0.1",
+  "repository": "",
+  "engines": {
+    "vscode": "^1.83.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "browser": "./dist/web/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "vaporView",
+          "title": "Vaporview",
+          "icon": "media/activityBar.svg"
+        }
+      ],
+      "sidebar": [
+        {
+          "id": "vaporViewSidebar",
+          "title": "VaporView"
+        }
+      ]
+    },
+    "views": {
+      "vaporView": [
+        {
+          "id": "netlistContainer",
+          "name": "Netlist"
+        },
+        {
+          "id": "displaylistContainer",
+          "name": "Displayed Signals"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "vaporview.helloWorld",
+        "title": "Hello World"
+      },
+      {
+        "command": "vaporview.viewWaveform",
+        "title": "View Waveform"
+      },
+      {
+        "command": "vaporview.viewVaporViewSidebar",
+        "title": "View VaporView Sidebar"
+      }
+    ]
+  },
+  "scripts": {
+    "test": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. --extensionTestsPath=dist/web/test/suite/index.js",
+    "pretest": "npm run compile-web",
+    "vscode:prepublish": "npm run package-web",
+    "compile-web": "webpack",
+    "watch-web": "webpack --watch",
+    "package-web": "webpack --mode production --devtool hidden-source-map",
+    "lint": "eslint src --ext ts",
+    "run-in-browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. ."
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.2",
+    "@types/vscode": "^1.83.0",
+    "@types/webpack-env": "^1.18.2",
+    "@typescript-eslint/eslint-plugin": "^6.7.3",
+    "@typescript-eslint/parser": "^6.7.3",
+    "@vscode/test-web": "^0.0.46",
+    "assert": "^2.1.0",
+    "eslint": "^8.50.0",
+    "fs": "0.0.1-security",
+    "mocha": "^10.2.0",
+    "process": "^0.11.10",
+    "ts-loader": "^9.4.4",
+    "typescript": "^5.2.2",
+    "webpack": "^5.88.2",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "@vscode/codicons": "0.0.35",
+    "clusterize.js": "^1.0.0",
+    "path": "^0.12.7"
+  }
+}

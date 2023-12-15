@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
+
+  <polyline points="3,3 9,3 15,21 21,21" style="fill:none;stroke:#d7dae0;stroke-width:0.1em" />
+  <polyline points="3,21 9,21 15,3 21,3" style="fill:none;stroke:#d7dae0;stroke-width:0.1em" />
+</svg>

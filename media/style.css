@@ -1,0 +1,230 @@
+:root {
+  --waveform-height: 28px;
+  --ruler-height:    40px;
+  --svg-height:      20px;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  height: 100%;
+  padding: 0;
+}
+
+#vaporview-top {
+  display: grid;
+  height: 100%;
+
+  grid-template-rows:  32px auto;
+  grid-template-columns: 150px 4px auto;
+}
+
+#control-bar {
+  display: flex;
+  grid-column-start: 1;
+  grid-column-end: 4;
+  grid-row-start: 1;
+  grid-row-end: 2;
+  border-bottom: 1px solid var(--vscode-widget-border);
+}
+
+.control-bar-button {
+  padding: 6px 8px 6px 8px;
+}
+
+#waveform-labels-container {
+  grid-column-start: 1;
+  grid-column-end: 2;
+  grid-row-start: 2;
+  overflow: scroll;
+  margin-bottom: 10px;
+}
+
+#waveform-labels-container::-webkit-scrollbar {
+  display: none;
+}
+
+#resizeBar {
+  border-right: 1px solid var(--vscode-widget-border);
+  grid-column-start: 2;
+  grid-column-end: 3;
+  grid-row-start: 2;
+
+  animation-duration: 100ms;
+}
+
+@keyframes highlightResizeBar {
+  0% {
+    border-right: 1px solid var(--vscode-widget-border);
+  }
+  100% {
+    border-right: 4px solid var(--vscode-sash-hoverBorder);
+  }
+}
+
+#resizeBar:hover {
+  animation-delay: 500ms;
+  animation-iteration-count: 1;
+  animation: highlightResizeBar 100ms forwards;
+  cursor: w-resize;
+}
+
+#scrollArea {
+  overflow: auto;
+  grid-column-start: 3;
+  grid-row-start: 2;
+}
+
+#time-ruler {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid #ddd;
+  padding-top: 5px;
+  height: 50px;
+}
+
+.tick {
+  position: relative;
+  width: 10px;
+  border-right: 1px solid #ddd;
+  padding-right: 5px;
+  font-size: 12px;
+  text-align: center;
+}
+
+#contentArea {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  min-width: fit-content;
+}
+
+.ruler-chunk {
+  position: sticky;
+  top: 0;
+  background: var(--vscode-editor-background);
+  max-height: var(--ruler-height);
+}
+
+.ruler-svg {
+  font-size:   var(--vscode-editor-font-size);
+  fill:        var(--vscode-editorLineNumber-foreground);
+  font-family: var(--vscode-editor-font-family);
+  overflow:    visible;
+  user-select: none;
+}
+
+.ruler-svg text {
+  text-anchor: middle;
+}
+
+
+
+.waveform-label {
+  position:        relative;
+  will-change:     transform;
+  font-size:       var(--vscode-editor-font-size);
+  font-family:     var(--vscode-editor-font-family);
+  display:         flex;
+  align-items:     center;
+  justify-content: right;
+  user-select:     none;
+
+  min-height:  var(--waveform-height);
+  max-height:  var(--waveform-height);
+
+  box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+}
+
+.waveform-label.is-idle {
+  transition: 0.25s ease transform;
+}
+
+.waveform-label .codicon-grabber {
+  color:       var(--vscode-editorLineNumber-foreground);
+  position:    absolute;
+  left:        4px;
+  opacity:     0;
+}
+
+.waveform-label.is-idle:hover .codicon-grabber {
+  opacity: 1;
+  background-color: var(--vscode-editor-background);
+}
+
+.waveform-label.is-idle .codicon-grabber {
+  cursor: grab;
+}
+
+.waveform-label.is-draggable {
+  background-color:  var(--vscode-editor-inactiveSelectionBackground);
+  opacity: 0.75;
+  z-index: 10;
+  border-radius: 8px;
+  cursor: grabbing;
+}
+
+.waveform-label.is-draggable .codicon-grabber {
+  cursor: grabbing;
+}
+
+.waveform-label p {
+  color:       var(--vscode-textLink-foreground);
+  margin: 0;
+}
+
+.ruler-spacer {
+  min-height: var(--ruler-height);
+  position:   sticky;
+  top:        0;
+  background-color: var(--vscode-editor-background);
+  z-index:    9;
+}
+
+.ruler-tick {
+  stroke:      var(--vscode-editorGhostText-foreground);
+}
+
+.column-chunk {
+  position:  relative;
+}
+
+.waveform-chunk {
+  display:     flex;
+  align-items: center;
+  height: var(--waveform-height);
+}
+
+.bus-waveform-chunk {
+  display:     flex;
+  align-items: center;
+  height: var(--waveform-height);
+}
+
+.bus-waveform-value {
+  display: flex;
+  align-items: center;
+  width: inherit;
+  overflow: hidden;
+  user-select: none;
+  background-image: url(diamond.svg);
+  background-position-y: center;
+  justify-content: center;
+  background-repeat: no-repeat;
+  height: var(--svg-height);
+}
+
+.bus-waveform-value p {
+  font-size:   var(--vscode-editor-font-size);
+  font-family: var(--vscode-editor-font-family);
+  font-weight: 800;
+  color:       var(--vscode-editor-background);
+  padding: 0 5px 0 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: inherit;
+  margin: 0;
+}

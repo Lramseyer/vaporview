@@ -102,12 +102,12 @@ class NetlistItem extends vscode.TreeItem {
   onDidChangeCheckboxState: vscode.Event<vscode.TreeItem | undefined | null> = this._onDidChangeCheckboxState.event;
 
   constructor(
-    public readonly label: string,
-    public readonly type: string,
-    public readonly width: number,
-    public readonly signalId: string, // Signal-specific information
-    public readonly name: string,
-    public readonly children: NetlistItem[] = [],
+    public readonly label:            string,
+    public readonly type:             string,
+    public readonly width:            number,
+    public readonly signalId:         string, // Signal-specific information
+    public readonly name:             string,
+    public readonly children:         NetlistItem[] = [],
     public readonly collapsibleState: vscode.TreeItemCollapsibleState,
     public checkboxState: vscode.TreeItemCheckboxState = vscode.TreeItemCheckboxState.Unchecked // Display preference
   ) {

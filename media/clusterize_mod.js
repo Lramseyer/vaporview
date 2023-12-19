@@ -7,24 +7,25 @@
  Copyright (c) 2015 Denis Lukov; Licensed MIT */
 
 ;(function(name, definition) {
-    if (typeof module != 'undefined') {module.exports = definition();}
+    if      (typeof module != 'undefined') {module.exports = definition();}
     else if (typeof define == 'function' && typeof define.amd == 'object') {define(definition);}
-    else {this[name] = definition();}
-}('Clusterize', function() {
+    else    {this[name] = definition();}
+}
+('Clusterize', function() {
   "use strict";
 
   // detect ie9 and lower
   // https://gist.github.com/padolsey/527683#comment-786682
-  var ie = (function(){
-    for( var v = 3,
-              el = document.createElement('b'),
-             all = el.all || [];
-         el.innerHTML = '<!--[if gt IE ' + (++v) + ']><i><![endif]-->',
-         all[0];
-       ){}
-    return v > 4 ? v : document.documentMode;
-  }()),
-  isMac = navigator.platform.toLowerCase().indexOf('mac') + 1;
+  // var ie = (function(){
+  //   for( var v = 3,
+  //             el = document.createElement('b'),
+  //            all = el.all || [];
+  //        el.innerHTML = '<!--[if gt IE ' + (++v) + ']><i><![endif]-->',
+  //        all[0];
+  //      ){}
+  //   return v > 4 ? v : document.documentMode;
+  // }()),
+  var isMac = navigator.platform.toLowerCase().indexOf('mac') + 1;
   var Clusterize = function(data) {
     if( ! (this instanceof Clusterize)) {return new Clusterize(data);}
     var self = this;
@@ -42,7 +43,7 @@
 
     // public parameters
     self.options = {};
-    var options  = ['columnsInBlock', 'blocksInCluster', 'showNoDataColumn', 'noDataClass', 'noDataText', 'keepParity', 'tag', 'callbacks'];
+    var options  = ['columnCount', 'columnWidth', 'columnsInBlock', 'blocksInCluster', 'showNoDataColumn', 'noDataClass', 'noDataText', 'keepParity', 'tag', 'callbacks'];
     for(var i = 0, option; option = options[i]; i++) {
       self.options[option] = typeof data[option] != 'undefined' && data[option] != null
         ? data[option]
@@ -60,8 +61,8 @@
       self.contentElement.setAttribute('tabindex', 0);
     }
     // private parameters
-    var columns   = isArray(data.columns) ? data.columns : self.fetchMarkup(),
-        cache     = {},
+    var columns    = isArray(data.columns) ? data.columns : self.fetchMarkup(),
+        cache      = {},
         scrollLeft = self.scrollElement.scrollLeft;
 
     // append initial data
@@ -108,15 +109,26 @@
       off('resize', window,             resizeEv);
       self.html((clean ? self.generateEmptyColumn() : columns).join(''));
     };
-    self.refresh = function(force) {
-      if(self.getChunksWidth(columns) || force) {self.update(columns);}
-      this.options.viewportWidth = self.scrollElement.getBoundingClientRect().width;
+    self.refresh = function(columnWidth) {
+      const prevColumnWidth    = self.options.columnWidth;
+      const scrollProgress     = self.getScrollProgress();
+      self.options.columnWidth = columnWidth;
+      
+      if (prevColumnWidth !== columnWidth) {
+        self.update(columns);
+        self.getChunksWidth(columns);
+      }
+
+      if (self.scrollElement) {
+        self.options.viewportWidth    = self.scrollElement.getBoundingClientRect().width;
+        self.scrollElement.scrollLeft = scrollProgress * ((columns.length * columnWidth) - self.options.viewportWidth);
+      }
     };
-    self.update = function(newColumns) {
+    self.update = function(newColumns, columnWidth) {
       columns = isArray(newColumns) ? newColumns : [];
       var scrollLeft = self.scrollElement.scrollLeft;
       // fixes #39
-      if(columns.length * self.options.itemWidth < scrollLeft) {
+      if(columns.length * self.options.columnWidth < scrollLeft) {
         self.scrollElement.scrollLeft = 0;
         lastCluster = 0;
       }
@@ -126,7 +138,7 @@
     self.clear             = function() {self.update([]);};
     self.getColumnsAmount  = function() {return columns.length;};
     self.getScrollProgress = function() {
-      return this.options.scrollLeft / ((columns.length * this.options.itemWidth) - this.options.viewportWidth) * 100 || 0;
+      return self.options.scrollLeft / ((columns.length * self.options.columnWidth) - self.options.viewportWidth) || 0;
     };
 
     var add = function(where, _newColumns) {
@@ -144,7 +156,10 @@
     constructor: Clusterize,
     // fetch existing markup
     fetchMarkup: function() {
-      var columns = [], columnsNodes = this.getChildNodes(this.contentElement);
+      console.log("fetchMarkup()");
+      var columns      = [],
+          columnsNodes = this.getChildNodes(this.contentElement);
+
       while (columnsNodes.length) {
         columns.push(columnsNodes.shift().outerHTML);
       }
@@ -152,34 +167,37 @@
     },
     // get tag name, content tag name, tag width, calc cluster width
     exploreEnvironment: function(columns, cache) {
+      console.log("exploreEnvironment()");
       var opts = this.options;
       console.log(opts);
       console.log(this.contentElement);
-      opts.content_tag = this.contentElement.tagName.toLowerCase();
+      //opts.content_tag = this.contentElement.tagName.toLowerCase();
       if( ! columns.length) {return;}
-      //if(ie && ie <= 9 && ! opts.tag) {opts.tag = columns[0].match(/<([^>\s/]*)/)[1].toLowerCase();}
       if(this.contentElement.children.length <= 1) {cache.data = this.html(columns[0] + columns[0] + columns[0]);}
       if( ! opts.tag) {opts.tag = this.contentElement.children[0].tagName.toLowerCase();}
       this.getChunksWidth(columns);
     },
     getChunksWidth: function(columns) {
-      var opts = this.options,
-        prevItemWidth = opts.itemWidth;
+      console.log("getChunksWidth()");
+      console.log(this.options);
+      var opts          = this.options
+          //prevItemWidth = opts.columnWidth;
       opts.clusterWidth = 0;
       if( ! columns.length) {return;}
       var nodes = this.contentElement.children;
       if( ! nodes.length) {return;}
-      var node = nodes[Math.floor(nodes.length / 2)];
-      opts.itemWidth = node.offsetWidth;
+      //var node = nodes[Math.floor(nodes.length / 2)];
+
+      //opts.columnWidth = node.offsetWidth;
       // consider table's border-spacing
-      if(opts.tag == 'tr' && getStyle('borderCollapse', this.contentElement) != 'collapse') {
-        opts.itemWidth += parseInt(getStyle('borderSpacing', this.contentElement), 10) || 0;
-      }
-      opts.blockWidth       = opts.itemWidth       * opts.columnsInBlock;
+      //if(opts.tag == 'tr' && getStyle('borderCollapse', this.contentElement) != 'collapse') {
+      //  opts.columnWidth += parseInt(getStyle('borderSpacing', this.contentElement), 10) || 0;
+      //}
+      opts.blockWidth       = opts.columnWidth     * opts.columnsInBlock;
       opts.columnsInCluster = opts.blocksInCluster * opts.columnsInBlock;
       opts.clusterWidth     = opts.blocksInCluster * opts.blockWidth;
 
-      return prevItemWidth != opts.itemWidth;
+      //return prevItemWidth != opts.columnWidth;
     },
     // get current cluster number
     getClusterNum: function (columns) {
@@ -187,11 +205,12 @@
       opts.scrollLeft    = this.scrollElement.scrollLeft;
       var clusterDivider = opts.clusterWidth - opts.blockWidth;
       var currentCluster = Math.floor(opts.scrollLeft / clusterDivider);
-      var maxCluster     = Math.floor((columns.length * opts.itemWidth) / clusterDivider);
+      var maxCluster     = Math.floor((columns.length * opts.columnWidth) / clusterDivider);
       return Math.min(currentCluster, maxCluster);
     },
     // generate empty column if no data provided
     generateEmptyColumn: function() {
+      console.log("generateEmptyColumn()");
       var opts = this.options;
       if( ! opts.tag || ! opts.showNoDataColumn) {return [];}
       var emptyColumn   = document.createElement(opts.tag),
@@ -214,7 +233,7 @@
             leftOffset:    0,
             rightOffset:   0,
             columnsBefore: 0,
-            columns: columnsLength ? columns : this.generateEmptyColumn(),
+            columns:       columnsLength ? columns : this.generateEmptyColumn(),
             itemsStart:    0,
             itemsEnd:      columnsLength
           };
@@ -225,8 +244,8 @@
 
       returnData.itemsStart    = Math.max((opts.columnsInCluster - opts.columnsInBlock) * this.getClusterNum(columns), 0),
       returnData.itemsEnd      = Math.min(returnData.itemsStart + opts.columnsInCluster, columnsLength);
-      returnData.leftOffset    = Math.max(returnData.itemsStart * opts.itemWidth, 0);
-      returnData.rightOffset   = Math.max((columnsLength - returnData.itemsEnd) * opts.itemWidth, 0);
+      returnData.leftOffset    = Math.max(returnData.itemsStart * opts.columnWidth, 0);
+      returnData.rightOffset   = Math.max((columnsLength - returnData.itemsEnd) * opts.columnWidth, 0);
       returnData.columns       = this.options.callbacks.fetchColumns(returnData.itemsStart, returnData.itemsEnd);
       returnData.columnsBefore = returnData.itemsStart;
       if(returnData.leftOffset < 1) {
@@ -244,6 +263,7 @@
     // if necessary verify data changed and insert to DOM
     insertToDOM: function(columns, cache) {
       // explore column's width
+      console.log("insertToDOM()");
       if( ! this.options.clusterWidth) {
         this.exploreEnvironment(columns, cache);
       }
@@ -265,7 +285,7 @@
         data.rightOffset && layout.push(this.renderExtraTag('right-space', data.rightOffset));
         callbacks.clusterWillChange && callbacks.clusterWillChange(data.itemsStart, data.itemsEnd);
         this.html(layout.join(''));
-        this.options.content_tag == 'ol' && this.contentElement.setAttribute('start', data.columnsBefore);
+        //this.options.content_tag == 'ol' && this.contentElement.setAttribute('start', data.columnsBefore);
         this.contentElement.style['counter-increment'] = 'clusterize-counter ' + (data.columnsBefore-1);
         callbacks.clusterChanged && callbacks.clusterChanged(data.itemsStart, data.itemsEnd);
       } else if(onlyRightOffsetChanged) {
@@ -299,9 +319,9 @@
   function isArray(arr) {
     return Object.prototype.toString.call(arr) === '[object Array]';
   }
-  function getStyle(prop, elem) {
-    return window.getComputedStyle ? window.getComputedStyle(elem)[prop] : elem.currentStyle[prop];
-  }
+  //function getStyle(prop, elem) {
+  //  return window.getComputedStyle ? window.getComputedStyle(elem)[prop] : elem.currentStyle[prop];
+  //}
 
   return Clusterize;
 }));

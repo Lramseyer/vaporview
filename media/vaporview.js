@@ -7,18 +7,18 @@ polylinePathFromTransitionData = function (transitionData, initialState) {
     accumulatedPath += time + "," + value + " ";
     initialValue = value;
   });
-  accumulatedPath += chunkSize + "," + initialValue;
+  accumulatedPath += chunkTime + "," + initialValue;
   return accumulatedPath;
 };
 
 busElement = function (time, value, backgroundPositionX, backgroundSizeX) {
-  return `<div class="bus-waveform-value" style="flex:${time};background-position-x:${backgroundPositionX}px;background-size:${backgroundSizeX}px">
+  return `<div class="bus-waveform-value" style="flex:${time};background-position-x:${backgroundPositionX * zoomRatio}px;background-size:${backgroundSizeX * zoomRatio}px">
     <p>${value}</p>
   </div>`;
 };
 
 busElementsfromTransitionData = function (transitionData, initialState, postState) {
-  let backgroundPositionX = Math.max(initialState[0], -10);
+  let backgroundPositionX = Math.max(initialState[0], -1 * chunkTime);
   let result       = [];
   let initialTime  = 0;
   let initialValue = initialState[1];
@@ -27,14 +27,14 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
 
   transitionData.forEach(([time, value]) => {
     deltaTime       = time - initialTime;
-    backgroundSizeX = deltaTime - backgroundPositionX;
+    backgroundSizeX = (deltaTime - backgroundPositionX);
     result.push(busElement(deltaTime, initialValue, backgroundPositionX, backgroundSizeX));
     initialTime         = time;
     initialValue        = value;
     backgroundPositionX = 0;
   });
-  deltaTime       = chunkSize - initialTime;
-  backgroundSizeX = (Math.min(postState[0], chunkSize + 10) - initialTime) - backgroundPositionX;
+  deltaTime       = chunkTime - initialTime;
+  backgroundSizeX = (Math.min(postState[0], 2 * chunkTime) - initialTime) - backgroundPositionX;
   result.push(busElement(deltaTime, initialValue, backgroundPositionX, backgroundSizeX));
   return result.join('');
 };
@@ -45,11 +45,11 @@ createWaveformSVG = function (transitionData, initialState, postState, width) {
   const waveOffset = waveHeight + (svgHeight - waveHeight) / 2;
   if (width === 1) {
     return `<div class="waveform-chunk">
-              <svg height="${svgHeight}" width="${chunkSize}" viewbox="0 0 ${chunkSize} ${svgHeight}" class="binary-waveform-svg">
+              <svg height="${svgHeight}" width="${chunkWidth}" viewbox="0 0 ${chunkWidth} ${svgHeight}" class="binary-waveform-svg">
                 <polyline
                   points="${polylinePathFromTransitionData(transitionData, initialState)}"
                   fill="none" stroke="var(--vscode-debugTokenExpression-number)" vector-effect="non-scaling-stroke"
-                  transform="translate(0.5 ${waveOffset}.5) scale(1 -${waveHeight})">
+                  transform="translate(0.5 ${waveOffset}.5) scale(${zoomRatio} -${waveHeight})">
               </svg>
             </div>`;
   } else {
@@ -59,11 +59,11 @@ createWaveformSVG = function (transitionData, initialState, postState, width) {
   }
 };
 
-renderWaveformChunk = function (signalId, chunkIndex, zoomLevel, cacheExists) {
+renderWaveformChunk = function (signalId, chunkIndex) {
   var result         = {};
   const data         = waveformData[signalId];
-  const timeStart    = chunkIndex * chunkSize;
-  const timeEnd      = timeStart + chunkSize;
+  const timeStart    = chunkIndex * chunkTime;
+  const timeEnd      = timeStart + chunkTime;
   const width        = data.signalWidth;
   const startIndex   = data.chunkStart[chunkIndex];
   const endIndex     = data.chunkStart[chunkIndex + 1];
@@ -91,84 +91,87 @@ renderWaveformChunk = function (signalId, chunkIndex, zoomLevel, cacheExists) {
 };
 
 // This function creates ruler elements for a chunk
-createRulerChunk = function (chunkIndex, zoomLevel) {
-  const startTime  = chunkIndex * chunkSize;
-  const endTime    = startTime  + chunkSize;
-  const numberStartpixel = rulerNumberSpacing - (startTime % rulerNumberSpacing);
-  const tickStartpixel   = rulerTickSpacing   - (startTime % rulerTickSpacing);
-  var   numValue         = startTime + numberStartpixel;
-  var elements = [];
+createRulerChunk = function (chunkIndex) {
+  const NumberSpacing    = rulerNumberSpacing / zoomRatio;
+  const startTime        = chunkIndex * chunkTime;
+  const startPixel       = chunkIndex * chunkWidth;
+  const numberStartpixel = rulerNumberSpacing - (startPixel % rulerNumberSpacing);
+  const tickStartpixel   = rulerTickSpacing   - (startPixel % rulerTickSpacing);
+  var   numValue         = startTime + (numberStartpixel / zoomRatio);
+  var   elements         = [];
 
-  for (var i = numberStartpixel; i <= chunkSize; i+= rulerNumberSpacing) {
+  for (var i = numberStartpixel; i <= chunkWidth; i+= rulerNumberSpacing ) {
     elements.push(`<text x="${i}" y="20">${numValue}</text>`);
-    numValue += rulerNumberSpacing;
+    numValue += NumberSpacing;
   }
 
-  for (var i = tickStartpixel; i <= chunkSize; i+= rulerTickSpacing) {
+  for (var i = tickStartpixel; i <= chunkWidth; i+= rulerTickSpacing) {
     elements.push(`<line class="ruler-tick" x1="${i}" y1="30" x2="${i}" y2="35" stroke-width="1" />`);
   }
 
   return `
     <div class="ruler-chunk">
-      <svg height="40" width="${chunkSize}" class="ruler-svg">
-        ${elements.join('')}
-      </svg>
+      <svg height="40" width="${chunkWidth}" class="ruler-svg">${elements.join('')}</svg>
     </div>`;
 };
 
-createBaseChunk = function (chunkIndex, zoomLevel) {
+createBaseChunk = function (chunkIndex) {
   //var chunk = document.createElement('div', {className: 'chunk', style: {width: '100px', height: '100px'}});
   //chunk.appendChild(document.createElement('p', {className: 'chunk-label'}, chunkIndex));
   //return chunk;
   // Eventually we'll account for zoom width
-  let zoomWidth = chunkSize;
-  return `
-    <div class="column-chunk" style="min-width:${zoomWidth}px">
-      <p>Dummy Chunk : ${chunkIndex}</p>
-    </div>`;
+  return `<div class="column-chunk" style="min-width:${chunkWidth}px"></div>`;
 };
 
-addWaveformToCache = function (signalIdList, zoomLevel) {
-  var cacheExists = false;
+addWaveformToCache = function (signalIdList) {
   for (var i = dataCache.startIndex; i < dataCache.endIndex; i++) {
     signalIdList.forEach((signalId) => {
-      dataCache.columns[i].waveformChunk[signalId] = renderWaveformChunk(signalId, i, zoomLevel, cacheExists);
+      dataCache.columns[i].waveformChunk[signalId] = renderWaveformChunk(signalId, i);
     });
-    cacheExists = true;
   }
 };
 
-addChunkToCache = function (chunkIndex, zoomLevel) {
+addChunkToCache = function (chunkIndex) {
 
   console.log('adding chunk to cache at index ' + chunkIndex + '');
-  let zoomWidth = chunkSize;
   let result = {
-    rulerChunk:    createRulerChunk(chunkIndex, zoomLevel),
+    rulerChunk:    createRulerChunk(chunkIndex),
     waveformChunk: {}
   };
   displayedSignals.forEach((signalID) => {
-    result.waveformChunk[signalID] = renderWaveformChunk(signalID, chunkIndex, zoomLevel, true);
+    result.waveformChunk[signalID] = renderWaveformChunk(signalID, chunkIndex);
   });
   return result;
 };
 
 handleZoom = function (amount) {
   console.log('zooming not supported yet: ' + amount + '');
+  // -1 zooms in, +1 zooms out
+  zoomLevel += amount;
+
+  zoomRatio  = Math.pow(2, (-1 * zoomLevel));
+  chunkWidth = chunkTime * zoomRatio;
+
+  for (i = dataCache.startIndex; i < dataCache.endIndex; i++) {
+    dataCache.columns[i] = (addChunkToCache(i));
+  }
+
+  updatePending = true;
+  clusterizeContent.refresh(chunkWidth);
+  //clusterizeContent.render();
 };
 
 // return chunks to be rendered
 handleFetchColumns = function (startIndex, endIndex) {
 
-  let zoomWidth = chunkSize;
-
   if (startIndex < dataCache.startIndex) {
     for (var i = dataCache.startIndex - 1; i >= startIndex; i-=1) {
-      dataCache.columns[i] = (addChunkToCache(i, zoomLevel));
+      dataCache.columns[i] = (addChunkToCache(i));
     }
   }
   if (endIndex > dataCache.endIndex) {
     for (var i = dataCache.endIndex; i < endIndex; i+=1) {
-      dataCache.columns[i] = (addChunkToCache(i, zoomLevel));
+      dataCache.columns[i] = (addChunkToCache(i));
     }
   }
 
@@ -176,7 +179,7 @@ handleFetchColumns = function (startIndex, endIndex) {
   dataCache.endIndex   = Math.max(endIndex,   dataCache.endIndex);
 
   return dataCache.columns.slice(startIndex, endIndex).map(c => {
-    return `<div class="column-chunk" style="width:${zoomWidth}px">
+    return `<div class="column-chunk" style="width:${chunkWidth}px">
       ${c.rulerChunk}
       <div class="waveform-column" style="font-family:monospaced">
         ${displayedSignals.map((signal) => {return c.waveformChunk[signal].html;}).join('')}
@@ -204,14 +207,19 @@ createLabel = function (signalId, signalName) {
 (function () {
   const vscode = acquireVsCodeApi();
 
+  // UI preferences
+  rulerNumberSpacing = 50;
+  rulerTickSpacing   = 10;
+
   // state variables
+  chunkTime          = 512;
+  chunkWidth         = 512;
+  zoomLevel          = 0;
+  zoomRatio          = 1;
+  chunkSample        = 1;
   contentData        = [];
   displayedSignals   = [];
   waveformData       = {};
-  zoomLevel          = 1;
-  viewerScrollLeft   = 0;
-  rulerNumberSpacing = 50;
-  rulerTickSpacing   = 10;
   updatePending      = false;
   dataCache          = {
     startIndex:   0,
@@ -232,10 +240,10 @@ createLabel = function (signalId, signalName) {
   document.addEventListener('DOMContentLoaded', () => {
 
   // Assuming you have a reference to the webview element
-  const webview    = document.getElementById('vaporview-top');
-  const controlBar = document.getElementById('control-bar');
-  const viewer     = document.getElementById('waveform-viewer');
-  const labels     = document.getElementById('waveform-labels');
+  const webview      = document.getElementById('vaporview-top');
+  const controlBar   = document.getElementById('control-bar');
+  const viewer       = document.getElementById('waveform-viewer');
+  const labels       = document.getElementById('waveform-labels');
   const labelsScroll = document.getElementById('waveform-labels-container');
   const scrollArea   = document.getElementById('scrollArea');
   const contentArea  = document.getElementById('contentArea');
@@ -265,6 +273,7 @@ createLabel = function (signalId, signalName) {
     if (event.shiftKey) {
       scrollArea.scrollTop += deltaY;
     } else if (event.ctrlKey) {
+      if      (updatePending) {return;}
       // scroll up zooms in (- deltaY), scroll down zooms out (+ deltaY)
       if      (deltaY > 0) {handleZoom(1);}
       else if (deltaY < 0) {handleZoom(-1);}
@@ -277,11 +286,11 @@ createLabel = function (signalId, signalName) {
   // gets the absolute x position of the click relative to the scrollable content
   scrollArea.addEventListener('click', (event) => {
 
-
     column = event.target.closest('.column-chunk');
+    if (!column) {return;}
+
     console.log(column.getBoundingClientRect());
     console.log(event);
-    if (!column) {return;}
     vscode.postMessage({ 
       command: 'setTime',
       time:    event.offsetX,
@@ -432,18 +441,20 @@ createLabel = function (signalId, signalName) {
         console.log("creating ruler");
         waveformDataSet   = message.waveformDataSet;
         document.title    = waveformDataSet.filename;
-        chunkSize         = waveformDataSet.chunkSize;
+        chunkTime         = waveformDataSet.chunkSize;
         var chunkCount    = Math.ceil(waveformDataSet.timeEnd / waveformDataSet.chunkSize);
         dataCache.columns = new Array(chunkCount);
 
         for (var i = 0; i < chunkCount; i++) {
-          contentData.push(createBaseChunk(i, zoomLevel));
+          contentData.push(createBaseChunk(i));
         }
 
         clusterizeContent  = new Clusterize({
-          columns:      contentData,
-          scrollId:  'scrollArea',
-          contentId: 'contentArea',
+          columnCount:     chunkCount,
+          columnWidth:     chunkTime,
+          columns:         contentData,
+          scrollId:        'scrollArea',
+          contentId:       'contentArea',
           columnsInBlock:  4,
           blocksInCluster: 4,
           callbacks: {
@@ -473,7 +484,7 @@ createLabel = function (signalId, signalName) {
         console.log(displayedSignals);
         console.log(waveformData);
 
-        addWaveformToCache([message.signalId], zoomLevel);
+        addWaveformToCache([message.signalId]);
 
         updatePending    = true;
         clusterizeContent.render();

@@ -196,12 +196,12 @@ body {
   display:     flex;
   align-items: center;
   height: var(--waveform-height);
+  box-sizing: border-box;
 }
 
-.bus-waveform-chunk {
-  display:     flex;
-  align-items: center;
-  height: var(--waveform-height);
+.waveform-chunk.is-selected{
+  border-top: 2px solid var(--vscode-editor-lineHighlightBorder);
+  border-bottom: 2px solid var(--vscode-editor-lineHighlightBorder);
 }
 
 .bus-waveform-value {

@@ -176,6 +176,14 @@ class WaveformTop {
       console.log("${signalID} not in netlist");
     }
   }
+
+  public dispose() {
+    console.log("dispose()");
+    this.netlistElements.clear();
+    this.timeEnd = 0;
+    this.filename = "";
+    this.chunkCount = 0;
+  }
 }
 
 class SignalWaveform {
@@ -412,19 +420,18 @@ export function activate(context: vscode.ExtensionContext) {
   });
   context.subscriptions.push(displayedSignalsView);
 
-  const waveformDataSet = new WaveformTop();
-
   // Status Bar
+  const waveformDataSet = new WaveformTop();
 
   // Create a status bar item for cursor time
   const cursorTimeStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-  cursorTimeStatusBarItem.text = 'time: 0 ' + waveformDataSet.timeUnit;
-  cursorTimeStatusBarItem.show();
+  //cursorTimeStatusBarItem.text = 'time: 0 ' + waveformDataSet.timeUnit;
+  //cursorTimeStatusBarItem.show();
 
   // Create a status bar item for selected signal
   const selectedSignalStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-  selectedSignalStatusBarItem.text = 'Selected signal:';
-  selectedSignalStatusBarItem.show();
+  //selectedSignalStatusBarItem.text = 'Selected signal:';
+  //selectedSignalStatusBarItem.show();
 
   // Commands
 
@@ -443,7 +450,7 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.ViewColumn.One,
       {
         retainContextWhenHidden: true,
-        enableScripts:          true,
+        enableScripts:           true,
         localResourceRoots: [
           vscode.Uri.joinPath(context.extensionUri, 'media'),
           vscode.Uri.joinPath(context.extensionUri, 'node_modules', '@vscode', 'codicons', 'dist'),
@@ -492,8 +499,10 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     panel.onDidDispose(() => {
+      console.log("panel.onDidDispose()");
       // When the panel is closed, clear out the netlist data
       netlistTreeDataProvider.setTreeData([]);
+      waveformViewer.dispose();
     });
 
   }));
@@ -553,12 +562,19 @@ class WaveformViewer {
         }
         case 'setTime': {
           cursorTimeStatusBarItem.text = 'time: ' + message.time + ' ' + this.waveformDataSet.timeUnit;
-          if (message.signal) {
-            selectedSignalStatusBarItem.text = 'Selected signal: ' + message.signal;
+          console.log(message);
+          if (message.signalId) {
             selectedSignalStatusBarItem.show();
+            selectedSignalStatusBarItem.text = 'Selected signal: ' + message.signalId;
           } else {
             selectedSignalStatusBarItem.hide();
           }
+          break;
+        }
+        case 'close-webview' : {
+          // Close the webview
+          this.panel.dispose();
+          break;
         }
       }
     });
@@ -614,8 +630,8 @@ class WaveformViewer {
       <body>
         <div id="vaporview-top">
           <div id="control-bar">
-            <div class="control-bar-button" title="Zoom In (Ctrl + scroll up)" id="zoom-in-button"><div class='codicon codicon-zoom-in' style="font-size:20px"></div></div>
             <div class="control-bar-button" title="Zoom Out (Ctrl + scroll down)" id="zoom-out-button"><div class='codicon codicon-zoom-out' style="font-size:20px"></div></div>
+            <div class="control-bar-button" title="Zoom In (Ctrl + scroll up)" id="zoom-in-button"><div class='codicon codicon-zoom-in' style="font-size:20px"></div></div>
           </div>
           <div id="waveform-labels-container">
             <div id="waveform-labels-spacer" class="ruler-spacer">
@@ -637,6 +653,12 @@ class WaveformViewer {
     `;
 
     return htmlContent;
+  }
+
+  public dispose() {
+    console.log("waveformViewer.dispose()");
+    this.waveformDataSet.dispose();
+    this.context.subscriptions.pop();
   }
 }
 

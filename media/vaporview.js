@@ -39,12 +39,12 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
   return result.join('');
 };
 
-createWaveformSVG = function (transitionData, initialState, postState, width) {
+createWaveformSVG = function (transitionData, initialState, postState, width, chunkIndex, signalId) {
   const svgHeight  = 20;
   const waveHeight = 16;
   const waveOffset = waveHeight + (svgHeight - waveHeight) / 2;
   if (width === 1) {
-    return `<div class="waveform-chunk">
+    return `<div class="waveform-chunk" id="idx${chunkIndex}-${chunkSample}--${signalId}">
               <svg height="${svgHeight}" width="${chunkWidth}" viewbox="0 0 ${chunkWidth} ${svgHeight}" class="binary-waveform-svg">
                 <polyline
                   points="${polylinePathFromTransitionData(transitionData, initialState)}"
@@ -53,7 +53,7 @@ createWaveformSVG = function (transitionData, initialState, postState, width) {
               </svg>
             </div>`;
   } else {
-    return `<div class="bus-waveform-chunk">
+    return `<div class="waveform-chunk" id="idx${chunkIndex}-${chunkSample}--${signalId}">
               ${busElementsfromTransitionData(transitionData, initialState, postState)}
             </div>`;
   }
@@ -86,7 +86,7 @@ renderWaveformChunk = function (signalId, chunkIndex) {
     return [time - timeStart, value];
   });
 
-  result.html = createWaveformSVG(chunkTransitionData, relativeInitialState, relativePostState, width);
+  result.html = createWaveformSVG(chunkTransitionData, relativeInitialState, relativePostState, width, chunkIndex, signalId);
   return result;
 };
 
@@ -188,6 +188,12 @@ handleFetchColumns = function (startIndex, endIndex) {
   });
 };
 
+handleCursorSet = function (time) {
+  // dispose of old cursor
+
+  // create new cursor
+};
+
 uncacheChunks = function (startIndex, endIndex) {
   for (var i = 0; i < startIndex; i++) {
     dataCache.columns[i] = undefined;
@@ -212,6 +218,8 @@ createLabel = function (signalId, signalName) {
   rulerTickSpacing   = 10;
 
   // state variables
+  cursorTime         = null;
+  altCursorTime      = null;
   chunkTime          = 512;
   chunkWidth         = 512;
   zoomLevel          = 0;
@@ -286,14 +294,26 @@ createLabel = function (signalId, signalName) {
   // gets the absolute x position of the click relative to the scrollable content
   scrollArea.addEventListener('click', (event) => {
 
-    column = event.target.closest('.column-chunk');
-    if (!column) {return;}
+    let signalId      = null
+    let chunkIndex    = null;
+    const waveChunkId = event.target.closest('.waveform-chunk');
+    const bounds      = scrollArea.getBoundingClientRect();
+    const pixelLeft   = Math.round(scrollArea.scrollLeft + event.pageX - bounds.left);
+    const time        = Math.round(pixelLeft / zoomRatio);
 
-    console.log(column.getBoundingClientRect());
-    console.log(event);
+    if (waveChunkId) {
+      signalId = waveChunkId.id.split('--').slice(1).join('--');
+    }
+
+    console.log(signalId);
+    console.log(chunkIndex);
+
+    handleCursorSet(time);
+
     vscode.postMessage({ 
       command: 'setTime',
-      time:    event.offsetX,
+      time:     time,
+      signalId: signalId
     });
   });
 

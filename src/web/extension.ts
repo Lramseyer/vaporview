@@ -561,8 +561,12 @@ class WaveformViewer {
           break;
         }
         case 'setTime': {
-          cursorTimeStatusBarItem.text = 'time: ' + message.time + ' ' + this.waveformDataSet.timeUnit;
-          console.log(message);
+          if (message.time) {
+            cursorTimeStatusBarItem.text = 'time: ' + message.time + ' ' + this.waveformDataSet.timeUnit;
+            cursorTimeStatusBarItem.show();
+          } else {
+            cursorTimeStatusBarItem.hide();
+          }
           if (message.signalId) {
             selectedSignalStatusBarItem.show();
             selectedSignalStatusBarItem.text = 'Selected signal: ' + message.signalId;

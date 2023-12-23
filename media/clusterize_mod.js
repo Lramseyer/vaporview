@@ -50,11 +50,19 @@
         : defaults[option];
     }
 
+    self.updateViewportWidth = function() {
+      self.options.viewportWidth = self.scrollElement.getBoundingClientRect().width;
+      if (self.options.callbacks.setViewerWidth) {
+        self.options.callbacks.setViewerWidth(self.options.viewportWidth);
+      }
+    };
+
     self.scrollElement  = data.scrollId  ? document.getElementById(data.scrollId)  : data.scrollElem;
     self.contentElement = data.contentId ? document.getElementById(data.contentId) : data.contentElem;
     if(!self.scrollElement)  {throw new Error("Error! Could not find scroll element");}
     if(!self.contentElement) {throw new Error("Error! Could not find content element");}
-    self.options.viewportWidth = self.scrollElement.getBoundingClientRect().width;
+    self.updateViewportWidth();
+    //self.options.viewportWidth = self.scrollElement.getBoundingClientRect().width;
 
     // tabindex forces the browser to keep focus on the scrolling list, fixes #11
     if( ! self.contentElement.hasAttribute('tabindex')) {
@@ -120,8 +128,12 @@
       }
 
       if (self.scrollElement) {
-        self.options.viewportWidth    = self.scrollElement.getBoundingClientRect().width;
+        self.updateViewportWidth();
+        //self.options.viewportWidth    = self.scrollElement.getBoundingClientRect().width;
         self.scrollElement.scrollLeft = scrollProgress * ((columns.length * columnWidth) - self.options.viewportWidth);
+        //if (self.options.callbacks.setViewerWidth) {
+        //  self.options.callbacks.setViewerWidth(self.options.viewportWidth);
+        //}
       }
     };
     self.update = function(newColumns, columnWidth) {

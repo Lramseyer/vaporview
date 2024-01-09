@@ -30,8 +30,116 @@ body {
   border-bottom: 1px solid var(--vscode-widget-border);
 }
 
+.control-bar-group {
+  align-items: center;
+  display: flex;
+  padding: 0 10px 0 10px;
+}
+
 .control-bar-button {
-  padding: 6px 8px 6px 8px;
+  padding: 2px 2px 2px 2px;
+  margin: 4px 6px 4px 6px;
+  stroke: var(--vscode-icon-foreground);
+  height: 20px;
+  width: 20px;
+  fill: none;
+}
+
+.control-bar-button:hover {
+  background-color: var(--vscode-toolbar-hoverBackground);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.custom-icon {
+  stroke-width: 1px;
+  fill: inherit;
+  user-select: none;
+}
+
+.icon-text {
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-family: "Segoe WPC", "Segoe UI", "sans-serif";
+  font-size: 8px;
+  fill: inherit;
+}
+
+#search-container {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px var(--vscode-input-border);
+  border-radius: 2px;
+  background-color: var(--vscode-input-background);
+  height: 25px;
+}
+
+.search-input {
+  resize: none;
+  width: calc(100% - 44px);
+  height: 23px;
+  font-size: 13px;
+  background-color: inherit;
+  color: var(--vscode-input-foreground);
+  border: none;
+  padding: 2px 6px 2px 6px;
+  font-family: "Segoe WPC", "Segoe UI", sans-serif;
+  box-sizing: border-box;
+}
+
+.search-input {
+
+}
+
+.search-input:focus {
+  border: none;
+  outline: none;
+}
+
+.search-button {
+  height: 20px;
+  width: 20px;
+  fill:  var(--vscode-icon-foreground);
+  margin-right: 2px;
+  box-sizing: border-box;
+}
+
+.search-button:hover {
+  background-color: var(--vscode-toolbar-hoverBackground);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.format-button {
+  padding: 2px 2px 2px 2px;
+  stroke: none;
+  fill: var(--vscode-icon-foreground);
+  height: 20px;
+  width: 20px;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+.format-button:hover {
+  background-color: var(--vscode-toolbar-hoverBackground);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.selected-button {
+  outline: 1px solid var(--vscode-inputOption-activeBorder);
+  border-radius: 4px;
+  color: var(--vscode-inputOption-activeForeground);
+  fill:  var(--vscode-inputOption-activeForeground);
+  background-color: var(--vscode-inputOption-activeBackground);
+}
+
+.disabled-button {
+  color: var(--vscode-disabledForeground);
+  stroke: var(--vscode-disabledForeground);
+  cursor: default;
 }
 
 #waveform-labels-container {
@@ -44,6 +152,13 @@ body {
 
 #waveform-labels-container::-webkit-scrollbar {
   display: none;
+}
+
+#waveform-labels-spacer {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
 }
 
 #resizeBar {
@@ -101,6 +216,10 @@ body {
   min-width: fit-content;
 }
 
+#contentArea:focus-visible {
+  outline: none;
+}
+
 .ruler-chunk {
   position: sticky;
   top: 0;
@@ -119,8 +238,6 @@ body {
 .ruler-svg text {
   text-anchor: middle;
 }
-
-
 
 .waveform-label {
   position:        relative;
@@ -200,8 +317,8 @@ body {
 }
 
 .waveform-chunk.is-selected{
-  border-top: 2px solid var(--vscode-editor-lineHighlightBorder);
-  border-bottom: 2px solid var(--vscode-editor-lineHighlightBorder);
+  border-top: 6px solid var(--vscode-editor-lineHighlightBorder);
+  border-bottom: 6px solid var(--vscode-editor-lineHighlightBorder);
 }
 
 .bus-waveform-value {

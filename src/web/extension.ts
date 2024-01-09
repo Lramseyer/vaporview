@@ -494,7 +494,7 @@ export function activate(context: vscode.ExtensionContext) {
     parseVCDFile(selectedVcdFilePath, netlistTreeDataProvider, waveformDataSet, waveformViewer);
 
     panel.onDidChangeViewState((e) => {
-      console.log("onDidChangeViewState()")
+      console.log("onDidChangeViewState()");
       console.log(e);
     });
 
@@ -514,6 +514,7 @@ class WaveformViewer {
   private waveformDataSet:  WaveformTop;
   private webAssets: {
     diamondUri:   vscode.Uri;
+    svgIconsUri:  vscode.Uri;
     jsFileUri:    vscode.Uri;
     cssFileUri:   vscode.Uri;
     testImageUri: vscode.Uri;
@@ -533,6 +534,7 @@ class WaveformViewer {
 
     this.webAssets = {
       diamondUri:   webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'diamond.svg')),
+      svgIconsUri:  webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'icons.svg')),
       jsFileUri:    webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'vaporview.js')),
       cssFileUri:   webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'style.css')),
       testImageUri: webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'wave_temp.png')),
@@ -569,7 +571,8 @@ class WaveformViewer {
           }
           if (message.signalId) {
             selectedSignalStatusBarItem.show();
-            selectedSignalStatusBarItem.text = 'Selected signal: ' + message.signalId;
+            const signalName = this.waveformDataSet.netlistElements.get(message.signalId)?.name;
+            selectedSignalStatusBarItem.text = 'Selected signal: ' + signalName;
           } else {
             selectedSignalStatusBarItem.hide();
           }
@@ -630,18 +633,133 @@ class WaveformViewer {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link href="${this.webAssets.diamondUri}" rel="diamond.svg" type="image/svg+xml">
+        <link href="${this.webAssets.svgIconsUri}" rel="icons.svg" type="image/svg+xml">
       </head>
       <body>
         <div id="vaporview-top">
           <div id="control-bar">
-            <div class="control-bar-button" title="Zoom Out (Ctrl + scroll down)" id="zoom-out-button"><div class='codicon codicon-zoom-out' style="font-size:20px"></div></div>
-            <div class="control-bar-button" title="Zoom In (Ctrl + scroll up)" id="zoom-in-button"><div class='codicon codicon-zoom-in' style="font-size:20px"></div></div>
+            <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+              <defs>
+                <symbol id="binary-edge" viewBox="0 0 16 16">
+                  <path d="M 2 15 L 6 15 C 8 15 8 15 8 13 L 8 3 C 8 1 8 1 10 1 L 14 1"/>
+                </symbol>
+                <symbol id="binary-edge-alt" viewBox="0 0 16 16">
+                  <path d="M 2 14 L 2 14 L 8 14 L 8 3 C 8 1 8 1 10 1 L 14 1 L 14 2 L 9 2 L 9 13 C 9 15 9 15 7 15 L 2 15 L 2 14">
+                </symbol>
+                <symbol id="bus-edge" viewBox="0 0 16 16">
+                  <polyline points="2,15 5,15 11,1 14,1"/>
+                  <polyline points="2,1 5,1 11,15 14,15"/>
+                </symbol>
+                <symbol id="arrow" viewBox="0 0 16 16">
+                  <polyline points="1,8 8,8"/>
+                  <polyline points="5,5 8,8 5,11"/>
+                </symbol>
+                <symbol id="back-arrow" viewBox="0 0 16 16">
+                  <use href="#arrow" transform="scale(-1, 1) translate(-16, 0)"/>
+                </symbol>
+                <symbol id="next-posedge" viewBox="0 0 16 16">
+                  <use href="#arrow"/>
+                  <use href="#binary-edge" transform="translate(3, 0)"/>
+                </symbol>
+                <symbol id="next-negedge" viewBox="0 0 16 16">
+                  <use href="#arrow"/>
+                  <use href="#binary-edge" transform="translate(3, 16) scale(1, -1)"/>
+                </symbol>
+                <symbol id="next-edge" viewBox="0 0 16 16">
+                  <use href="#arrow"/>
+                  <use href="#bus-edge" transform="translate(3, 0)"/>
+                </symbol>
+                <symbol id="previous-posedge" viewBox="0 0 16 16">
+                  <use href="#back-arrow"/>
+                  <use href="#binary-edge" transform="translate(-3, 0)"/>
+                </symbol>
+                <symbol id="previous-negedge" viewBox="0 0 16 16">
+                  <use href="#back-arrow"/>
+                  <use href="#binary-edge" transform="translate(-3, 16) scale(1, -1)"/>
+                </symbol>
+                <symbol id="previous-edge" viewBox="0 0 16 16">
+                  <use href="#back-arrow"/>
+                  <use href="#bus-edge" transform="translate(-3, 0)"/>
+                </symbol>
+                <symbol id="time-equals" viewBox="0 0 16 16">
+                  <text x="8" y="8" class="icon-text">t=</text>
+                </symbol>
+                <symbol id="search-hex" viewBox="0 0 16 16">
+                  <text x="8" y="8" class="icon-text">hex</text>
+                </symbol>
+                <symbol id="search-binary" viewBox="0 0 16 16">
+                  <text x="8" y="8" class="icon-text">bin</text>
+                </symbol>
+                <symbol id="search-decimal" viewBox="0 0 16 16">
+                  <text x="8" y="8" class="icon-text">dec</text>
+                </symbol>
+                <symbol id="search-enum" viewBox="0 0 16 16">
+                  <text x="8" y="8" class="icon-text">Abc</text>
+                </symbol>
+              </defs>
+            </svg>
+            <div class="control-bar-group">
+              <div class="control-bar-button" title="Zoom Out (Ctrl + scroll down)" id="zoom-out-button">
+                <div class='codicon codicon-zoom-out' style="font-size:20px"></div>
+              </div>
+              <div class="control-bar-button" title="Zoom In (Ctrl + scroll up)" id="zoom-in-button">
+                <div class='codicon codicon-zoom-in' style="font-size:20px"></div>
+              </div>
+            </div>
+            <div class="control-bar-group">
+              <div class="control-bar-button" title="Go To Previous Negative Edge Transition" id="previous-negedge-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#previous-negedge"/></svg>
+              </div>
+              <div class="control-bar-button" title="Go To Previous Positive Edge Transition" id="previous-posedge-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#previous-posedge"/></svg>
+              </div>
+              <div class="control-bar-button" title="Go To Previous Transition (Ctrl + )" id="previous-edge-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#previous-edge"/></svg>
+              </div>
+              <div class="control-bar-button" title="Go To Next Transition (Ctrl + )" id="next-edge-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#next-edge"/></svg>
+              </div>
+              <div class="control-bar-button" title="Go To Next Positive Edge Transition" id="next-posedge-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#next-posedge"/></svg>
+              </div>
+              <div class="control-bar-button" title="Go To Next Negative Edge Transition" id="next-negedge-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#next-negedge"/></svg>
+              </div>
+            </div>
+            <div class="control-bar-group">
+              <div id="search-container">
+                <textarea class="search-input" autocorrect="off" autocapitalize="off" spellcheck="false" wrap="off" aria-label="Find" placeholder="placeholder" title="Find"></textarea>
+                <div class="search-button selected-button" title="Go to Time specified" id="time-equals-button">
+                  <svg class="custom-icon" viewBox="0 0 16 16"><use href="#time-equals"/></svg>
+                </div>
+                <div class="search-button" title="Search by binary value" id="value-equals-button">
+                  <svg class="custom-icon" viewBox="0 0 16 16"><use href="#search-binary"/></svg>
+                </div>
+              </div>
+              <div class="control-bar-button" title="Previous" id="previous-button">
+                <div class='codicon codicon-arrow-left' style="font-size:20px"></div>
+              </div>
+              <div class="control-bar-button" title="Next" id="next-button">
+                <div class='codicon codicon-arrow-right' style="font-size:20px"></div>
+              </div>
+            </div>
           </div>
           <div id="waveform-labels-container">
             <div id="waveform-labels-spacer" class="ruler-spacer">
+              <div class="format-button selected-button" title="Format in Binary" id="format-binary-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#search-binary"/></svg>
+              </div>
+              <div class="format-button" title="Format in Hexidecimal" id="format-hex-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#search-hex"/></svg>
+              </div>
+              <div class="format-button" title="Format in Decimal" id="format-decimal-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#search-decimal"/></svg>
+              </div>
+              <div class="format-button" title="Format as Enumerator (if available)" id="format-enum-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#search-enum"/></svg>
+              </div>
             </div>
-            <div id="waveform-labels">
-            </div>
+            <div id="waveform-labels"> </div>
           </div>
           <div id="resizeBar"></div>
           <div id="scrollArea" class="clusterize-scroll">

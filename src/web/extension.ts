@@ -744,7 +744,7 @@ class WaveformViewer {
               </div>
             </div>
           </div>
-          <div id="waveform-labels-container">
+          <div id="waveform-labels-container" class="labels-container">
             <div id="waveform-labels-spacer" class="ruler-spacer">
               <div class="format-button selected-button" title="Format in Binary" id="format-binary-button">
                 <svg class="custom-icon" viewBox="0 0 16 16"><use href="#search-binary"/></svg>
@@ -761,7 +761,12 @@ class WaveformViewer {
             </div>
             <div id="waveform-labels"> </div>
           </div>
-          <div id="resizeBar"></div>
+          <div id="resize-1" class="resize-bar"></div>
+          <div id="transition-display-container" class="labels-container">
+            <div class="ruler-spacer"></div>
+            <div id="transition-display"></div>
+          </div>
+          <div id="resize-2" class="resize-bar"></div>
           <div id="scrollArea" class="clusterize-scroll">
             <div id="contentArea" class="clusterize-content">
               <div class="clusterize-no-data">Loading data…</div>

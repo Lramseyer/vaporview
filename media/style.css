@@ -18,13 +18,13 @@ body {
   height: 100%;
 
   grid-template-rows:  32px auto;
-  grid-template-columns: 150px 4px auto;
+  grid-template-columns: 150px 4px 50px 4px auto;
 }
 
 #control-bar {
   display: flex;
   grid-column-start: 1;
-  grid-column-end: 4;
+  grid-column-end: 6;
   grid-row-start: 1;
   grid-row-end: 2;
   border-bottom: 1px solid var(--vscode-widget-border);
@@ -142,16 +142,35 @@ body {
   cursor: default;
 }
 
-#waveform-labels-container {
-  grid-column-start: 1;
-  grid-column-end: 2;
-  grid-row-start: 2;
+.selected-button:hover {
+  outline: 1px solid var(--vscode-inputOption-activeBorder);
+  border-radius: 4px;
+  color: var(--vscode-inputOption-activeForeground);
+  fill:  var(--vscode-inputOption-activeForeground);
+  background-color: var(--vscode-inputOption-activeBackground);
+  cursor: default;
+}
+
+.disabled-button:hover {
+  color: var(--vscode-disabledForeground);
+  stroke: var(--vscode-disabledForeground);
+  cursor: default;
+  background-color: var(--vscode-editor-background);
+}
+
+.labels-container {
   overflow: scroll;
   margin-bottom: 10px;
 }
 
-#waveform-labels-container::-webkit-scrollbar {
+.labels-container::-webkit-scrollbar {
   display: none;
+}
+
+#waveform-labels-container {
+  grid-column-start: 1;
+  grid-column-end: 2;
+  grid-row-start: 2;
 }
 
 #waveform-labels-spacer {
@@ -161,16 +180,31 @@ body {
   align-items: center;
 }
 
-#resizeBar {
+.resize-bar {
   border-right: 1px solid var(--vscode-widget-border);
-  grid-column-start: 2;
-  grid-column-end: 3;
-  grid-row-start: 2;
-
   animation-duration: 100ms;
 }
 
-@keyframes highlightResizeBar {
+#resize-1 {
+  grid-column-start: 2;
+  grid-column-end: 3;
+  grid-row-start: 2;
+}
+
+#transition-display-container {
+  grid-column-start: 3;
+  grid-column-end: 4;
+  grid-row-start: 2;
+  color: #b5cea8;
+}
+
+#resize-2 {
+  grid-column-start: 4;
+  grid-column-end: 5;
+  grid-row-start: 2;
+}
+
+@keyframes highlightresize-bar {
   0% {
     border-right: 1px solid var(--vscode-widget-border);
   }
@@ -179,16 +213,16 @@ body {
   }
 }
 
-#resizeBar:hover {
+.resize-bar:hover {
   animation-delay: 500ms;
   animation-iteration-count: 1;
-  animation: highlightResizeBar 100ms forwards;
+  animation: highlightresize-bar 100ms forwards;
   cursor: w-resize;
 }
 
 #scrollArea {
   overflow: auto;
-  grid-column-start: 3;
+  grid-column-start: 5;
   grid-row-start: 2;
 }
 
@@ -239,6 +273,10 @@ body {
   text-anchor: middle;
 }
 
+#waveform-labels {
+  color: var(--vscode-textLink-foreground);
+}
+
 .waveform-label {
   position:        relative;
   will-change:     transform;
@@ -272,7 +310,16 @@ body {
   background-color: var(--vscode-editor-background);
 }
 
+.waveform-label.is-selected:hover .codicon-grabber {
+  opacity: 1;
+  background-color: var(--vscode-editor-background);
+}
+
 .waveform-label.is-idle .codicon-grabber {
+  cursor: grab;
+}
+
+.waveform-label.is-selected .codicon-grabber {
   cursor: grab;
 }
 
@@ -289,8 +336,9 @@ body {
 }
 
 .waveform-label p {
-  color:       var(--vscode-textLink-foreground);
-  margin: 0;
+  margin:      0;
+  white-space: nowrap;
+  color:       inherit;
 }
 
 .ruler-spacer {
@@ -316,7 +364,7 @@ body {
   box-sizing: border-box;
 }
 
-.waveform-chunk.is-selected{
+.is-selected{
   border-top: 6px solid var(--vscode-editor-lineHighlightBorder);
   border-bottom: 6px solid var(--vscode-editor-lineHighlightBorder);
 }

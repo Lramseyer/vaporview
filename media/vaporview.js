@@ -14,9 +14,14 @@ polylinePathFromTransitionData = function (transitionData, initialState) {
 };
 
 busElement = function (time, value, backgroundPositionX, backgroundSizeX) {
-  return `<div class="bus-waveform-value" style="flex:${time};background-position-x:${backgroundPositionX * zoomRatio}px;background-size:${backgroundSizeX * zoomRatio}px">
-    <p>${value}</p>
-  </div>`;
+  const width  = backgroundSizeX * zoomRatio;
+  const divTag = `<div class="bus-waveform-value" style="flex:${time};background-position-x:${backgroundPositionX * zoomRatio}px;background-size:${width}px">`;
+  if (width > 10) {
+    const displayValue = value;
+    return `${divTag}<p>${value}</p></div>`;
+  } else {
+    return `${divTag}</div>`;
+  }
 };
 
 busElementsfromTransitionData = function (transitionData, initialState, postState) {
@@ -131,14 +136,44 @@ createTimeCursor = function (time) {
     </svg>`;
 };
 
+createLabel = function (signalId, signalName, isSelected) {
+  //let selectorClass = 'is-idle';
+  //if (isSelected) {selectorClass = 'is-selected';}
+  selectorClass = isSelected ? 'is-selected' : 'is-idle';
+  return `<div class="waveform-label ${selectorClass}" id="label-${signalId}">
+            <div class='codicon codicon-grabber'></div>
+            <p>${signalName}</p>
+          </div>`;
+};
+
+createValueDisplayElement = function (signalId, value, isSelected) {
+  selectorClass = isSelected ? 'is-selected' : 'is-idle';
+  let displayValue = value.join('->');
+  return `<div class="waveform-label ${selectorClass}" id="value-${signalId}">
+            <p>${displayValue}</p>
+          </div>`;
+};
+
 // cache management functions
+//addWaveformToCache = function (signalIdList) {
+//  for (var i = dataCache.startIndex; i < dataCache.endIndex; i++) {
+//    signalIdList.forEach((signalId) => {
+//      dataCache.columns[i].waveformChunk[signalId] = renderWaveformChunk(signalId, i);
+//    });
+//  }
+//
+//  signalIdList.forEach((signalId) => {
+//    dataCache.valueAtCursor[signalId] = getValueAtTime(signalId, cursorTime);
+//  });
+//};
 
 addWaveformToCache = function (signalIdList) {
-  for (var i = dataCache.startIndex; i < dataCache.endIndex; i++) {
-    signalIdList.forEach((signalId) => {
+  signalIdList.forEach((signalId) => {
+    for (var i = dataCache.startIndex; i < dataCache.endIndex; i++) {
       dataCache.columns[i].waveformChunk[signalId] = renderWaveformChunk(signalId, i);
-    });
-  }
+    }
+    dataCache.valueAtCursor[signalId] = getValueAtTime(signalId, cursorTime);
+  });
 };
 
 // Event handler helper functions
@@ -235,6 +270,7 @@ handleSignalSelect = function (signalId) {
   selectedSignalIndex = displayedSignals.findIndex((signal) => {return signal === signalId;});
   if (selectedSignalIndex === -1) {selectedSignalIndex = null;}
 
+  renderLabelsPanels();
   updateButtonsForSelectedWaveform(waveformData[signalId].signalWidth);
 };
 
@@ -255,6 +291,34 @@ unsetCursor = function () {
   cursorChunkIndex   = null;
   cursorChunkElement = null;
   cursorTime         = null;
+};
+
+getValueAtTime = function (signalId, time) {
+
+  let result = [];
+  if (time === null) {return result;}
+
+  const data        = waveformData[signalId];
+  const chunk       = Math.floor(time / chunkTime);
+  const startIndex  = Math.max(0, data.chunkStart[chunk] - 1);
+  const endIndex    = data.chunkStart[chunk + 1] + 1;
+  const searchIndex = data.transitionData.slice(startIndex, endIndex).findIndex(([t, v]) => {return t >= time;});
+  const transitionIndex = startIndex + searchIndex;
+
+  if (searchIndex === -1) {
+    console.log('search found a -1 index');
+    return result;
+  }
+
+  if (transitionIndex > 0) {
+    result.push(data.transitionData[transitionIndex - 1][1]);
+  }
+
+  if (data.transitionData[transitionIndex][0] === time) {
+    result.push(data.transitionData[transitionIndex][1]);
+  }
+
+  return result;
 };
 
 handleCursorSet = function (time) {
@@ -279,6 +343,17 @@ handleCursorSet = function (time) {
 
   cursorTime = time;
   moveViewToTime(cursorTime);
+
+  // Get values for all displayed signals at the cursor time
+  displayedSignals.forEach((signalId) => {
+    const value = getValueAtTime(signalId, time);
+    dataCache.valueAtCursor[signalId] = value;
+    if (value) {
+      console.log('signal ' + signalId + ' at time ' + time + ' is ' + value + '');
+    }
+  });
+
+  renderLabelsPanels();
 };
 
 isInView = function(time) {
@@ -302,6 +377,7 @@ goToNextTransition = function (direction, edge) {
 
   const data = waveformData[selectedSignal];
   const time = cursorTime;
+  
   let indexIncrement;
 
   if (edge === undefined) {
@@ -353,13 +429,6 @@ handleClusterChanged = function (startIndex, endIndex) {
   }
 };
 
-createLabel = function (signalId, signalName) {
-  return `<div class="waveform-label is-idle" id="label-${signalId}">
-            <div class='codicon codicon-grabber'></div>
-            <p>${signalName}</p>
-          </div>`;
-};
-
 (function () {
   const vscode = acquireVsCodeApi();
 
@@ -386,9 +455,10 @@ createLabel = function (signalId, signalName) {
   waveformData        = {};
   updatePending       = false;
   dataCache           = {
-    startIndex:   0,
-    endIndex:     0,
-    columns:      [],
+    startIndex:     0,
+    endIndex:       0,
+    columns:        [],
+    valueAtCursor:  {}
   };
 
   // drag handler variables
@@ -399,18 +469,21 @@ createLabel = function (signalId, signalName) {
   draggableItemNewIndex = null;
   pointerStartX         = null;
   pointerStartY         = null;
+  resizeIndex           = null;
 
   // Initialize the webview when the document is ready
   document.addEventListener('DOMContentLoaded', () => {
 
   // Assuming you have a reference to the webview element
-  const webview      = document.getElementById('vaporview-top');
-  const controlBar   = document.getElementById('control-bar');
-  const viewer       = document.getElementById('waveform-viewer');
-  const labels       = document.getElementById('waveform-labels');
-  const labelsScroll = document.getElementById('waveform-labels-container');
-  const scrollArea   = document.getElementById('scrollArea');
-  const contentArea  = document.getElementById('contentArea');
+  const webview           = document.getElementById('vaporview-top');
+  const controlBar        = document.getElementById('control-bar');
+  const viewer            = document.getElementById('waveform-viewer');
+  const labels            = document.getElementById('waveform-labels');
+  const transitionDisplay = document.getElementById('transition-display');
+  const labelsScroll      = document.getElementById('waveform-labels-container');
+  const transitionScroll  = document.getElementById('transition-display-container');
+  const scrollArea        = document.getElementById('scrollArea');
+  const contentArea       = document.getElementById('contentArea');
 
   // buttons
   const zoomInButton  = document.getElementById('zoom-in-button');
@@ -433,7 +506,22 @@ createLabel = function (signalId, signalName) {
   const formatDecimal = document.getElementById('format-decimal-button');
   const formatEnum    = document.getElementById('format-enum-button');
 
-  const resizeBar     = document.getElementById("resizeBar");
+  const resize1       = document.getElementById("resize-1");
+  const resize2       = document.getElementById("resize-2");
+  webview.style.gridTemplateColumns = `150px 4px 50px 4px auto`;
+
+  renderLabelsPanels = function () {
+    let labelsList  = [];
+    let transitions = [];
+    let isSelected  = false;
+    displayedSignals.forEach((signalId, index) => {
+      isSelected = (index === selectedSignalIndex);
+      labelsList.push(createLabel(signalId, waveformData[signalId].name, isSelected));
+      transitions.push(createValueDisplayElement(signalId, dataCache.valueAtCursor[signalId], isSelected));
+    });
+    labels.innerHTML = labelsList.join('');
+    transitionDisplay.innerHTML = transitions.join('');
+  };
 
   setButtonState = function (buttonId, state) {
     if (state === 0) {
@@ -499,18 +587,20 @@ createLabel = function (signalId, signalName) {
   handleFormatSelect = function (button) {
     console.log('formatting not supported yet: ' + button + '');
     // 0 = binary, 1 = hex, 2 = decimal, 3 = enum
-    if (button === 0) {
+    if (button === 2) {
       setButtonState(formatBinary, 2);
       setButtonState(formatHex, 1);
       setButtonState(formatDecimal, 1);
-    } else if (button === 1) {
+    } else if (button === 16) {
       setButtonState(formatBinary, 1);
       setButtonState(formatHex, 2);
       setButtonState(formatDecimal, 1);
-    } else if (button === 2) {
+    } else if (button === 10) {
       setButtonState(formatBinary, 1);
       setButtonState(formatHex, 1);
       setButtonState(formatDecimal, 2);
+    } else {
+      console.log('formatting error: ' + button + '')
     }
   };
 
@@ -540,7 +630,9 @@ createLabel = function (signalId, signalName) {
     //selectedSignal      = displayedSignals[newIndex];
 
     handleSignalSelect(displayedSignals[newIndex]);
-    labels.innerHTML    = labelsList.map((item) => {return item.outerHTML;}).join('');
+    //labels.innerHTML    = labelsList.map((item) => {return item.outerHTML;}).join('');
+
+    renderLabelsPanels();
     clusterizeContent.render();
   }
 
@@ -647,14 +739,32 @@ createLabel = function (signalId, signalName) {
 
   // Scroll handlers to keep the labels and content in sync
   labelsScroll.addEventListener('scroll', (event) => {
+    event.stopPropagation();
     if (scrollArea.scrollTop !== labelsScroll.scrollTop) {
       scrollArea.scrollTop = labelsScroll.scrollTop;
+    }
+    if (transitionScroll.scrollTop !== labelsScroll.scrollTop) { 
+      transitionScroll.scrollTop = labelsScroll.scrollTop;
+    }
+  });
+
+  transitionScroll.addEventListener('scroll', (event) => {
+    event.stopPropagation();
+    if (labelsScroll.scrollTop !== transitionScroll.scrollTop) {
+      labelsScroll.scrollTop = transitionScroll.scrollTop;
+    }
+    if (scrollArea.scrollTop !== transitionScroll.scrollTop) {
+      scrollArea.scrollTop = transitionScroll.scrollTop;
     }
   });
 
   scrollArea.addEventListener('scroll', (event) => {
+    event.stopPropagation();
     if (labelsScroll.scrollTop !== scrollArea.scrollTop) {
       labelsScroll.scrollTop = scrollArea.scrollTop;
+    }
+    if (transitionScroll.scrollTop !== scrollArea.scrollTop) {
+      transitionScroll.scrollTop = scrollArea.scrollTop;
     }
   });
 
@@ -663,7 +773,10 @@ createLabel = function (signalId, signalName) {
     event.preventDefault();
     const deltaY = event.deltaY;
     if (event.shiftKey) {
+      event.stopPropagation();
       scrollArea.scrollTop += deltaY;
+      labelsScroll.scrollTop      = scrollArea.scrollTop;
+      transitionScroll.scrollTop = scrollArea.scrollTop;
     } else if (event.ctrlKey) {
       if      (updatePending) {return;}
       const bounds      = scrollArea.getBoundingClientRect();
@@ -736,18 +849,33 @@ createLabel = function (signalId, signalName) {
   });
 
   // resize handler to handle resizing
-  function resize(e) {webview.style.gridTemplateColumns = `${e.x}px 4px auto`;}
+  function resize(e) {
+    const gridTemplateColumns = webview.style.gridTemplateColumns;
+    const column1 = parseInt(gridTemplateColumns.split(' ')[0]);
+    const column3 = parseInt(gridTemplateColumns.split(' ')[2]);
 
-  resizeBar.addEventListener("mousedown", (event) => {
+    if (resizeIndex === 2) {
+      webview.style.gridTemplateColumns = `${e.x}px 4px ${column3}px 4px auto`;
+    } else if (resizeIndex === 4) {
+      const newWidth =   Math.max(10, e.x - (column1 + 4));
+      webview.style.gridTemplateColumns = `${column1}px 4px ${newWidth}px 4px auto`;
+    }
+  };
+
+  function handleResizeMousedown(event, resizeElement, index) {
+    resizeIndex = index;
     event.preventDefault();
-    resizeBar.style.borderRight = '4px solid var(--vscode-sash-hoverBorder)';
+    resizeElement.style.borderRight = '4px solid var(--vscode-sash-hoverBorder)';
     document.addEventListener("mousemove", resize, false);
     document.addEventListener("mouseup", () => {
       document.removeEventListener("mousemove", resize, false);
-      resizeBar.style.borderRight = '1px solid var(--vscode-widget-border)';
+      resizeElement.style.borderRight = '1px solid var(--vscode-widget-border)';
     }, false);
-  });
-
+  };
+  
+  resize1.addEventListener("mousedown", (event) => {handleResizeMousedown(event, resize1, 2);});
+  resize2.addEventListener("mousedown", (event) => {handleResizeMousedown(event, resize2, 4);});
+  
   // Control bar button event handlers
   zoomInButton.addEventListener( 'click', (event) => {handleZoom(-1);});
   zoomOutButton.addEventListener('click', (event) => {handleZoom(1);});
@@ -761,9 +889,9 @@ createLabel = function (signalId, signalName) {
   valueEquals.addEventListener(  'click', (event) => {handleSearchButtonSelect(1);});
 
   // format button event handlers
-  formatBinary.addEventListener( 'click', (event) => {handleFormatSelect(0);});
-  formatHex.addEventListener(    'click', (event) => {handleFormatSelect(1);});
-  formatDecimal.addEventListener('click', (event) => {handleFormatSelect(2);});
+  formatBinary.addEventListener( 'click', (event) => {handleFormatSelect(2);});
+  formatHex.addEventListener(    'click', (event) => {handleFormatSelect(16);});
+  formatDecimal.addEventListener('click', (event) => {handleFormatSelect(10);});
   formatEnum.addEventListener(   'click', (event) => {toggleButtonState(formatEnum);});
 
   // click and drag handlers to rearrange the order of waveform signals
@@ -817,13 +945,14 @@ createLabel = function (signalId, signalName) {
         displayedSignals.push(message.signalId);
         waveformData[message.signalId] = message.waveformData;
 
-        var childElement = createLabel(message.signalId, message.waveformData.name);
-        labels.innerHTML = labels.innerHTML + childElement;
+        //var childElement = createLabel(message.signalId, message.waveformData.name);
+        //labels.innerHTML = labels.innerHTML + childElement;
 
         console.log(displayedSignals);
         console.log(waveformData);
 
         addWaveformToCache([message.signalId]);
+        renderLabelsPanels();
 
         updatePending    = true;
         clusterizeContent.render();

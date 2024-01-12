@@ -105,6 +105,7 @@
     },
     resizeDebounce = 0,
     resizeEv = function() {
+      console.log('resize');
       clearTimeout(resizeDebounce);
       resizeDebounce = setTimeout(self.refresh, 100);
     };
@@ -120,8 +121,10 @@
     self.refresh = function(columnWidth) {
       const prevColumnWidth    = self.options.columnWidth;
       const scrollProgress     = self.getScrollProgress();
-      self.options.columnWidth = columnWidth;
-      
+      if (columnWidth) {
+        self.options.columnWidth = columnWidth;
+      }
+
       if (prevColumnWidth !== columnWidth) {
         self.update(columns);
         self.getChunksWidth(columns);

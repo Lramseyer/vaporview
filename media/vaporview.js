@@ -1,5 +1,50 @@
 // Rendering Herlper functions
 
+// Parse VCD values into either binary, hex, or decimal
+// This function is so cursed...
+parseValue = function (binaryString, width, is4State) {
+
+  let stringArray;
+
+  if (numberFormat === 2) {
+    return binaryString.replace(/\B(?=(\d{4})+(?!\d))/g, "_");
+  }
+
+  if (numberFormat === 16) {
+    if (is4State) {
+      stringArray = binaryString.replace(/\B(?=(\d{4})+(?!\d))/g, "_").split("_");
+      return stringArray.map((chunk) => {
+        if (chunk.match(/[zZ]/)) {return "Z";}
+        if (chunk.match(/[xX]/)) {return "X";}
+        return parseInt(chunk, 2).toString(numberFormat);
+      }).join('').replace(/\B(?=(\d{4})+(?!\d))/g, "_");
+    } else {
+      stringArray = binaryString.replace(/\B(?=(\d{16})+(?!\d))/g, "_").split("_");
+      return stringArray.map((chunk) => {
+        let digits = Math.ceil(chunk.length / 4);
+        return parseInt(chunk, 2).toString(numberFormat).padStart(digits, '0');
+      }).join('_');
+    }
+  }
+
+  let xzMask = "";
+  let numericalData = binaryString;
+
+  if (numberFormat === 10) {
+    if (is4State) {
+      numericalData = binaryString.replace(/[XZ]/i, "0");
+      xzMask = '|' +  binaryString.replace(/[01]/g, "0");
+    }
+    stringArray = numericalData.replace(/\B(?=(\d{32})+(?!\d))/g, "_").split("_");
+    return stringArray.map((chunk) => {return parseInt(chunk, 2).toString(numberFormat);}).join('_') + xzMask;
+  }
+};
+
+valueIs4State = function (value) {
+  if (value.match(/[xXzZ]/)) {return true;}
+  else {return false;}
+};
+
 polylinePathFromTransitionData = function (transitionData, initialState) {
   var initialValue    = initialState[1];
   var accumulatedPath = "-1," + initialValue + " ";
@@ -13,18 +58,20 @@ polylinePathFromTransitionData = function (transitionData, initialState) {
   return accumulatedPath;
 };
 
-busElement = function (time, value, backgroundPositionX, backgroundSizeX) {
-  const width  = backgroundSizeX * zoomRatio;
-  const divTag = `<div class="bus-waveform-value" style="flex:${time};background-position-x:${backgroundPositionX * zoomRatio}px;background-size:${width}px">`;
-  if (width > 10) {
-    const displayValue = value;
-    return `${divTag}<p>${value}</p></div>`;
+busElement = function (time, value, backgroundPositionX, backgroundSizeX, signalWidth) {
+  const backgroundWidth  = backgroundSizeX * zoomRatio;
+  const divTag = `<div class="bus-waveform-value" style="flex:${time};background-position-x:${backgroundPositionX * zoomRatio}px;background-size:${backgroundWidth}px">`;
+  const is4State = valueIs4State(value);
+
+  if (backgroundWidth > 10) {
+    const displayValue = parseValue(value, signalWidth, is4State);
+    return `${divTag}<p>${displayValue}</p></div>`;
   } else {
     return `${divTag}</div>`;
   }
 };
 
-busElementsfromTransitionData = function (transitionData, initialState, postState) {
+busElementsfromTransitionData = function (transitionData, initialState, postState, signalWidth) {
   let backgroundPositionX = Math.max(initialState[0], -1 * chunkTime);
   let result       = [];
   let initialTime  = 0;
@@ -35,14 +82,14 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
   transitionData.forEach(([time, value]) => {
     deltaTime       = time - initialTime;
     backgroundSizeX = (deltaTime - backgroundPositionX);
-    result.push(busElement(deltaTime, initialValue, backgroundPositionX, backgroundSizeX));
+    result.push(busElement(deltaTime, initialValue, backgroundPositionX, backgroundSizeX, signalWidth));
     initialTime         = time;
     initialValue        = value;
     backgroundPositionX = 0;
   });
   deltaTime       = chunkTime - initialTime;
   backgroundSizeX = (Math.min(postState[0], 2 * chunkTime) - initialTime) - backgroundPositionX;
-  result.push(busElement(deltaTime, initialValue, backgroundPositionX, backgroundSizeX));
+  result.push(busElement(deltaTime, initialValue, backgroundPositionX, backgroundSizeX, signalWidth));
   return result.join('');
 };
 
@@ -63,7 +110,7 @@ createWaveformSVG = function (transitionData, initialState, postState, width, ch
             </div>`;
   } else {
     return `<div class="${className}" id="idx${chunkIndex}-${chunkSample}--${signalId}">
-              ${busElementsfromTransitionData(transitionData, initialState, postState)}
+              ${busElementsfromTransitionData(transitionData, initialState, postState, width)}
             </div>`;
   }
 };
@@ -147,27 +194,18 @@ createLabel = function (signalId, signalName, isSelected) {
 };
 
 createValueDisplayElement = function (signalId, value, isSelected) {
-  selectorClass = isSelected ? 'is-selected' : 'is-idle';
-  let displayValue = value.join('->');
+  selectorClass      = isSelected ? 'is-selected' : 'is-idle';
+  const joinString   = '<p style="color:var(--vscode-foreground)">-></p>';
+  const width        = waveformData[signalId].signalWidth;
+  const displayValue = value.map(v => {
+    return parseValue(v, width, valueIs4State(v));
+  }).join(joinString);
+
   return `<div class="waveform-label ${selectorClass}" id="value-${signalId}">
-            <p>${displayValue}</p>
-          </div>`;
+            <p>${displayValue}</p></div>`;
 };
 
-// cache management functions
-//addWaveformToCache = function (signalIdList) {
-//  for (var i = dataCache.startIndex; i < dataCache.endIndex; i++) {
-//    signalIdList.forEach((signalId) => {
-//      dataCache.columns[i].waveformChunk[signalId] = renderWaveformChunk(signalId, i);
-//    });
-//  }
-//
-//  signalIdList.forEach((signalId) => {
-//    dataCache.valueAtCursor[signalId] = getValueAtTime(signalId, cursorTime);
-//  });
-//};
-
-addWaveformToCache = function (signalIdList) {
+updateWaveformInCache = function (signalIdList) {
   signalIdList.forEach((signalId) => {
     for (var i = dataCache.startIndex; i < dataCache.endIndex; i++) {
       dataCache.columns[i].waveformChunk[signalId] = renderWaveformChunk(signalId, i);
@@ -178,7 +216,7 @@ addWaveformToCache = function (signalIdList) {
 
 // Event handler helper functions
 
-addChunkToCache = function (chunkIndex) {
+updateChunkInCache = function (chunkIndex) {
 
   console.log('adding chunk to cache at index ' + chunkIndex + '');
 
@@ -188,8 +226,8 @@ addChunkToCache = function (chunkIndex) {
     overlays:      []
   };
 
-  displayedSignals.forEach((signalID) => {
-    result.waveformChunk[signalID] = renderWaveformChunk(signalID, chunkIndex);
+  displayedSignals.forEach((signalId) => {
+    result.waveformChunk[signalId] = renderWaveformChunk(signalId, chunkIndex);
   });
 
   if (cursorChunkIndex === chunkIndex) {
@@ -199,7 +237,6 @@ addChunkToCache = function (chunkIndex) {
 };
 
 handleZoom = function (amount) {
-  console.log('zooming not supported yet: ' + amount + '');
   // -1 zooms in, +1 zooms out
   zoomLevel += amount;
 
@@ -207,7 +244,7 @@ handleZoom = function (amount) {
   chunkWidth = chunkTime * zoomRatio;
 
   for (i = dataCache.startIndex; i < dataCache.endIndex; i++) {
-    dataCache.columns[i] = (addChunkToCache(i));
+    dataCache.columns[i] = (updateChunkInCache(i));
   }
 
   updatePending = true;
@@ -220,12 +257,12 @@ handleFetchColumns = function (startIndex, endIndex) {
 
   if (startIndex < dataCache.startIndex) {
     for (var i = dataCache.startIndex - 1; i >= startIndex; i-=1) {
-      dataCache.columns[i] = (addChunkToCache(i));
+      dataCache.columns[i] = (updateChunkInCache(i));
     }
   }
   if (endIndex > dataCache.endIndex) {
     for (var i = dataCache.endIndex; i < endIndex; i+=1) {
-      dataCache.columns[i] = (addChunkToCache(i));
+      dataCache.columns[i] = (updateChunkInCache(i));
     }
   }
 
@@ -346,11 +383,7 @@ handleCursorSet = function (time) {
 
   // Get values for all displayed signals at the cursor time
   displayedSignals.forEach((signalId) => {
-    const value = getValueAtTime(signalId, time);
-    dataCache.valueAtCursor[signalId] = value;
-    if (value) {
-      console.log('signal ' + signalId + ' at time ' + time + ' is ' + value + '');
-    }
+    dataCache.valueAtCursor[signalId] = getValueAtTime(signalId, time);
   });
 
   renderLabelsPanels();
@@ -450,6 +483,8 @@ handleClusterChanged = function (startIndex, endIndex) {
   zoomRatio           = 1;
   chunkSample         = 1;
   viewerWidth         = 0;
+  numberFormat        = 2;
+  bitChunkWidth       = 4;
   contentData         = [];
   displayedSignals    = [];
   waveformData        = {};
@@ -506,6 +541,7 @@ handleClusterChanged = function (startIndex, endIndex) {
   const formatDecimal = document.getElementById('format-decimal-button');
   const formatEnum    = document.getElementById('format-enum-button');
 
+  // resize elements
   const resize1       = document.getElementById("resize-1");
   const resize2       = document.getElementById("resize-2");
   webview.style.gridTemplateColumns = `150px 4px 50px 4px auto`;
@@ -585,23 +621,33 @@ handleClusterChanged = function (startIndex, endIndex) {
   };
 
   handleFormatSelect = function (button) {
-    console.log('formatting not supported yet: ' + button + '');
-    // 0 = binary, 1 = hex, 2 = decimal, 3 = enum
+    numberFormat = button;
     if (button === 2) {
+      bitChunkWidth = 4;
       setButtonState(formatBinary, 2);
       setButtonState(formatHex, 1);
       setButtonState(formatDecimal, 1);
     } else if (button === 16) {
+      bitChunkWidth = 16;
       setButtonState(formatBinary, 1);
       setButtonState(formatHex, 2);
       setButtonState(formatDecimal, 1);
     } else if (button === 10) {
+      bitChunkWidth = 32;
       setButtonState(formatBinary, 1);
       setButtonState(formatHex, 1);
       setButtonState(formatDecimal, 2);
     } else {
+      numberFormat  = 2;
+      bitChunkWidth = 4;
       console.log('formatting error: ' + button + '')
     }
+
+    let updateSignals = displayedSignals.filter((signalId) => {return waveformData[signalId].signalWidth > 1;});
+    updatePending     = true;
+    updateWaveformInCache(updateSignals);
+    renderLabelsPanels();
+    clusterizeContent.render();
   };
 
   // Event handler helper functions
@@ -622,16 +668,9 @@ handleClusterChanged = function (startIndex, endIndex) {
     }
 
     updatePending = true;
-
     arrayMove(displayedSignals, oldIndex, newIndex);
     arrayMove(labelsList,       oldIndex, newIndex);
-
-    //selectedSignalIndex = newIndex;
-    //selectedSignal      = displayedSignals[newIndex];
-
     handleSignalSelect(displayedSignals[newIndex]);
-    //labels.innerHTML    = labelsList.map((item) => {return item.outerHTML;}).join('');
-
     renderLabelsPanels();
     clusterizeContent.render();
   }
@@ -951,7 +990,7 @@ handleClusterChanged = function (startIndex, endIndex) {
         console.log(displayedSignals);
         console.log(waveformData);
 
-        addWaveformToCache([message.signalId]);
+        updateWaveformInCache([message.signalId]);
         renderLabelsPanels();
 
         updatePending    = true;
@@ -970,8 +1009,9 @@ handleClusterChanged = function (startIndex, endIndex) {
         } else {
           displayedSignals.splice(index, 1);
           //document.getElementById('label-' + message.signalId).outerHTML = "";
-          document.getElementById('label-' + message.signalId).remove();
+          //document.getElementById('label-' + message.signalId).remove();
           updatePending    = true;
+          renderLabelsPanels();
           clusterizeContent.render();
         }
 

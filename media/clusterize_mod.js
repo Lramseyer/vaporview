@@ -121,6 +121,7 @@
     self.refresh = function(columnWidth) {
       const prevColumnWidth    = self.options.columnWidth;
       const scrollProgress     = self.getScrollProgress();
+
       if (columnWidth) {
         self.options.columnWidth = columnWidth;
       }
@@ -133,7 +134,9 @@
       if (self.scrollElement) {
         self.updateViewportWidth();
         //self.options.viewportWidth    = self.scrollElement.getBoundingClientRect().width;
-        self.scrollElement.scrollLeft = scrollProgress * ((columns.length * columnWidth) - self.options.viewportWidth);
+        if ((columnWidth) && (columnWidth !== prevColumnWidth)) {
+          self.scrollElement.scrollLeft = scrollProgress * ((columns.length * self.options.columnWidth) - self.options.viewportWidth);
+        }
         //if (self.options.callbacks.setViewerWidth) {
         //  self.options.callbacks.setViewerWidth(self.options.viewportWidth);
         //}

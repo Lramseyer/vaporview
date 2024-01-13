@@ -1,3 +1,6 @@
+(function () {
+  const vscode = acquireVsCodeApi();
+
 // Rendering Herlper functions
 
 // Parse VCD values into either binary, hex, or decimal
@@ -45,23 +48,11 @@ valueIs4State = function (value) {
   else {return false;}
 };
 
-polylinePathFromTransitionData = function (transitionData, initialState) {
-  var initialValue    = initialState[1];
-  var accumulatedPath = "-1," + initialValue + " ";
-  transitionData.forEach(([time, value]) => {
-    if (value === "x") {value = 0;}
-    accumulatedPath += time + "," + initialValue + " ";
-    accumulatedPath += time + "," + value + " ";
-    initialValue = value;
-  });
-  accumulatedPath += chunkTime + "," + initialValue;
-  return accumulatedPath;
-};
-
 busElement = function (time, value, backgroundPositionX, backgroundSizeX, signalWidth) {
   const backgroundWidth  = backgroundSizeX * zoomRatio;
-  const divTag = `<div class="bus-waveform-value" style="flex:${time};background-position-x:${backgroundPositionX * zoomRatio}px;background-size:${backgroundWidth}px">`;
   const is4State = valueIs4State(value);
+  const color    = is4State ? 'background-color:var(--vscode-debugTokenExpression-error)' : '';
+  const divTag   = `<div class="bus-waveform-value" style="flex:${time};-webkit-mask-position:${backgroundPositionX * zoomRatio}px;-webkit-mask-size:${backgroundWidth}px;${color}">`;
 
   if (backgroundWidth > 10) {
     const displayValue = parseValue(value, signalWidth, is4State);
@@ -93,20 +84,72 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
   return result.join('');
 };
 
-createWaveformSVG = function (transitionData, initialState, postState, width, chunkIndex, signalId) {
+
+//polylinePathFromTransitionData = function (transitionData, initialState, polylineAttributes) {
+//  var result          = [];
+//  var xzPolylines     = [];
+//  var initialValue    = initialState[1];
+//  var accumulatedPath = "-1," + initialValue + " ";
+//  var xzAccumulatedPath = "";
+//  if (initialValue === "x" | initialValue === "z") {
+//    xzAccumulatedPath = "-1,0 -1,1 ";
+//  }
+//  transitionData.forEach(([time, value]) => {
+//    if (initialValue === "x" | value === "z") {
+//      xzAccumulatedPath += time + ",1 " + time + ",0 ";
+//      xzPolylines.push(`<polyline points="${xzAccumulatedPath}" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+//      xzAccumulatedPath = "";
+//    }
+//    if (value === "x" | value === "z") {
+//      value = 0;
+//    } else {
+//      accumulatedPath += time + "," + initialValue + " ";
+//      accumulatedPath += time + "," + value + " ";
+//    }
+//    initialValue = value;
+//  });
+//  if (xzAccumulatedPath !== "") {
+//    xzAccumulatedPath += chunkTime + ",1";
+//    xzPolylines.push(`<polyline points="${xzAccumulatedPath}" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+//  }
+//
+//  accumulatedPath += chunkTime + "," + initialValue;
+//  return `<polyline points="` + accumulatedPath + `" ${polylineAttributes}/>` + xzPolylines.join('');
+//};
+
+polylinePathFromTransitionData = function (transitionData, initialState, polylineAttributes) {
+  var initialValue    = initialState[1];
+  var accumulatedPath = "-1," + initialValue + " ";
+  transitionData.forEach(([time, value]) => {
+    if (value === "x") {value = 0;}
+    accumulatedPath += time + "," + initialValue + " ";
+    accumulatedPath += time + "," + value + " ";
+    initialValue = value;
+  });
+  accumulatedPath += chunkTime + "," + initialValue;
+  return `<polyline points="` + accumulatedPath + `" ${polylineAttributes}>`;
+};
+
+binaryElementFromTransitionData = function (transitionData, initialState) {
   const svgHeight  = 20;
   const waveHeight = 16;
   const waveOffset = waveHeight + (svgHeight - waveHeight) / 2;
+  const polylineAttributes = `stroke="var(--vscode-debugTokenExpression-number)"`;
+  const gAttributes = `fill="none" transform="translate(0.5 ${waveOffset}.5) scale(${zoomRatio} -${waveHeight})"`;
+  let result = '';
+  result += `<svg height="${svgHeight}" width="${chunkWidth}" viewbox="0 0 ${chunkWidth} ${svgHeight}" class="binary-waveform-svg">`;
+  result += `<g ${gAttributes}>`;
+  result += polylinePathFromTransitionData(transitionData, initialState, polylineAttributes);
+  result += `</g></svg>`;
+  return result;
+};
+
+createWaveformSVG = function (transitionData, initialState, postState, width, chunkIndex, signalId) {
   let className    = 'waveform-chunk';
   if (signalId === selectedSignal) {className += ' is-selected';}
   if (width === 1) {
     return `<div class="${className}" id="idx${chunkIndex}-${chunkSample}--${signalId}">
-              <svg height="${svgHeight}" width="${chunkWidth}" viewbox="0 0 ${chunkWidth} ${svgHeight}" class="binary-waveform-svg">
-                <polyline
-                  points="${polylinePathFromTransitionData(transitionData, initialState)}"
-                  fill="none" stroke="var(--vscode-debugTokenExpression-number)" vector-effect="non-scaling-stroke"
-                  transform="translate(0.5 ${waveOffset}.5) scale(${zoomRatio} -${waveHeight})">
-              </svg>
+              ${binaryElementFromTransitionData(transitionData, initialState)}
             </div>`;
   } else {
     return `<div class="${className}" id="idx${chunkIndex}-${chunkSample}--${signalId}">
@@ -238,9 +281,8 @@ updateChunkInCache = function (chunkIndex) {
 
 handleZoom = function (amount) {
   // -1 zooms in, +1 zooms out
-  zoomLevel += amount;
-
-  zoomRatio  = Math.pow(2, (-1 * zoomLevel));
+  // zoomRatio is in pixels per time unit
+  zoomRatio  = zoomRatio * Math.pow(2, (-1 * amount));
   chunkWidth = chunkTime * zoomRatio;
 
   for (i = dataCache.startIndex; i < dataCache.endIndex; i++) {
@@ -306,6 +348,11 @@ handleSignalSelect = function (signalId) {
   selectedSignal      = signalId;
   selectedSignalIndex = displayedSignals.findIndex((signal) => {return signal === signalId;});
   if (selectedSignalIndex === -1) {selectedSignalIndex = null;}
+
+  vscode.postMessage({
+    command: 'setSelectedSignal',
+    signalId: signalId
+  });
 
   renderLabelsPanels();
   updateButtonsForSelectedWaveform(waveformData[signalId].signalWidth);
@@ -386,6 +433,11 @@ handleCursorSet = function (time) {
     dataCache.valueAtCursor[signalId] = getValueAtTime(signalId, time);
   });
 
+  vscode.postMessage({
+    command: 'setTime',
+    time:    time.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","),
+  });
+
   renderLabelsPanels();
 };
 
@@ -462,8 +514,6 @@ handleClusterChanged = function (startIndex, endIndex) {
   }
 };
 
-(function () {
-  const vscode = acquireVsCodeApi();
 
   // UI preferences
   rulerNumberSpacing = 50;
@@ -479,7 +529,6 @@ handleClusterChanged = function (startIndex, endIndex) {
   altCursorTime       = null;
   chunkTime           = 512;
   chunkWidth          = 512;
-  zoomLevel           = 0;
   zoomRatio           = 1;
   chunkSample         = 1;
   viewerWidth         = 0;
@@ -877,14 +926,6 @@ handleClusterChanged = function (startIndex, endIndex) {
 
     handleCursorSet(time);
     handleSignalSelect(signalId);
-
-    console.log('click event - time: ' + time + ' signal: ' + signalId + '');
-
-    vscode.postMessage({
-      command: 'setTime',
-      time:     time,
-      signalId: signalId
-    });
   });
 
   // resize handler to handle resizing
@@ -946,8 +987,10 @@ handleClusterChanged = function (startIndex, endIndex) {
         console.log("creating ruler");
         waveformDataSet   = message.waveformDataSet;
         document.title    = waveformDataSet.filename;
-        chunkTime         = waveformDataSet.chunkSize;
-        var chunkCount    = Math.ceil(waveformDataSet.timeEnd / waveformDataSet.chunkSize);
+        chunkTime         = waveformDataSet.chunkTime;
+        zoomRatio         = waveformDataSet.defaultZoom;
+        chunkWidth        = chunkTime * zoomRatio;
+        var chunkCount    = Math.ceil(waveformDataSet.timeEnd / waveformDataSet.chunkTime);
         dataCache.columns = new Array(chunkCount);
 
         for (var i = 0; i < chunkCount; i++) {
@@ -956,7 +999,7 @@ handleClusterChanged = function (startIndex, endIndex) {
 
         clusterizeContent  = new Clusterize({
           columnCount:     chunkCount,
-          columnWidth:     chunkTime,
+          columnWidth:     chunkWidth,
           columns:         contentData,
           scrollId:        'scrollArea',
           contentId:       'contentArea',

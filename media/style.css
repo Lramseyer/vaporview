@@ -195,7 +195,7 @@ body {
   grid-column-start: 3;
   grid-column-end: 4;
   grid-row-start: 2;
-  color: #b5cea8;
+  color: var(--vscode-debugTokenExpression-number);
 }
 
 #resize-2 {
@@ -375,11 +375,13 @@ body {
   width: inherit;
   overflow: hidden;
   user-select: none;
-  background-image: url(diamond.svg);
+  -webkit-mask-image: url(diamond.svg);
+  mask-image: url(diamond.svg);
   background-position-y: center;
   justify-content: center;
   background-repeat: no-repeat;
   height: var(--svg-height);
+  background-color: var(--vscode-debugTokenExpression-number);
 }
 
 .bus-waveform-value p {
@@ -392,6 +394,10 @@ body {
   text-overflow: ellipsis;
   width: inherit;
   margin: 0;
+}
+
+.binary-waveform-svg polyline {
+  vector-effect: non-scaling-stroke;
 }
 
 .time-cursor {

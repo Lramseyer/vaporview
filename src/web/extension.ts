@@ -132,12 +132,13 @@ const VALUE_INDEX  = 1;
 
 class WaveformTop {
   public netlistElements: Map<string, SignalWaveform>;
-  public timeEnd:    number = 0;
-  public filename:   string = "";
-  public chunkSize:  number = BASE_CHUNK_TIME_WINDOW;
-  public chunkCount: number = 0;
-  public timeUnit:   string = "ns";
-  public timeScale:  number = 1;
+  public timeEnd:     number = 0;
+  public filename:    string = "";
+  public chunkTime:   number = BASE_CHUNK_TIME_WINDOW;
+  public chunkCount:  number = 0;
+  public timeScale:   number = 1;
+  public defaultZoom: number = 1;
+  public timeUnit:    string = "ns";
 
   constructor() {
     this.netlistElements = new Map();
@@ -170,7 +171,7 @@ class WaveformTop {
     const waveform = this.netlistElements.get(signalId);
     if (waveform) {
       // Add the transition data to the signal waveform
-      waveform.addTransitionData(transitionData, this.chunkSize);
+      waveform.addTransitionData(transitionData, this.chunkTime);
     } else {
       // Console log an error message if the signal waveform doesn't exist
       console.log("${signalID} not in netlist");
@@ -200,10 +201,10 @@ class SignalWaveform {
     this.transitionData = [];
   }
 
-  public addTransitionData(transitionValue: TransitionData, chunkSize: number) {
+  public addTransitionData(transitionValue: TransitionData, chunkTime: number) {
     const time       = transitionValue[TIME_INDEX];
-    const chunkIndex = Math.floor(time / chunkSize);
-    const previousChunkIndex = Math.floor(this.transitionData[this.transitionData.length - 1][TIME_INDEX] / chunkSize);
+    const chunkIndex = Math.floor(time / chunkTime);
+    const previousChunkIndex = Math.floor(this.transitionData[this.transitionData.length - 1][TIME_INDEX] / chunkTime);
   
     for (let i = previousChunkIndex + 1; i <= chunkIndex; i++) {
       this.chunkStart[i] = this.transitionData.length;
@@ -276,7 +277,11 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
     }
   }
 
+  waveformDataSet.chunkTime   = (BASE_CHUNK_TIME_WINDOW * minTimeStemp) / 4;
+  waveformDataSet.defaultZoom = BASE_CHUNK_TIME_WINDOW / waveformDataSet.chunkTime;
   console.log("minTimeStemp = " + minTimeStemp);
+  console.log("chunkTime = " + waveformDataSet.chunkTime);
+  console.log("defaultZoom = " + waveformDataSet.defaultZoom);
 
   for (const line of lines) {
     // Remove leading and trailing whitespace
@@ -337,7 +342,7 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
       // Extract timestamp
       const timestampMatch = cleanedLine.match(/#(\d+)/);
       if (timestampMatch) {
-        currentTimestamp  = parseInt(timestampMatch[1]) / 1000;
+        currentTimestamp  = parseInt(timestampMatch[1]);
       }
     } else if (cleanedLine.startsWith('b')) {
       // Extract signal value
@@ -425,13 +430,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Create a status bar item for cursor time
   const cursorTimeStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-  //cursorTimeStatusBarItem.text = 'time: 0 ' + waveformDataSet.timeUnit;
-  //cursorTimeStatusBarItem.show();
 
   // Create a status bar item for selected signal
   const selectedSignalStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-  //selectedSignalStatusBarItem.text = 'Selected signal:';
-  //selectedSignalStatusBarItem.show();
 
   // Commands
 
@@ -563,13 +564,16 @@ class WaveformViewer {
           break;
         }
         case 'setTime': {
-          if (message.time) {
+          if (message.time !== null) {
             cursorTimeStatusBarItem.text = 'time: ' + message.time + ' ' + this.waveformDataSet.timeUnit;
             cursorTimeStatusBarItem.show();
           } else {
             cursorTimeStatusBarItem.hide();
           }
-          if (message.signalId) {
+          break;
+        }
+        case 'setSelectedSignal': {
+          if (message.signalId !== null) {
             selectedSignalStatusBarItem.show();
             const signalName = this.waveformDataSet.netlistElements.get(message.signalId)?.name;
             selectedSignalStatusBarItem.text = 'Selected signal: ' + signalName;

@@ -237,7 +237,6 @@ async function parseVCDFile(vcdFilePath: string, netlistTreeDataProvider: Netlis
     // Send a message to the webview to indicate that the VCD file is parsed
     waveformViewer.createTimeRuler();
 
-    vscode.window.showInformationMessage('VCD file parsed successfully');
   } catch (error: any) {
     vscode.window.showErrorMessage('Error reading the VCD file: ' + error.message);
   }
@@ -594,7 +593,6 @@ class WaveformViewer {
   createTimeRuler() {
     // Create and append the time ruler to the viewer
     // Customize and append the time ruler elements
-    vscode.window.showInformationMessage('createtimeRuler()');
     this.panel.webview.postMessage({ 
       command: 'create-ruler',
       waveformDataSet: this.waveformDataSet
@@ -607,7 +605,6 @@ class WaveformViewer {
 
   renderSignal(signalId: string) {
     // Render the signal with the provided ID
-    vscode.window.showInformationMessage('renderSignal()');
     this.panel.webview.postMessage({ 
       command: 'render-signal',
       waveformData: this.waveformDataSet.netlistElements.get(signalId),
@@ -617,7 +614,6 @@ class WaveformViewer {
 
   removeSignal(signalId: string) {
     // Render the signal with the provided ID
-    vscode.window.showInformationMessage('renderSignal()');
     this.panel.webview.postMessage({ 
       command: 'remove-signal',
       signalId: signalId

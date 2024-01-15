@@ -1,9 +1,10 @@
 {
   "name": "vaporview",
   "displayName": "VaporView",
-  "description": "Waveform Viewer for VS code",
-  "version": "0.0.1",
-  "repository": "",
+  "description": "VCD Waveform Viewer for VS code",
+  "icon": "media/logo_512.png",
+  "version": "0.7.8",
+  "repository": "https://github.com/lramseyer/vaporview",
   "engines": {
     "vscode": "^1.83.0"
   },
@@ -41,10 +42,6 @@
       ]
     },
     "commands": [
-      {
-        "command": "vaporview.helloWorld",
-        "title": "Hello World"
-      },
       {
         "command": "vaporview.viewWaveform",
         "title": "View Waveform"

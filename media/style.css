@@ -87,6 +87,7 @@ body {
   padding: 2px 6px 2px 6px;
   font-family: "Segoe WPC", "Segoe UI", sans-serif;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .search-input {

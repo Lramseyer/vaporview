@@ -728,12 +728,12 @@ class WaveformViewer {
             </div>
             <div class="control-bar-group">
               <div id="search-container">
-                <textarea class="search-input" autocorrect="off" autocapitalize="off" spellcheck="false" wrap="off" aria-label="Find" placeholder="placeholder" title="Find"></textarea>
+                <textarea id="search-bar" class="search-input" autocorrect="off" autocapitalize="off" spellcheck="false" wrap="off" aria-label="Find" placeholder="Search" title="Find"></textarea>
                 <div class="search-button selected-button" title="Go to Time specified" id="time-equals-button">
                   <svg class="custom-icon" viewBox="0 0 16 16"><use href="#time-equals"/></svg>
                 </div>
                 <div class="search-button" title="Search by binary value" id="value-equals-button">
-                  <svg class="custom-icon" viewBox="0 0 16 16"><use href="#search-binary"/></svg>
+                  <svg class="custom-icon" viewBox="0 0 16 16"><use id="value-icon-reference" href="#search-binary"/></svg>
                 </div>
               </div>
               <div class="control-bar-button" title="Previous" id="previous-button">

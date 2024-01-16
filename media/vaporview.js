@@ -516,14 +516,17 @@ handleClusterChanged = function (startIndex, endIndex) {
 
 
   // UI preferences
-  rulerNumberSpacing = 50;
+  rulerNumberSpacing = 100;
   rulerTickSpacing   = 10;
 
   // state variables
+  touchpadScrolling   = false;
   selectedSignal      = null;
   selectedSignalIndex = null;
   cursorTime          = null;
   searchState         = 0;
+  searchInFocus       = false;
+  parsedSearchValue   = null;
   cursorChunkElement  = null;
   cursorChunkIndex    = null;
   altCursorTime       = null;
@@ -589,6 +592,11 @@ handleClusterChanged = function (startIndex, endIndex) {
   const formatHex     = document.getElementById('format-hex-button');
   const formatDecimal = document.getElementById('format-decimal-button');
   const formatEnum    = document.getElementById('format-enum-button');
+
+  // Search bar
+  const searchContainer = document.getElementById('search-container');
+  const searchBar     = document.getElementById('search-bar');
+  const valueIconRef  = document.getElementById('value-icon-reference');
 
   // resize elements
   const resize1       = document.getElementById("resize-1");
@@ -659,18 +667,22 @@ handleClusterChanged = function (startIndex, endIndex) {
   };
 
   handleSearchButtonSelect = function (button) {
+    handleSearchBarInFocus(true);
     searchState = button;
     if (searchState === 0) {
       setButtonState(timeEquals, 2);
       setButtonState(valueEquals, 1);
+      setButtonState(previousButton, 0);
     } else if (searchState === 1) {
       setButtonState(timeEquals, 1);
       setButtonState(valueEquals, 2);
+      setButtonState(previousButton, 1);
     }
   };
 
   handleFormatSelect = function (button) {
     numberFormat = button;
+    console.log(valueIconRef);
     if (button === 2) {
       bitChunkWidth = 4;
       setButtonState(formatBinary, 2);
@@ -689,14 +701,103 @@ handleClusterChanged = function (startIndex, endIndex) {
     } else {
       numberFormat  = 2;
       bitChunkWidth = 4;
-      console.log('formatting error: ' + button + '')
+      console.log('formatting error: ' + button + '');
     }
 
     let updateSignals = displayedSignals.filter((signalId) => {return waveformData[signalId].signalWidth > 1;});
     updatePending     = true;
+    handleSearchBarEntry({key: 'none'});
     updateWaveformInCache(updateSignals);
     renderLabelsPanels();
     clusterizeContent.render();
+  };
+
+  checkValidTimeString = function (inputText) {
+    if (inputText.match(/^[0-9]+$/)) {
+      return true;
+    } else {
+      return false;
+    }
+  };
+
+  checkValidBinaryString = function (inputText) {
+    if (inputText.match(/^[01xzXZ]+$/)) {
+      return true;
+    } else {
+      return false;
+    }
+  };
+
+  checkValidHexString = function (inputText) {
+    if (inputText.match(/^[0-9a-fA-FxzXZ]+$/)) {
+      return true;
+    } else {
+      return false;
+    }
+  };
+
+  checkValidDecimalString = function (inputText) {
+    if (inputText.match(/^[0-9xzXZ]+$/)) {
+      return true;
+    } else {
+      return false;
+    }
+  };
+
+  handleSearchBarEntry = function (event) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      // perform the search - finish this code later
+      return;
+    }
+
+    const inputText = searchBar.innerHTML;
+
+    let inputValid = true;
+    // check to see that the input is valid
+    if (searchState === 0) {
+      inputValid = checkValidTimeString(inputText);
+    } else if (searchState === 1) {
+      if      (numberFormat === 2)  {inputValid = checkValidBinaryString(inputText);}
+      else if (numberFormat === 16) {inputValid = checkValidHexString(inputText);} 
+      else if (numberFormat === 10) {inputValid = checkValidDecimalString(inputText);}
+    }
+
+    if (inputValid || inputText === '') {
+      searchContainer.classList.remove('is-invalid');
+    } else {
+      searchContainer.classList.add('is-invalid');
+    }
+
+    if (inputValid && inputText !== '') {
+      setButtonState(previousButton, searchState);
+      setButtonState(nextButton, 1);
+    } else {
+      setButtonState(previousButton, 0);
+      setButtonState(nextButton, 0);
+    }
+  };
+
+  handleSearchGoTo = function (direction) {
+    if (parsedSearchValue === null) {return;}
+    if (searchState === 0 && direction === 1) {
+      handleCursorSet(parseInt(parsedSearchValue));
+    } else {
+      console.log('search not implemented yet');
+    }
+  };
+
+  handleSearchBarInFocus = function (isFocused) {
+    searchInFocus = isFocused;
+    if (isFocused) {
+      if (document.activeElement !== searchBar) {
+        searchBar.focus();
+      }
+      if (searchContainer.classList.contains('is-focused')) {return;}
+      searchContainer.classList.add('is-focused');
+    } else {
+      searchContainer.classList.remove('is-focused');
+    }
   };
 
   // Event handler helper functions
@@ -825,42 +926,24 @@ handleClusterChanged = function (startIndex, endIndex) {
     draggableItem         = null;
   }
 
-  // Scroll handlers to keep the labels and content in sync
-  labelsScroll.addEventListener('scroll', (event) => {
-    event.stopPropagation();
-    if (scrollArea.scrollTop !== labelsScroll.scrollTop) {
-      scrollArea.scrollTop = labelsScroll.scrollTop;
-    }
-    if (transitionScroll.scrollTop !== labelsScroll.scrollTop) { 
-      transitionScroll.scrollTop = labelsScroll.scrollTop;
-    }
-  });
+  function syncVerticalScroll(scrollLevel) {
+    if (updatePending) {return;}
+    updatePending              = true;
+    labelsScroll.scrollTop     = scrollLevel;
+    transitionScroll.scrollTop = scrollLevel;
+    scrollArea.scrollTop       = scrollLevel;
+    updatePending              = false;
+  }
 
-  transitionScroll.addEventListener('scroll', (event) => {
-    event.stopPropagation();
-    if (labelsScroll.scrollTop !== transitionScroll.scrollTop) {
-      labelsScroll.scrollTop = transitionScroll.scrollTop;
-    }
-    if (scrollArea.scrollTop !== transitionScroll.scrollTop) {
-      scrollArea.scrollTop = transitionScroll.scrollTop;
-    }
-  });
-
-  scrollArea.addEventListener('scroll', (event) => {
-    event.stopPropagation();
-    if (labelsScroll.scrollTop !== scrollArea.scrollTop) {
-      labelsScroll.scrollTop = scrollArea.scrollTop;
-    }
-    if (transitionScroll.scrollTop !== scrollArea.scrollTop) {
-      transitionScroll.scrollTop = scrollArea.scrollTop;
-    }
-  });
+  labelsScroll.addEventListener(    'scroll', (e) => {syncVerticalScroll(labelsScroll.scrollTop);});
+  transitionScroll.addEventListener('scroll', (e) => {syncVerticalScroll(transitionScroll.scrollTop);});
+  scrollArea.addEventListener(      'scroll', (e) => {syncVerticalScroll(scrollArea.scrollTop);});
 
   // scroll handler to handle zooming and scrolling
   scrollArea.addEventListener('wheel', (event) => { 
     event.preventDefault();
     const deltaY = event.deltaY;
-    if (event.shiftKey) {
+    if (event.shiftKey && !touchpadScrolling) {
       event.stopPropagation();
       scrollArea.scrollTop += deltaY;
       labelsScroll.scrollTop      = scrollArea.scrollTop;
@@ -877,23 +960,24 @@ handleClusterChanged = function (startIndex, endIndex) {
       else if (deltaY < 0) {handleZoom(-1);}
 
       scrollArea.scrollLeft = (time * zoomRatio) - elementLeft;
-    } else {
+    } else if (!touchpadScrolling){
       scrollArea.scrollLeft += deltaY;
     }
   });
 
   // move handler to handle moving the cursor or selected signal with the arrow keys
   window.addEventListener('keydown', (event) => {
-    event.preventDefault();
+    if (searchInFocus) {return;} 
+    else {event.preventDefault();} 
 
     // left and right arrow keys move the cursor
     // ctrl + left and right arrow keys move the cursor to the next transition
     if ((event.key === 'ArrowRight') && (cursorTime !== null)) {
-      if (event.ctrlKey) {goToNextTransition(1);}
-      else               {handleCursorSet(cursorTime + 1);}
+      if (event.ctrlKey)  {goToNextTransition(1);}
+      else                {handleCursorSet(cursorTime + 1);}
     } else if ((event.key === 'ArrowLeft') && (cursorTime !== null)) {
-      if (event.ctrlKey) {goToNextTransition(-1);}
-      else               {handleCursorSet(cursorTime - 1);}
+      if (event.ctrlKey)  {goToNextTransition(-1);}
+      else                {handleCursorSet(cursorTime - 1);}
 
     // up and down arrow keys move the selected signal
     // alt + up and down arrow keys reorder the selected signal up and down
@@ -953,26 +1037,33 @@ handleClusterChanged = function (startIndex, endIndex) {
     }, false);
   };
   
-  resize1.addEventListener("mousedown", (event) => {handleResizeMousedown(event, resize1, 2);});
-  resize2.addEventListener("mousedown", (event) => {handleResizeMousedown(event, resize2, 4);});
-  
+  resize1.addEventListener("mousedown", (e) => {handleResizeMousedown(e, resize1, 2);});
+  resize2.addEventListener("mousedown", (e) => {handleResizeMousedown(e, resize2, 4);});
+
   // Control bar button event handlers
-  zoomInButton.addEventListener( 'click', (event) => {handleZoom(-1);});
-  zoomOutButton.addEventListener('click', (event) => {handleZoom(1);});
-  prevNegedge.addEventListener(  'click', (event) => {goToNextTransition(-1, '0');});
-  prevPosedge.addEventListener(  'click', (event) => {goToNextTransition(-1, '1');});
-  nextNegedge.addEventListener(  'click', (event) => {goToNextTransition( 1, '0');});
-  nextPosedge.addEventListener(  'click', (event) => {goToNextTransition( 1, '1');});
-  prevEdge.addEventListener(     'click', (event) => {goToNextTransition(-1);});
-  nextEdge.addEventListener(     'click', (event) => {goToNextTransition( 1);});
-  timeEquals.addEventListener(   'click', (event) => {handleSearchButtonSelect(0);});
-  valueEquals.addEventListener(  'click', (event) => {handleSearchButtonSelect(1);});
+  zoomInButton.addEventListener( 'click', (e) => {handleZoom(-1);});
+  zoomOutButton.addEventListener('click', (e) => {handleZoom(1);});
+  prevNegedge.addEventListener(  'click', (e) => {goToNextTransition(-1, '0');});
+  prevPosedge.addEventListener(  'click', (e) => {goToNextTransition(-1, '1');});
+  nextNegedge.addEventListener(  'click', (e) => {goToNextTransition( 1, '0');});
+  nextPosedge.addEventListener(  'click', (e) => {goToNextTransition( 1, '1');});
+  prevEdge.addEventListener(     'click', (e) => {goToNextTransition(-1);});
+  nextEdge.addEventListener(     'click', (e) => {goToNextTransition( 1);});
+
+  // Search bar event handlers
+  searchBar.addEventListener(    'focus', (e) => {handleSearchBarInFocus(true);});
+  searchBar.addEventListener(     'blur', (e) => {handleSearchBarInFocus(false);});
+  searchBar.addEventListener(  'keydown', (e) => {handleSearchBarEntry(e);});
+  timeEquals.addEventListener(   'click', (e) => {handleSearchButtonSelect(0);});
+  valueEquals.addEventListener(  'click', (e) => {handleSearchButtonSelect(1);});
+  previousButton.addEventListener('click', (e) => {handleSearchGoTo(1);});
+  nextButton.addEventListener(    'click', (e) => {handleSearchGoTo(-1);});
 
   // format button event handlers
-  formatBinary.addEventListener( 'click', (event) => {handleFormatSelect(2);});
-  formatHex.addEventListener(    'click', (event) => {handleFormatSelect(16);});
-  formatDecimal.addEventListener('click', (event) => {handleFormatSelect(10);});
-  formatEnum.addEventListener(   'click', (event) => {toggleButtonState(formatEnum);});
+  formatBinary.addEventListener( 'click', (e) => {handleFormatSelect(2);});
+  formatHex.addEventListener(    'click', (e) => {handleFormatSelect(16);});
+  formatDecimal.addEventListener('click', (e) => {handleFormatSelect(10);});
+  formatEnum.addEventListener(   'click', (e) => {toggleButtonState(formatEnum);});
 
   // click and drag handlers to rearrange the order of waveform signals
   labels.addEventListener('mousedown', dragStart);

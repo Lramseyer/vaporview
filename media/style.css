@@ -76,6 +76,14 @@ body {
   height: 25px;
 }
 
+#search-container.is-focused {
+  outline: 1px solid var(--vscode-focusBorder);
+}
+
+#search-container.is-invalid {
+  outline: 1px solid var(--vscode-inputValidation-errorBorder, transparent);
+}
+
 .search-input {
   resize: none;
   width: calc(100% - 44px);
@@ -88,10 +96,6 @@ body {
   font-family: "Segoe WPC", "Segoe UI", sans-serif;
   box-sizing: border-box;
   overflow: hidden;
-}
-
-.search-input {
-
 }
 
 .search-input:focus {

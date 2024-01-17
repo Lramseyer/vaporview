@@ -222,7 +222,7 @@ createTimeCursor = function (time) {
   const x = (time % chunkTime) * zoomRatio;
   return `
     <svg class="time-cursor">
-      <line x1="${x}" y1="0" x2="${x}" y2="100%" stroke="yellow" stroke-dasharray="2 2"/>
+      <line x1="${x}" y1="0" x2="${x}" y2="100%" stroke="var(--vscode-editor-findMatchBackground)" stroke-dasharray="2 2"/>
     </svg>`;
 };
 
@@ -502,7 +502,7 @@ uncacheChunks = function (startIndex, endIndex) {
 // Run after chunks are rendered
 handleClusterChanged = function (startIndex, endIndex) {
 
-  console.log('removing chunk cache from index ' + startIndex + ' to ' + endIndex + '')
+  console.log('removing chunk cache from index ' + startIndex + ' to ' + endIndex + '');
   uncacheChunks(startIndex, endIndex);
 
   if (cursorChunkIndex >= startIndex && cursorChunkIndex < endIndex) {
@@ -593,6 +593,8 @@ handleClusterChanged = function (startIndex, endIndex) {
   const formatDecimal = document.getElementById('format-decimal-button');
   const formatEnum    = document.getElementById('format-enum-button');
 
+  const touchScroll   = document.getElementById('touchpad-scroll-button');
+
   // Search bar
   const searchContainer = document.getElementById('search-container');
   const searchBar     = document.getElementById('search-bar');
@@ -641,6 +643,11 @@ handleClusterChanged = function (startIndex, endIndex) {
     }
   };
 
+  handleTouchScroll = function () {
+    touchpadScrolling = !touchpadScrolling;
+    setButtonState(touchScroll, touchpadScrolling ? 2 : 1);
+  };
+
   setBinaryEdgeButtons = function (selectable) {
     setButtonState(prevNegedge, selectable);
     setButtonState(prevPosedge, selectable);
@@ -672,31 +679,29 @@ handleClusterChanged = function (startIndex, endIndex) {
     if (searchState === 0) {
       setButtonState(timeEquals, 2);
       setButtonState(valueEquals, 1);
-      setButtonState(previousButton, 0);
     } else if (searchState === 1) {
       setButtonState(timeEquals, 1);
       setButtonState(valueEquals, 2);
-      setButtonState(previousButton, 1);
     }
+    handleSearchBarEntry({key: 'none'});
   };
 
   handleFormatSelect = function (button) {
     numberFormat = button;
-    console.log(valueIconRef);
+    setButtonState(formatBinary, 1);
+    setButtonState(formatHex, 1);
+    setButtonState(formatDecimal, 1);
     if (button === 2) {
       bitChunkWidth = 4;
+      valueIconRef.setAttribute('href', '#search-binary');
       setButtonState(formatBinary, 2);
-      setButtonState(formatHex, 1);
-      setButtonState(formatDecimal, 1);
     } else if (button === 16) {
       bitChunkWidth = 16;
-      setButtonState(formatBinary, 1);
+      valueIconRef.setAttribute('href', '#search-hex');
       setButtonState(formatHex, 2);
-      setButtonState(formatDecimal, 1);
     } else if (button === 10) {
       bitChunkWidth = 32;
-      setButtonState(formatBinary, 1);
-      setButtonState(formatHex, 1);
+      valueIconRef.setAttribute('href', '#search-decimal');
       setButtonState(formatDecimal, 2);
     } else {
       numberFormat  = 2;
@@ -714,55 +719,57 @@ handleClusterChanged = function (startIndex, endIndex) {
 
   checkValidTimeString = function (inputText) {
     if (inputText.match(/^[0-9]+$/)) {
+      parsedSearchValue = inputText.replace(/,/g, '');
       return true;
-    } else {
-      return false;
     }
+    else {return false;}
   };
 
   checkValidBinaryString = function (inputText) {
-    if (inputText.match(/^[01xzXZ]+$/)) {
+    if (inputText.match(/^b?[01xzXZdD_]+$/)) {
+      parsedSearchValue = inputText.replace(/_/g, '').replace(/[dD]/g, '.');
       return true;
-    } else {
-      return false;
-    }
+    } 
+    else {return false;}
   };
 
   checkValidHexString = function (inputText) {
-    if (inputText.match(/^[0-9a-fA-FxzXZ]+$/)) {
+    if (inputText.match(/^(0x)?[0-9a-fA-FxzXZ_]+$/)) {
+      parsedSearchValue = inputText.replace(/_/g, '').replace(/^0x/i, '');
       return true;
-    } else {
-      return false;
     }
+    else {return false;}
   };
 
   checkValidDecimalString = function (inputText) {
-    if (inputText.match(/^[0-9xzXZ]+$/)) {
+    if (inputText.match(/^[0-9xzXZ_,]+$/)) {
+      parsedSearchValue = inputText.replace(/,/g, '');
       return true;
-    } else {
-      return false;
+    }
+    else {return false;}
+  };
+
+  handleSearchBarKeyDown = function (event) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleSearchGoTo(1);
+      return;
     }
   };
 
   handleSearchBarEntry = function (event) {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      // perform the search - finish this code later
-      return;
-    }
+    const inputText = searchBar.value;
+    let inputValid  = true;
 
-    const inputText = searchBar.innerHTML;
-
-    let inputValid = true;
     // check to see that the input is valid
-    if (searchState === 0) {
-      inputValid = checkValidTimeString(inputText);
+    if (searchState === 0) {         inputValid = checkValidTimeString(inputText);
     } else if (searchState === 1) {
       if      (numberFormat === 2)  {inputValid = checkValidBinaryString(inputText);}
       else if (numberFormat === 16) {inputValid = checkValidHexString(inputText);} 
       else if (numberFormat === 10) {inputValid = checkValidDecimalString(inputText);}
     }
 
+    // Update UI accordingly
     if (inputValid || inputText === '') {
       searchContainer.classList.remove('is-invalid');
     } else {
@@ -1053,11 +1060,14 @@ handleClusterChanged = function (startIndex, endIndex) {
   // Search bar event handlers
   searchBar.addEventListener(    'focus', (e) => {handleSearchBarInFocus(true);});
   searchBar.addEventListener(     'blur', (e) => {handleSearchBarInFocus(false);});
-  searchBar.addEventListener(  'keydown', (e) => {handleSearchBarEntry(e);});
+  searchBar.addEventListener(  'keydown', (e) => {handleSearchBarKeyDown(e);});
+  searchBar.addEventListener(    'keyup', (e) => {handleSearchBarEntry(e);});
   timeEquals.addEventListener(   'click', (e) => {handleSearchButtonSelect(0);});
   valueEquals.addEventListener(  'click', (e) => {handleSearchButtonSelect(1);});
   previousButton.addEventListener('click', (e) => {handleSearchGoTo(1);});
   nextButton.addEventListener(    'click', (e) => {handleSearchGoTo(-1);});
+  setButtonState(previousButton, 0);
+  touchScroll.addEventListener(   'click', (e) => {handleTouchScroll();});
 
   // format button event handlers
   formatBinary.addEventListener( 'click', (e) => {handleFormatSelect(2);});

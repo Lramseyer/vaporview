@@ -644,7 +644,7 @@ class WaveformViewer {
                   <path d="M 2 15 L 6 15 C 8 15 8 15 8 13 L 8 3 C 8 1 8 1 10 1 L 14 1"/>
                 </symbol>
                 <symbol id="binary-edge-alt" viewBox="0 0 16 16">
-                  <path d="M 2 14 L 2 14 L 8 14 L 8 3 C 8 1 8 1 10 1 L 14 1 L 14 2 L 9 2 L 9 13 C 9 15 9 15 7 15 L 2 15 L 2 14">
+                  <path d="M 2 14 L 2 14 L 8 14 L 8 3 C 8 1 8 1 10 1 L 14 1 L 14 2 L 9 2 L 9 13 C 9 15 9 15 7 15 L 2 15 L 2 14"/>
                 </symbol>
                 <symbol id="bus-edge" viewBox="0 0 16 16">
                   <polyline points="2,15 5,15 11,1 14,1"/>
@@ -696,6 +696,9 @@ class WaveformViewer {
                 <symbol id="search-enum" viewBox="0 0 16 16">
                   <text x="8" y="8" class="icon-text">Abc</text>
                 </symbol>
+                <symbol id="touchpad" viewBox="0 0 16 16">
+                  <path d="M 1 2 L 1 10 C 1 11 2 11 2 11 L 3 11 L 3 10 L 2 10 L 2 2 L 14 2 L 14 10 L 12 10 L 12 11 L 14 11 C 14 11 15 11 15 10 L 15 2 C 15 2 15 1 14 1 L 2 1 C 1 1 1 2 1 2 M 4 14 L 5 14 L 5 11 C 5 10 5 9 6 9 C 7 9 7 10 7 11 L 7 14 L 8 14 L 8 9 C 8 8 8 7 9 7 C 10 7 10 8 10 9 L 10 14 L 11 14 L 11 9 C 11 7 10.5 6 9 6 C 7.5 6 7 7 7 8 L 7 8.5 C 6.917 8.261 6.671 8.006 6 8 C 4.5 8 4 9 4 11 L 4 14"/>
+                </symbol>
               </defs>
             </svg>
             <div class="control-bar-group">
@@ -713,10 +716,10 @@ class WaveformViewer {
               <div class="control-bar-button" title="Go To Previous Positive Edge Transition" id="previous-posedge-button">
                 <svg class="custom-icon" viewBox="0 0 16 16"><use href="#previous-posedge"/></svg>
               </div>
-              <div class="control-bar-button" title="Go To Previous Transition (Ctrl + )" id="previous-edge-button">
+              <div class="control-bar-button" title="Go To Previous Transition (Ctrl + &#8678;)" id="previous-edge-button">
                 <svg class="custom-icon" viewBox="0 0 16 16"><use href="#previous-edge"/></svg>
               </div>
-              <div class="control-bar-button" title="Go To Next Transition (Ctrl + )" id="next-edge-button">
+              <div class="control-bar-button" title="Go To Next Transition (Ctrl + &#8680;)" id="next-edge-button">
                 <svg class="custom-icon" viewBox="0 0 16 16"><use href="#next-edge"/></svg>
               </div>
               <div class="control-bar-button" title="Go To Next Positive Edge Transition" id="next-posedge-button">
@@ -741,6 +744,11 @@ class WaveformViewer {
               </div>
               <div class="control-bar-button" title="Next" id="next-button">
                 <div class='codicon codicon-arrow-right' style="font-size:20px"></div>
+              </div>
+            </div>
+            <div class="control-bar-group">
+              <div class="format-button" title="Enable Touchpad Scrolling" id="touchpad-scroll-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#touchpad"/></svg>
               </div>
             </div>
           </div>

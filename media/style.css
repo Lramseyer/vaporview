@@ -382,6 +382,8 @@ body {
   user-select: none;
   -webkit-mask-image: url(diamond.svg);
   mask-image: url(diamond.svg);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
   background-position-y: center;
   justify-content: center;
   background-repeat: no-repeat;

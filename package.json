@@ -43,7 +43,7 @@
     },
     "customEditors": [
 			{
-				"viewType": "vaporview.waveformView",
+				"viewType": "vaporview.waveformViewer",
 				"displayName": "VaporView",
 				"selector": [
 					{

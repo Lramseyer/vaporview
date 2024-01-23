@@ -5,6 +5,403 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { on } from 'process';
 
+//import { getNonce } from 'util';
+
+/**
+ * Define the type of edits used in paw draw files.
+ */
+interface VaporviewDocumentDelegate {
+  getViewerContext(): Promise<Uint8Array>;
+}
+
+/**
+ * Define the document (the data model) used for paw draw files.
+ */
+class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocument {
+
+
+  static async create(
+    uri: vscode.Uri,
+    backupId: string | undefined,
+    delegate: VaporviewDocumentDelegate,
+  ): Promise<VaporviewDocument | PromiseLike<VaporviewDocument>> {
+    console.log("create()");
+    // If we have a backup, read that. Otherwise read the resource from the workspace
+
+    // Read the VCD file using vscode.workspace.openTextDocument
+    const vcdDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(uri.fsPath));
+    const vcdContent  = vcdDocument.getText();
+
+    const netlistTreeDataProvider = new NetlistTreeDataProvider();
+    const waveformDataSet         = new WaveformTop();
+
+    // Parse the VCD data for this specific file
+    parseVCDData(vcdContent, netlistTreeDataProvider, waveformDataSet);
+    console.log(waveformDataSet.netlistElements);
+    // Optionally, you can refresh the Netlist view
+    netlistTreeDataProvider.refresh();
+
+    return new VaporviewDocument(uri, waveformDataSet, netlistTreeDataProvider, delegate);
+  }
+
+  private readonly _uri: vscode.Uri;
+  private _documentData: WaveformTop;
+  private _netlistTreeDataProvider: NetlistTreeDataProvider;
+  private readonly _delegate: VaporviewDocumentDelegate;
+
+  private constructor(
+    uri: vscode.Uri,
+    waveformData: WaveformTop,
+    _netlistTreeDataProvider: NetlistTreeDataProvider,
+    delegate: VaporviewDocumentDelegate
+  ) {
+    super(() => this.dispose());
+    this._uri = uri;
+    this._documentData = waveformData;
+    this._netlistTreeDataProvider = _netlistTreeDataProvider;
+    this._delegate = delegate;
+  }
+
+  public get uri() { return this._uri; }
+  public get documentData(): WaveformTop { return this._documentData; }
+  public get netlistTreeData(): NetlistTreeDataProvider { return this._netlistTreeDataProvider; }
+
+  //private readonly _onDidDispose = this._register(new vscode.EventEmitter<void>());
+  /**
+   * Fired when the document is disposed of.
+   */
+  //public readonly onDidDispose = this._onDidDispose.event;
+
+  /**
+   * Called by VS Code when there are no more references to the document.
+   *
+   * This happens when all editors for it have been closed.
+   */
+  dispose(): void {
+    //this._onDidDispose.fire();
+    super.dispose();
+  }
+}
+
+class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<VaporviewDocument> {
+
+  private static newViewerId = 1;
+  private static readonly viewType = 'vaporview.waveformViewer';
+
+  /**
+   * Tracks all known webviews
+   */
+  private readonly webviews = new WebviewCollection();
+
+  constructor(
+    private readonly _context: vscode.ExtensionContext
+  ) {}
+
+  //#region CustomEditorProvider
+
+  async openCustomDocument(
+    uri: vscode.Uri,
+    openContext: { backupId?: string },
+    _token: vscode.CancellationToken
+  ): Promise<VaporviewDocument> {
+    console.log("openCustomDocument()");
+    const document: VaporviewDocument = await VaporviewDocument.create(uri, openContext.backupId, {
+      getViewerContext: async () => {
+        const webviewsForDocument = Array.from(this.webviews.get(document.uri));
+        if (!webviewsForDocument.length) {
+          throw new Error('Could not find webview to save for');
+        }
+        const panel    = webviewsForDocument[0];
+        const response = await this.postMessageWithResponse<number[]>(panel, 'getContext', {});
+        return new Uint8Array(response);
+      }
+    });
+
+    return document;
+  }
+
+  async resolveCustomEditor(
+    document: VaporviewDocument,
+    webviewPanel: vscode.WebviewPanel,
+    _token: vscode.CancellationToken
+  ): Promise<void> {
+    console.log("resolveCustomEditor()");
+    // Add the webview to our internal set of active webviews
+    this.webviews.add(document.uri, webviewPanel);
+
+    // Setup initial content for the webview
+    webviewPanel.webview.options = {
+      enableScripts: true,
+    };
+    webviewPanel.webview.html = this.getWebViewContent(webviewPanel.webview);
+
+    //webviewPanel.webview.onDidReceiveMessage(e => this.onMessage(document, e));
+
+    // Wait for the webview to be properly ready before we init
+    webviewPanel.webview.onDidReceiveMessage(e => {
+      console.log(e);
+      console.log(document.uri);
+      if (e.type === 'ready') {
+        if (document.uri.scheme === 'untitled') {
+          console.log("untitled scheme");
+        }
+        webviewPanel.webview.postMessage({
+          command: 'create-ruler',
+          waveformDataSet: document.documentData,
+        });
+      }
+      this.onMessage(document, e);
+    });
+
+  }
+
+  private _requestId = 1;
+  private readonly _callbacks = new Map<number, (response: any) => void>();
+
+  private postMessageWithResponse<R = unknown>(panel: vscode.WebviewPanel, type: string, body: any): Promise<R> {
+    const requestId = this._requestId++;
+    const p = new Promise<R>(resolve => this._callbacks.set(requestId, resolve));
+    panel.webview.postMessage({ type, requestId, body });
+    return p;
+  }
+
+  private onMessage(document: VaporviewDocument, message: any) {
+    switch (message.type) {
+      case 'response':
+        {
+          const callback = this._callbacks.get(message.requestId);
+          callback?.(message.body);
+          return;
+        }
+    }
+  }
+
+    // To do: implement nonce with this HTML:
+  //<script nonce="${nonce}" src="${scriptUri}"></script>
+
+  private getWebViewContent(webview: vscode.Webview): string {
+
+    const extensionUri = this._context.extensionUri;
+
+    const webAssets = {
+      diamondUri:   webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'diamond.svg')),
+      svgIconsUri:  webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'icons.svg')),
+      jsFileUri:    webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'vaporview.js')),
+      cssFileUri:   webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'style.css')),
+      testImageUri: webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'wave_temp.png')),
+      clusterize:   webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'clusterize_mod.js')),
+      codiconsUri:  webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.css')),
+    };
+
+    // Generate the HTML content
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>VaporView - Waveform Viewer</title>
+        <link rel="stylesheet" href="${webAssets.codiconsUri}"/>
+        <link rel="stylesheet" href="${webAssets.cssFileUri}">
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href="${webAssets.diamondUri}" rel="diamond.svg" type="image/svg+xml">
+        <link href="${webAssets.svgIconsUri}" rel="icons.svg" type="image/svg+xml">
+      </head>
+      <body>
+        <div id="vaporview-top">
+          <div id="control-bar">
+            <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+              <defs>
+                <symbol id="binary-edge" viewBox="0 0 16 16">
+                  <path d="M 2 15 L 6 15 C 8 15 8 15 8 13 L 8 3 C 8 1 8 1 10 1 L 14 1"/>
+                </symbol>
+                <symbol id="binary-edge-alt" viewBox="0 0 16 16">
+                  <path d="M 2 14 L 2 14 L 8 14 L 8 3 C 8 1 8 1 10 1 L 14 1 L 14 2 L 9 2 L 9 13 C 9 15 9 15 7 15 L 2 15 L 2 14"/>
+                </symbol>
+                <symbol id="bus-edge" viewBox="0 0 16 16">
+                  <polyline points="2,15 5,15 11,1 14,1"/>
+                  <polyline points="2,1 5,1 11,15 14,15"/>
+                </symbol>
+                <symbol id="arrow" viewBox="0 0 16 16">
+                  <polyline points="1,8 8,8"/>
+                  <polyline points="5,5 8,8 5,11"/>
+                </symbol>
+                <symbol id="back-arrow" viewBox="0 0 16 16">
+                  <use href="#arrow" transform="scale(-1, 1) translate(-16, 0)"/>
+                </symbol>
+                <symbol id="next-posedge" viewBox="0 0 16 16">
+                  <use href="#arrow"/>
+                  <use href="#binary-edge" transform="translate(3, 0)"/>
+                </symbol>
+                <symbol id="next-negedge" viewBox="0 0 16 16">
+                  <use href="#arrow"/>
+                  <use href="#binary-edge" transform="translate(3, 16) scale(1, -1)"/>
+                </symbol>
+                <symbol id="next-edge" viewBox="0 0 16 16">
+                  <use href="#arrow"/>
+                  <use href="#bus-edge" transform="translate(3, 0)"/>
+                </symbol>
+                <symbol id="previous-posedge" viewBox="0 0 16 16">
+                  <use href="#back-arrow"/>
+                  <use href="#binary-edge" transform="translate(-3, 0)"/>
+                </symbol>
+                <symbol id="previous-negedge" viewBox="0 0 16 16">
+                  <use href="#back-arrow"/>
+                  <use href="#binary-edge" transform="translate(-3, 16) scale(1, -1)"/>
+                </symbol>
+                <symbol id="previous-edge" viewBox="0 0 16 16">
+                  <use href="#back-arrow"/>
+                  <use href="#bus-edge" transform="translate(-3, 0)"/>
+                </symbol>
+                <symbol id="time-equals" viewBox="0 0 16 16">
+                  <text x="8" y="8" class="icon-text">t=</text>
+                </symbol>
+                <symbol id="search-hex" viewBox="0 0 16 16">
+                  <text x="8" y="8" class="icon-text">hex</text>
+                </symbol>
+                <symbol id="search-binary" viewBox="0 0 16 16">
+                  <text x="8" y="8" class="icon-text">bin</text>
+                </symbol>
+                <symbol id="search-decimal" viewBox="0 0 16 16">
+                  <text x="8" y="8" class="icon-text">dec</text>
+                </symbol>
+                <symbol id="search-enum" viewBox="0 0 16 16">
+                  <text x="8" y="8" class="icon-text">Abc</text>
+                </symbol>
+                <symbol id="touchpad" viewBox="0 0 16 16">
+                  <path d="M 1 2 L 1 10 C 1 11 2 11 2 11 L 3 11 L 3 10 L 2 10 L 2 2 L 14 2 L 14 10 L 12 10 L 12 11 L 14 11 C 14 11 15 11 15 10 L 15 2 C 15 2 15 1 14 1 L 2 1 C 1 1 1 2 1 2 M 4 14 L 5 14 L 5 11 C 5 10 5 9 6 9 C 7 9 7 10 7 11 L 7 14 L 8 14 L 8 9 C 8 8 8 7 9 7 C 10 7 10 8 10 9 L 10 14 L 11 14 L 11 9 C 11 7 10.5 6 9 6 C 7.5 6 7 7 7 8 L 7 8.5 C 6.917 8.261 6.671 8.006 6 8 C 4.5 8 4 9 4 11 L 4 14"/>
+                </symbol>
+              </defs>
+            </svg>
+            <div class="control-bar-group">
+              <div class="control-bar-button" title="Zoom Out (Ctrl + scroll down)" id="zoom-out-button">
+                <div class='codicon codicon-zoom-out' style="font-size:20px"></div>
+              </div>
+              <div class="control-bar-button" title="Zoom In (Ctrl + scroll up)" id="zoom-in-button">
+                <div class='codicon codicon-zoom-in' style="font-size:20px"></div>
+              </div>
+            </div>
+            <div class="control-bar-group">
+              <div class="control-bar-button" title="Go To Previous Negative Edge Transition" id="previous-negedge-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#previous-negedge"/></svg>
+              </div>
+              <div class="control-bar-button" title="Go To Previous Positive Edge Transition" id="previous-posedge-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#previous-posedge"/></svg>
+              </div>
+              <div class="control-bar-button" title="Go To Previous Transition (Ctrl + &#8678;)" id="previous-edge-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#previous-edge"/></svg>
+              </div>
+              <div class="control-bar-button" title="Go To Next Transition (Ctrl + &#8680;)" id="next-edge-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#next-edge"/></svg>
+              </div>
+              <div class="control-bar-button" title="Go To Next Positive Edge Transition" id="next-posedge-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#next-posedge"/></svg>
+              </div>
+              <div class="control-bar-button" title="Go To Next Negative Edge Transition" id="next-negedge-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#next-negedge"/></svg>
+              </div>
+            </div>
+            <div class="control-bar-group">
+              <div id="search-container">
+                <textarea id="search-bar" class="search-input" autocorrect="off" autocapitalize="off" spellcheck="false" wrap="off" aria-label="Find" placeholder="Search" title="Find"></textarea>
+                <div class="search-button selected-button" title="Go to Time specified" id="time-equals-button">
+                  <svg class="custom-icon" viewBox="0 0 16 16"><use href="#time-equals"/></svg>
+                </div>
+                <div class="search-button" title="Search by binary value" id="value-equals-button">
+                  <svg class="custom-icon" viewBox="0 0 16 16"><use id="value-icon-reference" href="#search-binary"/></svg>
+                </div>
+              </div>
+              <div class="control-bar-button" title="Previous" id="previous-button">
+                <div class='codicon codicon-arrow-left' style="font-size:20px"></div>
+              </div>
+              <div class="control-bar-button" title="Next" id="next-button">
+                <div class='codicon codicon-arrow-right' style="font-size:20px"></div>
+              </div>
+            </div>
+            <div class="control-bar-group">
+              <div class="format-button" title="Enable Touchpad Scrolling" id="touchpad-scroll-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#touchpad"/></svg>
+              </div>
+            </div>
+          </div>
+          <div id="waveform-labels-container" class="labels-container">
+            <div id="waveform-labels-spacer" class="ruler-spacer">
+              <div class="format-button selected-button" title="Format in Binary" id="format-binary-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#search-binary"/></svg>
+              </div>
+              <div class="format-button" title="Format in Hexidecimal" id="format-hex-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#search-hex"/></svg>
+              </div>
+              <div class="format-button" title="Format in Decimal" id="format-decimal-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#search-decimal"/></svg>
+              </div>
+              <div class="format-button" title="Format as Enumerator (if available)" id="format-enum-button">
+                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#search-enum"/></svg>
+              </div>
+            </div>
+            <div id="waveform-labels"> </div>
+          </div>
+          <div id="resize-1" class="resize-bar"></div>
+          <div id="transition-display-container" class="labels-container">
+            <div class="ruler-spacer"></div>
+            <div id="transition-display"></div>
+          </div>
+          <div id="resize-2" class="resize-bar"></div>
+          <div id="scrollArea" class="clusterize-scroll">
+            <div id="contentArea" class="clusterize-content">
+              <div class="clusterize-no-data">Loading data…</div>
+            </div>
+          </div>
+        </div>
+        <script src="${webAssets.clusterize}"></script>
+        <script src="${webAssets.jsFileUri}"></script>
+      </body>
+      </html>
+    `;
+
+    return htmlContent;
+  }
+
+}
+
+/**
+ * Tracks all webviews.
+ */
+class WebviewCollection {
+
+  private readonly _webviews = new Set<{
+    readonly resource: string;
+    readonly webviewPanel: vscode.WebviewPanel;
+  }>();
+
+  /**
+   * Get all known webviews for a given uri.
+   */
+  public *get(uri: vscode.Uri): Iterable<vscode.WebviewPanel> {
+    const key = uri.toString();
+    for (const entry of this._webviews) {
+      if (entry.resource === key) {
+        yield entry.webviewPanel;
+      }
+    }
+  }
+
+  /**
+   * Add a new webview to the collection.
+   */
+  public add(uri: vscode.Uri, webviewPanel: vscode.WebviewPanel) {
+    const entry = { resource: uri.toString(), webviewPanel };
+    this._webviews.add(entry);
+
+    webviewPanel.onDidDispose(() => {
+      this._webviews.delete(entry);
+    });
+  }
+}
+
+
+
+// ------------------------------
+
 class ActivityBarTreeDataProvider implements vscode.TreeDataProvider<ActivityBarItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<ActivityBarItem | undefined> = new vscode.EventEmitter<ActivityBarItem | undefined>();
   readonly onDidChangeTreeData: vscode.Event<ActivityBarItem | undefined> = this._onDidChangeTreeData.event;
@@ -52,6 +449,8 @@ class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistItem> {
     this._onDidChangeTreeData.fire(undefined); // Trigger a refresh of the Netlist view
   }
 
+  public getTreeData(): NetlistItem[] {return this.treeData;}
+
   getTreeItem(element:  NetlistItem): vscode.TreeItem {return element;}
   getChildren(element?: NetlistItem): Thenable<NetlistItem[]> {
     if (element) {return Promise.resolve(element.children);} // Return the children of the selected element
@@ -67,6 +466,14 @@ class DisplayedSignalsViewProvider implements vscode.TreeDataProvider<NetlistIte
   private treeData: NetlistItem[] = [];
   private _onDidChangeTreeData: vscode.EventEmitter<NetlistItem | undefined> = new vscode.EventEmitter<NetlistItem | undefined>();
   readonly onDidChangeTreeData: vscode.Event<NetlistItem | undefined> = this._onDidChangeTreeData.event;
+
+  // Method to set the tree data
+  public setTreeData(netlistItems: NetlistItem[]) {
+    this.treeData = netlistItems;
+    this._onDidChangeTreeData.fire(undefined); // Trigger a refresh of the Netlist view
+  }
+
+  public getTreeData(): NetlistItem[] {return this.treeData;}
 
   getTreeItem(element:  NetlistItem): vscode.TreeItem {return element;}
   getChildren(element?: NetlistItem): Thenable<NetlistItem[]> {
@@ -401,6 +808,18 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
 
 export function activate(context: vscode.ExtensionContext) {
 
+  // Associates .vcd files with vaporview extension
+  // See package.json for more details
+  vscode.window.registerCustomEditorProvider(
+    'vaporview.waveformViewer',
+    new WaveformViewerProvider(context),
+    {
+      webviewOptions: {
+        retainContextWhenHidden: true,
+      },
+      supportsMultipleEditorsPerDocument: false,
+    });
+
   // Activity Bar
 
   // Create an Activity Bar element
@@ -444,6 +863,7 @@ export function activate(context: vscode.ExtensionContext) {
     console.log("deleteSignal");
   }));
 
+  // This command will be depricated in favor of the custom editor provider
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.viewWaveform', async () => {
 
     // Prompt the user to select a .vcd file
@@ -516,6 +936,7 @@ export function activate(context: vscode.ExtensionContext) {
   }));
 }
 
+// This will be depricated once I get the custom editor provider working
 class WaveformViewer {
   private readonly panel:   vscode.WebviewPanel;
   private readonly context: vscode.ExtensionContext;
@@ -805,7 +1226,8 @@ class WaveformViewer {
   }
 }
 
-export default WaveformViewer;
+//export default WaveformViewer;
+export default WaveformViewerProvider;
 
 export function deactivate() {}
 

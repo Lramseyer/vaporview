@@ -970,18 +970,67 @@ handleClusterChanged = function (startIndex, endIndex) {
     updatePending              = false;
   }
 
+  function handleScrollMouse(event) {
+    event.preventDefault();
+    const deltaY = event.deltaY;
+    if (event.shiftKey) {
+      event.stopPropagation();
+      scrollArea.scrollTop += deltaY;
+      labelsScroll.scrollTop      = scrollArea.scrollTop;
+      transitionScroll.scrollTop = scrollArea.scrollTop;
+    } else if (event.ctrlKey) {
+      if      (updatePending) {return;}
+      const bounds      = scrollArea.getBoundingClientRect();
+      const elementLeft = event.pageX - bounds.left;
+      const pixelLeft   = Math.round(scrollArea.scrollLeft + elementLeft);
+      const time        = Math.round(pixelLeft / zoomRatio);
+
+      // scroll up zooms in (- deltaY), scroll down zooms out (+ deltaY)
+      if      (deltaY > 0) {handleZoom(1);}
+      else if (deltaY < 0) {handleZoom(-1);}
+
+      scrollArea.scrollLeft = (time * zoomRatio) - elementLeft;
+      scrollArea.scrollLeft += deltaY;
+    }
+  }
+
+  function handleScrollTouchpad(event) {
+  
+    const deltaY = event.deltaY;
+    if (event.shiftKey) {
+      event.preventDefault();
+      //event.stopPropagation();
+      //scrollArea.scrollTop += deltaY;
+      //labelsScroll.scrollTop      = scrollArea.scrollTop;
+      //transitionScroll.scrollTop = scrollArea.scrollTop;
+    } else if (event.ctrlKey) {
+      if      (updatePending) {return;}
+      const bounds      = scrollArea.getBoundingClientRect();
+      const elementLeft = event.pageX - bounds.left;
+      const pixelLeft   = Math.round(scrollArea.scrollLeft + elementLeft);
+      const time        = Math.round(pixelLeft / zoomRatio);
+
+      // scroll up zooms in (- deltaY), scroll down zooms out (+ deltaY)
+      if      (deltaY > 0) {handleZoom(1);}
+      else if (deltaY < 0) {handleZoom(-1);}
+
+      scrollArea.scrollLeft = (time * zoomRatio) - elementLeft;
+      scrollArea.scrollLeft += deltaY;
+    }
+  }
+
   labelsScroll.addEventListener(    'scroll', (e) => {syncVerticalScroll(labelsScroll.scrollTop);});
   transitionScroll.addEventListener('scroll', (e) => {syncVerticalScroll(transitionScroll.scrollTop);});
   scrollArea.addEventListener(      'scroll', (e) => {syncVerticalScroll(scrollArea.scrollTop);});
 
   // scroll handler to handle zooming and scrolling
   scrollArea.addEventListener('wheel', (event) => { 
-    event.preventDefault();
+    if (!touchpadScrolling) {event.preventDefault();}
     const deltaY = event.deltaY;
     if (event.shiftKey && !touchpadScrolling) {
       event.stopPropagation();
-      scrollArea.scrollTop += deltaY;
-      labelsScroll.scrollTop      = scrollArea.scrollTop;
+      scrollArea.scrollTop      += deltaY;
+      labelsScroll.scrollTop     = scrollArea.scrollTop;
       transitionScroll.scrollTop = scrollArea.scrollTop;
     } else if (event.ctrlKey) {
       if      (updatePending) {return;}
@@ -999,6 +1048,7 @@ handleClusterChanged = function (startIndex, endIndex) {
       scrollArea.scrollLeft += deltaY;
     }
   });
+  //scrollArea.addEventListener('wheel', handleScrollMouse, false);
 
   // move handler to handle moving the cursor or selected signal with the arrow keys
   window.addEventListener('keydown', (event) => {
@@ -1110,6 +1160,7 @@ handleClusterChanged = function (startIndex, endIndex) {
   // Handle messages from the extension
   window.addEventListener('message', (event) => {
     const message = event.data;
+    console.log(event);
     switch (message.command) {
       case 'create-ruler': {
         vscode.postMessage({ command: 'creating ruler from the js file' });
@@ -1189,7 +1240,15 @@ handleClusterChanged = function (startIndex, endIndex) {
 
       break;
       }
+      case 'getContext': {
+        console.log('getContext - this is a stub');
+        break;
+      }
     }
   });
+
+  // Send a message back to the extension to signal that the webview is ready
+  vscode.postMessage({type: 'ready'});
+
   });
 })();

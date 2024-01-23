@@ -95,11 +95,11 @@
               pointerEventsSet = false;
           }, 50);
       }
-      if (lastCluster != (lastCluster = self.getClusterNum(columns))) {
-        self.insertToDOM(columns, cache);
-      }
       if (self.options.callbacks.scrollingProgress) {
         self.options.callbacks.scrollingProgress(self.getScrollProgress());
+      }
+      if (lastCluster != (lastCluster = self.getClusterNum(columns))) {
+        self.insertToDOM(columns, cache);
       }
       on('scroll', self.scrollElement, scrollEv);
     },
@@ -222,6 +222,7 @@
       var opts           = this.options;
       opts.scrollLeft    = this.scrollElement.scrollLeft;
       var clusterDivider = opts.clusterWidth - opts.blockWidth;
+
       var currentCluster = Math.floor(opts.scrollLeft / clusterDivider);
       var maxCluster     = Math.floor((columns.length * opts.columnWidth) / clusterDivider);
       return Math.min(currentCluster, maxCluster);

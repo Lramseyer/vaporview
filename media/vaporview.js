@@ -48,13 +48,14 @@ valueIs4State = function (value) {
   else {return false;}
 };
 
-busElement = function (time, value, backgroundPositionX, backgroundSizeX, signalWidth) {
+busElement = function (deltaTime, transition, backgroundPositionX, backgroundSizeX, textPosition, signalWidth) {
+  const value            = transition[1];
   const backgroundWidth  = backgroundSizeX * zoomRatio;
   const is4State = valueIs4State(value);
   const color    = is4State ? 'background-color:var(--vscode-debugTokenExpression-error)' : '';
-  const divTag   = `<div class="bus-waveform-value" style="flex:${time};-webkit-mask-position:${backgroundPositionX * zoomRatio}px;-webkit-mask-size:${backgroundWidth}px;${color}">`;
+  const divTag   = `<div class="bus-waveform-value" style="flex:${deltaTime};-webkit-mask-position:${backgroundPositionX * zoomRatio}px;-webkit-mask-size:${backgroundWidth}px;${color}">`;
 
-  if (backgroundWidth > 10) {
+  if ((backgroundWidth > 10) && (textPosition > 0)) {
     const displayValue = parseValue(value, signalWidth, is4State);
     return `${divTag}<p>${displayValue}</p></div>`;
   } else {
@@ -66,21 +67,28 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
   let backgroundPositionX = Math.max(initialState[0], -1 * chunkTime);
   let result       = [];
   let initialTime  = 0;
-  let initialValue = initialState[1];
+  let initialValue = initialState;
   let deltaTime;
   let backgroundSizeX;
+  let textPosition;
 
-  transitionData.forEach(([time, value]) => {
-    deltaTime       = time - initialTime;
+  transitionData.forEach((transition) => {
+    deltaTime       = transition[0] - initialTime;
     backgroundSizeX = (deltaTime - backgroundPositionX);
-    result.push(busElement(deltaTime, initialValue, backgroundPositionX, backgroundSizeX, signalWidth));
-    initialTime         = time;
-    initialValue        = value;
+    textPosition    = (transition[0] + initialValue[0]) / 2;
+    result.push(busElement(deltaTime, transition, backgroundPositionX, backgroundSizeX, textPosition, signalWidth));
+    initialTime         = transition[0];
+    initialValue        = transition;
     backgroundPositionX = 0;
   });
   deltaTime       = chunkTime - initialTime;
   backgroundSizeX = (Math.min(postState[0], 2 * chunkTime) - initialTime) - backgroundPositionX;
-  result.push(busElement(deltaTime, initialValue, backgroundPositionX, backgroundSizeX, signalWidth));
+  textPosition  = (postState[0] + initialValue[0]) / 2;
+
+  // let the renderer know not not to render the text if it is out of bounds
+  // easier to check for this one case than to check for all cases
+  if (textPosition > chunkTime) {textPosition = -1;}
+  result.push(busElement(deltaTime, initialValue, backgroundPositionX, backgroundSizeX, textPosition, signalWidth));
   return result.join('');
 };
 
@@ -229,8 +237,9 @@ createTimeCursor = function (time) {
 createLabel = function (signalId, signalName, isSelected) {
   //let selectorClass = 'is-idle';
   //if (isSelected) {selectorClass = 'is-selected';}
+  const vscodeContextMenuAttribute = `data-vscode-context='{"webviewSection": "signal", "preventDefaultContextMenuItems": true}'`;
   selectorClass = isSelected ? 'is-selected' : 'is-idle';
-  return `<div class="waveform-label ${selectorClass}" id="label-${signalId}">
+  return `<div class="waveform-label ${selectorClass}" id="label-${signalId}" ${vscodeContextMenuAttribute}>
             <div class='codicon codicon-grabber'></div>
             <p>${signalName}</p>
           </div>`;
@@ -736,6 +745,10 @@ handleClusterChanged = function (startIndex, endIndex) {
   checkValidHexString = function (inputText) {
     if (inputText.match(/^(0x)?[0-9a-fA-FxzXZ_]+$/)) {
       parsedSearchValue = inputText.replace(/_/g, '').replace(/^0x/i, '');
+      parsedSearchValue = parsedSearchValue.split('').map((c) => {
+        if (c.match(/[xXzZ]/)) {return '....';}
+        return parseInt(c, 16).toString(2).padStart(4, '0');
+      }).join('');
       return true;
     }
     else {return false;}
@@ -744,6 +757,10 @@ handleClusterChanged = function (startIndex, endIndex) {
   checkValidDecimalString = function (inputText) {
     if (inputText.match(/^[0-9xzXZ_,]+$/)) {
       parsedSearchValue = inputText.replace(/,/g, '');
+      parsedSearchValue = parsedSearchValue.split('_').map((c) => {
+        if (c.match(/[xXzZ]/)) {return '.{32}';}
+        return parseInt(c, 10).toString(2).padStart(32, '0');
+      }).join('');
       return true;
     }
     else {return false;}
@@ -790,7 +807,18 @@ handleClusterChanged = function (startIndex, endIndex) {
     if (searchState === 0 && direction === 1) {
       handleCursorSet(parseInt(parsedSearchValue));
     } else {
-      console.log('search not implemented yet');
+      if (direction === 1) {goToNextTransition(1, parsedSearchValue);}
+      else  {
+        const data = waveformData[selectedSignal];
+        const time = cursorTime;
+        const timeIndex = data.transitionData.findIndex(([t, v]) => {return t >= time;});
+        for (var i = timeIndex - 1; i >= 0; i--) {
+          if (data.transitionData[i][1].match(parsedSearchValue)) {
+            handleCursorSet(data.transitionData[i][0]);
+            break;
+          }
+        }
+      }
     }
   };
 

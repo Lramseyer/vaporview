@@ -41,10 +41,33 @@
         }
       ]
     },
+    "customEditors": [
+			{
+				"viewType": "vaporview.waveformView",
+				"displayName": "VaporView",
+				"selector": [
+					{
+						"filenamePattern": "*.vcd"
+					}
+				]
+			}
+		],
+    "menus": {
+      "webview/context": [
+        {
+          "command": "vaporview.deleteSignal",
+          "when": "webview == vaporView && webviewSelection == 'signal'"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "vaporview.viewWaveform",
         "title": "View Waveform"
+      },
+      {
+        "command": "vaporview.deleteSignal",
+        "title": "Delete Signal"
       },
       {
         "command": "vaporview.viewVaporViewSidebar",

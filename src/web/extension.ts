@@ -440,13 +440,36 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.executeCommand('workbench.view.extension.vaporView');
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.deleteSignal', () => {
+    console.log("deleteSignal");
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.viewWaveform', async () => {
+
+    // Prompt the user to select a .vcd file
+    const vcdFile = await vscode.window.showOpenDialog({
+      openLabel: 'Open .vcd File',
+      filters: {
+        'VCD Files': ['vcd'],
+        'All Files': ['*'],
+      },
+    });
+
+    if (!vcdFile || vcdFile.length === 0) {
+      vscode.window.showInformationMessage('No .vcd file selected.');
+      return;
+    }
+
+    // vcdFile[0] is the user's selected .vcd file
+    const selectedVcdFilePath = vcdFile[0].fsPath;
+    const filename = path.basename(selectedVcdFilePath).split(/[\/\\]/);
+    const title    = 'VaporView - ' + filename[filename.length - 1];
 
     // Create and show a webview panel for the waveform viewer
     //TODO: create a more elegant caching solution for the webview panel
     const panel = vscode.window.createWebviewPanel(
       'vaporView',
-      'VaporView - Waveform Viewer',
+      title,
       vscode.ViewColumn.One,
       {
         retainContextWhenHidden: true,
@@ -468,27 +491,12 @@ export function activate(context: vscode.ExtensionContext) {
     
       if (metadata.checkboxState === vscode.TreeItemCheckboxState.Checked) {
         waveformViewer.renderSignal(signalId);
+        displayedSignalsTreeDataProvider.addSignalToTreeData(metadata);
       } else if (metadata.checkboxState === vscode.TreeItemCheckboxState.Unchecked) {
         waveformViewer.removeSignal(signalId);
+        displayedSignalsTreeDataProvider.removeSignalFromTreeData(metadata);
       }
     });
-
-    // Prompt the user to select a .vcd file
-    const vcdFile = await vscode.window.showOpenDialog({
-      openLabel: 'Open .vcd File',
-      filters: {
-        'VCD Files': ['vcd'],
-        'All Files': ['*'],
-      },
-    });
-
-    if (!vcdFile || vcdFile.length === 0) {
-      vscode.window.showInformationMessage('No .vcd file selected.');
-      return;
-    }
-
-    // vcdFile[0] is the user's selected .vcd file
-    const selectedVcdFilePath = vcdFile[0].fsPath;
 
     // Call a function to parse the VCD file and update the Netlist view
     parseVCDFile(selectedVcdFilePath, netlistTreeDataProvider, waveformDataSet, waveformViewer);

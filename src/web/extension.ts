@@ -19,7 +19,6 @@ interface VaporviewDocumentDelegate {
  */
 class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocument {
 
-
   static async create(
     uri: vscode.Uri,
     backupId: string | undefined,
@@ -32,8 +31,9 @@ class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocume
     const vcdDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(uri.fsPath));
     const vcdContent  = vcdDocument.getText();
 
-    const netlistTreeDataProvider = new NetlistTreeDataProvider();
-    const waveformDataSet         = new WaveformTop();
+    const netlistTreeDataProvider          = new NetlistTreeDataProvider();
+    const displayedSignalsTreeDataProvider = new DisplayedSignalsViewProvider();
+    const waveformDataSet                  = new WaveformTop();
 
     // Parse the VCD data for this specific file
     parseVCDData(vcdContent, netlistTreeDataProvider, waveformDataSet);
@@ -41,30 +41,40 @@ class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocume
     // Optionally, you can refresh the Netlist view
     netlistTreeDataProvider.refresh();
 
-    return new VaporviewDocument(uri, waveformDataSet, netlistTreeDataProvider, delegate);
+    return new VaporviewDocument(
+      uri,
+      waveformDataSet,
+      netlistTreeDataProvider,
+      displayedSignalsTreeDataProvider,
+      delegate
+    );
   }
 
   private readonly _uri: vscode.Uri;
   private _documentData: WaveformTop;
   private _netlistTreeDataProvider: NetlistTreeDataProvider;
+  private _displayedSignalsTreeDataProvider: DisplayedSignalsViewProvider;
   private readonly _delegate: VaporviewDocumentDelegate;
 
   private constructor(
     uri: vscode.Uri,
     waveformData: WaveformTop,
     _netlistTreeDataProvider: NetlistTreeDataProvider,
+    _displayedSignalsTreeDataProvider: DisplayedSignalsViewProvider,
     delegate: VaporviewDocumentDelegate
   ) {
     super(() => this.dispose());
     this._uri = uri;
     this._documentData = waveformData;
     this._netlistTreeDataProvider = _netlistTreeDataProvider;
+    this._displayedSignalsTreeDataProvider = _displayedSignalsTreeDataProvider;
     this._delegate = delegate;
   }
 
   public get uri() { return this._uri; }
   public get documentData(): WaveformTop { return this._documentData; }
   public get netlistTreeData(): NetlistTreeDataProvider { return this._netlistTreeDataProvider; }
+  public get displayedSignalsTreeData(): DisplayedSignalsViewProvider { return this._displayedSignalsTreeDataProvider; }
 
   //private readonly _onDidDispose = this._register(new vscode.EventEmitter<void>());
   /**
@@ -79,7 +89,7 @@ class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocume
    */
   dispose(): void {
     //this._onDidDispose.fire();
-    super.dispose();
+    this._documentData.dispose();
   }
 }
 
@@ -87,15 +97,34 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 
   private static newViewerId = 1;
   private static readonly viewType = 'vaporview.waveformViewer';
-
-  /**
-   * Tracks all known webviews
-   */
   private readonly webviews = new WebviewCollection();
 
-  constructor(
-    private readonly _context: vscode.ExtensionContext
-  ) {}
+  public netlistTreeDataProvider: NetlistTreeDataProvider;
+  public netlistView: vscode.TreeView<NetlistItem>;
+  public displayedSignalsTreeDataProvider: DisplayedSignalsViewProvider;
+  public displayedSignalsView: vscode.TreeView<NetlistItem>;
+  public cursorTimeStatusBarItem: vscode.StatusBarItem;
+  public selectedSignalStatusBarItem: vscode.StatusBarItem;
+
+  constructor(private readonly _context: vscode.ExtensionContext) {
+
+    // Create and register the Netlist and Displayed Signals view container
+    this.netlistTreeDataProvider = new NetlistTreeDataProvider();
+    this.netlistView = vscode.window.createTreeView('netlistContainer', {
+      treeDataProvider: this.netlistTreeDataProvider,
+    });
+    this._context.subscriptions.push(this.netlistView);
+
+    this.displayedSignalsTreeDataProvider = new DisplayedSignalsViewProvider();
+    this.displayedSignalsView = vscode.window.createTreeView('displaylistContainer', {
+      treeDataProvider: this.displayedSignalsTreeDataProvider,
+    });
+    this._context.subscriptions.push(this.displayedSignalsView);
+
+    // Create a status bar item for cursor time and
+    this.cursorTimeStatusBarItem     = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+    this.selectedSignalStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+  }
 
   //#region CustomEditorProvider
 
@@ -117,6 +146,9 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       }
     });
 
+    this.netlistTreeDataProvider.setTreeData(document.netlistTreeData.getTreeData());
+    this.displayedSignalsTreeDataProvider.setTreeData(document.displayedSignalsTreeData.getTreeData());
+
     return document;
   }
 
@@ -135,7 +167,12 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     };
     webviewPanel.webview.html = this.getWebViewContent(webviewPanel.webview);
 
-    //webviewPanel.webview.onDidReceiveMessage(e => this.onMessage(document, e));
+    webviewPanel.onDidDispose(() => {
+      if (this.webviews.getNumWebviews === 0) {
+        this.netlistTreeDataProvider.setTreeData([]);
+        this.displayedSignalsTreeDataProvider.setTreeData([]);
+      }
+    });
 
     // Wait for the webview to be properly ready before we init
     webviewPanel.webview.onDidReceiveMessage(e => {
@@ -150,7 +187,85 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
           waveformDataSet: document.documentData,
         });
       }
+      switch (e.command) {
+        case 'init': {
+          // Webview is initialized, send the 'init' message
+        }
+        case 'deleteSignal': {
+          // Receive a request to render a signal
+          const signalId = e.signalId;
+          //netlistTreeDataProvider.toggleCheckboxState();
+          break;
+        }
+        case 'setTime': {
+          if (e.time !== null) {
+            this.cursorTimeStatusBarItem.text = 'time: ' + e.time + ' ' + document.documentData.timeUnit;
+            this.cursorTimeStatusBarItem.show();
+          } else {
+            this.cursorTimeStatusBarItem.hide();
+          }
+          break;
+        }
+        case 'setSelectedSignal': {
+          if (e.signalId !== null) {
+            this.selectedSignalStatusBarItem.show();
+            const signalName = document.documentData.netlistElements.get(e.signalId)?.name;
+            this.selectedSignalStatusBarItem.text = 'Selected signal: ' + signalName;
+          } else {
+            this.selectedSignalStatusBarItem.hide();
+          }
+          break;
+        }
+        case 'close-webview' : {
+          // Close the webview
+          webviewPanel.dispose();
+          break;
+        }
+      }
       this.onMessage(document, e);
+    });
+
+    webviewPanel.onDidChangeViewState(e => {
+      console.log("onDidChangeViewState()");
+      console.log(e);
+      if (e.webviewPanel.visible) {
+        this.netlistTreeDataProvider.setTreeData(document.netlistTreeData.getTreeData());
+        this.displayedSignalsTreeDataProvider.setTreeData(document.displayedSignalsTreeData.getTreeData());
+        webviewPanel.webview.postMessage({command: 'getSelectionContext'});
+        this.cursorTimeStatusBarItem.show();
+        this.selectedSignalStatusBarItem.show();
+      } else {
+        this.cursorTimeStatusBarItem.hide();
+        this.selectedSignalStatusBarItem.hide();
+      }
+    });
+
+    // Subscribe to the checkbox state change event
+    this.netlistView.onDidChangeCheckboxState((changedItem) => {
+      if (!webviewPanel.visible) {return;}
+      const metadata   = changedItem.items[0][0];
+      const signalId   = metadata.signalId;
+      const signalData = document.documentData.netlistElements.get(signalId);
+
+      if (metadata.checkboxState === vscode.TreeItemCheckboxState.Checked) {
+        this.renderSignal(webviewPanel, signalId, signalData);
+        this.displayedSignalsTreeDataProvider.addSignalToTreeData(metadata);
+      } else if (metadata.checkboxState === vscode.TreeItemCheckboxState.Unchecked) {
+        this.removeSignal(webviewPanel, signalId);
+        this.displayedSignalsTreeDataProvider.removeSignalFromTreeData(metadata);
+      }
+    });
+
+    this.displayedSignalsView.onDidChangeCheckboxState((changedItem) => {
+      if (!webviewPanel.visible) {return;}
+      const metadata   = changedItem.items[0][0];
+      const signalId   = metadata.signalId;
+
+      if (metadata.checkboxState === vscode.TreeItemCheckboxState.Unchecked) {
+        this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Unchecked);
+        this.displayedSignalsTreeDataProvider.removeSignalFromTreeData(metadata);
+        this.removeSignal(webviewPanel, signalId);
+      }
     });
 
   }
@@ -174,6 +289,23 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
           return;
         }
     }
+  }
+
+  private renderSignal(panel: vscode.WebviewPanel, signalId: string, signalData: SignalWaveform | undefined) {
+    // Render the signal with the provided ID
+    panel.webview.postMessage({ 
+      command: 'render-signal',
+      waveformData: signalData,
+      signalId: signalId
+   });
+  }
+
+  private removeSignal(panel: vscode.WebviewPanel, signalId: string) {
+    // Render the signal with the provided ID
+    panel.webview.postMessage({ 
+      command: 'remove-signal',
+      signalId: signalId
+   });
   }
 
     // To do: implement nonce with this HTML:
@@ -368,6 +500,9 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
  */
 class WebviewCollection {
 
+  private numWebviews = 0;
+  public get getNumWebviews() {return this.numWebviews;}
+
   private readonly _webviews = new Set<{
     readonly resource: string;
     readonly webviewPanel: vscode.WebviewPanel;
@@ -391,50 +526,12 @@ class WebviewCollection {
   public add(uri: vscode.Uri, webviewPanel: vscode.WebviewPanel) {
     const entry = { resource: uri.toString(), webviewPanel };
     this._webviews.add(entry);
+    this.numWebviews++;
 
     webviewPanel.onDidDispose(() => {
       this._webviews.delete(entry);
+      this.numWebviews--;
     });
-  }
-}
-
-
-
-// ------------------------------
-
-class ActivityBarTreeDataProvider implements vscode.TreeDataProvider<ActivityBarItem> {
-  private _onDidChangeTreeData: vscode.EventEmitter<ActivityBarItem | undefined> = new vscode.EventEmitter<ActivityBarItem | undefined>();
-  readonly onDidChangeTreeData: vscode.Event<ActivityBarItem | undefined> = this._onDidChangeTreeData.event;
-
-  getTreeItem(element: ActivityBarItem): vscode.TreeItem {
-    return element;
-  }
-
-  getChildren(element?: ActivityBarItem): Thenable<ActivityBarItem[]> {
-    if (element) {
-      // In this example, there are no child items, but you can define them as needed.
-      return Promise.resolve([]);
-    } else {
-      // Create and return top-level items
-      return Promise.resolve([
-        new ActivityBarItem('Item 1', vscode.TreeItemCollapsibleState.None),
-        new ActivityBarItem('Item 2', vscode.TreeItemCollapsibleState.None),
-        // Add more items as needed
-      ]);
-    }
-  }
-
-  refresh(): void {
-    this._onDidChangeTreeData.fire(undefined);
-  }
-}
-
-class ActivityBarItem extends vscode.TreeItem {
-  constructor(
-    public readonly label: string,
-    public readonly collapsibleState: vscode.TreeItemCollapsibleState
-  ) {
-    super(label, collapsibleState);
   }
 }
 
@@ -442,6 +539,11 @@ class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistItem> {
   private treeData: NetlistItem[] = [];
   private _onDidChangeTreeData: vscode.EventEmitter<NetlistItem | undefined> = new vscode.EventEmitter<NetlistItem | undefined>();
   readonly onDidChangeTreeData: vscode.Event<NetlistItem | undefined> = this._onDidChangeTreeData.event;
+
+  public setCheckboxState(netlistItem: NetlistItem, checkboxState: vscode.TreeItemCheckboxState) {
+    netlistItem.checkboxState = checkboxState;
+    this._onDidChangeTreeData.fire(undefined); // Trigger a refresh of the Netlist view
+  }
 
   // Method to set the tree data
   public setTreeData(netlistItems: NetlistItem[]) {
@@ -623,32 +725,6 @@ class SignalWaveform {
 
 type TransitionData = [number, number | string];
 
-
-// Function to parse a VCD file and update the Netlist view
-async function parseVCDFile(vcdFilePath: string, netlistTreeDataProvider: NetlistTreeDataProvider, waveformDataSet: WaveformTop, waveformViewer: WaveformViewer) {
-  try {
-    // Read the VCD file using vscode.workspace.openTextDocument
-    const vcdDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(vcdFilePath));
-
-    // Get the content of the document
-    const vcdContent = vcdDocument.getText();
-
-    waveformDataSet.filename = vcdFilePath;
-
-    // Parse the VCD data for this specific file
-    parseVCDData(vcdContent, netlistTreeDataProvider, waveformDataSet);
-    console.log(waveformDataSet.netlistElements);
-    // Optionally, you can refresh the Netlist view
-    netlistTreeDataProvider.refresh();
-
-    // Send a message to the webview to indicate that the VCD file is parsed
-    waveformViewer.createTimeRuler();
-
-  } catch (error: any) {
-    vscode.window.showErrorMessage('Error reading the VCD file: ' + error.message);
-  }
-}
-
 // Function to parse the VCD data and populate the Netlist view
 function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataProvider, waveformDataSet: WaveformTop) {
   // Define a data structure to store the netlist items
@@ -808,49 +884,19 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
 
 export function activate(context: vscode.ExtensionContext) {
 
+  const viewerProvider = new WaveformViewerProvider(context);
+
   // Associates .vcd files with vaporview extension
   // See package.json for more details
   vscode.window.registerCustomEditorProvider(
     'vaporview.waveformViewer',
-    new WaveformViewerProvider(context),
+    viewerProvider,
     {
       webviewOptions: {
         retainContextWhenHidden: true,
       },
       supportsMultipleEditorsPerDocument: false,
     });
-
-  // Activity Bar
-
-  // Create an Activity Bar element
-  const activityBarItem = vscode.window.createTreeView('vaporView', {
-    treeDataProvider: new ActivityBarTreeDataProvider(),
-  });
-  context.subscriptions.push(activityBarItem);
-
-  // Views
-
-  // Create and register the Netlist view container
-  const netlistTreeDataProvider = new NetlistTreeDataProvider();
-  const netlistView = vscode.window.createTreeView('netlistContainer', {
-    treeDataProvider: netlistTreeDataProvider,
-  });
-  context.subscriptions.push(netlistView);
-
-  const displayedSignalsTreeDataProvider = new DisplayedSignalsViewProvider();
-  const displayedSignalsView = vscode.window.createTreeView('displaylistContainer', {
-    treeDataProvider: displayedSignalsTreeDataProvider,
-  });
-  context.subscriptions.push(displayedSignalsView);
-
-  // Status Bar
-  const waveformDataSet = new WaveformTop();
-
-  // Create a status bar item for cursor time
-  const cursorTimeStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-
-  // Create a status bar item for selected signal
-  const selectedSignalStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
 
   // Commands
 
@@ -862,372 +908,8 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.deleteSignal', () => {
     console.log("deleteSignal");
   }));
-
-  // This command will be depricated in favor of the custom editor provider
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.viewWaveform', async () => {
-
-    // Prompt the user to select a .vcd file
-    const vcdFile = await vscode.window.showOpenDialog({
-      openLabel: 'Open .vcd File',
-      filters: {
-        'VCD Files': ['vcd'],
-        'All Files': ['*'],
-      },
-    });
-
-    if (!vcdFile || vcdFile.length === 0) {
-      vscode.window.showInformationMessage('No .vcd file selected.');
-      return;
-    }
-
-    // vcdFile[0] is the user's selected .vcd file
-    const selectedVcdFilePath = vcdFile[0].fsPath;
-    const filename = path.basename(selectedVcdFilePath).split(/[\/\\]/);
-    const title    = 'VaporView - ' + filename[filename.length - 1];
-
-    // Create and show a webview panel for the waveform viewer
-    //TODO: create a more elegant caching solution for the webview panel
-    const panel = vscode.window.createWebviewPanel(
-      'vaporView',
-      title,
-      vscode.ViewColumn.One,
-      {
-        retainContextWhenHidden: true,
-        enableScripts:           true,
-        localResourceRoots: [
-          vscode.Uri.joinPath(context.extensionUri, 'media'),
-          vscode.Uri.joinPath(context.extensionUri, 'node_modules', '@vscode', 'codicons', 'dist'),
-        ]
-      }
-    );
-
-    // Create an instance of the WaveformViewer class and pass your WaveformTop object
-    const waveformViewer = new WaveformViewer(panel, context, waveformDataSet, cursorTimeStatusBarItem, selectedSignalStatusBarItem);
-
-    // Subscribe to the checkbox state change event
-    netlistView.onDidChangeCheckboxState((changedItem) => {
-      const metadata = changedItem.items[0][0];
-      const signalId = metadata.signalId;
-    
-      if (metadata.checkboxState === vscode.TreeItemCheckboxState.Checked) {
-        waveformViewer.renderSignal(signalId);
-        displayedSignalsTreeDataProvider.addSignalToTreeData(metadata);
-      } else if (metadata.checkboxState === vscode.TreeItemCheckboxState.Unchecked) {
-        waveformViewer.removeSignal(signalId);
-        displayedSignalsTreeDataProvider.removeSignalFromTreeData(metadata);
-      }
-    });
-
-    // Call a function to parse the VCD file and update the Netlist view
-    parseVCDFile(selectedVcdFilePath, netlistTreeDataProvider, waveformDataSet, waveformViewer);
-
-    panel.onDidChangeViewState((e) => {
-      console.log("onDidChangeViewState()");
-      console.log(e);
-    });
-
-    panel.onDidDispose(() => {
-      console.log("panel.onDidDispose()");
-      // When the panel is closed, clear out the netlist data
-      netlistTreeDataProvider.setTreeData([]);
-      waveformViewer.dispose();
-    });
-
-  }));
 }
 
-// This will be depricated once I get the custom editor provider working
-class WaveformViewer {
-  private readonly panel:   vscode.WebviewPanel;
-  private readonly context: vscode.ExtensionContext;
-  private waveformDataSet:  WaveformTop;
-  private webAssets: {
-    diamondUri:   vscode.Uri;
-    svgIconsUri:  vscode.Uri;
-    jsFileUri:    vscode.Uri;
-    cssFileUri:   vscode.Uri;
-    testImageUri: vscode.Uri;
-    clusterize?:  vscode.Uri;
-    codiconsUri:  vscode.Uri;
-  };
-  //private webAssets: { jsFileUri: string; cssFileUri: string; testImageUri: string;};
-
-  constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext, waveformDataSet: WaveformTop, cursorTimeStatusBarItem: vscode.StatusBarItem, selectedSignalStatusBarItem: vscode.StatusBarItem) {
-
-    this.panel   = panel;
-    this.context = context;
-    this.waveformDataSet = waveformDataSet;
-
-    const webview      = this.panel.webview;
-    const extensionUri = this.context.extensionUri;
-
-    this.webAssets = {
-      diamondUri:   webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'diamond.svg')),
-      svgIconsUri:  webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'icons.svg')),
-      jsFileUri:    webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'vaporview.js')),
-      cssFileUri:   webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'style.css')),
-      testImageUri: webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'wave_temp.png')),
-      clusterize:   webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'clusterize_mod.js')),
-      codiconsUri:  webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.css')),
-    };
-
-    // Send the 'init' message when the webview is created
-    this.panel.webview.postMessage({ command: 'init' });
-
-    // Set the HTML content (should be your initial loading content)
-    this.panel.webview.html = this.getWebViewContent();
-
-    // set up the message listener
-    this.panel.webview.onDidReceiveMessage((message) => {
-
-      switch (message.command) {
-        case 'init': {
-          // Webview is initialized, send the 'init' message
-        }
-        case 'deleteSignal': {
-          // Receive a request to render a signal
-          const signalId = message.signalId;
-          //netlistTreeDataProvider.toggleCheckboxState();
-          //this.renderSignal(signalId);
-          break;
-        }
-        case 'setTime': {
-          if (message.time !== null) {
-            cursorTimeStatusBarItem.text = 'time: ' + message.time + ' ' + this.waveformDataSet.timeUnit;
-            cursorTimeStatusBarItem.show();
-          } else {
-            cursorTimeStatusBarItem.hide();
-          }
-          break;
-        }
-        case 'setSelectedSignal': {
-          if (message.signalId !== null) {
-            selectedSignalStatusBarItem.show();
-            const signalName = this.waveformDataSet.netlistElements.get(message.signalId)?.name;
-            selectedSignalStatusBarItem.text = 'Selected signal: ' + signalName;
-          } else {
-            selectedSignalStatusBarItem.hide();
-          }
-          break;
-        }
-        case 'close-webview' : {
-          // Close the webview
-          this.panel.dispose();
-          break;
-        }
-      }
-    });
-  }
-
-  createTimeRuler() {
-    // Create and append the time ruler to the viewer
-    // Customize and append the time ruler elements
-    this.panel.webview.postMessage({ 
-      command: 'create-ruler',
-      waveformDataSet: this.waveformDataSet
-   });
-  }
-
-  private showBasicLayout() {
-    // Create and display the basic layout for the waveform viewer
-  }
-
-  renderSignal(signalId: string) {
-    // Render the signal with the provided ID
-    this.panel.webview.postMessage({ 
-      command: 'render-signal',
-      waveformData: this.waveformDataSet.netlistElements.get(signalId),
-      signalId: signalId
-   });
-  }
-
-  removeSignal(signalId: string) {
-    // Render the signal with the provided ID
-    this.panel.webview.postMessage({ 
-      command: 'remove-signal',
-      signalId: signalId
-   });
-  }
-
-  private getWebViewContent() {
-
-    // Generate the HTML content
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>VaporView - Waveform Viewer</title>
-        <link rel="stylesheet" href="${this.webAssets.codiconsUri}"/>
-        <link rel="stylesheet" href="${this.webAssets.cssFileUri}">
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link href="${this.webAssets.diamondUri}" rel="diamond.svg" type="image/svg+xml">
-        <link href="${this.webAssets.svgIconsUri}" rel="icons.svg" type="image/svg+xml">
-      </head>
-      <body>
-        <div id="vaporview-top">
-          <div id="control-bar">
-            <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
-              <defs>
-                <symbol id="binary-edge" viewBox="0 0 16 16">
-                  <path d="M 2 15 L 6 15 C 8 15 8 15 8 13 L 8 3 C 8 1 8 1 10 1 L 14 1"/>
-                </symbol>
-                <symbol id="binary-edge-alt" viewBox="0 0 16 16">
-                  <path d="M 2 14 L 2 14 L 8 14 L 8 3 C 8 1 8 1 10 1 L 14 1 L 14 2 L 9 2 L 9 13 C 9 15 9 15 7 15 L 2 15 L 2 14"/>
-                </symbol>
-                <symbol id="bus-edge" viewBox="0 0 16 16">
-                  <polyline points="2,15 5,15 11,1 14,1"/>
-                  <polyline points="2,1 5,1 11,15 14,15"/>
-                </symbol>
-                <symbol id="arrow" viewBox="0 0 16 16">
-                  <polyline points="1,8 8,8"/>
-                  <polyline points="5,5 8,8 5,11"/>
-                </symbol>
-                <symbol id="back-arrow" viewBox="0 0 16 16">
-                  <use href="#arrow" transform="scale(-1, 1) translate(-16, 0)"/>
-                </symbol>
-                <symbol id="next-posedge" viewBox="0 0 16 16">
-                  <use href="#arrow"/>
-                  <use href="#binary-edge" transform="translate(3, 0)"/>
-                </symbol>
-                <symbol id="next-negedge" viewBox="0 0 16 16">
-                  <use href="#arrow"/>
-                  <use href="#binary-edge" transform="translate(3, 16) scale(1, -1)"/>
-                </symbol>
-                <symbol id="next-edge" viewBox="0 0 16 16">
-                  <use href="#arrow"/>
-                  <use href="#bus-edge" transform="translate(3, 0)"/>
-                </symbol>
-                <symbol id="previous-posedge" viewBox="0 0 16 16">
-                  <use href="#back-arrow"/>
-                  <use href="#binary-edge" transform="translate(-3, 0)"/>
-                </symbol>
-                <symbol id="previous-negedge" viewBox="0 0 16 16">
-                  <use href="#back-arrow"/>
-                  <use href="#binary-edge" transform="translate(-3, 16) scale(1, -1)"/>
-                </symbol>
-                <symbol id="previous-edge" viewBox="0 0 16 16">
-                  <use href="#back-arrow"/>
-                  <use href="#bus-edge" transform="translate(-3, 0)"/>
-                </symbol>
-                <symbol id="time-equals" viewBox="0 0 16 16">
-                  <text x="8" y="8" class="icon-text">t=</text>
-                </symbol>
-                <symbol id="search-hex" viewBox="0 0 16 16">
-                  <text x="8" y="8" class="icon-text">hex</text>
-                </symbol>
-                <symbol id="search-binary" viewBox="0 0 16 16">
-                  <text x="8" y="8" class="icon-text">bin</text>
-                </symbol>
-                <symbol id="search-decimal" viewBox="0 0 16 16">
-                  <text x="8" y="8" class="icon-text">dec</text>
-                </symbol>
-                <symbol id="search-enum" viewBox="0 0 16 16">
-                  <text x="8" y="8" class="icon-text">Abc</text>
-                </symbol>
-                <symbol id="touchpad" viewBox="0 0 16 16">
-                  <path d="M 1 2 L 1 10 C 1 11 2 11 2 11 L 3 11 L 3 10 L 2 10 L 2 2 L 14 2 L 14 10 L 12 10 L 12 11 L 14 11 C 14 11 15 11 15 10 L 15 2 C 15 2 15 1 14 1 L 2 1 C 1 1 1 2 1 2 M 4 14 L 5 14 L 5 11 C 5 10 5 9 6 9 C 7 9 7 10 7 11 L 7 14 L 8 14 L 8 9 C 8 8 8 7 9 7 C 10 7 10 8 10 9 L 10 14 L 11 14 L 11 9 C 11 7 10.5 6 9 6 C 7.5 6 7 7 7 8 L 7 8.5 C 6.917 8.261 6.671 8.006 6 8 C 4.5 8 4 9 4 11 L 4 14"/>
-                </symbol>
-              </defs>
-            </svg>
-            <div class="control-bar-group">
-              <div class="control-bar-button" title="Zoom Out (Ctrl + scroll down)" id="zoom-out-button">
-                <div class='codicon codicon-zoom-out' style="font-size:20px"></div>
-              </div>
-              <div class="control-bar-button" title="Zoom In (Ctrl + scroll up)" id="zoom-in-button">
-                <div class='codicon codicon-zoom-in' style="font-size:20px"></div>
-              </div>
-            </div>
-            <div class="control-bar-group">
-              <div class="control-bar-button" title="Go To Previous Negative Edge Transition" id="previous-negedge-button">
-                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#previous-negedge"/></svg>
-              </div>
-              <div class="control-bar-button" title="Go To Previous Positive Edge Transition" id="previous-posedge-button">
-                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#previous-posedge"/></svg>
-              </div>
-              <div class="control-bar-button" title="Go To Previous Transition (Ctrl + &#8678;)" id="previous-edge-button">
-                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#previous-edge"/></svg>
-              </div>
-              <div class="control-bar-button" title="Go To Next Transition (Ctrl + &#8680;)" id="next-edge-button">
-                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#next-edge"/></svg>
-              </div>
-              <div class="control-bar-button" title="Go To Next Positive Edge Transition" id="next-posedge-button">
-                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#next-posedge"/></svg>
-              </div>
-              <div class="control-bar-button" title="Go To Next Negative Edge Transition" id="next-negedge-button">
-                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#next-negedge"/></svg>
-              </div>
-            </div>
-            <div class="control-bar-group">
-              <div id="search-container">
-                <textarea id="search-bar" class="search-input" autocorrect="off" autocapitalize="off" spellcheck="false" wrap="off" aria-label="Find" placeholder="Search" title="Find"></textarea>
-                <div class="search-button selected-button" title="Go to Time specified" id="time-equals-button">
-                  <svg class="custom-icon" viewBox="0 0 16 16"><use href="#time-equals"/></svg>
-                </div>
-                <div class="search-button" title="Search by binary value" id="value-equals-button">
-                  <svg class="custom-icon" viewBox="0 0 16 16"><use id="value-icon-reference" href="#search-binary"/></svg>
-                </div>
-              </div>
-              <div class="control-bar-button" title="Previous" id="previous-button">
-                <div class='codicon codicon-arrow-left' style="font-size:20px"></div>
-              </div>
-              <div class="control-bar-button" title="Next" id="next-button">
-                <div class='codicon codicon-arrow-right' style="font-size:20px"></div>
-              </div>
-            </div>
-            <div class="control-bar-group">
-              <div class="format-button" title="Enable Touchpad Scrolling" id="touchpad-scroll-button">
-                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#touchpad"/></svg>
-              </div>
-            </div>
-          </div>
-          <div id="waveform-labels-container" class="labels-container">
-            <div id="waveform-labels-spacer" class="ruler-spacer">
-              <div class="format-button selected-button" title="Format in Binary" id="format-binary-button">
-                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#search-binary"/></svg>
-              </div>
-              <div class="format-button" title="Format in Hexidecimal" id="format-hex-button">
-                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#search-hex"/></svg>
-              </div>
-              <div class="format-button" title="Format in Decimal" id="format-decimal-button">
-                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#search-decimal"/></svg>
-              </div>
-              <div class="format-button" title="Format as Enumerator (if available)" id="format-enum-button">
-                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#search-enum"/></svg>
-              </div>
-            </div>
-            <div id="waveform-labels"> </div>
-          </div>
-          <div id="resize-1" class="resize-bar"></div>
-          <div id="transition-display-container" class="labels-container">
-            <div class="ruler-spacer"></div>
-            <div id="transition-display"></div>
-          </div>
-          <div id="resize-2" class="resize-bar"></div>
-          <div id="scrollArea" class="clusterize-scroll">
-            <div id="contentArea" class="clusterize-content">
-              <div class="clusterize-no-data">Loading data…</div>
-            </div>
-          </div>
-        </div>
-        <script src="${this.webAssets.clusterize}"></script>
-        <script src="${this.webAssets.jsFileUri}"></script>
-      </body>
-      </html>
-    `;
-
-    return htmlContent;
-  }
-
-  public dispose() {
-    console.log("waveformViewer.dispose()");
-    this.waveformDataSet.dispose();
-    this.context.subscriptions.pop();
-  }
-}
-
-//export default WaveformViewer;
 export default WaveformViewerProvider;
 
 export function deactivate() {}
-

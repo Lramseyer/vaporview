@@ -270,8 +270,6 @@ updateWaveformInCache = function (signalIdList) {
 
 updateChunkInCache = function (chunkIndex) {
 
-  console.log('adding chunk to cache at index ' + chunkIndex + '');
-
   let result = {
     rulerChunk:    createRulerChunk(chunkIndex),
     waveformChunk: {},
@@ -331,6 +329,13 @@ handleFetchColumns = function (startIndex, endIndex) {
   });
 };
 
+setSeletedSignalOnStatusBar = function (signalId) {
+  vscode.postMessage({
+    command: 'setSelectedSignal',
+    signalId: signalId
+  });
+};
+
 handleSignalSelect = function (signalId) {
 
   if (signalId === null) {return;}
@@ -358,11 +363,7 @@ handleSignalSelect = function (signalId) {
   selectedSignalIndex = displayedSignals.findIndex((signal) => {return signal === signalId;});
   if (selectedSignalIndex === -1) {selectedSignalIndex = null;}
 
-  vscode.postMessage({
-    command: 'setSelectedSignal',
-    signalId: signalId
-  });
-
+  setSeletedSignalOnStatusBar(signalId);
   renderLabelsPanels();
   updateButtonsForSelectedWaveform(waveformData[signalId].signalWidth);
 };
@@ -414,6 +415,13 @@ getValueAtTime = function (signalId, time) {
   return result;
 };
 
+setTimeOnStatusBar = function (time) {
+  vscode.postMessage({
+    command: 'setTime',
+    time:    time.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","),
+  });
+};
+
 handleCursorSet = function (time) {
 
   // dispose of old cursor
@@ -442,11 +450,7 @@ handleCursorSet = function (time) {
     dataCache.valueAtCursor[signalId] = getValueAtTime(signalId, time);
   });
 
-  vscode.postMessage({
-    command: 'setTime',
-    time:    time.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","),
-  });
-
+  setTimeOnStatusBar(time);
   renderLabelsPanels();
 };
 
@@ -970,55 +974,6 @@ handleClusterChanged = function (startIndex, endIndex) {
     updatePending              = false;
   }
 
-  function handleScrollMouse(event) {
-    event.preventDefault();
-    const deltaY = event.deltaY;
-    if (event.shiftKey) {
-      event.stopPropagation();
-      scrollArea.scrollTop += deltaY;
-      labelsScroll.scrollTop      = scrollArea.scrollTop;
-      transitionScroll.scrollTop = scrollArea.scrollTop;
-    } else if (event.ctrlKey) {
-      if      (updatePending) {return;}
-      const bounds      = scrollArea.getBoundingClientRect();
-      const elementLeft = event.pageX - bounds.left;
-      const pixelLeft   = Math.round(scrollArea.scrollLeft + elementLeft);
-      const time        = Math.round(pixelLeft / zoomRatio);
-
-      // scroll up zooms in (- deltaY), scroll down zooms out (+ deltaY)
-      if      (deltaY > 0) {handleZoom(1);}
-      else if (deltaY < 0) {handleZoom(-1);}
-
-      scrollArea.scrollLeft = (time * zoomRatio) - elementLeft;
-      scrollArea.scrollLeft += deltaY;
-    }
-  }
-
-  function handleScrollTouchpad(event) {
-  
-    const deltaY = event.deltaY;
-    if (event.shiftKey) {
-      event.preventDefault();
-      //event.stopPropagation();
-      //scrollArea.scrollTop += deltaY;
-      //labelsScroll.scrollTop      = scrollArea.scrollTop;
-      //transitionScroll.scrollTop = scrollArea.scrollTop;
-    } else if (event.ctrlKey) {
-      if      (updatePending) {return;}
-      const bounds      = scrollArea.getBoundingClientRect();
-      const elementLeft = event.pageX - bounds.left;
-      const pixelLeft   = Math.round(scrollArea.scrollLeft + elementLeft);
-      const time        = Math.round(pixelLeft / zoomRatio);
-
-      // scroll up zooms in (- deltaY), scroll down zooms out (+ deltaY)
-      if      (deltaY > 0) {handleZoom(1);}
-      else if (deltaY < 0) {handleZoom(-1);}
-
-      scrollArea.scrollLeft = (time * zoomRatio) - elementLeft;
-      scrollArea.scrollLeft += deltaY;
-    }
-  }
-
   labelsScroll.addEventListener(    'scroll', (e) => {syncVerticalScroll(labelsScroll.scrollTop);});
   transitionScroll.addEventListener('scroll', (e) => {syncVerticalScroll(transitionScroll.scrollTop);});
   scrollArea.addEventListener(      'scroll', (e) => {syncVerticalScroll(scrollArea.scrollTop);});
@@ -1239,6 +1194,11 @@ handleClusterChanged = function (startIndex, endIndex) {
         }
 
       break;
+      }
+      case 'getSelectionContext': {
+        setTimeOnStatusBar(cursorTime);
+        setSeletedSignalOnStatusBar(selectedSignal);
+        break;
       }
       case 'getContext': {
         console.log('getContext - this is a stub');

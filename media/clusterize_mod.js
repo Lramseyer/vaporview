@@ -73,6 +73,8 @@
         cache      = {},
         scrollLeft = self.scrollElement.scrollLeft;
 
+    self.getChunksWidth(columns);
+
     // append initial data
     self.insertToDOM(columns, cache);
 
@@ -133,13 +135,9 @@
 
       if (self.scrollElement) {
         self.updateViewportWidth();
-        //self.options.viewportWidth    = self.scrollElement.getBoundingClientRect().width;
         if ((columnWidth) && (columnWidth !== prevColumnWidth)) {
           self.scrollElement.scrollLeft = scrollProgress * ((columns.length * self.options.columnWidth) - self.options.viewportWidth);
         }
-        //if (self.options.callbacks.setViewerWidth) {
-        //  self.options.callbacks.setViewerWidth(self.options.viewportWidth);
-        //}
       }
     };
     self.update = function(newColumns, columnWidth) {
@@ -198,7 +196,7 @@
     getChunksWidth: function(columns) {
       console.log("getChunksWidth()");
       console.log(this.options);
-      var opts          = this.options
+      var opts          = this.options;
           //prevItemWidth = opts.columnWidth;
       opts.clusterWidth = 0;
       if( ! columns.length) {return;}
@@ -212,6 +210,11 @@
       //  opts.columnWidth += parseInt(getStyle('borderSpacing', this.contentElement), 10) || 0;
       //}
       opts.blockWidth       = opts.columnWidth     * opts.columnsInBlock;
+
+      // let idealBlocksInCluster  = Math.max(Math.ceil((opts.viewportWidth / opts.blockWidth) * 2), 2);
+      // opts.blocksInCluster  = idealBlocksInCluster;
+      // console.log("Setting cluster Size on zoom: " + idealBlocksInCluster);
+
       opts.columnsInCluster = opts.blocksInCluster * opts.columnsInBlock;
       opts.clusterWidth     = opts.blocksInCluster * opts.blockWidth;
 
@@ -222,8 +225,8 @@
       var opts           = this.options;
       opts.scrollLeft    = this.scrollElement.scrollLeft;
       var clusterDivider = opts.clusterWidth - opts.blockWidth;
-
-      var currentCluster = Math.floor(opts.scrollLeft / clusterDivider);
+      var scrollOffset   = opts.viewportWidth / 2;
+      var currentCluster = Math.floor((opts.scrollLeft) / clusterDivider);
       var maxCluster     = Math.floor((columns.length * opts.columnWidth) / clusterDivider);
       return Math.min(currentCluster, maxCluster);
     },
@@ -257,6 +260,7 @@
             itemsEnd:      columnsLength
           };
       if (columnsLength <= opts.columnsInBlock) {
+        console.log("columnsLength <= opts.columnsInBlock");
         returnData.columns = this.options.callbacks.fetchColumns(returnData.itemsStart, returnData.itemsEnd);
         return returnData;
       }
@@ -270,6 +274,7 @@
       if(returnData.leftOffset < 1) {
         returnData.columnsBefore++;
       }
+      console.log("returnData.itemsStart: " + returnData.itemsStart);
       return returnData;
     },
     renderExtraTag: function(className, width) {

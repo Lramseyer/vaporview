@@ -1,9 +1,14 @@
 {
   "name": "vaporview",
+  "publisher": "lramseyer",
   "displayName": "VaporView",
   "description": "VCD Waveform Viewer for VS code",
-  "icon": "media/logo_512.png",
-  "version": "0.7.8",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#C80000",
+    "theme": "dark"
+  },
+  "version": "0.8.1",
   "repository": "https://github.com/lramseyer/vaporview",
   "engines": {
     "vscode": "^1.83.0"
@@ -17,7 +22,7 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "vaporView",
+          "id": "vaporViewActivityBar",
           "title": "Vaporview",
           "icon": "media/activityBar.svg"
         }
@@ -30,7 +35,7 @@
       ]
     },
     "views": {
-      "vaporView": [
+      "vaporViewActivityBar": [
         {
           "id": "netlistContainer",
           "name": "Netlist"
@@ -56,7 +61,7 @@
       "webview/context": [
         {
           "command": "vaporview.deleteSignal",
-          "when": "webview == vaporView && webviewSelection == 'signal'"
+          "when": "webview == vaporview.waveformViewer && webviewSelection == 'signal'"
         }
       ]
     },

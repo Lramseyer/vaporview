@@ -270,7 +270,6 @@ body {
   font-size:   var(--vscode-editor-font-size);
   fill:        var(--vscode-editorLineNumber-foreground);
   font-family: var(--vscode-editor-font-family);
-  overflow:    visible;
   user-select: none;
 }
 

@@ -904,10 +904,6 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.viewVaporViewSidebar', () => {
     vscode.commands.executeCommand('workbench.view.extension.vaporView');
   }));
-
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.deleteSignal', () => {
-    console.log("deleteSignal");
-  }));
 }
 
 export default WaveformViewerProvider;

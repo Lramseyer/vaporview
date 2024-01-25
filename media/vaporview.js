@@ -76,7 +76,7 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
     deltaTime       = transition[0] - initialTime;
     backgroundSizeX = (deltaTime - backgroundPositionX);
     textPosition    = (transition[0] + initialValue[0]) / 2;
-    result.push(busElement(deltaTime, transition, backgroundPositionX, backgroundSizeX, textPosition, signalWidth));
+    result.push(busElement(deltaTime, initialValue, backgroundPositionX, backgroundSizeX, textPosition, signalWidth));
     initialTime         = transition[0];
     initialValue        = transition;
     backgroundPositionX = 0;
@@ -199,17 +199,17 @@ renderWaveformChunk = function (signalId, chunkIndex) {
 
 // This function creates ruler elements for a chunk
 createRulerChunk = function (chunkIndex) {
-  const numberSpacing    = rulerNumberSpacing / zoomRatio;
-  const startTime        = chunkIndex * chunkTime;
-  const startPixel       = chunkIndex * chunkWidth;
-  const numberStartpixel = rulerNumberSpacing - (startPixel % rulerNumberSpacing);
-  const tickStartpixel   = rulerTickSpacing   - (startPixel % rulerTickSpacing);
-  var   numValue         = startTime + (numberStartpixel / zoomRatio);
-  var   elements         = [];
+  const timeMarkerInterval = rulerNumberSpacing / zoomRatio;
+  const chunkStartTime     = chunkIndex * chunkTime;
+  const chunkStartPixel    = chunkIndex * chunkWidth;
+  const numberStartpixel   = -1 * (chunkStartPixel % rulerNumberSpacing);
+  const tickStartpixel     = rulerTickSpacing   - (chunkStartPixel % rulerTickSpacing);
+  var   numValue           = chunkStartTime + (numberStartpixel / zoomRatio);
+  var   elements           = [];
 
-  for (var i = numberStartpixel; i <= chunkWidth; i+= rulerNumberSpacing ) {
+  for (var i = numberStartpixel; i <= chunkWidth + 64; i+= rulerNumberSpacing ) {
     elements.push(`<text x="${i}" y="20">${numValue}</text>`);
-    numValue += numberSpacing;
+    numValue += timeMarkerInterval;
   }
 
   for (var i = tickStartpixel; i <= chunkWidth; i+= rulerTickSpacing) {
@@ -761,9 +761,10 @@ handleClusterChanged = function (startIndex, endIndex) {
   checkValidDecimalString = function (inputText) {
     if (inputText.match(/^[0-9xzXZ_,]+$/)) {
       parsedSearchValue = inputText.replace(/,/g, '');
-      parsedSearchValue = parsedSearchValue.split('_').map((c) => {
-        if (c.match(/[xXzZ]/)) {return '.{32}';}
-        return parseInt(c, 10).toString(2).padStart(32, '0');
+      parsedSearchValue = parsedSearchValue.split('_').map((n) => {
+        if (n === '') {return '';}
+        if (n.match(/[xXzZ]/)) {return '.{32}';}
+        return parseInt(n, 10).toString(2).padStart(32, '0');
       }).join('');
       return true;
     }
@@ -807,20 +808,27 @@ handleClusterChanged = function (startIndex, endIndex) {
   };
 
   handleSearchGoTo = function (direction) {
+    if (selectedSignal === null) {return;}
     if (parsedSearchValue === null) {return;}
+
     if (searchState === 0 && direction === 1) {
       handleCursorSet(parseInt(parsedSearchValue));
     } else {
-      if (direction === 1) {goToNextTransition(1, parsedSearchValue);}
-      else  {
-        const data = waveformData[selectedSignal];
-        const time = cursorTime;
-        const timeIndex = data.transitionData.findIndex(([t, v]) => {return t >= time;});
-        for (var i = timeIndex - 1; i >= 0; i--) {
-          if (data.transitionData[i][1].match(parsedSearchValue)) {
-            handleCursorSet(data.transitionData[i][0]);
-            break;
-          }
+      const signalWidth      = waveformData[selectedSignal].signalWidth;
+      let trimmedSearchValue = parsedSearchValue;
+      if (parsedSearchValue.length > signalWidth) {trimmedSearchValue = parsedSearchValue.slice(-1 * signalWidth);}
+      let searchRegex = new RegExp(trimmedSearchValue, 'ig');
+      const data      = waveformData[selectedSignal];
+      const timeIndex = data.transitionData.findIndex(([t, v]) => {return t >= cursorTime;});
+      let indexOffset = 0;
+
+      if (direction === -1) {indexOffset = -1;}
+      else if (cursorTime === data.transitionData[timeIndex][0]) {indexOffset = 1;}
+
+      for (var i = timeIndex + indexOffset; i >= 0; i+=direction) {
+        if (data.transitionData[i][1].match(searchRegex)) {
+          handleCursorSet(data.transitionData[i][0]);
+          break;
         }
       }
     }
@@ -1097,8 +1105,8 @@ handleClusterChanged = function (startIndex, endIndex) {
   searchBar.addEventListener(    'keyup', (e) => {handleSearchBarEntry(e);});
   timeEquals.addEventListener(   'click', (e) => {handleSearchButtonSelect(0);});
   valueEquals.addEventListener(  'click', (e) => {handleSearchButtonSelect(1);});
-  previousButton.addEventListener('click', (e) => {handleSearchGoTo(1);});
-  nextButton.addEventListener(    'click', (e) => {handleSearchGoTo(-1);});
+  previousButton.addEventListener('click', (e) => {handleSearchGoTo(-1);});
+  nextButton.addEventListener(    'click', (e) => {handleSearchGoTo(1);});
   setButtonState(previousButton, 0);
   touchScroll.addEventListener(   'click', (e) => {handleTouchScroll();});
 

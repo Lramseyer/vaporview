@@ -8,7 +8,7 @@
     "color": "#C80000",
     "theme": "dark"
   },
-  "version": "0.8.1",
+  "version": "0.8.2",
   "repository": "https://github.com/lramseyer/vaporview",
   "engines": {
     "vscode": "^1.83.0"
@@ -25,12 +25,6 @@
           "id": "vaporViewActivityBar",
           "title": "Vaporview",
           "icon": "media/activityBar.svg"
-        }
-      ],
-      "sidebar": [
-        {
-          "id": "vaporViewSidebar",
-          "title": "VaporView"
         }
       ]
     },
@@ -66,10 +60,6 @@
       ]
     },
     "commands": [
-      {
-        "command": "vaporview.viewWaveform",
-        "title": "View Waveform"
-      },
       {
         "command": "vaporview.deleteSignal",
         "title": "Delete Signal"

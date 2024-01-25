@@ -86,6 +86,7 @@
         scrollDebounce   = 0,
         pointerEventsSet = false,
     scrollEv = function() {
+      console.log('clusterize scroll');
       off('scroll', self.scrollElement, scrollEv);
       // fixes scrolling issue on Mac #3
       if (isMac) {
@@ -247,36 +248,6 @@
       emptyColumn.appendChild(td || noDataContent);
       return [emptyColumn.outerHTML];
     },
-    // generate cluster for current scroll position
-    generate: function (columns) {
-      var opts          = this.options,
-          columnsLength = columns.length,
-          returnData    = {
-            leftOffset:    0,
-            rightOffset:   0,
-            columnsBefore: 0,
-            columns:       columnsLength ? columns : this.generateEmptyColumn(),
-            itemsStart:    0,
-            itemsEnd:      columnsLength
-          };
-      if (columnsLength <= opts.columnsInBlock) {
-        console.log("columnsLength <= opts.columnsInBlock");
-        returnData.columns = this.options.callbacks.fetchColumns(returnData.itemsStart, returnData.itemsEnd);
-        return returnData;
-      }
-
-      returnData.itemsStart    = Math.max((opts.columnsInCluster - opts.columnsInBlock) * this.getClusterNum(columns), 0),
-      returnData.itemsEnd      = Math.min(returnData.itemsStart + opts.columnsInCluster, columnsLength);
-      returnData.leftOffset    = Math.max(returnData.itemsStart * opts.columnWidth, 0);
-      returnData.rightOffset   = Math.max((columnsLength - returnData.itemsEnd) * opts.columnWidth, 0);
-      returnData.columns       = this.options.callbacks.fetchColumns(returnData.itemsStart, returnData.itemsEnd);
-      returnData.columnsBefore = returnData.itemsStart;
-      if(returnData.leftOffset < 1) {
-        returnData.columnsBefore++;
-      }
-      console.log("returnData.itemsStart: " + returnData.itemsStart);
-      return returnData;
-    },
     renderExtraTag: function(className, width) {
       var tag = document.createElement(this.options.tag),
         clusterizePrefix = 'clusterize-';
@@ -291,29 +262,50 @@
       if( ! this.options.clusterWidth) {
         this.exploreEnvironment(columns, cache);
       }
-      var data                      = this.generate(columns);
-      var thisClusterColumns        = data.columns.join(''),
+
+      var opts          = this.options,
+          columnsLength = columns.length,
+          leftOffset    = 0,
+          rightOffset   = 0,
+          columnsBefore = 0,
+          itemsStart    = 0,
+          itemsEnd      = columnsLength,
+          newColumns    =   columnsLength ? columns : this.generateEmptyColumn();
+      if (columnsLength <= opts.columnsInBlock) {
+        newColumns = this.options.callbacks.fetchColumns(itemsStart, itemsEnd);
+      } else {
+        itemsStart    = Math.max((opts.columnsInCluster - opts.columnsInBlock) * this.getClusterNum(columns), 0),
+        itemsEnd      = Math.min(itemsStart + opts.columnsInCluster, columnsLength);
+        leftOffset    = Math.max(itemsStart * opts.columnWidth, 0);
+        rightOffset   = Math.max((columnsLength - itemsEnd) * opts.columnWidth, 0);
+        newColumns    = this.options.callbacks.fetchColumns(itemsStart, itemsEnd);
+        columnsBefore = itemsStart;
+        if(leftOffset < 1) {
+          columnsBefore++;
+        }
+      }
+      var thisClusterColumns        = newColumns.join(''),
           callbacks                 = this.options.callbacks,
           //thisClusterContentChanged = this.checkChanges('data',  thisClusterColumns, cache),
           thisClusterContentChanged = callbacks.checkUpdatePending(),
-          leftOffsetChanged         = this.checkChanges('left',  data.leftOffset,    cache),
-          onlyRightOffsetChanged    = this.checkChanges('right', data.rightOffset,   cache),
+          leftOffsetChanged         = this.checkChanges('left',  leftOffset,    cache),
+          onlyRightOffsetChanged    = this.checkChanges('right', rightOffset,   cache),
           layout                    = [];
 
       if(thisClusterContentChanged || leftOffsetChanged) {
-        if(data.leftOffset) {
+        if(leftOffset) {
           this.options.keepParity && layout.push(this.renderExtraTag('keep-parity'));
-          layout.push(this.renderExtraTag('left-space', data.leftOffset));
+          layout.push(this.renderExtraTag('left-space', leftOffset));
         }
         layout.push(thisClusterColumns);
-        data.rightOffset && layout.push(this.renderExtraTag('right-space', data.rightOffset));
-        callbacks.clusterWillChange && callbacks.clusterWillChange(data.itemsStart, data.itemsEnd);
+        rightOffset && layout.push(this.renderExtraTag('right-space', rightOffset));
+        callbacks.clusterWillChange && callbacks.clusterWillChange(itemsStart, itemsEnd);
         this.html(layout.join(''));
-        //this.options.content_tag == 'ol' && this.contentElement.setAttribute('start', data.columnsBefore);
-        this.contentElement.style['counter-increment'] = 'clusterize-counter ' + (data.columnsBefore-1);
-        callbacks.clusterChanged && callbacks.clusterChanged(data.itemsStart, data.itemsEnd);
+        //this.options.content_tag == 'ol' && this.contentElement.setAttribute('start', columnsBefore);
+        this.contentElement.style['counter-increment'] = 'clusterize-counter ' + (columnsBefore - 1);
+        callbacks.clusterChanged && callbacks.clusterChanged(itemsStart, itemsEnd);
       } else if(onlyRightOffsetChanged) {
-        this.contentElement.lastChild.style.width = data.rightOffset + 'px';
+        this.contentElement.lastChild.style.width = rightOffset + 'px';
       }
       callbacks.clearUpdatePending();
     },

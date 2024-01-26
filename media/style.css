@@ -412,4 +412,5 @@ body {
   height: 100%;
   z-index: 100;
   overflow: visible;
+  stroke: var(--vscode-editorLineNumber-activeForeground);
 }

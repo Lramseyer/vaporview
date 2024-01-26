@@ -230,7 +230,7 @@ createTimeCursor = function (time) {
   const x = (time % chunkTime) * zoomRatio;
   return `
     <svg class="time-cursor">
-      <line x1="${x}" y1="0" x2="${x}" y2="100%" stroke="var(--vscode-editor-findMatchBackground)" stroke-dasharray="2 2"/>
+      <line x1="${x}" y1="0" x2="${x}" y2="100%" stroke-dasharray="2 2"/>
     </svg>`;
 };
 
@@ -305,11 +305,13 @@ handleZoom = function (amount) {
 handleFetchColumns = function (startIndex, endIndex) {
 
   if (startIndex < dataCache.startIndex) {
+    console.log('building chunks from ' + startIndex + ' to ' + dataCache.startIndex + '');
     for (var i = dataCache.startIndex - 1; i >= startIndex; i-=1) {
       dataCache.columns[i] = (updateChunkInCache(i));
     }
   }
   if (endIndex > dataCache.endIndex) {
+    console.log('building chunks from ' + dataCache.endIndex + ' to ' + endIndex + '');
     for (var i = dataCache.endIndex; i < endIndex; i+=1) {
       dataCache.columns[i] = (updateChunkInCache(i));
     }
@@ -338,8 +340,6 @@ setSeletedSignalOnStatusBar = function (signalId) {
 
 handleSignalSelect = function (signalId) {
 
-  if (signalId === null) {return;}
-
   let element;
   let index;
 
@@ -348,8 +348,6 @@ handleSignalSelect = function (signalId) {
     if (element) {
       element.classList.remove('is-selected');
       dataCache.columns[i].waveformChunk[selectedSignal].html = element.outerHTML;
-    } else {
-      console.log('could not find element ' + i);
     }
 
     element = document.getElementById('idx' + i + '-' + chunkSample + '--' + signalId);
@@ -365,6 +363,9 @@ handleSignalSelect = function (signalId) {
 
   setSeletedSignalOnStatusBar(signalId);
   renderLabelsPanels();
+
+  if (signalId === null) {return;}
+
   updateButtonsForSelectedWaveform(waveformData[signalId].signalWidth);
 };
 
@@ -935,6 +936,7 @@ handleClusterChanged = function (startIndex, endIndex) {
     pointerStartY = event.clientY;
 
     draggableItem.classList.remove('is-idle');
+    draggableItem.classList.remove('is-selected');
     draggableItem.classList.add('is-draggable');
 
     document.addEventListener('mousemove', dragMove);
@@ -1045,19 +1047,19 @@ handleClusterChanged = function (startIndex, endIndex) {
   // gets the absolute x position of the click relative to the scrollable content
   scrollArea.addEventListener('click', (event) => {
 
-    let signalId      = null;
-    let chunkIndex    = null;
-    const waveChunkId = event.target.closest('.waveform-chunk');
+    // Get the time position of the click
     const bounds      = scrollArea.getBoundingClientRect();
     const pixelLeft   = Math.round(scrollArea.scrollLeft + event.pageX - bounds.left);
     const time        = Math.round(pixelLeft / zoomRatio);
-
-    if (waveChunkId) {
-      signalId       = waveChunkId.id.split('--').slice(1).join('--');
-    }
-
     handleCursorSet(time);
-    handleSignalSelect(signalId);
+
+    // Get the signal id of the click
+    let signalId      = null;
+    const waveChunkId = event.target.closest('.waveform-chunk');
+    if (waveChunkId) {signalId = waveChunkId.id.split('--').slice(1).join('--');}
+    if (signalId)    {
+      handleSignalSelect(signalId);
+    }
   });
 
   // resize handler to handle resizing
@@ -1084,7 +1086,7 @@ handleClusterChanged = function (startIndex, endIndex) {
       resizeElement.style.borderRight = '1px solid var(--vscode-widget-border)';
     }, false);
   };
-  
+
   resize1.addEventListener("mousedown", (e) => {handleResizeMousedown(e, resize1, 2);});
   resize2.addEventListener("mousedown", (e) => {handleResizeMousedown(e, resize2, 4);});
 
@@ -1196,9 +1198,14 @@ handleClusterChanged = function (startIndex, endIndex) {
           displayedSignals.splice(index, 1);
           //document.getElementById('label-' + message.signalId).outerHTML = "";
           //document.getElementById('label-' + message.signalId).remove();
+
           updatePending    = true;
           renderLabelsPanels();
           clusterizeContent.render();
+
+          if (selectedSignal === message.signalId) {
+            handleSignalSelect(null);
+          }
         }
 
       break;

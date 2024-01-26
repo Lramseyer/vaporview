@@ -82,7 +82,7 @@
     self.scrollElement.scrollLeft = scrollLeft;
 
     // adding scroll handler
-    var lastCluster      = false,
+    var lastCluster      = [0, 0],
         scrollDebounce   = 0,
         pointerEventsSet = false,
     scrollEv = function() {
@@ -101,9 +101,13 @@
       if (self.options.callbacks.scrollingProgress) {
         self.options.callbacks.scrollingProgress(self.getScrollProgress());
       }
-      if (lastCluster != (lastCluster = self.getClusterNum(columns))) {
-        self.insertToDOM(columns, cache);
+
+      let currentCluster = self.getBlockNum(columns);
+
+      if (lastCluster !== currentCluster) {
+        self.insertToDOM(columns, cache, currentCluster);
       }
+      lastCluster = currentCluster;
       on('scroll', self.scrollElement, scrollEv);
     },
     resizeDebounce = 0,
@@ -147,7 +151,7 @@
       // fixes #39
       if(columns.length * self.options.columnWidth < scrollLeft) {
         self.scrollElement.scrollLeft = 0;
-        lastCluster = 0;
+        lastCluster = [0, 0];
       }
       self.insertToDOM(columns, cache);
       self.scrollElement.scrollLeft = scrollLeft;
@@ -212,24 +216,25 @@
       //}
       opts.blockWidth       = opts.columnWidth     * opts.columnsInBlock;
 
-      // let idealBlocksInCluster  = Math.max(Math.ceil((opts.viewportWidth / opts.blockWidth) * 2), 2);
-      // opts.blocksInCluster  = idealBlocksInCluster;
-      // console.log("Setting cluster Size on zoom: " + idealBlocksInCluster);
+      let idealBlocksInCluster  = Math.max(Math.ceil((opts.viewportWidth / opts.blockWidth) * 2), 2);
+      opts.blocksInCluster  = idealBlocksInCluster;
+
+      console.log("Setting cluster Size on zoom: " + idealBlocksInCluster);
+      console.log(" Viewport width: " + opts.viewportWidth + ", cluster Width: " + opts.blocksInCluster * opts.blockWidth);
 
       opts.columnsInCluster = opts.blocksInCluster * opts.columnsInBlock;
       opts.clusterWidth     = opts.blocksInCluster * opts.blockWidth;
 
       //return prevItemWidth != opts.columnWidth;
     },
-    // get current cluster number
-    getClusterNum: function (columns) {
+    getBlockNum: function () {
       var opts           = this.options;
       opts.scrollLeft    = this.scrollElement.scrollLeft;
-      var clusterDivider = opts.clusterWidth - opts.blockWidth;
-      var scrollOffset   = opts.viewportWidth / 2;
-      var currentCluster = Math.floor((opts.scrollLeft) / clusterDivider);
-      var maxCluster     = Math.floor((columns.length * opts.columnWidth) / clusterDivider);
-      return Math.min(currentCluster, maxCluster);
+      const leftOffset   = opts.scrollLeft + opts.viewportWidth / 2;
+      const blockNum     = leftOffset / opts.blockWidth;
+      const minColumnNum = Math.max(Math.round(blockNum - (opts.blocksInCluster / 2)), 0) * opts.columnsInBlock;
+      const maxColumnNum = Math.min(Math.round(blockNum + (opts.blocksInCluster / 2)) * opts.columnsInBlock, opts.columnCount);
+      return [minColumnNum, maxColumnNum];
     },
     // generate empty column if no data provided
     generateEmptyColumn: function() {
@@ -256,12 +261,9 @@
       return tag.outerHTML;
     },
     // if necessary verify data changed and insert to DOM
-    insertToDOM: function(columns, cache) {
+    insertToDOM: function(columns, cache, cluster) {
       // explore column's width
-      console.log("insertToDOM()");
-      if( ! this.options.clusterWidth) {
-        this.exploreEnvironment(columns, cache);
-      }
+      if (!this.options.clusterWidth) {this.exploreEnvironment(columns, cache);}
 
       var opts          = this.options,
           columnsLength = columns.length,
@@ -271,16 +273,17 @@
           itemsStart    = 0,
           itemsEnd      = columnsLength,
           newColumns    =   columnsLength ? columns : this.generateEmptyColumn();
-      if (columnsLength <= opts.columnsInBlock) {
+      if (columnsLength <= opts.columnsInCluster) {
         newColumns = this.options.callbacks.fetchColumns(itemsStart, itemsEnd);
       } else {
-        itemsStart    = Math.max((opts.columnsInCluster - opts.columnsInBlock) * this.getClusterNum(columns), 0),
-        itemsEnd      = Math.min(itemsStart + opts.columnsInCluster, columnsLength);
+        if (!cluster) { cluster = this.getBlockNum();}
+        itemsStart    = Math.min(cluster[0], (opts.columnCount - opts.columnsInCluster) + (opts.columnsInBlock % opts.columnCount));
+        itemsEnd      = Math.max(cluster[1], opts.columnsInCluster);
         leftOffset    = Math.max(itemsStart * opts.columnWidth, 0);
         rightOffset   = Math.max((columnsLength - itemsEnd) * opts.columnWidth, 0);
         newColumns    = this.options.callbacks.fetchColumns(itemsStart, itemsEnd);
         columnsBefore = itemsStart;
-        if(leftOffset < 1) {
+        if (leftOffset < 1) {
           columnsBefore++;
         }
       }

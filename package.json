@@ -1,6 +1,6 @@
 {
   "name": "vaporview",
-  "publisher": "lramseyer",
+  "publisher": "Lloyd Ramseyer",
   "displayName": "VaporView",
   "description": "VCD Waveform Viewer for VS code",
   "icon": "media/icon.png",
@@ -8,7 +8,7 @@
     "color": "#C80000",
     "theme": "dark"
   },
-  "version": "0.8.5",
+  "version": "0.8.6",
   "repository": "https://github.com/lramseyer/vaporview",
   "engines": {
     "vscode": "^1.83.0"
@@ -55,7 +55,7 @@
       "webview/context": [
         {
           "command": "vaporview.deleteSignal",
-          "when": "webview == vaporview.waveformViewer && webviewSelection == 'signal'"
+          "when": "viewType == vaporview.waveformViewer && webviewSelection == 'signal'"
         }
       ]
     },

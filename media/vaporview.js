@@ -71,12 +71,14 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
   let deltaTime;
   let backgroundSizeX;
   let textPosition;
+  let spansChunk    = true;
 
   transitionData.forEach((transition) => {
     deltaTime       = transition[0] - initialTime;
     backgroundSizeX = (deltaTime - backgroundPositionX);
     textPosition    = (transition[0] + initialValue[0]) / 2;
     result.push(busElement(deltaTime, initialValue, backgroundPositionX, backgroundSizeX, textPosition, signalWidth));
+    spansChunk          = false;
     initialTime         = transition[0];
     initialValue        = transition;
     backgroundPositionX = 0;
@@ -229,8 +231,8 @@ createBaseChunk = function (chunkIndex) {
 createTimeCursor = function (time) {
   const x = (time % chunkTime) * zoomRatio;
   return `
-    <svg class="time-cursor">
-      <line x1="${x}" y1="0" x2="${x}" y2="100%" stroke-dasharray="2 2"/>
+    <svg class="time-cursor" style="left:${x}px">
+      <line x1="0" y1="0" x2="0" y2="100%" stroke-dasharray="2 2"/>
     </svg>`;
 };
 
@@ -428,6 +430,8 @@ handleCursorSet = function (time) {
   // dispose of old cursor
   unsetCursor();
 
+  if (time === null) {return;}
+
   // first find the chunk with the cursor
   cursorChunkIndex   = Math.floor(time / chunkTime);
 
@@ -617,7 +621,7 @@ handleClusterChanged = function (startIndex, endIndex) {
   // resize elements
   const resize1       = document.getElementById("resize-1");
   const resize2       = document.getElementById("resize-2");
-  webview.style.gridTemplateColumns = `150px 4px 50px 4px auto`;
+  webview.style.gridTemplateColumns = `150px 50px auto`;
 
   renderLabelsPanels = function () {
     let labelsList  = [];
@@ -848,6 +852,13 @@ handleClusterChanged = function (startIndex, endIndex) {
     }
   };
 
+  function clicklabel (event, containerElement) {
+    const labelsList   = Array.from(containerElement.querySelectorAll('.waveform-label'));
+    const clickedLabel = event.target.closest('.waveform-label');
+    const itemIndex    = labelsList.indexOf(clickedLabel);
+    handleSignalSelect(displayedSignals[itemIndex]);
+  }
+
   // Event handler helper functions
   function arrayMove(array, fromIndex, toIndex) {
     var element = array[fromIndex];
@@ -990,6 +1001,7 @@ handleClusterChanged = function (startIndex, endIndex) {
 
   // scroll handler to handle zooming and scrolling
   scrollArea.addEventListener('wheel', (event) => { 
+    console.log(event);
     if (!touchpadScrolling) {event.preventDefault();}
     const deltaY = event.deltaY;
     if (event.shiftKey && !touchpadScrolling) {
@@ -1047,6 +1059,8 @@ handleClusterChanged = function (startIndex, endIndex) {
   // gets the absolute x position of the click relative to the scrollable content
   scrollArea.addEventListener('click', (event) => {
 
+    console.log(event);
+
     // Get the time position of the click
     const bounds      = scrollArea.getBoundingClientRect();
     const pixelLeft   = Math.round(scrollArea.scrollLeft + event.pageX - bounds.left);
@@ -1066,29 +1080,33 @@ handleClusterChanged = function (startIndex, endIndex) {
   function resize(e) {
     const gridTemplateColumns = webview.style.gridTemplateColumns;
     const column1 = parseInt(gridTemplateColumns.split(' ')[0]);
-    const column3 = parseInt(gridTemplateColumns.split(' ')[2]);
+    const column2 = parseInt(gridTemplateColumns.split(' ')[1]);
 
-    if (resizeIndex === 2) {
-      webview.style.gridTemplateColumns = `${e.x}px 4px ${column3}px 4px auto`;
-    } else if (resizeIndex === 4) {
-      const newWidth =   Math.max(10, e.x - (column1 + 4));
-      webview.style.gridTemplateColumns = `${column1}px 4px ${newWidth}px 4px auto`;
+    if (resizeIndex === 1) {
+      webview.style.gridTemplateColumns = `${e.x}px ${column2}px auto`;
+      resize1.style.left = `${e.x}px`;
+      resize2.style.left = `${e.x + column2}px`;
+    } else if (resizeIndex === 2) {
+      const newWidth    = Math.max(10, e.x - column1);
+      const newPosition = Math.max(10 + column1, e.x);
+      webview.style.gridTemplateColumns = `${column1}px ${newWidth}px auto`;
+      resize2.style.left = `${newPosition}px`;
     }
   };
 
   function handleResizeMousedown(event, resizeElement, index) {
     resizeIndex = index;
     event.preventDefault();
-    resizeElement.style.borderRight = '4px solid var(--vscode-sash-hoverBorder)';
+    resizeElement.classList.add('is-resizing');
     document.addEventListener("mousemove", resize, false);
     document.addEventListener("mouseup", () => {
+      resizeElement.classList.remove('is-resizing');
       document.removeEventListener("mousemove", resize, false);
-      resizeElement.style.borderRight = '1px solid var(--vscode-widget-border)';
     }, false);
   };
 
-  resize1.addEventListener("mousedown", (e) => {handleResizeMousedown(e, resize1, 2);});
-  resize2.addEventListener("mousedown", (e) => {handleResizeMousedown(e, resize2, 4);});
+  resize1.addEventListener("mousedown", (e) => {handleResizeMousedown(e, resize1, 1);});
+  resize2.addEventListener("mousedown", (e) => {handleResizeMousedown(e, resize2, 2);});
 
   // Control bar button event handlers
   zoomInButton.addEventListener( 'click', (e) => {handleZoom(-1);});
@@ -1121,6 +1139,10 @@ handleClusterChanged = function (startIndex, endIndex) {
   // click and drag handlers to rearrange the order of waveform signals
   labels.addEventListener('mousedown', dragStart);
   document.addEventListener('mouseup', dragEnd);
+
+  // Event handlers to handle clicking on a waveform label to select a signal
+  labels.addEventListener(           'click', (e) => clicklabel(e, labels));
+  transitionDisplay.addEventListener('click', (e) => clicklabel(e, transitionDisplay));
 
   // Handle messages from the extension
   window.addEventListener('message', (event) => {

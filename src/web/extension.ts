@@ -228,7 +228,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     webviewPanel.onDidChangeViewState(e => {
       console.log("onDidChangeViewState()");
       console.log(e);
-      if (e.webviewPanel.visible) {
+      if (e.webviewPanel.active) {
         this.netlistTreeDataProvider.setTreeData(document.netlistTreeData.getTreeData());
         this.displayedSignalsTreeDataProvider.setTreeData(document.displayedSignalsTreeData.getTreeData());
         webviewPanel.webview.postMessage({command: 'getSelectionContext'});
@@ -242,7 +242,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 
     // Subscribe to the checkbox state change event
     this.netlistView.onDidChangeCheckboxState((changedItem) => {
-      if (!webviewPanel.visible) {return;}
+      if (!webviewPanel.active) {return;}
       const metadata   = changedItem.items[0][0];
       const signalId   = metadata.signalId;
       const signalData = document.documentData.netlistElements.get(signalId);
@@ -257,7 +257,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     });
 
     this.displayedSignalsView.onDidChangeCheckboxState((changedItem) => {
-      if (!webviewPanel.visible) {return;}
+      if (!webviewPanel.active) {return;}
       const metadata   = changedItem.items[0][0];
       const signalId   = metadata.signalId;
 
@@ -455,6 +455,10 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
               </div>
             </div>
           </div>
+          <div id="viewer-container">
+            <div id="resize-1" class="resize-bar"></div>
+            <div id="resize-2" class="resize-bar"></div>
+          </div>
           <div id="waveform-labels-container" class="labels-container">
             <div id="waveform-labels-spacer" class="ruler-spacer">
               <div class="format-button selected-button" title="Format in Binary" id="format-binary-button">
@@ -472,12 +476,10 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
             </div>
             <div id="waveform-labels"> </div>
           </div>
-          <div id="resize-1" class="resize-bar"></div>
           <div id="transition-display-container" class="labels-container">
             <div class="ruler-spacer"></div>
             <div id="transition-display"></div>
           </div>
-          <div id="resize-2" class="resize-bar"></div>
           <div id="scrollArea" class="clusterize-scroll">
             <div id="contentArea" class="clusterize-content">
               <div class="clusterize-no-data">Loading data…</div>

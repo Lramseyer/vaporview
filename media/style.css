@@ -18,13 +18,13 @@ body {
   height: 100%;
 
   grid-template-rows:  32px auto;
-  grid-template-columns: 150px 4px 50px 4px auto;
+  grid-template-columns: 150px 50px auto;
 }
 
 #control-bar {
   display: flex;
   grid-column-start: 1;
-  grid-column-end: 6;
+  grid-column-end: 4;
   grid-row-start: 1;
   grid-row-end: 2;
   border-bottom: 1px solid var(--vscode-widget-border);
@@ -66,6 +66,7 @@ body {
 }
 
 #search-container {
+  outline: 1px solid var(--vscode-input-border);
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -163,6 +164,15 @@ body {
   background-color: var(--vscode-editor-background);
 }
 
+#viewer-container {
+  display: flex;
+  position: relative;
+  grid-column-start: 1;
+  grid-column-end: 3;
+  grid-row-start: 2;
+  grid-row-end: 3;
+}
+
 .labels-container {
   overflow: scroll;
   margin-bottom: 10px;
@@ -186,35 +196,35 @@ body {
 }
 
 .resize-bar {
-  border-right: 1px solid var(--vscode-widget-border);
+  border-left: 1px solid var(--vscode-editorIndentGuide-background1);
   animation-duration: 100ms;
+  position: absolute;
+  height: 100%;
+  z-index: 35;
+  width: 4px;
 }
 
 #resize-1 {
-  grid-column-start: 2;
-  grid-column-end: 3;
-  grid-row-start: 2;
+  left: 150px;
 }
 
 #transition-display-container {
-  grid-column-start: 3;
-  grid-column-end: 4;
+  grid-column-start: 2;
+  grid-column-end: 3;
   grid-row-start: 2;
   color: var(--vscode-debugTokenExpression-number);
 }
 
 #resize-2 {
-  grid-column-start: 4;
-  grid-column-end: 5;
-  grid-row-start: 2;
+  left: 200px;
 }
 
 @keyframes highlightresize-bar {
   0% {
-    border-right: 1px solid var(--vscode-widget-border);
+    border-left: 1px solid var(--vscode-editorIndentGuide-background1);
   }
   100% {
-    border-right: 4px solid var(--vscode-sash-hoverBorder);
+    border-left: 4px solid var(--vscode-sash-hoverBorder);
   }
 }
 
@@ -225,10 +235,16 @@ body {
   cursor: w-resize;
 }
 
+.is-resizing {
+  cursor: w-resize;
+  border-left: 4px solid var(--vscode-sash-hoverBorder);
+}
+
 #scrollArea {
   overflow: auto;
-  grid-column-start: 5;
+  grid-column-start: 3;
   grid-row-start: 2;
+  margin-left: 1px;
 }
 
 #time-ruler {
@@ -290,6 +306,7 @@ body {
   align-items:     center;
   justify-content: right;
   user-select:     none;
+  padding-right:   4px;
 
   min-height:  var(--waveform-height);
   max-height:  var(--waveform-height);
@@ -369,8 +386,8 @@ body {
 }
 
 .is-selected{
-  border-top: 6px solid var(--vscode-editor-lineHighlightBorder);
-  border-bottom: 6px solid var(--vscode-editor-lineHighlightBorder);
+  border-top: 3px solid var(--vscode-editor-lineHighlightBorder);
+  border-bottom: 3px solid var(--vscode-editor-lineHighlightBorder);
 }
 
 .bus-waveform-value {
@@ -413,4 +430,5 @@ body {
   z-index: 100;
   overflow: visible;
   stroke: var(--vscode-editorLineNumber-activeForeground);
+  width: 1px;
 }

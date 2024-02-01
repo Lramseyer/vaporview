@@ -28,6 +28,7 @@ body {
   grid-row-start: 1;
   grid-row-end: 2;
   border-bottom: 1px solid var(--vscode-widget-border);
+  background-color: var(--vscode-editorWidget-background);
 }
 
 .control-bar-group {
@@ -386,8 +387,8 @@ body {
 }
 
 .is-selected{
-  border-top: 3px solid var(--vscode-editor-lineHighlightBorder);
-  border-bottom: 3px solid var(--vscode-editor-lineHighlightBorder);
+  border-top: 4px solid var(--vscode-editor-lineHighlightBorder);
+  border-bottom: 4px solid var(--vscode-editor-lineHighlightBorder);
 }
 
 .bus-waveform-value {

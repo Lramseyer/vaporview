@@ -532,7 +532,6 @@ handleClusterChanged = function (startIndex, endIndex) {
   }
 };
 
-
   // UI preferences
   rulerNumberSpacing = 100;
   rulerTickSpacing   = 10;

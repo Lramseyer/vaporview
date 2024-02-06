@@ -8,7 +8,7 @@
     "color": "#C80000",
     "theme": "dark"
   },
-  "version": "0.8.6",
+  "version": "0.9.0",
   "repository": "https://github.com/lramseyer/vaporview",
   "engines": {
     "vscode": "^1.83.0"
@@ -54,15 +54,15 @@
     "menus": {
       "webview/context": [
         {
-          "command": "vaporview.deleteSignal",
-          "when": "viewType == vaporview.waveformViewer && webviewSelection == 'signal'"
+          "command": "vaporview.removeSignal",
+          "when": "webviewSection == 'signal'"
         }
       ]
     },
     "commands": [
       {
-        "command": "vaporview.deleteSignal",
-        "title": "Delete Signal"
+        "command": "vaporview.removeSignal",
+        "title": "Remove Signal"
       },
       {
         "command": "vaporview.viewVaporViewSidebar",

@@ -277,6 +277,7 @@ body {
 }
 
 .ruler-chunk {
+  z-index: 30;
   position: sticky;
   top: 0;
   background: var(--vscode-editor-background);
@@ -421,6 +422,10 @@ body {
 }
 
 .binary-waveform-svg polyline {
+  vector-effect: non-scaling-stroke;
+}
+
+.binary-waveform-svg rect {
   vector-effect: non-scaling-stroke;
 }
 

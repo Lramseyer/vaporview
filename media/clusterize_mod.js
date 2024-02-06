@@ -14,17 +14,6 @@
 ('Clusterize', function() {
   "use strict";
 
-  // detect ie9 and lower
-  // https://gist.github.com/padolsey/527683#comment-786682
-  // var ie = (function(){
-  //   for( var v = 3,
-  //             el = document.createElement('b'),
-  //            all = el.all || [];
-  //        el.innerHTML = '<!--[if gt IE ' + (++v) + ']><i><![endif]-->',
-  //        all[0];
-  //      ){}
-  //   return v > 4 ? v : document.documentMode;
-  // }()),
   var isMac = navigator.platform.toLowerCase().indexOf('mac') + 1;
   var Clusterize = function(data) {
     if( ! (this instanceof Clusterize)) {return new Clusterize(data);}
@@ -69,7 +58,8 @@
       self.contentElement.setAttribute('tabindex', 0);
     }
     // private parameters
-    var columns    = isArray(data.columns) ? data.columns : self.fetchMarkup(),
+    //var columns    = isArray(data.columns) ? data.columns : self.fetchMarkup(),
+    var columns    = data.columns,
         cache      = {},
         scrollLeft = self.scrollElement.scrollLeft;
 
@@ -127,20 +117,18 @@
     };
     self.refresh = function(columnWidth) {
       const prevColumnWidth    = self.options.columnWidth;
+      if (columnWidth) {self.options.columnWidth = columnWidth;}
       const scrollProgress     = self.getScrollProgress();
+      const columnWidthChanged = prevColumnWidth !== self.options.columnWidth;
 
-      if (columnWidth) {
-        self.options.columnWidth = columnWidth;
-      }
-
-      if (prevColumnWidth !== columnWidth) {
+      if (columnWidthChanged) {
         self.update(columns);
         self.getChunksWidth(columns);
       }
 
       if (self.scrollElement) {
         self.updateViewportWidth();
-        if ((columnWidth) && (columnWidth !== prevColumnWidth)) {
+        if (columnWidthChanged) {
           self.scrollElement.scrollLeft = scrollProgress * ((columns.length * self.options.columnWidth) - self.options.viewportWidth);
         }
       }
@@ -176,16 +164,20 @@
   Clusterize.prototype = {
     constructor: Clusterize,
     // fetch existing markup
-    fetchMarkup: function() {
-      console.log("fetchMarkup()");
-      var columns      = [],
-          columnsNodes = this.getChildNodes(this.contentElement);
-
-      while (columnsNodes.length) {
-        columns.push(columnsNodes.shift().outerHTML);
-      }
-      return columns;
-    },
+    //fetchMarkup: function() {
+    //  console.log("fetchMarkup()");
+    //  var columns      = [];
+    //  var nodes        = [];
+    //  var childNodes   = this.contentElement.children;
+    //  for (var i = 0, ii = childNodes.length; i < ii; i++) {
+    //      nodes.push(childNodes[i]);
+    //  }
+    //  var columnsNodes = nodes;
+    //  while (columnsNodes.length) {
+    //    columns.push(columnsNodes.shift().outerHTML);
+    //  }
+    //  return columns;
+    //},
     // get tag name, content tag name, tag width, calc cluster width
     exploreEnvironment: function(columns, cache) {
       console.log("exploreEnvironment()");
@@ -202,11 +194,11 @@
       console.log("getChunksWidth()");
       console.log(this.options);
       var opts          = this.options;
-          //prevItemWidth = opts.columnWidth;
+      //prevItemWidth = opts.columnWidth;
       opts.clusterWidth = 0;
-      if( ! columns.length) {return;}
-      var nodes = this.contentElement.children;
-      if( ! nodes.length) {return;}
+      if (!columns.length) {return;}
+      //var nodes = this.contentElement.children;
+      //if( ! nodes.length) {return;}
       //var node = nodes[Math.floor(nodes.length / 2)];
 
       //opts.columnWidth = node.offsetWidth;
@@ -215,13 +207,7 @@
       //  opts.columnWidth += parseInt(getStyle('borderSpacing', this.contentElement), 10) || 0;
       //}
       opts.blockWidth       = opts.columnWidth     * opts.columnsInBlock;
-
-      let idealBlocksInCluster  = Math.max(Math.ceil((opts.viewportWidth / opts.blockWidth) * 2), 2);
-      opts.blocksInCluster  = idealBlocksInCluster;
-
-      console.log("Setting cluster Size on zoom: " + idealBlocksInCluster);
-      console.log(" Viewport width: " + opts.viewportWidth + ", cluster Width: " + opts.blocksInCluster * opts.blockWidth);
-
+      opts.blocksInCluster  = Math.max(Math.ceil((opts.viewportWidth / opts.blockWidth) * 2), 2);
       opts.columnsInCluster = opts.blocksInCluster * opts.columnsInBlock;
       opts.clusterWidth     = opts.blocksInCluster * opts.blockWidth;
 
@@ -314,13 +300,6 @@
     },
 
     html: function(data) {this.contentElement.innerHTML = data;},
-    getChildNodes: function(tag) {
-        var childNodes = tag.children, nodes = [];
-        for (var i = 0, ii = childNodes.length; i < ii; i++) {
-            nodes.push(childNodes[i]);
-        }
-        return nodes;
-    },
     checkChanges: function(type, value, cache) {
       var changed = value != cache[type];
       cache[type] = value;

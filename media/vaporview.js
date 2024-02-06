@@ -85,7 +85,7 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
   });
   deltaTime       = chunkTime - initialTime;
   backgroundSizeX = (Math.min(postState[0], 2 * chunkTime) - initialTime) - backgroundPositionX;
-  textPosition  = (postState[0] + initialValue[0]) / 2;
+  textPosition    = (postState[0] + initialValue[0]) / 2;
 
   // let the renderer know not not to render the text if it is out of bounds
   // easier to check for this one case than to check for all cases
@@ -94,50 +94,37 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
   return result.join('');
 };
 
-
-//polylinePathFromTransitionData = function (transitionData, initialState, polylineAttributes) {
-//  var result          = [];
-//  var xzPolylines     = [];
-//  var initialValue    = initialState[1];
-//  var accumulatedPath = "-1," + initialValue + " ";
-//  var xzAccumulatedPath = "";
-//  if (initialValue === "x" | initialValue === "z") {
-//    xzAccumulatedPath = "-1,0 -1,1 ";
-//  }
-//  transitionData.forEach(([time, value]) => {
-//    if (initialValue === "x" | value === "z") {
-//      xzAccumulatedPath += time + ",1 " + time + ",0 ";
-//      xzPolylines.push(`<polyline points="${xzAccumulatedPath}" stroke="var(--vscode-debugTokenExpression-error)"/>`);
-//      xzAccumulatedPath = "";
-//    }
-//    if (value === "x" | value === "z") {
-//      value = 0;
-//    } else {
-//      accumulatedPath += time + "," + initialValue + " ";
-//      accumulatedPath += time + "," + value + " ";
-//    }
-//    initialValue = value;
-//  });
-//  if (xzAccumulatedPath !== "") {
-//    xzAccumulatedPath += chunkTime + ",1";
-//    xzPolylines.push(`<polyline points="${xzAccumulatedPath}" stroke="var(--vscode-debugTokenExpression-error)"/>`);
-//  }
-//
-//  accumulatedPath += chunkTime + "," + initialValue;
-//  return `<polyline points="` + accumulatedPath + `" ${polylineAttributes}/>` + xzPolylines.join('');
-//};
-
 polylinePathFromTransitionData = function (transitionData, initialState, polylineAttributes) {
+  var deltaTime;
+  var xzPolylines     = [];
   var initialValue    = initialState[1];
+  var initialTime     = Math.max(initialState[0], -10);
   var accumulatedPath = "-1," + initialValue + " ";
+  var xzAccumulatedPath = "";
+  if (initialValue === "x" | initialValue === "z") {
+    xzAccumulatedPath = "-1,0 -1,1 ";
+  }
   transitionData.forEach(([time, value]) => {
-    if (value === "x") {value = 0;}
+    if (initialValue === "x" | initialValue === "z") {
+      deltaTime          = time - initialTime;
+      xzPolylines.push(`<rect x="${initialTime}" y="0" height="1" width="${deltaTime}" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+    }
+
     accumulatedPath += time + "," + initialValue + " ";
-    accumulatedPath += time + "," + value + " ";
-    initialValue = value;
+
+    if (value === "x" | value === "z") {accumulatedPath += time + "," + 0 + " ";}
+    else                               {accumulatedPath += time + "," + value + " ";}
+
+    initialTime      = time;
+    initialValue     = value;
   });
+  if (initialValue === "x" | initialValue === "z")  {
+    deltaTime = chunkTime - initialTime + 10;
+    xzPolylines.push(`<rect x="${initialTime}" y="0" height="1" width="${deltaTime}" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+  }
+
   accumulatedPath += chunkTime + "," + initialValue;
-  return `<polyline points="` + accumulatedPath + `" ${polylineAttributes}>`;
+  return `<polyline points="` + accumulatedPath + `" ${polylineAttributes}/>` + xzPolylines.join('');
 };
 
 binaryElementFromTransitionData = function (transitionData, initialState) {
@@ -239,7 +226,7 @@ createTimeCursor = function (time) {
 createLabel = function (signalId, signalName, isSelected) {
   //let selectorClass = 'is-idle';
   //if (isSelected) {selectorClass = 'is-selected';}
-  const vscodeContextMenuAttribute = `data-vscode-context='{"webviewSection": "signal", "preventDefaultContextMenuItems": true}'`;
+  const vscodeContextMenuAttribute = `data-vscode-context='{"webviewSection": "signal", "preventDefaultContextMenuItems": true, "signalId": "${signalId}"}'`;
   selectorClass = isSelected ? 'is-selected' : 'is-idle';
   return `<div class="waveform-label ${selectorClass}" id="label-${signalId}" ${vscodeContextMenuAttribute}>
             <div class='codicon codicon-grabber'></div>
@@ -291,6 +278,9 @@ updateChunkInCache = function (chunkIndex) {
 handleZoom = function (amount) {
   // -1 zooms in, +1 zooms out
   // zoomRatio is in pixels per time unit
+  if (amount === 0) {return;}
+
+  touchpadScrollCount = 0;
   zoomRatio  = zoomRatio * Math.pow(2, (-1 * amount));
   chunkWidth = chunkTime * zoomRatio;
 
@@ -371,8 +361,77 @@ handleSignalSelect = function (signalId) {
   updateButtonsForSelectedWaveform(waveformData[signalId].signalWidth);
 };
 
-unsetCursor = function () {
+getNearestTransitionIndex = function (signalId, time) {
 
+  if (time === null) {return -1;}
+
+  const data        = waveformData[signalId];
+  const chunk       = Math.floor(time / chunkTime);
+  const startIndex  = Math.max(0, data.chunkStart[chunk] - 1);
+  const endIndex    = data.chunkStart[chunk + 1] + 1;
+  const searchIndex = data.transitionData.slice(startIndex, endIndex).findIndex(([t, v]) => {return t >= time;});
+  const transitionIndex = startIndex + searchIndex;
+
+  if (searchIndex === -1) {
+    console.log('search found a -1 index');
+    return -1;
+  }
+
+  return transitionIndex;
+};
+
+getValueAtTime = function (signalId, time) {
+
+  let result            = [];
+  const data            = waveformData[signalId].transitionData;
+  const transitionIndex = getNearestTransitionIndex(signalId, time);
+
+  if (transitionIndex === -1) {return result;}
+
+  if (transitionIndex > 0) {
+    result.push(data[transitionIndex - 1][1]);
+  }
+
+  if (data[transitionIndex][0] === time) {
+    result.push(data[transitionIndex][1]);
+  }
+
+  return result;
+};
+
+getNearestTransition = function (signalId, time) {
+
+  let result = null;
+  if (time === null) {return result;}
+  
+  const data  = waveformData[signalId].transitionData;
+  const index = getNearestTransitionIndex(signalId, time);
+  
+  if (index === -1) {return result;}
+  if (data[index][0] === time) {
+    return data[index];
+  }
+
+  let timeBefore = time - data[index - 1][0];
+  let timeAfter  = data[index][0] - time;
+
+  if (timeBefore < timeAfter) {
+    return data[index - 1];
+  } else {
+    return data[index];
+  }
+};
+
+setTimeOnStatusBar = function () {
+  vscode.postMessage({
+    command: 'setTime',
+    time:    cursorTime.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","),
+  });
+};
+
+handleCursorSet = function (time, cursorType) {
+
+  // dispose of old cursor
   if (cursorTime !== null) {
     if (cursorChunkElement !== null) {
       let timeCursor = cursorChunkElement.getElementsByClassName('time-cursor')[0];
@@ -388,47 +447,6 @@ unsetCursor = function () {
   cursorChunkIndex   = null;
   cursorChunkElement = null;
   cursorTime         = null;
-};
-
-getValueAtTime = function (signalId, time) {
-
-  let result = [];
-  if (time === null) {return result;}
-
-  const data        = waveformData[signalId];
-  const chunk       = Math.floor(time / chunkTime);
-  const startIndex  = Math.max(0, data.chunkStart[chunk] - 1);
-  const endIndex    = data.chunkStart[chunk + 1] + 1;
-  const searchIndex = data.transitionData.slice(startIndex, endIndex).findIndex(([t, v]) => {return t >= time;});
-  const transitionIndex = startIndex + searchIndex;
-
-  if (searchIndex === -1) {
-    console.log('search found a -1 index');
-    return result;
-  }
-
-  if (transitionIndex > 0) {
-    result.push(data.transitionData[transitionIndex - 1][1]);
-  }
-
-  if (data.transitionData[transitionIndex][0] === time) {
-    result.push(data.transitionData[transitionIndex][1]);
-  }
-
-  return result;
-};
-
-setTimeOnStatusBar = function (time) {
-  vscode.postMessage({
-    command: 'setTime',
-    time:    time.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","),
-  });
-};
-
-handleCursorSet = function (time) {
-
-  // dispose of old cursor
-  unsetCursor();
 
   if (time === null) {return;}
 
@@ -438,24 +456,25 @@ handleCursorSet = function (time) {
   // create new cursor
   if (cursorChunkIndex >= dataCache.startIndex && cursorChunkIndex < dataCache.endIndex) {
     cursorChunkElement = scrollArea.getElementsByClassName('column-chunk')[cursorChunkIndex - dataCache.startIndex];
-    let cursor = createTimeCursor(time);
+    let cursor = createTimeCursor(time, cursorType);
 
     cursorChunkElement.innerHTML += cursor;
     dataCache.columns[cursorChunkIndex].overlays = cursor;
+
     console.log('adding cursor at time ' + time + ' from chunk ' + cursorChunkIndex + '');
   } else {
     console.log('chunk index ' + cursorChunkIndex + ' is not in cache');
   }
 
   cursorTime = time;
-  moveViewToTime(cursorTime);
+  moveViewToTime(time);
 
   // Get values for all displayed signals at the cursor time
   displayedSignals.forEach((signalId) => {
     dataCache.valueAtCursor[signalId] = getValueAtTime(signalId, time);
   });
 
-  setTimeOnStatusBar(time);
+  setTimeOnStatusBar();
   renderLabelsPanels();
 };
 
@@ -474,7 +493,7 @@ moveViewToTime = function(time) {
 
 goToNextTransition = function (direction, edge) {
   if (selectedSignal === null) {
-    //handleCursorSet(cursorTime + direction);
+    //handleCursorSet(cursorTime + direction, 0);
     return;
   }
 
@@ -502,7 +521,7 @@ goToNextTransition = function (direction, edge) {
   timeIndex = Math.max(timeIndex, 0);
   timeIndex = Math.min(timeIndex, data.transitionData.length - 1);
 
-  handleCursorSet(data.transitionData[timeIndex][0]);
+  handleCursorSet(data.transitionData[timeIndex][0], 0);
 };
 
 uncacheChunks = function (startIndex, endIndex) {
@@ -538,15 +557,18 @@ handleClusterChanged = function (startIndex, endIndex) {
 
   // state variables
   touchpadScrolling   = false;
+  touchpadScrollCount = 0;
   selectedSignal      = null;
   selectedSignalIndex = null;
-  cursorTime          = null;
   searchState         = 0;
   searchInFocus       = false;
   parsedSearchValue   = null;
+  cursorTime          = null;
   cursorChunkElement  = null;
   cursorChunkIndex    = null;
   altCursorTime       = null;
+  altCursorChunkElement = null;
+  altCursorChunkIndex = null;
   chunkTime           = 512;
   chunkWidth          = 512;
   zoomRatio           = 1;
@@ -816,7 +838,7 @@ handleClusterChanged = function (startIndex, endIndex) {
     if (parsedSearchValue === null) {return;}
 
     if (searchState === 0 && direction === 1) {
-      handleCursorSet(parseInt(parsedSearchValue));
+      handleCursorSet(parseInt(parsedSearchValue), 0);
     } else {
       const signalWidth      = waveformData[selectedSignal].signalWidth;
       let trimmedSearchValue = parsedSearchValue;
@@ -831,7 +853,7 @@ handleClusterChanged = function (startIndex, endIndex) {
 
       for (var i = timeIndex + indexOffset; i >= 0; i+=direction) {
         if (data.transitionData[i][1].match(searchRegex)) {
-          handleCursorSet(data.transitionData[i][0]);
+          handleCursorSet(data.transitionData[i][0], 0);
           break;
         }
       }
@@ -998,6 +1020,10 @@ handleClusterChanged = function (startIndex, endIndex) {
   transitionScroll.addEventListener('scroll', (e) => {syncVerticalScroll(transitionScroll.scrollTop);});
   scrollArea.addEventListener(      'scroll', (e) => {syncVerticalScroll(scrollArea.scrollTop);});
 
+  function resetTouchpadScrollCount() {
+    touchpadScrollCount = 0;
+  };
+
   // scroll handler to handle zooming and scrolling
   scrollArea.addEventListener('wheel', (event) => { 
     console.log(event);
@@ -1016,8 +1042,16 @@ handleClusterChanged = function (startIndex, endIndex) {
       const time        = Math.round(pixelLeft / zoomRatio);
 
       // scroll up zooms in (- deltaY), scroll down zooms out (+ deltaY)
-      if      (deltaY > 0) {handleZoom(1);}
-      else if (deltaY < 0) {handleZoom(-1);}
+      if      (!touchpadScrolling && (deltaY > 0)) {handleZoom(1);}
+      else if (!touchpadScrolling && (deltaY < 0)) {handleZoom(-1);}
+
+      // Handle zooming with touchpad since we apply scroll attenuation
+      else if (touchpadScrolling) {
+        touchpadScrollCount += deltaY;
+        clearTimeout(resetTouchpadScrollCount);
+        setTimeout(resetTouchpadScrollCount, 1000);
+        handleZoom(Math.round(touchpadScrollCount / 25));
+      }
 
       scrollArea.scrollLeft = (time * zoomRatio) - elementLeft;
     } else if (!touchpadScrolling){
@@ -1029,16 +1063,16 @@ handleClusterChanged = function (startIndex, endIndex) {
   // move handler to handle moving the cursor or selected signal with the arrow keys
   window.addEventListener('keydown', (event) => {
     if (searchInFocus) {return;} 
-    else {event.preventDefault();} 
+    else {event.preventDefault();}
 
     // left and right arrow keys move the cursor
     // ctrl + left and right arrow keys move the cursor to the next transition
     if ((event.key === 'ArrowRight') && (cursorTime !== null)) {
       if (event.ctrlKey)  {goToNextTransition(1);}
-      else                {handleCursorSet(cursorTime + 1);}
+      else                {handleCursorSet(cursorTime + 1, 0);}
     } else if ((event.key === 'ArrowLeft') && (cursorTime !== null)) {
       if (event.ctrlKey)  {goToNextTransition(-1);}
-      else                {handleCursorSet(cursorTime - 1);}
+      else                {handleCursorSet(cursorTime - 1, 0);}
 
     // up and down arrow keys move the selected signal
     // alt + up and down arrow keys reorder the selected signal up and down
@@ -1054,26 +1088,44 @@ handleClusterChanged = function (startIndex, endIndex) {
 
   });
 
-  // click handler to handle clicking inside the waveform viewer
-  // gets the absolute x position of the click relative to the scrollable content
-  scrollArea.addEventListener('click', (event) => {
-
-    console.log(event);
-
-    // Get the time position of the click
+  function getTimeFromClick(event) {
     const bounds      = scrollArea.getBoundingClientRect();
     const pixelLeft   = Math.round(scrollArea.scrollLeft + event.pageX - bounds.left);
-    const time        = Math.round(pixelLeft / zoomRatio);
-    handleCursorSet(time);
+    return Math.round(pixelLeft / zoomRatio);
+  }
+
+  function handleScrollAreaClick(event, button) {
+
+    console.log(event);
+  
+    if (button === 1) {event.preventDefault();}
+    if (button === 2) {return;}
+
+    const snapToDistance = 3.5;
+
+    // Get the time position of the click
+    const time     = getTimeFromClick(event);
+    let snapToTime = time;
 
     // Get the signal id of the click
     let signalId      = null;
     const waveChunkId = event.target.closest('.waveform-chunk');
     if (waveChunkId) {signalId = waveChunkId.id.split('--').slice(1).join('--');}
     if (signalId)    {
-      handleSignalSelect(signalId);
+      if (button === 0) {
+        handleSignalSelect(signalId);
+      }
+
+      // Snap to the nearest transition if the click is close enough
+      const nearestTransition = getNearestTransition(signalId, time);
+      const nearestTime       = nearestTransition[0];
+      const pixelDistance     = Math.abs(nearestTime - time) * zoomRatio;
+
+      if (pixelDistance < snapToDistance) {snapToTime = nearestTime;}
     }
-  });
+
+    handleCursorSet(snapToTime, button);
+  }
 
   // resize handler to handle resizing
   function resize(e) {
@@ -1104,8 +1156,14 @@ handleClusterChanged = function (startIndex, endIndex) {
     }, false);
   };
 
-  resize1.addEventListener("mousedown", (e) => {handleResizeMousedown(e, resize1, 1);});
-  resize2.addEventListener("mousedown", (e) => {handleResizeMousedown(e, resize2, 2);});
+  // click handler to handle clicking inside the waveform viewer
+  // gets the absolute x position of the click relative to the scrollable content
+  scrollArea.addEventListener('click',     (e) => {handleScrollAreaClick(e, 0);});
+  scrollArea.addEventListener('mousedown', (e) => {if (e.button === 1) {handleScrollAreaClick(e, 1);}});
+
+  // resize handler to handle column resizing
+  resize1.addEventListener("mousedown",   (e) => {handleResizeMousedown(e, resize1, 1);});
+  resize2.addEventListener("mousedown",   (e) => {handleResizeMousedown(e, resize2, 2);});
 
   // Control bar button event handlers
   zoomInButton.addEventListener( 'click', (e) => {handleZoom(-1);});
@@ -1232,7 +1290,7 @@ handleClusterChanged = function (startIndex, endIndex) {
       break;
       }
       case 'getSelectionContext': {
-        setTimeOnStatusBar(cursorTime);
+        setTimeOnStatusBar();
         setSeletedSignalOnStatusBar(selectedSignal);
         break;
       }

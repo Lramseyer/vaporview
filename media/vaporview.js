@@ -215,10 +215,11 @@ createBaseChunk = function (chunkIndex) {
   return `<div class="column-chunk" style="min-width:${chunkWidth}px"></div>`;
 };
 
-createTimeCursor = function (time) {
-  const x = (time % chunkTime) * zoomRatio;
+createTimeCursor = function (time, cursorType) {
+  const x  = (time % chunkTime) * zoomRatio;
+  const id = cursorType === 0 ? 'main-cursor' : 'alt-cursor';
   return `
-    <svg class="time-cursor" style="left:${x}px">
+    <svg id="${id}" class="time-cursor" style="left:${x}px">
       <line x1="0" y1="0" x2="0" y2="100%" stroke-dasharray="2 2"/>
     </svg>`;
 };
@@ -246,6 +247,26 @@ createValueDisplayElement = function (signalId, value, isSelected) {
             <p>${displayValue}</p></div>`;
 };
 
+getValueTextWidth = function (width, numberFormat) {
+  const characterWidth = 7.69;
+  let   numeralCount;
+  let   underscoreCount;
+
+  if (numberFormat === 2)  {
+    numeralCount    = width;
+    underscoreCount = Math.floor((width - 1) / 4);
+  } 
+  if (numberFormat === 16) {
+    numeralCount    = Math.ceil(width / 4);
+    underscoreCount = Math.floor((width - 1) / 16);
+  }
+  if (numberFormat === 10) {
+    numeralCount    = Math.ceil(Math.log10(width % 32)) + (10 * Math.floor((width) / 32));
+    underscoreCount = Math.floor((width - 1) / 32);
+  }
+  return (numeralCount + underscoreCount) * characterWidth;
+};
+
 updateWaveformInCache = function (signalIdList) {
   signalIdList.forEach((signalId) => {
     for (var i = dataCache.startIndex; i < dataCache.endIndex; i++) {
@@ -262,7 +283,8 @@ updateChunkInCache = function (chunkIndex) {
   let result = {
     rulerChunk:    createRulerChunk(chunkIndex),
     waveformChunk: {},
-    overlays:      []
+    cursor:        [],
+    altCursor:     [],
   };
 
   displayedSignals.forEach((signalId) => {
@@ -270,18 +292,29 @@ updateChunkInCache = function (chunkIndex) {
   });
 
   if (cursorChunkIndex === chunkIndex) {
-    result.overlays.push(createTimeCursor(cursorTime));
+    result.cursor = createTimeCursor(cursorTime, 0);
+  }
+  if (altCursorChunkIndex === chunkIndex) {
+    result.altCursor = createTimeCursor(altCursorTime, 1);
   }
   return result;
 };
 
-handleZoom = function (amount) {
+handleZoom = function (amount, adjustScroll) {
   // -1 zooms in, +1 zooms out
   // zoomRatio is in pixels per time unit
   if (amount === 0) {return;}
 
+  const newZoomRatio  = zoomRatio * Math.pow(2, (-1 * amount));
+  const centerTime    = (scrollArea.scrollLeft + (viewerWidth / 2)) / zoomRatio;
   touchpadScrollCount = 0;
-  zoomRatio  = zoomRatio * Math.pow(2, (-1 * amount));
+
+  if (newZoomRatio > maxZoomRatio) {
+    console.log('zoom ratio is too high: ' + newZoomRatio + '');
+    return;
+  }
+
+  zoomRatio  = newZoomRatio;
   chunkWidth = chunkTime * zoomRatio;
 
   for (i = dataCache.startIndex; i < dataCache.endIndex; i++) {
@@ -291,6 +324,10 @@ handleZoom = function (amount) {
   updatePending = true;
   clusterizeContent.refresh(chunkWidth);
   //clusterizeContent.render();
+
+  if (adjustScroll) {
+    scrollArea.scrollLeft = centerTime * zoomRatio - (viewerWidth / 2);
+  }
 };
 
 // return chunks to be rendered
@@ -318,7 +355,8 @@ handleFetchColumns = function (startIndex, endIndex) {
       <div class="waveform-column" style="font-family:monospaced">
         ${displayedSignals.map((signal) => {return c.waveformChunk[signal].html;}).join('')}
       </div>
-      ${c.overlays}
+      ${c.cursor}
+      ${c.altCursor}
     </div>`;
   });
 };
@@ -423,56 +461,79 @@ getNearestTransition = function (signalId, time) {
 };
 
 setTimeOnStatusBar = function () {
+  // .toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
   vscode.postMessage({
     command: 'setTime',
-    time:    cursorTime.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","),
+    time:    cursorTime,
+    altTime: altCursorTime
   });
 };
 
 handleCursorSet = function (time, cursorType) {
 
+  let   oldCursorTime = cursorType === 0 ? cursorTime         : altCursorTime;
+  let   chunkElement  = cursorType === 0 ? cursorChunkElement : altCursorChunkElement;
+  let   chunkIndex    = cursorType === 0 ? cursorChunkIndex   : altCursorChunkIndex;
+  const id            = cursorType === 0 ? 'main-cursor'      : 'alt-cursor';
+  const cacheRef      = cursorType === 0 ? 'cursor'           : 'altCursor';
+
   // dispose of old cursor
-  if (cursorTime !== null) {
-    if (cursorChunkElement !== null) {
-      let timeCursor = cursorChunkElement.getElementsByClassName('time-cursor')[0];
+  if (oldCursorTime !== null) {
+    if (chunkElement !== null) {
+      let timeCursor = document.getElementById(id);
       if (timeCursor) {timeCursor.remove();}
-      //element.removeChild(timeCursor);
-      console.log('removing cursor at time ' + cursorTime + ' from chunk ' + cursorChunkIndex + '');
-      dataCache.columns[cursorChunkIndex].overlays = [];
+      console.log('removing cursor at time ' + oldCursorTime + ' from chunk ' + chunkIndex + '');
+      dataCache.columns[chunkIndex][cacheRef] = [];
     } else {
-      console.log('chunk index ' + cursorChunkIndex + ' is not in cache');
+      console.log('chunk index ' + chunkIndex + ' is not in cache');
     }
   }
 
-  cursorChunkIndex   = null;
-  cursorChunkElement = null;
-  cursorTime         = null;
-
-  if (time === null) {return;}
-
-  // first find the chunk with the cursor
-  cursorChunkIndex   = Math.floor(time / chunkTime);
-
-  // create new cursor
-  if (cursorChunkIndex >= dataCache.startIndex && cursorChunkIndex < dataCache.endIndex) {
-    cursorChunkElement = scrollArea.getElementsByClassName('column-chunk')[cursorChunkIndex - dataCache.startIndex];
-    let cursor = createTimeCursor(time, cursorType);
-
-    cursorChunkElement.innerHTML += cursor;
-    dataCache.columns[cursorChunkIndex].overlays = cursor;
-
-    console.log('adding cursor at time ' + time + ' from chunk ' + cursorChunkIndex + '');
-  } else {
-    console.log('chunk index ' + cursorChunkIndex + ' is not in cache');
+  if (time === null) {
+    if (cursorType === 0) {
+      cursorTime         = null;
+      cursorChunkElement = null;
+      cursorChunkIndex   = null;
+    } else {
+      altCursorTime         = null;
+      altCursorChunkElement = null;
+      altCursorChunkIndex   = null;
+    }
+    return;
   }
 
-  cursorTime = time;
-  moveViewToTime(time);
+  // first find the chunk with the cursor
+  chunkIndex   = Math.floor(time / chunkTime);
 
-  // Get values for all displayed signals at the cursor time
-  displayedSignals.forEach((signalId) => {
-    dataCache.valueAtCursor[signalId] = getValueAtTime(signalId, time);
-  });
+  // create new cursor
+  if (chunkIndex >= dataCache.startIndex && chunkIndex < dataCache.endIndex) {
+    chunkElement = scrollArea.getElementsByClassName('column-chunk')[chunkIndex - dataCache.startIndex];
+    let cursor = createTimeCursor(time, cursorType);
+
+    chunkElement.innerHTML += cursor;
+    dataCache.columns[chunkIndex][cacheRef] = cursor;
+
+    console.log('adding cursor at time ' + time + ' from chunk ' + chunkIndex + '');
+  } else {
+    console.log('chunk index ' + chunkIndex + ' is not in cache');
+  }
+
+  if (cursorType === 0) {
+    cursorTime            = time;
+    cursorChunkElement    = chunkElement;
+    cursorChunkIndex      = chunkIndex;
+
+    moveViewToTime(time);
+
+    // Get values for all displayed signals at the cursor time
+    displayedSignals.forEach((signalId) => {
+      dataCache.valueAtCursor[signalId] = getValueAtTime(signalId, time);
+    });
+  } else {
+    altCursorTime         = time;
+    altCursorChunkElement = chunkElement;
+    altCursorChunkIndex   = chunkIndex;
+  }
 
   setTimeOnStatusBar();
   renderLabelsPanels();
@@ -572,6 +633,7 @@ handleClusterChanged = function (startIndex, endIndex) {
   chunkTime           = 512;
   chunkWidth          = 512;
   zoomRatio           = 1;
+  maxZoomRatio        = 64;
   chunkSample         = 1;
   viewerWidth         = 0;
   numberFormat        = 2;
@@ -1042,15 +1104,15 @@ handleClusterChanged = function (startIndex, endIndex) {
       const time        = Math.round(pixelLeft / zoomRatio);
 
       // scroll up zooms in (- deltaY), scroll down zooms out (+ deltaY)
-      if      (!touchpadScrolling && (deltaY > 0)) {handleZoom(1);}
-      else if (!touchpadScrolling && (deltaY < 0)) {handleZoom(-1);}
+      if      (!touchpadScrolling && (deltaY > 0)) {handleZoom(1, false);}
+      else if (!touchpadScrolling && (deltaY < 0)) {handleZoom(-1, false);}
 
       // Handle zooming with touchpad since we apply scroll attenuation
       else if (touchpadScrolling) {
         touchpadScrollCount += deltaY;
         clearTimeout(resetTouchpadScrollCount);
         setTimeout(resetTouchpadScrollCount, 1000);
-        handleZoom(Math.round(touchpadScrollCount / 25));
+        handleZoom(Math.round(touchpadScrollCount / 25), false);
       }
 
       scrollArea.scrollLeft = (time * zoomRatio) - elementLeft;
@@ -1166,8 +1228,8 @@ handleClusterChanged = function (startIndex, endIndex) {
   resize2.addEventListener("mousedown",   (e) => {handleResizeMousedown(e, resize2, 2);});
 
   // Control bar button event handlers
-  zoomInButton.addEventListener( 'click', (e) => {handleZoom(-1);});
-  zoomOutButton.addEventListener('click', (e) => {handleZoom(1);});
+  zoomInButton.addEventListener( 'click', (e) => {handleZoom(-1, true);});
+  zoomOutButton.addEventListener('click', (e) => {handleZoom(1, true);});
   prevNegedge.addEventListener(  'click', (e) => {goToNextTransition(-1, '0');});
   prevPosedge.addEventListener(  'click', (e) => {goToNextTransition(-1, '1');});
   nextNegedge.addEventListener(  'click', (e) => {goToNextTransition( 1, '0');});
@@ -1213,6 +1275,7 @@ handleClusterChanged = function (startIndex, endIndex) {
         document.title    = waveformDataSet.filename;
         chunkTime         = waveformDataSet.chunkTime;
         zoomRatio         = waveformDataSet.defaultZoom;
+        maxZoomRatio      = zoomRatio * 64;
         chunkWidth        = chunkTime * zoomRatio;
         var chunkCount    = Math.ceil(waveformDataSet.timeEnd / waveformDataSet.chunkTime);
         dataCache.columns = new Array(chunkCount);
@@ -1234,10 +1297,7 @@ handleClusterChanged = function (startIndex, endIndex) {
             clusterChanged:    function(startIndex, endIndex) {handleClusterChanged(startIndex, endIndex);},
             setViewerWidth:    function(width) {viewerWidth = width;},
             scrollingProgress: function(progress) {},
-            fetchColumns:      (startIndex, endIndex) => {
-              console.log('running callback for fetchColumns with start index ' + startIndex + ' and end index ' + endIndex + '');
-              console.log('cached columns start index ' + dataCache.startIndex + ' and end index ' + dataCache.endIndex + '');
-              return handleFetchColumns(startIndex, endIndex);},
+            fetchColumns:      (startIndex, endIndex) => {return handleFetchColumns(startIndex, endIndex);},
             checkUpdatePending: function() {return updatePending;},
             clearUpdatePending: function() {updatePending = false;}
           }

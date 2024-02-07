@@ -118,6 +118,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
   public netlistView: vscode.TreeView<NetlistItem>;
   public displayedSignalsTreeDataProvider: DisplayedSignalsViewProvider;
   public displayedSignalsView: vscode.TreeView<NetlistItem>;
+  public deltaTimeStatusBarItem: vscode.StatusBarItem;
   public cursorTimeStatusBarItem: vscode.StatusBarItem;
   public selectedSignalStatusBarItem: vscode.StatusBarItem;
   //public signalIdTable: Map<string, SignalIdViewRef>();
@@ -138,9 +139,9 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     this._context.subscriptions.push(this.displayedSignalsView);
 
     // Create a status bar item for cursor time and
-    this.cursorTimeStatusBarItem     = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-    this.selectedSignalStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-
+    this.deltaTimeStatusBarItem      = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+    this.cursorTimeStatusBarItem     = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
+    this.selectedSignalStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
 
   }
 
@@ -212,9 +213,21 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
           // Webview is initialized, send the 'init' message
         }
         case 'setTime': {
+          let formatTime = function(time: number) {
+            const timeValue = time * document.documentData.timeScale;
+            return timeValue.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + ' ' + document.documentData.timeUnit;
+          };
+
           if (e.time !== null) {
-            this.cursorTimeStatusBarItem.text = 'time: ' + e.time + ' ' + document.documentData.timeUnit;
+            this.cursorTimeStatusBarItem.text = 'time: ' + formatTime(e.time);
             this.cursorTimeStatusBarItem.show();
+            if (e.altTime !== null) {
+              const deltaT = e.time - e.altTime;
+              this.deltaTimeStatusBarItem.text = 'Δt: ' + formatTime(deltaT);
+              this.deltaTimeStatusBarItem.show();
+            } else {
+              this.deltaTimeStatusBarItem.hide();
+            }
           } else {
             this.cursorTimeStatusBarItem.hide();
           }
@@ -248,9 +261,11 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
         this.netlistTreeDataProvider.setTreeData(document.netlistTreeData.getTreeData());
         this.displayedSignalsTreeDataProvider.setTreeData(document.displayedSignalsTreeData.getTreeData());
         webviewPanel.webview.postMessage({command: 'getSelectionContext'});
+        this.deltaTimeStatusBarItem.show();
         this.cursorTimeStatusBarItem.show();
         this.selectedSignalStatusBarItem.show();
       } else {
+        this.deltaTimeStatusBarItem.hide();
         this.cursorTimeStatusBarItem.hide();
         this.selectedSignalStatusBarItem.hide();
       }

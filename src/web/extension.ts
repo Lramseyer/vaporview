@@ -129,12 +129,14 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     this.netlistTreeDataProvider = new NetlistTreeDataProvider();
     this.netlistView = vscode.window.createTreeView('netlistContainer', {
       treeDataProvider: this.netlistTreeDataProvider,
+      manageCheckboxStateManually: true,
     });
     this._context.subscriptions.push(this.netlistView);
 
     this.displayedSignalsTreeDataProvider = new DisplayedSignalsViewProvider();
     this.displayedSignalsView = vscode.window.createTreeView('displaylistContainer', {
       treeDataProvider: this.displayedSignalsTreeDataProvider,
+      manageCheckboxStateManually: true,
     });
     this._context.subscriptions.push(this.displayedSignalsView);
 
@@ -205,7 +207,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
         }
         webviewPanel.webview.postMessage({
           command: 'create-ruler',
-          waveformDataSet: document.documentData,
+          waveformDataSet: document.documentData.metadata,
         });
       }
       switch (e.command) {
@@ -214,8 +216,8 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
         }
         case 'setTime': {
           let formatTime = function(time: number) {
-            const timeValue = time * document.documentData.timeScale;
-            return timeValue.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + ' ' + document.documentData.timeUnit;
+            const timeValue = time * document.documentData.metadata.timeScale;
+            return timeValue.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + ' ' + document.documentData.metadata.timeUnit;
           };
 
           if (e.time !== null) {
@@ -265,6 +267,8 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
         this.cursorTimeStatusBarItem.show();
         this.selectedSignalStatusBarItem.show();
       } else {
+        this.netlistTreeDataProvider.hide();
+        this.displayedSignalsTreeDataProvider.hide();
         this.deltaTimeStatusBarItem.hide();
         this.cursorTimeStatusBarItem.hide();
         this.selectedSignalStatusBarItem.hide();
@@ -273,10 +277,22 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 
     // Subscribe to the checkbox state change event
     this.netlistView.onDidChangeCheckboxState((changedItem) => {
+
+      console.log(this.netlistView);
+
       if (!webviewPanel.active) {return;}
+
       const metadata   = changedItem.items[0][0];
       const signalId   = metadata.signalId;
       const signalData = document.documentData.netlistElements.get(signalId);
+
+      console.log(metadata);
+
+      // If the item is a parent node, uncheck it
+      if (metadata.collapsibleState !== vscode.TreeItemCollapsibleState.None) {
+        this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Unchecked);
+        return;
+      }
 
       if (metadata.checkboxState === vscode.TreeItemCheckboxState.Checked) {
         this.renderSignal(webviewPanel, signalId, signalData);
@@ -368,7 +384,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
    });
   }
 
-    // To do: implement nonce with this HTML:
+  // To do: implement nonce with this HTML:
   //<script nonce="${nonce}" src="${scriptUri}"></script>
 
   private getWebViewContent(webview: vscode.Webview): string {
@@ -618,6 +634,10 @@ class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistItem> {
     this._onDidChangeTreeData.fire(undefined); // Trigger a refresh of the Netlist view
   }
 
+  public hide() {
+    this.setTreeData([]);
+  }
+
   public getTreeData(): NetlistItem[] {return this.treeData;}
 
   getTreeItem(element:  NetlistItem): vscode.TreeItem {return element;}
@@ -640,6 +660,10 @@ class DisplayedSignalsViewProvider implements vscode.TreeDataProvider<NetlistIte
   public setTreeData(netlistItems: NetlistItem[]) {
     this.treeData = netlistItems;
     this._onDidChangeTreeData.fire(undefined); // Trigger a refresh of the Netlist view
+  }
+
+  public hide() {
+    this.setTreeData([]);
   }
 
   public getTreeData(): NetlistItem[] {return this.treeData;}
@@ -683,6 +707,7 @@ class NetlistItem extends vscode.TreeItem {
     public readonly width:            number,
     public readonly signalId:         string, // Signal-specific information
     public readonly name:             string,
+    public readonly modulePath:       string,
     public readonly children:         NetlistItem[] = [],
     public readonly collapsibleState: vscode.TreeItemCollapsibleState,
     public checkboxState: vscode.TreeItemCheckboxState = vscode.TreeItemCheckboxState.Unchecked // Display preference
@@ -706,25 +731,37 @@ const BASE_CHUNK_TIME_WINDOW = 512;
 const TIME_INDEX   = 0;
 const VALUE_INDEX  = 1;
 
+type WaveformTopMetadata = {
+  timeEnd:     number;
+  filename:    string;
+  chunkTime:   number;
+  chunkCount:  number;
+  timeScale:   number;
+  defaultZoom: number;
+  timeUnit:    string;
+};
+
 class WaveformTop {
   public netlistElements: Map<string, SignalWaveform>;
-  public timeEnd:     number = 0;
-  public filename:    string = "";
-  public chunkTime:   number = BASE_CHUNK_TIME_WINDOW;
-  public chunkCount:  number = 0;
-  public timeScale:   number = 1;
-  public defaultZoom: number = 1;
-  public timeUnit:    string = "ns";
+  public metadata:   WaveformTopMetadata = {
+    timeEnd:     0,
+    filename:    "",
+    chunkTime:   BASE_CHUNK_TIME_WINDOW,
+    chunkCount:  0,
+    timeScale:   1,
+    defaultZoom: 1,
+    timeUnit:    "ns",
+  };
 
   constructor() {
     this.netlistElements = new Map();
     console.log(this);
   }
 
-  public createSignalWaveform(name: string, modulePath: string[], signalId: string, width: number) {
+  public createSignalWaveform(name: string, modulePath: string, signalId: string, width: number) {
     // Check if the signal waveform already exists, and if not, create a new one
     if (!this.netlistElements.has(signalId)) {
-      let waveform = new SignalWaveform(name, modulePath, width, this.chunkCount);
+      let waveform = new SignalWaveform(name, modulePath, width, this.metadata.chunkCount);
       this.netlistElements.set(signalId, waveform);
     }
   }
@@ -747,7 +784,7 @@ class WaveformTop {
     const waveform = this.netlistElements.get(signalId);
     if (waveform) {
       // Add the transition data to the signal waveform
-      waveform.addTransitionData(transitionData, this.chunkTime);
+      waveform.addTransitionData(transitionData, this.metadata.chunkTime);
     } else {
       // Console log an error message if the signal waveform doesn't exist
       console.log("${signalID} not in netlist");
@@ -757,9 +794,9 @@ class WaveformTop {
   public dispose() {
     console.log("dispose()");
     this.netlistElements.clear();
-    this.timeEnd = 0;
-    this.filename = "";
-    this.chunkCount = 0;
+    this.metadata.timeEnd = 0;
+    this.metadata.filename = "";
+    this.metadata.chunkCount = 0;
   }
 }
 
@@ -770,7 +807,7 @@ class SignalWaveform {
 
   constructor(
     public name: string,
-    public modulePath: string[],
+    public modulePath: string,
     public signalWidth: number,
     chunkCount: number
     ) {
@@ -799,6 +836,7 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
   const netlistItems: NetlistItem[] = [];
   const stack:        NetlistItem[] = [];
   let modulePath:     string[]      = [];
+  let modulePathString = "";
   let currentScope:   NetlistItem | undefined;
   let currentSignal = "";
 
@@ -828,11 +866,11 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
     }
   }
 
-  waveformDataSet.chunkTime   = (BASE_CHUNK_TIME_WINDOW * minTimeStemp) / 4;
-  waveformDataSet.defaultZoom = BASE_CHUNK_TIME_WINDOW / waveformDataSet.chunkTime;
+  waveformDataSet.metadata.chunkTime   = (BASE_CHUNK_TIME_WINDOW * minTimeStemp) / 4;
+  waveformDataSet.metadata.defaultZoom = BASE_CHUNK_TIME_WINDOW / waveformDataSet.metadata.chunkTime;
   console.log("minTimeStemp = " + minTimeStemp);
-  console.log("chunkTime = " + waveformDataSet.chunkTime);
-  console.log("defaultZoom = " + waveformDataSet.defaultZoom);
+  console.log("chunkTime = "    + waveformDataSet.metadata.chunkTime);
+  console.log("defaultZoom = "  + waveformDataSet.metadata.defaultZoom);
 
   for (const line of lines) {
     // Remove leading and trailing whitespace
@@ -843,10 +881,11 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
       // Extract the current scope
       const scopeMatch = cleanedLine.match(/\s+module\s+(\w+)/);
       if (scopeMatch) {
-        const moduleName = scopeMatch[1];
+        const moduleName  = scopeMatch[1];
+        const newScope    = new NetlistItem(moduleName, 'module', 0, '', '', modulePathString, [], vscode.TreeItemCollapsibleState.Expanded);
+        newScope.iconPath = new vscode.ThemeIcon('symbol-module', new vscode.ThemeColor('charts.purple'));
         modulePath.push(moduleName);
-        const newScope    = new NetlistItem(moduleName, 'module', 0, '', '', [], vscode.TreeItemCollapsibleState.Expanded);
-        newScope.iconPath = new vscode.ThemeIcon('chip', new vscode.ThemeColor('charts.purple'));
+        modulePathString = modulePath.join(".");
         if (currentScope) {
           currentScope.children.push(newScope); // Add the new scope as a child of the current scope
         } else {
@@ -860,6 +899,7 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
       stack.pop(); // Pop the current scope from the stack
       currentScope = stack[stack.length - 1]; // Update th current scope to the parent scope
       modulePath.pop();
+      modulePathString = modulePath.join(".");
     } else if (cleanedLine.startsWith('$var')) {
       // Extract signal information (signal type and name)
       const varMatch = cleanedLine.match(/\$var\s+(wire|reg|integer|parameter|real)\s+(1|[\d+:]+)\s+(\w+)\s+(\w+(\[\d+)?(:\d+)?\]?)\s\$end/);
@@ -872,17 +912,19 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
         const signalName          = signalNameWithField.split('[')[0];
         if (signalName !== currentSignal) {
           // Create a NetlistItem for the signal and add it to the current scope
-          const signalItem = new NetlistItem(signalNameWithField, signalType, signalSize, signalID, signalName, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked);
+          const signalItem = new NetlistItem(signalNameWithField, signalType, signalSize, signalID, signalName, modulePathString, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked);
 
           // Assign an icon to the signal based on its type
-          if (signalType === 'wire') {
-            signalItem.iconPath = new vscode.ThemeIcon('symbol-interface', new vscode.ThemeColor('charts.pink'));
-          } else if (signalType === 'reg') {
-              signalItem.iconPath = new vscode.ThemeIcon('database', new vscode.ThemeColor('charts.green'));
+          if ((signalType === 'wire') || (signalType === 'reg')) {
+            if (signalSize > 1) {
+              signalItem.iconPath = new vscode.ThemeIcon('symbol-array', new vscode.ThemeColor('charts.green'));
+            } else {
+              signalItem.iconPath = new vscode.ThemeIcon('symbol-interface', new vscode.ThemeColor('charts.pink'));
+            }
           } else if (signalType === 'integer') {
               signalItem.iconPath = new vscode.ThemeIcon('symbol-variable', new vscode.ThemeColor('charts.blue'));
           } else if (signalType === 'parameter') {
-              signalItem.iconPath = new vscode.ThemeIcon('symbol-property', new vscode.ThemeColor('charts.orange'));
+              signalItem.iconPath = new vscode.ThemeIcon('settings', new vscode.ThemeColor('charts.orange'));
           } else if (signalType === 'real') {
               signalItem.iconPath = new vscode.ThemeIcon('symbol-constant', new vscode.ThemeColor('charts.purple'));
           }
@@ -891,7 +933,7 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
           signalIdTable.set(signalID, {netlistItem: signalItem, displayedItem: undefined});
         }
         currentSignal    = signalName;
-        waveformDataSet.createSignalWaveform(signalNameWithField, modulePath, signalID, signalSize);
+        waveformDataSet.createSignalWaveform(signalNameWithField, modulePathString, signalID, signalSize);
       }
     // Parse out waveform data
     } else if (cleanedLine.startsWith('#')) {
@@ -937,17 +979,16 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
     } else if (cleanedLine.startsWith('$end')) {
       currentMode = undefined;
     }
-
     if (currentMode === 'timescale') {
-      const timescaleMatch = cleanedLine.match(/(\d+)\s+(\w+)/);
+      const timescaleMatch = cleanedLine.match(/(\d+)\s*(\w+)/);
       if (timescaleMatch) {
-        waveformDataSet.timeScale = parseInt(timescaleMatch[1]);
-        waveformDataSet.timeUnit  = timescaleMatch[2];
+        waveformDataSet.metadata.timeScale = parseInt(timescaleMatch[1]);
+        waveformDataSet.metadata.timeUnit  = timescaleMatch[2];
       }
     }
   }
 
-  waveformDataSet.timeEnd = currentTimestamp + 1;
+  waveformDataSet.metadata.timeEnd = currentTimestamp + 1;
   signalValues.forEach((initialState, signalId) => {
     waveformDataSet.addTransitionData(signalId, [currentTimestamp, "x"], initialState);
   });

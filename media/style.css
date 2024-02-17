@@ -324,8 +324,10 @@ body {
 .waveform-label .codicon-grabber {
   color:       var(--vscode-editorLineNumber-foreground);
   position:    absolute;
-  left:        4px;
+  left:        0;
+  padding:     0px 4px 0px 4px;
   opacity:     0;
+  z-index:     10;
 }
 
 .waveform-label.is-idle:hover .codicon-grabber {
@@ -403,20 +405,19 @@ body {
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   background-position-y: center;
-  justify-content: center;
+  justify-content: right;
   background-repeat: no-repeat;
   height: var(--svg-height);
   background-color: var(--vscode-debugTokenExpression-number);
 }
 
 .bus-waveform-value p {
+  position: relative;
   font-size:   var(--vscode-editor-font-size);
   font-family: var(--vscode-editor-font-family);
   font-weight: 800;
   color:       var(--vscode-editor-background);
   padding: 0 5px 0 5px;
-  overflow: hidden;
-  text-overflow: ellipsis;
   width: inherit;
   margin: 0;
 }
@@ -435,6 +436,15 @@ body {
   height: 100%;
   z-index: 100;
   overflow: visible;
-  stroke: var(--vscode-editorLineNumber-activeForeground);
+  stroke-width: 1px;
   width: 1px;
+  stroke: var(--vscode-editorLineNumber-activeForeground);
+}
+
+#main-cursor {
+  stroke-dasharray: 2 2;
+}
+
+#alt-cursor {
+  stroke-dasharray: 6 2 2 2;
 }

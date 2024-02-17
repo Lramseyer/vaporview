@@ -48,49 +48,92 @@ valueIs4State = function (value) {
   else {return false;}
 };
 
-busElement = function (deltaTime, transition, backgroundPositionX, backgroundSizeX, textPosition, signalWidth) {
+busElement = function (flexWidth, transition, backgroundPositionX, backgroundSizeX, deltaTime, spansChunk, signalWidth, textWidth) {
   const value            = transition[1];
   const backgroundWidth  = backgroundSizeX * zoomRatio;
-  const is4State = valueIs4State(value);
-  const color    = is4State ? 'background-color:var(--vscode-debugTokenExpression-error)' : '';
-  const divTag   = `<div class="bus-waveform-value" style="flex:${deltaTime};-webkit-mask-position:${backgroundPositionX * zoomRatio}px;-webkit-mask-size:${backgroundWidth}px;${color}">`;
+  const is4State   = valueIs4State(value);
+  const color      = is4State ? 'background-color:var(--vscode-debugTokenExpression-error)' : '';
+  const totalWidth = deltaTime * zoomRatio;
+  const initialTime = transition[0];
+  let pElement      = '';
+  let justifyDirection = '';
 
-  if ((backgroundWidth > 10) && (textPosition > 0)) {
+  // Don't even bother rendering text if the element is too small. Since 
+  // there's an upper limit to the number of larger elements that will be 
+  // displayed, we can spend a little more time rendering them and making them
+  // readable in all cases.
+  if (totalWidth > 10) {
     const displayValue = parseValue(value, signalWidth, is4State);
-    return `${divTag}<p>${displayValue}</p></div>`;
-  } else {
-    return `${divTag}</div>`;
+    let textOffset     = 0;
+    if (totalWidth > textWidth) {
+      justifyDirection = 'justify-content: center';
+    }
+
+    // If the element spans the chunk boundary, we need to center the text
+    if (spansChunk) {
+      justifyDirection  = 'justify-content: center';
+      let leftOverflow  = Math.min(initialTime, 0);
+      let rightOverflow = Math.max(initialTime + deltaTime - chunkTime, 0);
+      if (totalWidth < textWidth) {
+        textOffset        = ((totalWidth - textWidth) / 2) - 5;
+      }
+      textOffset       += ((leftOverflow + rightOverflow) / 2) * zoomRatio;
+    }
+
+    // If the element is too wide to fit in the viewer, we need to display
+    // the value in multiple places so it's always in sight
+    if (totalWidth > viewerWidth) {
+      // count the number of text elements that will be displayed 1 viewer width or 1 text width + 20 px (whichever is greater) in this state
+      let elementWidth   = flexWidth * zoomRatio;
+      let renderInterval = Math.max(viewerWidth, textWidth + 50);
+      let textCount      = 1 + Math.floor((totalWidth - textWidth) / renderInterval);
+      // figure out which ones are in the chunk and where they are relative to the chunk boundary
+      let firstOffset    = Math.min(transition[0] * zoomRatio, 0) + ((totalWidth - ((textCount - 1) * renderInterval)) / 2);
+      let lowerBound     = -0.5 * (textWidth + elementWidth);
+      let upperBound     =  0.5 * (textWidth + elementWidth);
+      let textPosition   = firstOffset - (0.5 * elementWidth);
+      for (let i = 0; i < textCount; i++) {
+        if (textPosition >= lowerBound) {
+          if (textPosition > upperBound) {break;}
+          pElement += `<p style="left:${textPosition}px">${displayValue}</p>`;
+        }
+        textPosition += renderInterval;
+      }
+    } else {
+      pElement = `<p style="left:${textOffset}px">${displayValue}</p>`;
+    }
   }
+  
+  const divTag  = `<div class="bus-waveform-value" style="flex:${flexWidth};-webkit-mask-position:${backgroundPositionX * zoomRatio}px;-webkit-mask-size:${backgroundWidth}px;${color};${justifyDirection}">`;
+  return `${divTag}${pElement}</div>`;
 };
 
-busElementsfromTransitionData = function (transitionData, initialState, postState, signalWidth) {
+busElementsfromTransitionData = function (transitionData, initialState, postState, signalWidth, textWidth) {
   let backgroundPositionX = Math.max(initialState[0], -1 * chunkTime);
   let result       = [];
   let initialTime  = 0;
   let initialValue = initialState;
-  let deltaTime;
+  let flexWidth;
   let backgroundSizeX;
-  let textPosition;
+  let deltaTime;
   let spansChunk    = true;
 
   transitionData.forEach((transition) => {
-    deltaTime       = transition[0] - initialTime;
-    backgroundSizeX = (deltaTime - backgroundPositionX);
-    textPosition    = (transition[0] + initialValue[0]) / 2;
-    result.push(busElement(deltaTime, initialValue, backgroundPositionX, backgroundSizeX, textPosition, signalWidth));
+    flexWidth       = transition[0] - initialTime;
+    backgroundSizeX = (flexWidth - backgroundPositionX);
+    deltaTime       = (transition[0] - initialValue[0]);
+    result.push(busElement(flexWidth, initialValue, backgroundPositionX, backgroundSizeX, deltaTime, spansChunk, signalWidth, textWidth));
     spansChunk          = false;
     initialTime         = transition[0];
     initialValue        = transition;
     backgroundPositionX = 0;
   });
-  deltaTime       = chunkTime - initialTime;
+  spansChunk      = true;
+  deltaTime       = postState[0] - initialValue[0];
+  flexWidth       = chunkTime - initialTime;
   backgroundSizeX = (Math.min(postState[0], 2 * chunkTime) - initialTime) - backgroundPositionX;
-  textPosition    = (postState[0] + initialValue[0]) / 2;
 
-  // let the renderer know not not to render the text if it is out of bounds
-  // easier to check for this one case than to check for all cases
-  if (textPosition > chunkTime) {textPosition = -1;}
-  result.push(busElement(deltaTime, initialValue, backgroundPositionX, backgroundSizeX, textPosition, signalWidth));
+  result.push(busElement(flexWidth, initialValue, backgroundPositionX, backgroundSizeX, deltaTime, spansChunk, signalWidth, textWidth));
   return result.join('');
 };
 
@@ -141,7 +184,7 @@ binaryElementFromTransitionData = function (transitionData, initialState) {
   return result;
 };
 
-createWaveformSVG = function (transitionData, initialState, postState, width, chunkIndex, signalId) {
+createWaveformSVG = function (transitionData, initialState, postState, width, chunkIndex, signalId, textWidth) {
   let className    = 'waveform-chunk';
   if (signalId === selectedSignal) {className += ' is-selected';}
   if (width === 1) {
@@ -150,7 +193,7 @@ createWaveformSVG = function (transitionData, initialState, postState, width, ch
             </div>`;
   } else {
     return `<div class="${className}" id="idx${chunkIndex}-${chunkSample}--${signalId}">
-              ${busElementsfromTransitionData(transitionData, initialState, postState, width)}
+              ${busElementsfromTransitionData(transitionData, initialState, postState, width, textWidth)}
             </div>`;
   }
 };
@@ -164,6 +207,7 @@ renderWaveformChunk = function (signalId, chunkIndex) {
   const startIndex   = data.chunkStart[chunkIndex];
   const endIndex     = data.chunkStart[chunkIndex + 1];
   const initialState = data.transitionData[startIndex - 1];
+  const textWidth    = data.textWidth;
 
   let   postState;
   if (chunkIndex === data.chunkStart.length - 1) {
@@ -182,7 +226,7 @@ renderWaveformChunk = function (signalId, chunkIndex) {
     return [time - timeStart, value];
   });
 
-  result.html = createWaveformSVG(chunkTransitionData, relativeInitialState, relativePostState, width, chunkIndex, signalId);
+  result.html = createWaveformSVG(chunkTransitionData, relativeInitialState, relativePostState, width, chunkIndex, signalId, textWidth);
   return result;
 };
 
@@ -197,7 +241,7 @@ createRulerChunk = function (chunkIndex) {
   var   elements           = [];
 
   for (var i = numberStartpixel; i <= chunkWidth + 64; i+= rulerNumberSpacing ) {
-    elements.push(`<text x="${i}" y="20">${numValue}</text>`);
+    elements.push(`<text x="${i}" y="20">${numValue * timeScale}</text>`);
     numValue += timeMarkerInterval;
   }
 
@@ -220,7 +264,7 @@ createTimeCursor = function (time, cursorType) {
   const id = cursorType === 0 ? 'main-cursor' : 'alt-cursor';
   return `
     <svg id="${id}" class="time-cursor" style="left:${x}px">
-      <line x1="0" y1="0" x2="0" y2="100%" stroke-dasharray="2 2"/>
+      <line x1="0" y1="0" x2="0" y2="100%"/>
     </svg>`;
 };
 
@@ -228,18 +272,20 @@ createLabel = function (signalId, signalName, isSelected) {
   //let selectorClass = 'is-idle';
   //if (isSelected) {selectorClass = 'is-selected';}
   const vscodeContextMenuAttribute = `data-vscode-context='{"webviewSection": "signal", "preventDefaultContextMenuItems": true, "signalId": "${signalId}"}'`;
-  selectorClass = isSelected ? 'is-selected' : 'is-idle';
-  return `<div class="waveform-label ${selectorClass}" id="label-${signalId}" ${vscodeContextMenuAttribute}>
+  const selectorClass = isSelected ? 'is-selected' : 'is-idle';
+  const modulePath    = waveformData[signalId].modulePath + '.';
+  const fullPath      = modulePath + signalName;
+  return `<div class="waveform-label ${selectorClass}" id="label-${signalId}" title="${fullPath}" ${vscodeContextMenuAttribute}>
             <div class='codicon codicon-grabber'></div>
-            <p>${signalName}</p>
+            <p style="opacity:50%">${modulePath}</p><p>${signalName}</p>
           </div>`;
 };
 
 createValueDisplayElement = function (signalId, value, isSelected) {
-  selectorClass      = isSelected ? 'is-selected' : 'is-idle';
-  const joinString   = '<p style="color:var(--vscode-foreground)">-></p>';
-  const width        = waveformData[signalId].signalWidth;
-  const displayValue = value.map(v => {
+  const selectorClass = isSelected ? 'is-selected' : 'is-idle';
+  const joinString    = '<p style="color:var(--vscode-foreground)">-></p>';
+  const width         = waveformData[signalId].signalWidth;
+  const displayValue  = value.map(v => {
     return parseValue(v, width, valueIs4State(v));
   }).join(joinString);
 
@@ -403,10 +449,15 @@ getNearestTransitionIndex = function (signalId, time) {
 
   if (time === null) {return -1;}
 
+  let endIndex;
   const data        = waveformData[signalId];
   const chunk       = Math.floor(time / chunkTime);
   const startIndex  = Math.max(0, data.chunkStart[chunk] - 1);
-  const endIndex    = data.chunkStart[chunk + 1] + 1;
+  if (chunk === chunkCount - 1) {
+    endIndex    = data.transitionData.length;
+  } else {
+    endIndex    = data.chunkStart[chunk + 1] + 1;
+  }
   const searchIndex = data.transitionData.slice(startIndex, endIndex).findIndex(([t, v]) => {return t >= time;});
   const transitionIndex = startIndex + searchIndex;
 
@@ -479,7 +530,7 @@ handleCursorSet = function (time, cursorType) {
 
   // dispose of old cursor
   if (oldCursorTime !== null) {
-    if (chunkElement !== null) {
+    if (chunkElement) {
       let timeCursor = document.getElementById(id);
       if (timeCursor) {timeCursor.remove();}
       console.log('removing cursor at time ' + oldCursorTime + ' from chunk ' + chunkIndex + '');
@@ -529,6 +580,8 @@ handleCursorSet = function (time, cursorType) {
     displayedSignals.forEach((signalId) => {
       dataCache.valueAtCursor[signalId] = getValueAtTime(signalId, time);
     });
+
+    renderLabelsPanels();
   } else {
     altCursorTime         = time;
     altCursorChunkElement = chunkElement;
@@ -536,7 +589,6 @@ handleCursorSet = function (time, cursorType) {
   }
 
   setTimeOnStatusBar();
-  renderLabelsPanels();
 };
 
 isInView = function(time) {
@@ -605,10 +657,14 @@ handleClusterChanged = function (startIndex, endIndex) {
 
   if (cursorChunkIndex >= startIndex && cursorChunkIndex < endIndex) {
     cursorChunkElement = scrollArea.getElementsByClassName('column-chunk')[cursorChunkIndex - dataCache.startIndex];
-  } else if ((cursorChunkIndex === null)) {
-    cursorChunkElement = null;
   } else {
     cursorChunkElement = null;
+  }
+
+  if (altCursorChunkIndex >= startIndex && altCursorChunkIndex < endIndex) {
+    altCursorChunkElement = scrollArea.getElementsByClassName('column-chunk')[altCursorChunkIndex - dataCache.startIndex];
+  } else {
+    altCursorChunkElement = null;
   }
 };
 
@@ -630,6 +686,7 @@ handleClusterChanged = function (startIndex, endIndex) {
   altCursorTime       = null;
   altCursorChunkElement = null;
   altCursorChunkIndex = null;
+  timeScale           = 1;
   chunkTime           = 512;
   chunkWidth          = 512;
   zoomRatio           = 1;
@@ -710,7 +767,10 @@ handleClusterChanged = function (startIndex, endIndex) {
     let labelsList  = [];
     let transitions = [];
     let isSelected  = false;
+    let data;
     displayedSignals.forEach((signalId, index) => {
+      data = waveformData[signalId];
+      data.textWidth = getValueTextWidth(data.signalWidth, numberFormat);
       isSelected = (index === selectedSignalIndex);
       labelsList.push(createLabel(signalId, waveformData[signalId].name, isSelected));
       transitions.push(createValueDisplayElement(signalId, dataCache.valueAtCursor[signalId], isSelected));
@@ -810,11 +870,13 @@ handleClusterChanged = function (startIndex, endIndex) {
       console.log('formatting error: ' + button + '');
     }
 
-    let updateSignals = displayedSignals.filter((signalId) => {return waveformData[signalId].signalWidth > 1;});
+    let updateSignals = displayedSignals.filter((signalId) => {
+      return waveformData[signalId].signalWidth > 1;
+    });
     updatePending     = true;
     handleSearchBarEntry({key: 'none'});
-    updateWaveformInCache(updateSignals);
     renderLabelsPanels();
+    updateWaveformInCache(updateSignals);
     clusterizeContent.render();
   };
 
@@ -1156,12 +1218,15 @@ handleClusterChanged = function (startIndex, endIndex) {
     return Math.round(pixelLeft / zoomRatio);
   }
 
-  function handleScrollAreaClick(event, button) {
+  function handleScrollAreaClick(event, eventButton) {
 
     console.log(event);
+
+    button = eventButton;
   
-    if (button === 1) {event.preventDefault();}
-    if (button === 2) {return;}
+    if (eventButton === 1) {event.preventDefault();}
+    if (eventButton === 2) {return;}
+    if (eventButton === 0 && event.altKey) {button = 1;}
 
     const snapToDistance = 3.5;
 
@@ -1275,9 +1340,10 @@ handleClusterChanged = function (startIndex, endIndex) {
         document.title    = waveformDataSet.filename;
         chunkTime         = waveformDataSet.chunkTime;
         zoomRatio         = waveformDataSet.defaultZoom;
+        timeScale         = waveformDataSet.timeScale;
         maxZoomRatio      = zoomRatio * 64;
         chunkWidth        = chunkTime * zoomRatio;
-        var chunkCount    = Math.ceil(waveformDataSet.timeEnd / waveformDataSet.chunkTime);
+        chunkCount        = Math.ceil(waveformDataSet.timeEnd / waveformDataSet.chunkTime);
         dataCache.columns = new Array(chunkCount);
 
         for (var i = 0; i < chunkCount; i++) {
@@ -1310,6 +1376,7 @@ handleClusterChanged = function (startIndex, endIndex) {
 
         displayedSignals.push(message.signalId);
         waveformData[message.signalId] = message.waveformData;
+        waveformData[message.signalId].textWidth = getValueTextWidth(message.waveformData.signalWidth, numberFormat);
 
         //var childElement = createLabel(message.signalId, message.waveformData.name);
         //labels.innerHTML = labels.innerHTML + childElement;
@@ -1352,11 +1419,22 @@ handleClusterChanged = function (startIndex, endIndex) {
       case 'getSelectionContext': {
         setTimeOnStatusBar();
         setSeletedSignalOnStatusBar(selectedSignal);
+
+        let displaySignalContext = displayedSignals.map((signalId) => {
+          return {
+            signalId: signalId,
+            signalName: waveformData[signalId].name,
+            modulePath: waveformData[signalId].modulePath
+          };
+        });
+
+        //vscode.postMessage({type: 'context', context: displaySignalContext});
         break;
       }
       case 'getContext': {
-        console.log('getContext - this is a stub');
-        break;
+        return displayedSignals.map((signalId) => {
+          return waveformData[signalId].modulePath + "." + waveformData[signalId].name;
+        });
       }
     }
   });

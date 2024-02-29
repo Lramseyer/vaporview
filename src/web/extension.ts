@@ -420,18 +420,13 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
             <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
               <defs>
                 <symbol id="binary-edge" viewBox="0 0 16 16">
-                  <path d="M 2 15 L 6 15 C 8 15 8 15 8 13 L 8 3 C 8 1 8 1 10 1 L 14 1"/>
-                </symbol>
-                <symbol id="binary-edge-alt" viewBox="0 0 16 16">
                   <path d="M 2 14 L 2 14 L 8 14 L 8 3 C 8 1 8 1 10 1 L 14 1 L 14 2 L 9 2 L 9 13 C 9 15 9 15 7 15 L 2 15 L 2 14"/>
                 </symbol>
                 <symbol id="bus-edge" viewBox="0 0 16 16">
-                  <polyline points="2,15 5,15 11,1 14,1"/>
-                  <polyline points="2,1 5,1 11,15 14,15"/>
+                  <path d="M 2 1 L 6 1 L 8 6 L 10 1 L 14 1 L 14 2 L 10.663 2 L 8.562 7.5 L 10.663 14 L 14 14 L 14 15 L 10 15 L 8 9 L 6 15 L 2 15 L 2 14 L 5.337 14 L 7.437 7.5 L 5.337 2 L 2 2 L 2 1"/>
                 </symbol>
                 <symbol id="arrow" viewBox="0 0 16 16">
-                  <polyline points="1,8 8,8"/>
-                  <polyline points="5,5 8,8 5,11"/>
+                  <path d="M 1 7 L 1 8 L 6 8 L 4 10 L 4.707 10.707 L 7.914 7.5 L 4.707 4.293 L 4 5 L 6 7 L 6 7 L 1 7"/>
                 </symbol>
                 <symbol id="back-arrow" viewBox="0 0 16 16">
                   <use href="#arrow" transform="scale(-1, 1) translate(-16, 0)"/>
@@ -865,6 +860,9 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
       }
     }
   }
+
+  // Prevent weird zoom ratios causing strange floating point math errors
+  minTimeStemp = 10 ** (Math.ceil(Math.log10(minTimeStemp)) | 0);
 
   waveformDataSet.metadata.chunkTime   = (BASE_CHUNK_TIME_WINDOW * minTimeStemp) / 4;
   waveformDataSet.metadata.defaultZoom = BASE_CHUNK_TIME_WINDOW / waveformDataSet.metadata.chunkTime;

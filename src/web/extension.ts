@@ -7,16 +7,10 @@ import { on } from 'process';
 
 //import { getNonce } from 'util';
 
-/**
- * Define the type of edits used in paw draw files.
- */
 interface VaporviewDocumentDelegate {
   getViewerContext(): Promise<Uint8Array>;
 }
 
-/**
- * Define the document (the data model) used for paw draw files.
- */
 class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocument {
 
   static async create(

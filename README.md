@@ -33,7 +33,7 @@ Scrolling behaves as you would expect except for when scrolling the actual wavef
 
 #### Touchpad Scrolling
 
-Scroll as you would on a normal touchpad to scroll up, down, and sideways.
+![Sure, Verdi can open FSDB files, but can it do this?](readme_assets/touchpad_scroll.gif)
 
 ### Zooming
 
@@ -47,39 +47,44 @@ To rearrange signals, hover over the signal name, and you will see a rearrange g
 
 Alternatively, you can select a signal, hold Alt, and press on the Up or Down Arrows to reorder (similar to how you reorder lines in the text editor)
 
-### Finding values and transitions in a particular waveform
+### Cursor Handling
+
+![](readme_assets/cursor.gif)
+
+There are two cursors in vaporview: a normal cursor, and an alt cursor. To place the cursor, simply click where you want it to be placed. Keep in mind that it will snap to edge if applicable. To place the alt cursor, either middle click, or Alt + click where you would like to place it. The Alt cursor will also snap to an edge if applicable.
+
+It should also be noted that signals can be selected by clicking on them, You can also use the Up/Down Arrow keys to move the selection.
+
+#### Next/Previous Edge
+
+To move the cursor to the nearest edge _**of the selected signal**_, you can either click the control bar buttons, or use Ctrl + Left/Right Arrow (similar to how in the text editor, you can move the cursor to a word boundary)
+
+To move to the next positive edge or negative edge, you will have to use the control bar buttons. This only applies to single bit waveforms.
+
+#### Finding values and transitions in a particular waveform
 
 Finding a particular transition or a value in a waveform is done in relation to the selected signal and the cursor (similar to how Visual Studio Code handles search in relation to the cursor)
-
-### Next/Previous Edge
-
-This function will move the cursor (and the scroll position if applicable) to the next or previous signal transition relative to the cursor.
-
-This can be done either by the buttons on the top navigation bar or by holding Ctrl + Left or Right Arrow. (This is similar to the text editor shortcut to move the cursor to the nearest word boundary.)
-
-#### Next/Previous Positive/Negative Edge
-
-These controls only apply to single bit waveforms, and can be used by clicking their respective buttons in the navigation bar at the top.
 
 ## Requirements
 
 This extension was designed on version 1.83.
 
-## Known Issues
-
-This only supports VCD files, and probably not larger than 100MB.
-
 ## Release Notes and development roadmap
 
-### 1.0 - The Goal
+### 0.9.1 (Pre-release)
 
-Battle test with coworkers and trusted users to fix and address any oversights or bugs I may have missed during development
+Supports all the features you would expect
+
+### 1.0 - Marketplace launch
+
+Get more coverage, from users like you! There will probably be bugs, so please report them on the github discussion
+
+Tentative features and bugfixes:
 
 - When opening another vcd file, the netlist needs to load in the view properly
+- Activate extension on install
+- Update and finalize documentation
 - Export selection as WaveDrom
-
-#### Suggestions from coworkers:
-
 - Save opened signals
 
 ### Beyond 1.0
@@ -93,7 +98,7 @@ Battle test with coworkers and trusted users to fix and address any oversights o
   - Link netlist to RTL so that signals can be connected back to RTL locations
   - Support for other file formats
 
-## About The Author
+## About This Extension
 
 I originally built this because I work for an FPGA company, doing FPGA things, and I couldn't find a good _free_ VCD viewer extension. I also hate having to use VNC for viewing waveforms. So rather than spend $15, I spent 300 hours making this extension.
 

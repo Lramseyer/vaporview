@@ -21,9 +21,16 @@ class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocume
     console.log("create()");
     // If we have a backup, read that. Otherwise read the resource from the workspace
 
+    console.log(uri.fsPath);
+
     // Read the VCD file using vscode.workspace.openTextDocument
-    const vcdDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(uri.fsPath));
-    const vcdContent  = vcdDocument.getText();
+    // This doesn't like files over 50MB, so I will have to try something different
+    //const vcdDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(uri.fsPath));
+    //const vcdContent  = vcdDocument.getText();
+
+    // Load the file as a Blob so that we can read the file in parts
+    const vcdDocument = await vscode.workspace.fs.readFile(uri);
+    const vcdContent  = new TextDecoder().decode(vcdDocument);
 
     const netlistTreeDataProvider          = new NetlistTreeDataProvider();
     const displayedSignalsTreeDataProvider = new DisplayedSignalsViewProvider();
@@ -892,16 +899,19 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
       currentScope = stack[stack.length - 1]; // Update th current scope to the parent scope
       modulePath.pop();
       modulePathString = modulePath.join(".");
-    } else if (cleanedLine.startsWith('$var')) {
+    } else if (cleanedLine.startsWith('$var') && currentMode === 'scope') {
       // Extract signal information (signal type and name)
-      const varMatch = cleanedLine.match(/\$var\s+(wire|reg|integer|parameter|real)\s+(1|[\d+:]+)\s+(\w+)\s+(\w+(\[\d+)?(:\d+)?\]?)\s\$end/);
-      if (varMatch && currentScope) {
+      //const varMatch = cleanedLine.match(/\$var\s+(wire|reg|integer|parameter|real)\s+(1|[\d+:]+)\s+(\w+)\s+(\w+(\[\d+)?(:\d+)?\]?)\s\$end/);
+      if (currentScope) {
         const varData             = cleanedLine.split(/\s+/);
-        const signalType          = varMatch[1];
-        const signalSize          = parseInt(varMatch[2], 10);
-        const signalID            = varMatch[3];
-        const signalNameWithField = varMatch[4];
+        const signalType          = varData[1];
+        const signalSize          = parseInt(varData[2], 10);
+        const signalID            = varData[3];
+        const signalNameWithField = varData[4];
         const signalName          = signalNameWithField.split('[')[0];
+
+        console.log("signalType = " + signalType + "; signalSize = " + signalSize + "; signalID = " + signalID + "; signalName = " + signalName + "; modulePathString = " + modulePathString);
+
         if (signalName !== currentSignal) {
           // Create a NetlistItem for the signal and add it to the current scope
           const signalItem = new NetlistItem(signalNameWithField, signalType, signalSize, signalID, signalName, modulePathString, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked);
@@ -936,7 +946,7 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
       }
     } else if (cleanedLine.startsWith('b')) {
       // Extract signal value
-      const valueMatch = cleanedLine.match(/b([01xzXZ]*)\s+(\w+)/);
+      const valueMatch = cleanedLine.match(/b([01xzXZ]*)\s+(.+)/);
       if (valueMatch) {
         const signalValue = valueMatch[1];
         const signalId    = valueMatch[2];
@@ -950,9 +960,9 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
         // Update the state of the signal in the map
         signalValues.set(signalId, signalValue);
       }
-    } else if (cleanedLine.startsWith('0') || cleanedLine.startsWith('1')) {
+    } else if (cleanedLine.match(/^[01xzXZ].+$/)) {
       // Extract signal value
-      const valueMatch = cleanedLine.match(/([01xzXZ])(\w+)/);
+      const valueMatch = cleanedLine.match(/([01xzXZ])(.+)/);
       if (valueMatch) {
         const signalValue = valueMatch[1];
         const signalId    = valueMatch[2];

@@ -48,6 +48,8 @@ valueIs4State = function (value) {
   else {return false;}
 };
 
+// This function actually creates the individual bus elements, and has can
+// potentially called thousands of times during a render
 busElement = function (flexWidth, transition, backgroundPositionX, backgroundSizeX, deltaTime, spansChunk, signalWidth, textWidth) {
   const value            = transition[1];
   const backgroundWidth  = backgroundSizeX * zoomRatio;
@@ -92,7 +94,8 @@ busElement = function (flexWidth, transition, backgroundPositionX, backgroundSiz
       let lowerBound     = -0.5 * (textWidth + elementWidth);
       let upperBound     =  0.5 * (textWidth + elementWidth);
       let textPosition   = firstOffset - (0.5 * elementWidth);
-      for (let i = 0; i < textCount; i++) {
+      let offsetStart         = Math.floor((lowerBound - firstOffset) / renderInterval);
+      for (let i = offsetStart; i < textCount; i++) {
         if (textPosition >= lowerBound) {
           if (textPosition > upperBound) {break;}
           pElement += `<p style="left:${textPosition}px">${displayValue}</p>`;
@@ -139,34 +142,40 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
 
 polylinePathFromTransitionData = function (transitionData, initialState, polylineAttributes) {
   var deltaTime;
-  var xzPolylines     = [];
-  var initialValue    = initialState[1];
-  var initialTime     = Math.max(initialState[0], -10);
-  var accumulatedPath = "-1," + initialValue + " ";
+  var xzPolylines        = [];
+  var initialValue       = initialState[1];
+  var initialValue2state = initialValue;
+  var initialTime        = Math.max(initialState[0], -10);
   var xzAccumulatedPath = "";
   if (initialValue === "x" | initialValue === "z") {
     xzAccumulatedPath = "-1,0 -1,1 ";
+    initialValue2state = 0;
   }
+  var accumulatedPath    = "-1," + initialValue2state + " ";
+
   transitionData.forEach(([time, value]) => {
     if (initialValue === "x" | initialValue === "z") {
       deltaTime          = time - initialTime;
       xzPolylines.push(`<rect x="${initialTime}" y="0" height="1" width="${deltaTime}" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+      initialValue2state = 0;
     }
 
-    accumulatedPath += time + "," + initialValue + " ";
+    accumulatedPath += time + "," + initialValue2state + " ";
 
     if (value === "x" | value === "z") {accumulatedPath += time + "," + 0 + " ";}
     else                               {accumulatedPath += time + "," + value + " ";}
 
-    initialTime      = time;
-    initialValue     = value;
+    initialTime        = time;
+    initialValue       = value;
+    initialValue2state = value;
   });
   if (initialValue === "x" | initialValue === "z")  {
     deltaTime = chunkTime - initialTime + 10;
     xzPolylines.push(`<rect x="${initialTime}" y="0" height="1" width="${deltaTime}" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+    initialValue2state = 0;
   }
 
-  accumulatedPath += chunkTime + "," + initialValue;
+  accumulatedPath += chunkTime + "," + initialValue2state;
   return `<polyline points="` + accumulatedPath + `" ${polylineAttributes}/>` + xzPolylines.join('');
 };
 
@@ -282,6 +291,9 @@ createLabel = function (signalId, signalName, isSelected) {
 };
 
 createValueDisplayElement = function (signalId, value, isSelected) {
+
+  if (value === undefined) {value = [];}
+
   const selectorClass = isSelected ? 'is-selected' : 'is-idle';
   const joinString    = '<p style="color:var(--vscode-foreground)">-></p>';
   const width         = waveformData[signalId].signalWidth;
@@ -380,14 +392,16 @@ handleZoom = function (amount, adjustScroll) {
 handleFetchColumns = function (startIndex, endIndex) {
 
   if (startIndex < dataCache.startIndex) {
-    console.log('building chunks from ' + startIndex + ' to ' + dataCache.startIndex + '');
-    for (var i = dataCache.startIndex - 1; i >= startIndex; i-=1) {
+    const upperBound = Math.min(dataCache.startIndex, endIndex);
+    console.log('building chunks from ' + startIndex + ' to ' + upperBound + '');
+    for (var i = upperBound - 1; i >= startIndex; i-=1) {
       dataCache.columns[i] = (updateChunkInCache(i));
     }
   }
   if (endIndex > dataCache.endIndex) {
-    console.log('building chunks from ' + dataCache.endIndex + ' to ' + endIndex + '');
-    for (var i = dataCache.endIndex; i < endIndex; i+=1) {
+    const lowerBound = Math.max(dataCache.endIndex, startIndex);
+    console.log('building chunks from ' + lowerBound + ' to ' + endIndex + '');
+    for (var i = lowerBound; i < endIndex; i+=1) {
       dataCache.columns[i] = (updateChunkInCache(i));
     }
   }

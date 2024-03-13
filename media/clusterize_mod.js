@@ -94,7 +94,7 @@
 
       let currentCluster = self.getBlockNum(columns);
 
-      if (lastCluster !== currentCluster) {
+      if (lastCluster[0] !== currentCluster[0] || lastCluster[1] !== currentCluster[1]) {
         self.insertToDOM(columns, cache, currentCluster);
       }
       lastCluster = currentCluster;
@@ -293,6 +293,7 @@
         //this.options.content_tag == 'ol' && this.contentElement.setAttribute('start', columnsBefore);
         this.contentElement.style['counter-increment'] = 'clusterize-counter ' + (columnsBefore - 1);
         callbacks.clusterChanged && callbacks.clusterChanged(itemsStart, itemsEnd);
+        
       } else if(onlyRightOffsetChanged) {
         this.contentElement.lastChild.style.width = rightOffset + 'px';
       }

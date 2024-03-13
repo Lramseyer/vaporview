@@ -39,7 +39,7 @@ class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocume
 
     // Parse the VCD data for this specific file
     parseVCDData(vcdContent, netlistTreeDataProvider, waveformDataSet, signalIdTable);
-    console.log(waveformDataSet.netlistElements);
+
     // Optionally, you can refresh the Netlist view
     netlistTreeDataProvider.refresh();
 
@@ -909,8 +909,6 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
         const signalID            = varData[3];
         const signalNameWithField = varData[4];
         const signalName          = signalNameWithField.split('[')[0];
-
-        console.log("signalType = " + signalType + "; signalSize = " + signalSize + "; signalID = " + signalID + "; signalName = " + signalName + "; modulePathString = " + modulePathString);
 
         if (signalName !== currentSignal) {
           // Create a NetlistItem for the signal and add it to the current scope

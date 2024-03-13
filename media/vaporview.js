@@ -326,6 +326,7 @@ getValueTextWidth = function (width, numberFormat) {
 };
 
 updateWaveformInCache = function (signalIdList) {
+  console.log(dataCache);
   signalIdList.forEach((signalId) => {
     for (var i = dataCache.startIndex; i < dataCache.endIndex; i++) {
       dataCache.columns[i].waveformChunk[signalId] = renderWaveformChunk(signalId, i);
@@ -335,7 +336,6 @@ updateWaveformInCache = function (signalIdList) {
 };
 
 // Event handler helper functions
-
 updateChunkInCache = function (chunkIndex) {
 
   let result = {
@@ -358,6 +358,7 @@ updateChunkInCache = function (chunkIndex) {
   return result;
 };
 
+// Event handler helper functions
 handleZoom = function (amount, adjustScroll) {
   // -1 zooms in, +1 zooms out
   // zoomRatio is in pixels per time unit
@@ -419,6 +420,135 @@ handleFetchColumns = function (startIndex, endIndex) {
       ${c.altCursor}
     </div>`;
   });
+};
+
+// Experimental asynchronous rendering path
+updateChunkInCacheShallow = function (chunkIndex) {
+
+  let result = {
+    rulerChunk:    createRulerChunk(chunkIndex),
+    cursor:        [],
+    altCursor:     [],
+  };
+
+  if (cursorChunkIndex === chunkIndex) {
+    result.cursor = createTimeCursor(cursorTime, 0);
+  }
+  if (altCursorChunkIndex === chunkIndex) {
+    result.altCursor = createTimeCursor(altCursorTime, 1);
+  }
+
+  return result;
+};
+
+renderWaveformsAsync = async function (chunkIndex) {
+
+  let abortFlag = false;
+
+  displayedSignals.forEach((signalId) => {
+    abortFlag = chunkIndex < dataCache.startIndex || chunkIndex >= dataCache.endIndex;
+    if (abortFlag) {return;}
+    dataCache.columns[chunkIndex].waveformChunk[signalId] = renderWaveformChunk(signalId, chunkIndex);
+  });
+
+  let innerHtml = displayedSignals.map((signal) => {
+    return dataCache.columns[chunkIndex].waveformChunk[signal].html;
+  }).join('');
+  let domRef    = document.getElementById('waveform-column-' + chunkIndex + '-' + chunkSample);
+  abortFlag = chunkIndex < dataCache.startIndex && chunkIndex >= dataCache.endIndex;
+
+  if (abortFlag) {
+    console.log('aborting render for chunk ' + chunkIndex + '');
+    dataCache.columns[chunkIndex] = undefined;
+    return;
+  }
+
+  domRef.innerHTML = innerHtml;
+};
+
+uncacheChunks = function (startIndex, endIndex) {
+
+  for (var i = dataCache.startIndex; i < startIndex; i++) {
+    dataCache.columns[i] = undefined;
+  }
+  for (var i = endIndex; i < dataCache.endIndex; i++) {
+    dataCache.columns[i] = undefined;
+  }
+
+  dataCache.startIndex = startIndex;
+  dataCache.endIndex   = endIndex;
+};
+
+shallowFetchColumns = function (startIndex, endIndex) {
+
+  console.log('fetching chunks from ' + startIndex + ' to ' + endIndex + '');
+
+  if (startIndex < dataCache.startIndex) {
+    const upperBound = Math.min(dataCache.startIndex, endIndex);
+    console.log('building shallow chunks from ' + startIndex + ' to ' + upperBound + '');
+    for (var i = upperBound - 1; i >= startIndex; i-=1) {
+      dataCache.columns[i] = (updateChunkInCacheShallow(i));
+      dataCache.updateQueue.push(i);
+    }
+  }
+  if (endIndex > dataCache.endIndex) {
+    const lowerBound = Math.max(dataCache.endIndex, startIndex);
+    console.log('building shallow chunks from ' + lowerBound + ' to ' + endIndex + '');
+    for (var i = lowerBound; i < endIndex; i+=1) {
+      dataCache.columns[i] = (updateChunkInCacheShallow(i));
+      dataCache.updateQueue.push(i);
+    }
+  }
+
+  dataCache.startIndex = Math.min(startIndex, dataCache.startIndex);
+  dataCache.endIndex   = Math.max(endIndex,   dataCache.endIndex);
+
+  let j = startIndex - 1;
+  return dataCache.columns.slice(startIndex, endIndex).map(c => {
+    j += 1;
+    let waveforms = "";
+    if (c.waveformChunk) {
+      waveforms = displayedSignals.map((signal) => {return c.waveformChunk[signal].html;}).join('');
+    } else {
+      c.waveformChunk = {};
+    }
+
+    return `<div class="column-chunk" style="width:${chunkWidth}px">
+      ${c.rulerChunk}
+      <div class="waveform-column" id="waveform-column-${j}-${chunkSample}" style="font-family:monospaced">
+        ${waveforms}
+      </div>
+      ${c.cursor}
+      ${c.altCursor}
+    </div>`;
+  });
+};
+
+handleClusterChanged = async function (startIndex, endIndex) {
+  uncacheChunks(startIndex, endIndex);
+  dataCache.updateQueue.forEach(chunkIndex => {
+    renderWaveformsAsync(chunkIndex);
+  });
+  dataCache.updateQueue = [];
+};
+
+// Run after chunks are rendered
+handleClusterWillChange = function (startIndex, endIndex) {
+
+  console.log('removing chunk cache outside of index ' + startIndex + ' to ' + endIndex + '');
+  
+
+  if (cursorChunkIndex >= startIndex && cursorChunkIndex < endIndex) {
+    cursorChunkElement = scrollArea.getElementsByClassName('column-chunk')[cursorChunkIndex - dataCache.startIndex];
+  } else {
+    cursorChunkElement = null;
+  }
+
+  if (altCursorChunkIndex >= startIndex && altCursorChunkIndex < endIndex) {
+    altCursorChunkElement = scrollArea.getElementsByClassName('column-chunk')[altCursorChunkIndex - dataCache.startIndex];
+  } else {
+    altCursorChunkElement = null;
+  }
 };
 
 setSeletedSignalOnStatusBar = function (signalId) {
@@ -651,37 +781,6 @@ goToNextTransition = function (direction, edge) {
   handleCursorSet(data.transitionData[timeIndex][0], 0);
 };
 
-uncacheChunks = function (startIndex, endIndex) {
-  for (var i = 0; i < startIndex; i++) {
-    dataCache.columns[i] = undefined;
-  }
-  for (var i = endIndex; i < contentData.length; i++) {
-    dataCache.columns[i] = undefined;
-  }
-
-  dataCache.startIndex = startIndex;
-  dataCache.endIndex   = endIndex;
-};
-
-// Run after chunks are rendered
-handleClusterChanged = function (startIndex, endIndex) {
-
-  console.log('removing chunk cache from index ' + startIndex + ' to ' + endIndex + '');
-  uncacheChunks(startIndex, endIndex);
-
-  if (cursorChunkIndex >= startIndex && cursorChunkIndex < endIndex) {
-    cursorChunkElement = scrollArea.getElementsByClassName('column-chunk')[cursorChunkIndex - dataCache.startIndex];
-  } else {
-    cursorChunkElement = null;
-  }
-
-  if (altCursorChunkIndex >= startIndex && altCursorChunkIndex < endIndex) {
-    altCursorChunkElement = scrollArea.getElementsByClassName('column-chunk')[altCursorChunkIndex - dataCache.startIndex];
-  } else {
-    altCursorChunkElement = null;
-  }
-};
-
   // UI preferences
   rulerNumberSpacing = 100;
   rulerTickSpacing   = 10;
@@ -717,7 +816,8 @@ handleClusterChanged = function (startIndex, endIndex) {
     startIndex:     0,
     endIndex:       0,
     columns:        [],
-    valueAtCursor:  {}
+    valueAtCursor:  {},
+    updateQueue:    []
   };
 
   // drag handler variables
@@ -1373,11 +1473,11 @@ handleClusterChanged = function (startIndex, endIndex) {
           columnsInBlock:  4,
           blocksInCluster: 4,
           callbacks: {
-            clusterWillChange: function() {},
+            clusterWillChange: function(startIndex, endIndex) {handleClusterWillChange(startIndex, endIndex);},
             clusterChanged:    function(startIndex, endIndex) {handleClusterChanged(startIndex, endIndex);},
             setViewerWidth:    function(width) {viewerWidth = width;},
             scrollingProgress: function(progress) {},
-            fetchColumns:      (startIndex, endIndex) => {return handleFetchColumns(startIndex, endIndex);},
+            fetchColumns:      (startIndex, endIndex) => {return shallowFetchColumns(startIndex, endIndex);},
             checkUpdatePending: function() {return updatePending;},
             clearUpdatePending: function() {updatePending = false;}
           }

@@ -373,7 +373,8 @@ body {
 }
 
 .ruler-tick {
-  stroke:      var(--vscode-editorGhostText-foreground);
+  stroke:       var(--vscode-editorGhostText-foreground);
+  stroke-width: 1px;
 }
 
 .column-chunk {

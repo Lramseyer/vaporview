@@ -247,20 +247,25 @@ createRulerChunk = function (chunkIndex) {
   const numberStartpixel   = -1 * (chunkStartPixel % rulerNumberSpacing);
   const tickStartpixel     = rulerTickSpacing   - (chunkStartPixel % rulerTickSpacing);
   var   numValue           = chunkStartTime + (numberStartpixel / zoomRatio);
-  var   elements           = [];
+  var   textElements       = [];
+  var   tickElements       = [];
 
   for (var i = numberStartpixel; i <= chunkWidth + 64; i+= rulerNumberSpacing ) {
-    elements.push(`<text x="${i}" y="20">${numValue * timeScale}</text>`);
+    textElements.push(`<text x="${i}" y="20">${numValue * timeScale}</text>`);
     numValue += timeMarkerInterval;
   }
 
   for (var i = tickStartpixel; i <= chunkWidth; i+= rulerTickSpacing) {
-    elements.push(`<line class="ruler-tick" x1="${i}" y1="30" x2="${i}" y2="35" stroke-width="1" />`);
+    //tickElements.push(`<line x1="${i}" y1="30" x2="${i}" y2="35"/>`);
+    tickElements.push(`<use href="#rt" x="${i}"/>`);
   }
 
   return `
     <div class="ruler-chunk">
-      <svg height="40" width="${chunkWidth}" class="ruler-svg">${elements.join('')}</svg>
+      <svg height="40" width="${chunkWidth}" class="ruler-svg">
+        <symbol id="rt" viewBox="0 0 ${chunkWidth} 40"><line class="ruler-tick" x1="0" y1="30" x2="0" y2="35"/></symbol>
+        ${textElements.join('')}${tickElements.join('')}
+      </svg>
     </div>`;
 };
 
@@ -387,6 +392,8 @@ handleZoom = function (amount, adjustScroll) {
   if (adjustScroll) {
     scrollArea.scrollLeft = centerTime * zoomRatio - (viewerWidth / 2);
   }
+
+  handleUpdatePending();
 };
 
 // return chunks to be rendered
@@ -423,12 +430,170 @@ handleFetchColumns = function (startIndex, endIndex) {
 };
 
 // Experimental asynchronous rendering path
+renderWaveformsAsync_new = async function (node, chunkIndex) {
+  let innerHtml;
+  let chunkData = {};
+
+  try {
+    console.log('rendering chunk async ' + chunkIndex + '');
+
+    // Render each waveform chunk asynchronously
+    for (let signalId of displayedSignals) {
+      // Check the abort flag at the start of each iteration
+      if (dataCache.columns[chunkIndex].abortFlag) {continue;}
+
+      // Assume renderWaveformChunk is a heavy operation; simulate breaking it up
+      await new Promise(resolve => requestAnimationFrame(() => {
+        chunkData[signalId] = renderWaveformChunk(signalId, chunkIndex);
+        if (!dataCache.columns[chunkIndex]) {console.log(chunkIndex);}
+        resolve();
+      }));
+    }
+    
+    if (!dataCache.columns[chunkIndex].abortFlag) {
+      dataCache.columns[chunkIndex].waveformChunk = chunkData;
+      innerHtml = displayedSignals.map(signal => dataCache.columns[chunkIndex].waveformChunk[signal].html).join('');
+    }
+
+    // Update the DOM in the next animation frame
+    await new Promise(resolve => requestAnimationFrame(() => {
+      let domRef = document.getElementById('waveform-column-' + chunkIndex + '-' + chunkSample);
+      if (domRef && !dataCache.columns[chunkIndex].abortFlag) { // Always check if the element still exists
+        domRef.innerHTML = innerHtml;
+        node.classList.remove('rendering-chunk');
+      }
+      resolve();
+    }));
+
+    if (dataCache.columns[chunkIndex]) {
+      if (dataCache.columns[chunkIndex].abortFlag) {
+        console.log('aborting render for chunk ' + chunkIndex);
+          console.log('late deleting chunk  ' + chunkIndex);
+          dataCache.columns[chunkIndex] = undefined;
+      } else {
+        dataCache.columns[chunkIndex].isSafeToRemove = true;
+      }
+    }
+  } finally {
+
+    dataCache.updatesPending -= 1;
+    handleUpdatePending();
+  }
+};
+
+renderWaveformsAsync_gpt = async function (node, chunkIndex) {
+  try {
+    let innerHtml;
+    let chunkData = {};
+
+    console.log('rendering chunk async ' + chunkIndex + '');
+
+    // Render each waveform chunk asynchronously
+    for (let signalId of displayedSignals) {
+      // Check the abort flag at the start of each iteration
+      if (dataCache.columns[chunkIndex] && dataCache.columns[chunkIndex].abortFlag) continue;
+
+      // Assume renderWaveformChunk is a heavy operation; simulate breaking it up
+      await new Promise(resolve => requestAnimationFrame(() => {
+        if (dataCache.columns[chunkIndex]) { // Ensure chunk still exists
+          chunkData[signalId] = renderWaveformChunk(signalId, chunkIndex);
+        }
+        resolve();
+      }));
+    }
+
+    if (dataCache.columns[chunkIndex] && !dataCache.columns[chunkIndex].abortFlag) {
+      dataCache.columns[chunkIndex].waveformChunk = chunkData;
+      innerHtml = displayedSignals.map(signal => dataCache.columns[chunkIndex].waveformChunk[signal].html).join('');
+    }
+
+    // Update the DOM in the next animation frame
+    await new Promise(resolve => requestAnimationFrame(() => {
+      let domRef = document.getElementById('waveform-column-' + chunkIndex + '-' + chunkSample);
+      if (domRef && dataCache.columns[chunkIndex] && !dataCache.columns[chunkIndex].abortFlag) {
+        domRef.innerHTML = innerHtml;
+        node.classList.remove('rendering-chunk');
+      }
+      resolve();
+    }));
+
+    if (dataCache.columns[chunkIndex]) {
+      if (dataCache.columns[chunkIndex].abortFlag) {
+        console.log('aborting render for chunk ' + chunkIndex);
+          console.log('late deleting chunk  ' + chunkIndex);
+          dataCache.columns[chunkIndex] = undefined;
+      } else {
+        dataCache.columns[chunkIndex].isSafeToRemove = true;
+      }
+    }
+  } finally {
+    // This block executes regardless of whether the try block succeeds or an error occurs
+    dataCache.updatesPending -= 1;
+    handleUpdatePending();
+  }
+};
+
+handleUpdatePending = function () {
+  if (dataCache.updatesPending === 0) {
+    console.log('all updates are done, running garbage collection');
+    updatePending = false;
+    garbageCollectChunks();
+  }
+};
+
+flagDeleteChunk = function (chunkIndex) {
+
+  if (!dataCache.columns[chunkIndex]) {return;}
+  dataCache.columns[chunkIndex].abortFlag = true;
+
+  if (dataCache.updatesPending === 0) {
+    dataCache.columns[chunkIndex] = undefined;
+  }
+};
+
+garbageCollectChunks = function () {
+  for (var i = 0; i < dataCache.startIndex; i++) {
+    if (!updatePending) {
+      dataCache.columns[i] = undefined;
+    } else {
+      console.log('aborting garbage collection');
+      return;
+    }
+  }
+  for (var i = dataCache.endIndex; i < dataCache.columns.length; i++) {
+    if (!updatePending) {
+      dataCache.columns[i] = undefined;
+    } else {
+      console.log('aborting garbage collection');
+      return;
+    }
+  }
+};
+
+uncacheChunks = function (startIndex, endIndex, deleteChunk) {
+
+  for (var i = dataCache.startIndex; i < startIndex; i++) {
+    flagDeleteChunk(i);
+  }
+  for (var i = dataCache.endIndex - 1; i >= endIndex; i-=1) {
+    flagDeleteChunk(i);
+  }
+};
+
 updateChunkInCacheShallow = function (chunkIndex) {
+
+  if (dataCache.columns[chunkIndex]) {
+    dataCache.columns[chunkIndex].abortFlag = false;
+    console.log('chunk ' + chunkIndex + ' is already in cache');
+    return;
+  }
 
   let result = {
     rulerChunk:    createRulerChunk(chunkIndex),
     cursor:        [],
     altCursor:     [],
+    abortFlag:     false,
+    isSafeToRemove: false,
   };
 
   if (cursorChunkIndex === chunkIndex) {
@@ -438,105 +603,77 @@ updateChunkInCacheShallow = function (chunkIndex) {
     result.altCursor = createTimeCursor(altCursorTime, 1);
   }
 
-  return result;
-};
-
-renderWaveformsAsync = async function (chunkIndex) {
-
-  let abortFlag = false;
-
-  displayedSignals.forEach((signalId) => {
-    abortFlag = chunkIndex < dataCache.startIndex || chunkIndex >= dataCache.endIndex;
-    if (abortFlag) {return;}
-    dataCache.columns[chunkIndex].waveformChunk[signalId] = renderWaveformChunk(signalId, chunkIndex);
-  });
-
-  let innerHtml = displayedSignals.map((signal) => {
-    return dataCache.columns[chunkIndex].waveformChunk[signal].html;
-  }).join('');
-  let domRef    = document.getElementById('waveform-column-' + chunkIndex + '-' + chunkSample);
-  abortFlag = chunkIndex < dataCache.startIndex && chunkIndex >= dataCache.endIndex;
-
-  if (abortFlag) {
-    console.log('aborting render for chunk ' + chunkIndex + '');
-    dataCache.columns[chunkIndex] = undefined;
-    return;
-  }
-
-  domRef.innerHTML = innerHtml;
-};
-
-uncacheChunks = function (startIndex, endIndex) {
-
-  for (var i = dataCache.startIndex; i < startIndex; i++) {
-    dataCache.columns[i] = undefined;
-  }
-  for (var i = endIndex; i < dataCache.endIndex; i++) {
-    dataCache.columns[i] = undefined;
-  }
-
-  dataCache.startIndex = startIndex;
-  dataCache.endIndex   = endIndex;
+  dataCache.columns[chunkIndex] = result;
 };
 
 shallowFetchColumns = function (startIndex, endIndex) {
 
-  console.log('fetching chunks from ' + startIndex + ' to ' + endIndex + '');
+  console.log('shallow fetching chunks from ' + startIndex + ' to ' + endIndex + '');
 
   if (startIndex < dataCache.startIndex) {
     const upperBound = Math.min(dataCache.startIndex, endIndex);
     console.log('building shallow chunks from ' + startIndex + ' to ' + upperBound + '');
     for (var i = upperBound - 1; i >= startIndex; i-=1) {
-      dataCache.columns[i] = (updateChunkInCacheShallow(i));
-      dataCache.updateQueue.push(i);
+      updateChunkInCacheShallow(i);
     }
   }
   if (endIndex > dataCache.endIndex) {
     const lowerBound = Math.max(dataCache.endIndex, startIndex);
     console.log('building shallow chunks from ' + lowerBound + ' to ' + endIndex + '');
     for (var i = lowerBound; i < endIndex; i+=1) {
-      dataCache.columns[i] = (updateChunkInCacheShallow(i));
-      dataCache.updateQueue.push(i);
+      updateChunkInCacheShallow(i);
     }
   }
 
   dataCache.startIndex = Math.min(startIndex, dataCache.startIndex);
   dataCache.endIndex   = Math.max(endIndex,   dataCache.endIndex);
 
-  let j = startIndex - 1;
+  let j = startIndex;
+  let shallowChunkClass;
+  let idTag;
   return dataCache.columns.slice(startIndex, endIndex).map(c => {
-    j += 1;
+    let result;
     let waveforms = "";
+    shallowChunkClass = "";
+    idTag = `${j}-${chunkSample}`;
+    if (!c) {console.log('chunk ' + j + ' is undefined');}
     if (c.waveformChunk) {
       waveforms = displayedSignals.map((signal) => {return c.waveformChunk[signal].html;}).join('');
     } else {
-      c.waveformChunk = {};
+      shallowChunkClass = " shallow-chunk";
+      
     }
 
-    return `<div class="column-chunk" style="width:${chunkWidth}px">
-      ${c.rulerChunk}
-      <div class="waveform-column" id="waveform-column-${j}-${chunkSample}" style="font-family:monospaced">
-        ${waveforms}
-      </div>
-      ${c.cursor}
-      ${c.altCursor}
+    result = `<div class="column-chunk${shallowChunkClass}" id="column-${idTag}" style="width:${chunkWidth}px">
+    ${c.rulerChunk}
+    <div class="waveform-column" id="waveform-column-${idTag}" style="font-family:monospaced">
+    ${waveforms}
+    </div>
+    ${c.cursor}
+    ${c.altCursor}
     </div>`;
+    
+    c.isSafeToRemove = true;
+    j += 1;
+    return result;
   });
 };
 
-handleClusterChanged = async function (startIndex, endIndex) {
+handleClusterChanged = function (startIndex, endIndex) {
+  //console.log('deleting chunk cache outside of index ' + startIndex + ' to ' + endIndex + '');
+  //console.log('chunk cache start index: ' + dataCache.startIndex + ' end index: ' + dataCache.endIndex + '');
   uncacheChunks(startIndex, endIndex);
-  dataCache.updateQueue.forEach(chunkIndex => {
-    renderWaveformsAsync(chunkIndex);
-  });
-  dataCache.updateQueue = [];
+  dataCache.startIndex     = startIndex;
+  dataCache.endIndex       = endIndex;
 };
 
 // Run after chunks are rendered
 handleClusterWillChange = function (startIndex, endIndex) {
 
-  console.log('removing chunk cache outside of index ' + startIndex + ' to ' + endIndex + '');
-  
+  console.log('aborting chunk cache outside of index ' + startIndex + ' to ' + endIndex + '');
+  console.log('chunk cache start index: ' + dataCache.startIndex + ' end index: ' + dataCache.endIndex + '');
+
+  //uncacheChunks(startIndex, endIndex);
 
   if (cursorChunkIndex >= startIndex && cursorChunkIndex < endIndex) {
     cursorChunkElement = scrollArea.getElementsByClassName('column-chunk')[cursorChunkIndex - dataCache.startIndex];
@@ -817,7 +954,7 @@ goToNextTransition = function (direction, edge) {
     endIndex:       0,
     columns:        [],
     valueAtCursor:  {},
-    updateQueue:    []
+    updatesPending: 0
   };
 
   // drag handler variables
@@ -1264,7 +1401,7 @@ goToNextTransition = function (direction, edge) {
 
   // scroll handler to handle zooming and scrolling
   scrollArea.addEventListener('wheel', (event) => { 
-    console.log(event);
+
     if (!touchpadScrolling) {event.preventDefault();}
     const deltaY = event.deltaY;
     if (event.shiftKey && !touchpadScrolling) {
@@ -1302,6 +1439,11 @@ goToNextTransition = function (direction, edge) {
   window.addEventListener('keydown', (event) => {
     if (searchInFocus) {return;} 
     else {event.preventDefault();}
+
+    if (event.key === 'd' && event.ctrlKey) {
+      console.log(updatePending);
+      console.log(dataCache);
+    }
 
     // left and right arrow keys move the cursor
     // ctrl + left and right arrow keys move the cursor to the next transition
@@ -1442,6 +1584,28 @@ goToNextTransition = function (direction, edge) {
   labels.addEventListener(           'click', (e) => clicklabel(e, labels));
   transitionDisplay.addEventListener('click', (e) => clicklabel(e, transitionDisplay));
 
+  mutationObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.classList.contains('shallow-chunk')) {
+          node.classList.remove('shallow-chunk');
+          node.classList.add('rendering-chunk');
+          let chunkIndex = parseInt(node.id.split('-')[1]);
+          const data     = dataCache.columns[chunkIndex];
+          if (!data || data.abortFlag || !data.isSafeToRemove) {
+            console.log('chunk ' + chunkIndex + ' is not safe to touch');
+            console.log(data);
+            return;
+          }
+          dataCache.columns[chunkIndex].isSafeToRemove = false;
+          dataCache.updatesPending++;
+          renderWaveformsAsync_new(node, chunkIndex);
+        }
+      });
+    });
+  });
+  mutationObserver.observe(contentArea, {childList: true});
+
   // Handle messages from the extension
   window.addEventListener('message', (event) => {
     const message = event.data;
@@ -1479,7 +1643,7 @@ goToNextTransition = function (direction, edge) {
             scrollingProgress: function(progress) {},
             fetchColumns:      (startIndex, endIndex) => {return shallowFetchColumns(startIndex, endIndex);},
             checkUpdatePending: function() {return updatePending;},
-            clearUpdatePending: function() {updatePending = false;}
+            clearUpdatePending: function() {handleUpdatePending();}
           }
         });
 

@@ -356,12 +356,6 @@ updateChunkInCache = function (chunkIndex) {
     result.waveformChunk[signalId] = renderWaveformChunk(signalId, chunkIndex);
   });
 
-  if (cursorChunkIndex === chunkIndex) {
-    result.cursor = createTimeCursor(cursorTime, 0);
-  }
-  if (altCursorChunkIndex === chunkIndex) {
-    result.altCursor = createTimeCursor(altCursorTime, 1);
-  }
   return result;
 };
 
@@ -546,13 +540,6 @@ updateChunkInCacheShallow = function (chunkIndex) {
     isSafeToRemove: false,
   };
 
-  if (cursorChunkIndex === chunkIndex) {
-    result.cursor = createTimeCursor(cursorTime, 0);
-  }
-  if (altCursorChunkIndex === chunkIndex) {
-    result.altCursor = createTimeCursor(altCursorTime, 1);
-  }
-
   dataCache.columns[chunkIndex] = result;
 };
 
@@ -578,33 +565,33 @@ shallowFetchColumns = function (startIndex, endIndex) {
   dataCache.startIndex = Math.min(startIndex, dataCache.startIndex);
   dataCache.endIndex   = Math.max(endIndex,   dataCache.endIndex);
 
-  let j = startIndex;
+  let chunkIndex = startIndex;
   let shallowChunkClass;
   let idTag;
   return dataCache.columns.slice(startIndex, endIndex).map(c => {
-    let result;
+    let overlays  = '';
     let waveforms = "";
     shallowChunkClass = "";
-    idTag = `${j}-${chunkSample}`;
-    if (!c) {console.log('chunk ' + j + ' is undefined');}
+    idTag = `${chunkIndex}-${chunkSample}`;
+    if (!c) {console.log('chunk ' + chunkIndex + ' is undefined');}
     if (c.waveformChunk) {
       waveforms = displayedSignals.map((signal) => {return c.waveformChunk[signal].html;}).join('');
     } else {
       shallowChunkClass = " shallow-chunk";
-      
     }
+    if (chunkIndex === cursorChunkIndex)    {overlays += createTimeCursor(cursorTime, 0);}
+    if (chunkIndex === altCursorChunkIndex) {overlays += createTimeCursor(altCursorTime, 1);}
 
-    result = `<div class="column-chunk${shallowChunkClass}" id="column-${idTag}" style="width:${chunkWidth}px">
+    let result = `<div class="column-chunk${shallowChunkClass}" id="column-${idTag}" style="width:${chunkWidth}px">
     ${c.rulerChunk}
     <div class="waveform-column" id="waveform-column-${idTag}" style="font-family:monospaced">
     ${waveforms}
     </div>
-    ${c.cursor}
-    ${c.altCursor}
+    ${overlays}
     </div>`;
     
     c.isSafeToRemove = true;
-    j += 1;
+    chunkIndex += 1;
     return result;
   });
 };
@@ -628,18 +615,6 @@ handleClusterWillChange = function (startIndex, endIndex) {
   console.log('chunk cache start index: ' + dataCache.startIndex + ' end index: ' + dataCache.endIndex + '');
 
   //uncacheChunks(startIndex, endIndex);
-
-  if (cursorChunkIndex >= startIndex && cursorChunkIndex < endIndex) {
-    cursorChunkElement = displayedContent.getElementsByClassName('column-chunk')[cursorChunkIndex - dataCache.startIndex];
-  } else {
-    cursorChunkElement = null;
-  }
-
-  if (altCursorChunkIndex >= startIndex && altCursorChunkIndex < endIndex) {
-    altCursorChunkElement = displayedContent.getElementsByClassName('column-chunk')[altCursorChunkIndex - dataCache.startIndex];
-  } else {
-    altCursorChunkElement = null;
-  }
 };
 
 setSeletedSignalOnStatusBar = function (signalId) {
@@ -758,18 +733,20 @@ setTimeOnStatusBar = function () {
 handleCursorSet = function (time, cursorType) {
 
   let   oldCursorTime = cursorType === 0 ? cursorTime         : altCursorTime;
-  let   chunkElement  = cursorType === 0 ? cursorChunkElement : altCursorChunkElement;
   let   chunkIndex    = cursorType === 0 ? cursorChunkIndex   : altCursorChunkIndex;
   const id            = cursorType === 0 ? 'main-cursor'      : 'alt-cursor';
-  const cacheRef      = cursorType === 0 ? 'cursor'           : 'altCursor';
+  let viewerMoved     = false;
 
   // dispose of old cursor
   if (oldCursorTime !== null) {
-    if (chunkElement) {
+    if (chunkIndex >= dataCache.startIndex && chunkIndex < dataCache.endIndex) {
       let timeCursor = document.getElementById(id);
-      if (timeCursor) {timeCursor.remove();}
-      console.log('removing cursor at time ' + oldCursorTime + ' from chunk ' + chunkIndex + '');
-      dataCache.columns[chunkIndex][cacheRef] = [];
+      if (timeCursor) {
+        timeCursor.remove();
+        console.log('removing cursor at time ' + oldCursorTime + ' from chunk ' + chunkIndex + '');
+      } else {
+        console.log('Could not find id: ' + id + ' chunk index ' + chunkIndex + ' is not in cache');
+      }
     } else {
       console.log('chunk index ' + chunkIndex + ' is not in cache');
     }
@@ -778,11 +755,9 @@ handleCursorSet = function (time, cursorType) {
   if (time === null) {
     if (cursorType === 0) {
       cursorTime         = null;
-      cursorChunkElement = null;
       cursorChunkIndex   = null;
     } else {
       altCursorTime         = null;
-      altCursorChunkElement = null;
       altCursorChunkIndex   = null;
     }
     return;
@@ -793,11 +768,10 @@ handleCursorSet = function (time, cursorType) {
 
   // create new cursor
   if (chunkIndex >= dataCache.startIndex && chunkIndex < dataCache.endIndex) {
-    chunkElement = displayedContent.getElementsByClassName('column-chunk')[chunkIndex - dataCache.startIndex];
-    let cursor = createTimeCursor(time, cursorType);
+    let chunkElement = displayedContent.getElementsByClassName('column-chunk')[chunkIndex - dataCache.startIndex];
+    let cursor       = createTimeCursor(time, cursorType);
 
     chunkElement.innerHTML += cursor;
-    dataCache.columns[chunkIndex][cacheRef] = cursor;
 
     console.log('adding cursor at time ' + time + ' from chunk ' + chunkIndex + '');
   } else {
@@ -806,10 +780,9 @@ handleCursorSet = function (time, cursorType) {
 
   if (cursorType === 0) {
     cursorTime            = time;
-    cursorChunkElement    = chunkElement;
     cursorChunkIndex      = chunkIndex;
 
-    moveViewToTime(time);
+    viewerMoved = moveViewToTime(time);
 
     // Get values for all displayed signals at the cursor time
     displayedSignals.forEach((signalId) => {
@@ -819,7 +792,6 @@ handleCursorSet = function (time, cursorType) {
     renderLabelsPanels();
   } else {
     altCursorTime         = time;
-    altCursorChunkElement = chunkElement;
     altCursorChunkIndex   = chunkIndex;
   }
 
@@ -835,8 +807,9 @@ isInView = function(time) {
 };
 
 moveViewToTime = function(time) {
-  if (isInView(time)) {return;}
-  else {scrollArea.scrollLeft = (time * zoomRatio) - (viewerWidth / 2);}
+  const moveViewer = !(isInView(time));
+  if (moveViewer) {scrollArea.scrollLeft = (time * zoomRatio) - (viewerWidth / 2);}
+  return moveViewer;
 };
 
 goToNextTransition = function (direction, edge) {
@@ -847,7 +820,6 @@ goToNextTransition = function (direction, edge) {
 
   const data = waveformData[selectedSignal];
   const time = cursorTime;
-  
   let indexIncrement;
 
   if (edge === undefined) {
@@ -885,10 +857,8 @@ goToNextTransition = function (direction, edge) {
   searchInFocus       = false;
   parsedSearchValue   = null;
   cursorTime          = null;
-  cursorChunkElement  = null;
   cursorChunkIndex    = null;
   altCursorTime       = null;
-  altCursorChunkElement = null;
   altCursorChunkIndex = null;
   timeScale           = 1;
   chunkTime           = 512;
@@ -908,7 +878,9 @@ goToNextTransition = function (direction, edge) {
     endIndex:       0,
     columns:        [],
     valueAtCursor:  {},
-    updatesPending: 0
+    updatesPending: 0,
+    cusrorElement:  '',
+    altCursorElement: '',
   };
 
   // drag handler variables

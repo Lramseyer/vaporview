@@ -1,7 +1,9 @@
 (function () {
   const vscode = acquireVsCodeApi();
 
+// ----------------------------------------------------------------------------
 // Rendering Herlper functions
+// ----------------------------------------------------------------------------
 
 // Parse VCD values into either binary, hex, or decimal
 // This function is so cursed...
@@ -430,7 +432,7 @@ handleFetchColumns = function (startIndex, endIndex) {
 };
 
 // Experimental asynchronous rendering path
-renderWaveformsAsync_new = async function (node, chunkIndex) {
+renderWaveformsAsync = async function (node, chunkIndex) {
   let innerHtml;
   let chunkData = {};
 
@@ -476,58 +478,6 @@ renderWaveformsAsync_new = async function (node, chunkIndex) {
     }
   } finally {
 
-    dataCache.updatesPending -= 1;
-    handleUpdatePending();
-  }
-};
-
-renderWaveformsAsync_gpt = async function (node, chunkIndex) {
-  try {
-    let innerHtml;
-    let chunkData = {};
-
-    console.log('rendering chunk async ' + chunkIndex + '');
-
-    // Render each waveform chunk asynchronously
-    for (let signalId of displayedSignals) {
-      // Check the abort flag at the start of each iteration
-      if (dataCache.columns[chunkIndex] && dataCache.columns[chunkIndex].abortFlag) continue;
-
-      // Assume renderWaveformChunk is a heavy operation; simulate breaking it up
-      await new Promise(resolve => requestAnimationFrame(() => {
-        if (dataCache.columns[chunkIndex]) { // Ensure chunk still exists
-          chunkData[signalId] = renderWaveformChunk(signalId, chunkIndex);
-        }
-        resolve();
-      }));
-    }
-
-    if (dataCache.columns[chunkIndex] && !dataCache.columns[chunkIndex].abortFlag) {
-      dataCache.columns[chunkIndex].waveformChunk = chunkData;
-      innerHtml = displayedSignals.map(signal => dataCache.columns[chunkIndex].waveformChunk[signal].html).join('');
-    }
-
-    // Update the DOM in the next animation frame
-    await new Promise(resolve => requestAnimationFrame(() => {
-      let domRef = document.getElementById('waveform-column-' + chunkIndex + '-' + chunkSample);
-      if (domRef && dataCache.columns[chunkIndex] && !dataCache.columns[chunkIndex].abortFlag) {
-        domRef.innerHTML = innerHtml;
-        node.classList.remove('rendering-chunk');
-      }
-      resolve();
-    }));
-
-    if (dataCache.columns[chunkIndex]) {
-      if (dataCache.columns[chunkIndex].abortFlag) {
-        console.log('aborting render for chunk ' + chunkIndex);
-          console.log('late deleting chunk  ' + chunkIndex);
-          dataCache.columns[chunkIndex] = undefined;
-      } else {
-        dataCache.columns[chunkIndex].isSafeToRemove = true;
-      }
-    }
-  } finally {
-    // This block executes regardless of whether the try block succeeds or an error occurs
     dataCache.updatesPending -= 1;
     handleUpdatePending();
   }
@@ -658,6 +608,10 @@ shallowFetchColumns = function (startIndex, endIndex) {
     return result;
   });
 };
+
+// ----------------------------------------------------------------------------
+// Event handler helper functions
+// ----------------------------------------------------------------------------
 
 handleClusterChanged = function (startIndex, endIndex) {
   //console.log('deleting chunk cache outside of index ' + startIndex + ' to ' + endIndex + '');
@@ -1599,7 +1553,7 @@ goToNextTransition = function (direction, edge) {
           }
           dataCache.columns[chunkIndex].isSafeToRemove = false;
           dataCache.updatesPending++;
-          renderWaveformsAsync_new(node, chunkIndex);
+          renderWaveformsAsync(node, chunkIndex);
         }
       });
     });

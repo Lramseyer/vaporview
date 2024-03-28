@@ -282,12 +282,13 @@
           layout                    = [];
 
       if(thisClusterContentChanged || leftOffsetChanged) {
-        if(leftOffset) {
-          this.options.keepParity && layout.push(this.renderExtraTag('keep-parity'));
+        //if(leftOffset) {
+          //this.options.keepParity && layout.push(this.renderExtraTag('keep-parity'));
           layout.push(this.renderExtraTag('left-space', leftOffset));
-        }
+        //}
         layout.push(thisClusterColumns);
-        rightOffset && layout.push(this.renderExtraTag('right-space', rightOffset));
+        //rightOffset && layout.push(this.renderExtraTag('right-space', rightOffset));
+        layout.push(this.renderExtraTag('right-space', rightOffset));
         callbacks.clusterWillChange && callbacks.clusterWillChange(itemsStart, itemsEnd);
         this.html(layout.join(''));
         //this.options.content_tag == 'ol' && this.contentElement.setAttribute('start', columnsBefore);

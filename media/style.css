@@ -246,6 +246,10 @@ body {
   margin-left: 1px;
 }
 
+#displayedContent {
+  display: inherit;
+}
+
 #time-ruler {
   display: flex;
   align-items: center;

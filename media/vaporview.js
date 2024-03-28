@@ -630,13 +630,13 @@ handleClusterWillChange = function (startIndex, endIndex) {
   //uncacheChunks(startIndex, endIndex);
 
   if (cursorChunkIndex >= startIndex && cursorChunkIndex < endIndex) {
-    cursorChunkElement = scrollArea.getElementsByClassName('column-chunk')[cursorChunkIndex - dataCache.startIndex];
+    cursorChunkElement = displayedContent.getElementsByClassName('column-chunk')[cursorChunkIndex - dataCache.startIndex];
   } else {
     cursorChunkElement = null;
   }
 
   if (altCursorChunkIndex >= startIndex && altCursorChunkIndex < endIndex) {
-    altCursorChunkElement = scrollArea.getElementsByClassName('column-chunk')[altCursorChunkIndex - dataCache.startIndex];
+    altCursorChunkElement = displayedContent.getElementsByClassName('column-chunk')[altCursorChunkIndex - dataCache.startIndex];
   } else {
     altCursorChunkElement = null;
   }
@@ -793,7 +793,7 @@ handleCursorSet = function (time, cursorType) {
 
   // create new cursor
   if (chunkIndex >= dataCache.startIndex && chunkIndex < dataCache.endIndex) {
-    chunkElement = scrollArea.getElementsByClassName('column-chunk')[chunkIndex - dataCache.startIndex];
+    chunkElement = displayedContent.getElementsByClassName('column-chunk')[chunkIndex - dataCache.startIndex];
     let cursor = createTimeCursor(time, cursorType);
 
     chunkElement.innerHTML += cursor;
@@ -934,6 +934,9 @@ goToNextTransition = function (direction, edge) {
   const transitionScroll  = document.getElementById('transition-display-container');
   const scrollArea        = document.getElementById('scrollArea');
   const contentArea       = document.getElementById('contentArea');
+  const leftSpace         = document.getElementById('left-space');
+  const rightSpace        = document.getElementById('right-space');
+  const displayedContent  = document.getElementById('displayedContent');
 
   // buttons
   const zoomInButton  = document.getElementById('zoom-in-button');
@@ -1423,9 +1426,9 @@ goToNextTransition = function (direction, edge) {
   });
 
   function getTimeFromClick(event) {
-    const bounds      = scrollArea.getBoundingClientRect();
-    const pixelLeft   = Math.round(scrollArea.scrollLeft + event.pageX - bounds.left);
-    return Math.round(pixelLeft / zoomRatio);
+    const bounds      = displayedContent.getBoundingClientRect();
+    const pixelLeft   = Math.round(event.pageX - bounds.left);
+    return Math.round(pixelLeft / zoomRatio) + (chunkTime * dataCache.startIndex);
   }
 
   function handleScrollAreaClick(event, eventButton) {
@@ -1495,8 +1498,11 @@ goToNextTransition = function (direction, edge) {
 
   // click handler to handle clicking inside the waveform viewer
   // gets the absolute x position of the click relative to the scrollable content
-  scrollArea.addEventListener('click',     (e) => {handleScrollAreaClick(e, 0);});
-  scrollArea.addEventListener('mousedown', (e) => {if (e.button === 1) {handleScrollAreaClick(e, 1);}});
+  //scrollArea.addEventListener('click',     (e) => {handleScrollAreaClick(e, 0);});
+  //scrollArea.addEventListener('mousedown', (e) => {if (e.button === 1) {handleScrollAreaClick(e, 1);}});
+
+  displayedContent.addEventListener('click',     (e) => {handleScrollAreaClick(e, 0);});
+  displayedContent.addEventListener('mousedown', (e) => {if (e.button === 1) {handleScrollAreaClick(e, 1);}});
 
   // resize handler to handle column resizing
   resize1.addEventListener("mousedown",   (e) => {handleResizeMousedown(e, resize1, 1);});
@@ -1558,7 +1564,7 @@ goToNextTransition = function (direction, edge) {
       });
     });
   });
-  mutationObserver.observe(contentArea, {childList: true});
+  mutationObserver.observe(displayedContent, {childList: true});
 
   // Handle messages from the extension
   window.addEventListener('message', (event) => {
@@ -1583,13 +1589,16 @@ goToNextTransition = function (direction, edge) {
         }
 
         clusterizeContent  = new Clusterize({
-          columnCount:     chunkCount,
-          columnWidth:     chunkWidth,
-          columns:         contentData,
-          scrollId:        'scrollArea',
-          contentId:       'contentArea',
-          columnsInBlock:  4,
-          blocksInCluster: 4,
+          columnCount:      chunkCount,
+          columnWidth:      chunkWidth,
+          columns:          contentData,
+          scrollId:         'scrollArea',
+          contentId:        'contentArea',
+          leftSpaceId:      'left-space',
+          rightSpaceId:     'right-space',
+          displayedSpaceId: 'displayedContent',
+          columnsInBlock:   4,
+          blocksInCluster:  4,
           callbacks: {
             clusterWillChange: function(startIndex, endIndex) {handleClusterWillChange(startIndex, endIndex);},
             clusterChanged:    function(startIndex, endIndex) {handleClusterChanged(startIndex, endIndex);},

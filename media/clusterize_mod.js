@@ -32,7 +32,18 @@
 
     // public parameters
     self.options = {};
-    var options  = ['columnCount', 'columnWidth', 'columnsInBlock', 'blocksInCluster', 'showNoDataColumn', 'noDataClass', 'noDataText', 'keepParity', 'tag', 'callbacks'];
+    var options  = [
+      'columnCount', 
+      'columnWidth', 
+      'columnsInBlock', 
+      'blocksInCluster',
+      'showNoDataColumn',
+      'noDataClass',
+      'noDataText',
+      'keepParity',
+      'tag',
+      'callbacks',
+    ];
     for(var i = 0, option; option = options[i]; i++) {
       self.options[option] = typeof data[option] != 'undefined' && data[option] != null
         ? data[option]
@@ -46,8 +57,12 @@
       }
     };
 
-    self.scrollElement  = data.scrollId  ? document.getElementById(data.scrollId)  : data.scrollElem;
-    self.contentElement = data.contentId ? document.getElementById(data.contentId) : data.contentElem;
+    self.scrollElement    = data.scrollId  ? document.getElementById(data.scrollId)  : data.scrollElem;
+    self.contentElement   = data.contentId ? document.getElementById(data.contentId) : data.contentElem;
+    self.leftSpaceElement      = document.getElementById(data.leftSpaceId);
+    self.rightSpaceElement     = document.getElementById(data.rightSpaceId);
+    self.displayedSpaceElement = document.getElementById(data.displayedSpaceId);
+
     if(!self.scrollElement)  {throw new Error("Error! Could not find scroll element");}
     if(!self.contentElement) {throw new Error("Error! Could not find content element");}
     self.updateViewportWidth();
@@ -273,30 +288,22 @@
           columnsBefore++;
         }
       }
-      var thisClusterColumns        = newColumns.join(''),
-          callbacks                 = this.options.callbacks,
-          //thisClusterContentChanged = this.checkChanges('data',  thisClusterColumns, cache),
-          thisClusterContentChanged = callbacks.checkUpdatePending(),
-          leftOffsetChanged         = this.checkChanges('left',  leftOffset,    cache),
-          onlyRightOffsetChanged    = this.checkChanges('right', rightOffset,   cache),
-          layout                    = [];
+      var thisClusterColumns        = newColumns.join('');
+      var callbacks                 = this.options.callbacks;
+      //var thisClusterContentChanged = this.checkChanges('data',  thisClusterColumns, cache);
+      var thisClusterContentChanged = callbacks.checkUpdatePending();
+      var leftOffsetChanged         = this.checkChanges('left',  leftOffset,    cache);
+      var onlyRightOffsetChanged    = this.checkChanges('right', rightOffset,   cache);
 
       if(thisClusterContentChanged || leftOffsetChanged) {
-        //if(leftOffset) {
-          //this.options.keepParity && layout.push(this.renderExtraTag('keep-parity'));
-          layout.push(this.renderExtraTag('left-space', leftOffset));
-        //}
-        layout.push(thisClusterColumns);
-        //rightOffset && layout.push(this.renderExtraTag('right-space', rightOffset));
-        layout.push(this.renderExtraTag('right-space', rightOffset));
         callbacks.clusterWillChange && callbacks.clusterWillChange(itemsStart, itemsEnd);
-        this.html(layout.join(''));
-        //this.options.content_tag == 'ol' && this.contentElement.setAttribute('start', columnsBefore);
+        this.leftSpaceElement.style.width    = leftOffset + 'px';
+        this.displayedSpaceElement.innerHTML = thisClusterColumns;
+        this.rightSpaceElement.style.width   = rightOffset + 'px';
         this.contentElement.style['counter-increment'] = 'clusterize-counter ' + (columnsBefore - 1);
         callbacks.clusterChanged && callbacks.clusterChanged(itemsStart, itemsEnd);
-        
       } else if(onlyRightOffsetChanged) {
-        this.contentElement.lastChild.style.width = rightOffset + 'px';
+        this.rightSpaceElement.style.width = rightOffset + 'px';
       }
       callbacks.clearUpdatePending();
     },

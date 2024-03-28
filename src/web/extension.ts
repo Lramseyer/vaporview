@@ -553,7 +553,9 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
           </div>
           <div id="scrollArea" class="clusterize-scroll">
             <div id="contentArea" class="clusterize-content">
+              <div id="left-space"></div>
               <div id="displayedContent">Loading data…</div>
+              <div id="right-space"></div>
             </div>
           </div>
         </div>

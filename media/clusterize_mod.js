@@ -178,22 +178,7 @@
 
   Clusterize.prototype = {
     constructor: Clusterize,
-    // fetch existing markup
-    //fetchMarkup: function() {
-    //  console.log("fetchMarkup()");
-    //  var columns      = [];
-    //  var nodes        = [];
-    //  var childNodes   = this.contentElement.children;
-    //  for (var i = 0, ii = childNodes.length; i < ii; i++) {
-    //      nodes.push(childNodes[i]);
-    //  }
-    //  var columnsNodes = nodes;
-    //  while (columnsNodes.length) {
-    //    columns.push(columnsNodes.shift().outerHTML);
-    //  }
-    //  return columns;
-    //},
-    // get tag name, content tag name, tag width, calc cluster width
+
     exploreEnvironment: function(columns, cache) {
       console.log("exploreEnvironment()");
       var opts = this.options;
@@ -209,24 +194,13 @@
       console.log("getChunksWidth()");
       console.log(this.options);
       var opts          = this.options;
-      //prevItemWidth = opts.columnWidth;
       opts.clusterWidth = 0;
       if (!columns.length) {return;}
-      //var nodes = this.contentElement.children;
-      //if( ! nodes.length) {return;}
-      //var node = nodes[Math.floor(nodes.length / 2)];
 
-      //opts.columnWidth = node.offsetWidth;
-      // consider table's border-spacing
-      //if(opts.tag == 'tr' && getStyle('borderCollapse', this.contentElement) != 'collapse') {
-      //  opts.columnWidth += parseInt(getStyle('borderSpacing', this.contentElement), 10) || 0;
-      //}
       opts.blockWidth       = opts.columnWidth     * opts.columnsInBlock;
       opts.blocksInCluster  = Math.max(Math.ceil((opts.viewportWidth / opts.blockWidth) * 2), 2);
       opts.columnsInCluster = opts.blocksInCluster * opts.columnsInBlock;
       opts.clusterWidth     = opts.blocksInCluster * opts.blockWidth;
-
-      //return prevItemWidth != opts.columnWidth;
     },
     getBlockNum: function () {
       var opts           = this.options;
@@ -326,9 +300,6 @@
   function isArray(arr) {
     return Object.prototype.toString.call(arr) === '[object Array]';
   }
-  //function getStyle(prop, elem) {
-  //  return window.getComputedStyle ? window.getComputedStyle(elem)[prop] : elem.currentStyle[prop];
-  //}
 
   return Clusterize;
 }));

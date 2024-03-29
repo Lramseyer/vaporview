@@ -11,10 +11,12 @@ parseValue = function (binaryString, width, is4State) {
 
   let stringArray;
 
+  // If number format is binary
   if (numberFormat === 2) {
     return binaryString.replace(/\B(?=(\d{4})+(?!\d))/g, "_");
   }
 
+  // If number format is hexadecimal
   if (numberFormat === 16) {
     if (is4State) {
       stringArray = binaryString.replace(/\B(?=(\d{4})+(?!\d))/g, "_").split("_");
@@ -35,6 +37,7 @@ parseValue = function (binaryString, width, is4State) {
   let xzMask = "";
   let numericalData = binaryString;
 
+  // If number format is decimal
   if (numberFormat === 10) {
     if (is4State) {
       numericalData = binaryString.replace(/[XZ]/i, "0");
@@ -55,12 +58,12 @@ valueIs4State = function (value) {
 busElement = function (flexWidth, transition, backgroundPositionX, backgroundSizeX, deltaTime, spansChunk, signalWidth, textWidth) {
   const value            = transition[1];
   const backgroundWidth  = backgroundSizeX * zoomRatio;
-  const is4State   = valueIs4State(value);
-  const color      = is4State ? 'background-color:var(--vscode-debugTokenExpression-error)' : '';
-  const totalWidth = deltaTime * zoomRatio;
-  const initialTime = transition[0];
-  let pElement      = '';
-  let justifyDirection = '';
+  const is4State         = valueIs4State(value);
+  const color            = is4State ? 'background-color:var(--vscode-debugTokenExpression-error)' : '';
+  const totalWidth       = deltaTime * zoomRatio;
+  const initialTime      = transition[0];
+  let pElement           = '';
+  let justifyDirection   = '';
 
   // Don't even bother rendering text if the element is too small. Since 
   // there's an upper limit to the number of larger elements that will be 
@@ -69,6 +72,7 @@ busElement = function (flexWidth, transition, backgroundPositionX, backgroundSiz
   if (totalWidth > 10) {
     const displayValue = parseValue(value, signalWidth, is4State);
     let textOffset     = 0;
+
     if (totalWidth > textWidth) {
       justifyDirection = 'justify-content: center';
     }
@@ -96,7 +100,8 @@ busElement = function (flexWidth, transition, backgroundPositionX, backgroundSiz
       let lowerBound     = -0.5 * (textWidth + elementWidth);
       let upperBound     =  0.5 * (textWidth + elementWidth);
       let textPosition   = firstOffset - (0.5 * elementWidth);
-      let offsetStart         = Math.floor((lowerBound - firstOffset) / renderInterval);
+      let offsetStart    = Math.floor((lowerBound - firstOffset) / renderInterval);
+
       for (let i = offsetStart; i < textCount; i++) {
         if (textPosition >= lowerBound) {
           if (textPosition > upperBound) {break;}
@@ -275,11 +280,11 @@ createBaseChunk = function (chunkIndex) {
   return `<div class="column-chunk" style="min-width:${chunkWidth}px"></div>`;
 };
 
-createTimeCursor = function (time, cursorType) {
+createTimeMarker = function (time, markerType) {
   const x  = (time % chunkTime) * zoomRatio;
-  const id = cursorType === 0 ? 'main-cursor' : 'alt-cursor';
+  const id = markerType === 0 ? 'main-marker' : 'alt-marker';
   return `
-    <svg id="${id}" class="time-cursor" style="left:${x}px">
+    <svg id="${id}" class="time-marker" style="left:${x}px">
       <line x1="0" y1="0" x2="0" y2="100%"/>
     </svg>`;
 };
@@ -338,7 +343,7 @@ updateWaveformInCache = function (signalIdList) {
     for (var i = dataCache.startIndex; i < dataCache.endIndex; i++) {
       dataCache.columns[i].waveformChunk[signalId] = renderWaveformChunk(signalId, i);
     }
-    dataCache.valueAtCursor[signalId] = getValueAtTime(signalId, cursorTime);
+    dataCache.valueAtMarker[signalId] = getValueAtTime(signalId, markerTime);
   });
 };
 
@@ -348,8 +353,8 @@ updateChunkInCache = function (chunkIndex) {
   let result = {
     rulerChunk:    createRulerChunk(chunkIndex),
     waveformChunk: {},
-    cursor:        [],
-    altCursor:     [],
+    marker:        [],
+    altMarker:     [],
   };
 
   displayedSignals.forEach((signalId) => {
@@ -419,8 +424,8 @@ handleFetchColumns = function (startIndex, endIndex) {
       <div class="waveform-column" style="font-family:monospaced">
         ${displayedSignals.map((signal) => {return c.waveformChunk[signal].html;}).join('')}
       </div>
-      ${c.cursor}
-      ${c.altCursor}
+      ${c.marker}
+      ${c.altMarker}
     </div>`;
   });
 };
@@ -534,8 +539,8 @@ updateChunkInCacheShallow = function (chunkIndex) {
 
   let result = {
     rulerChunk:    createRulerChunk(chunkIndex),
-    cursor:        [],
-    altCursor:     [],
+    marker:        [],
+    altMarker:     [],
     abortFlag:     false,
     isSafeToRemove: false,
   };
@@ -579,8 +584,8 @@ shallowFetchColumns = function (startIndex, endIndex) {
     } else {
       shallowChunkClass = " shallow-chunk";
     }
-    if (chunkIndex === cursorChunkIndex)    {overlays += createTimeCursor(cursorTime, 0);}
-    if (chunkIndex === altCursorChunkIndex) {overlays += createTimeCursor(altCursorTime, 1);}
+    if (chunkIndex === markerChunkIndex)    {overlays += createTimeMarker(markerTime, 0);}
+    if (chunkIndex === altMarkerChunkIndex) {overlays += createTimeMarker(altMarkerTime, 1);}
 
     let result = `<div class="column-chunk${shallowChunkClass}" id="column-${idTag}" style="width:${chunkWidth}px">
     ${c.rulerChunk}
@@ -725,25 +730,25 @@ setTimeOnStatusBar = function () {
   // .toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
   vscode.postMessage({
     command: 'setTime',
-    time:    cursorTime,
-    altTime: altCursorTime
+    time:    markerTime,
+    altTime: altMarkerTime
   });
 };
 
-handleCursorSet = function (time, cursorType) {
+handleMarkerSet = function (time, markerType) {
 
-  let   oldCursorTime = cursorType === 0 ? cursorTime         : altCursorTime;
-  let   chunkIndex    = cursorType === 0 ? cursorChunkIndex   : altCursorChunkIndex;
-  const id            = cursorType === 0 ? 'main-cursor'      : 'alt-cursor';
+  let   oldMarkerTime = markerType === 0 ? markerTime         : altMarkerTime;
+  let   chunkIndex    = markerType === 0 ? markerChunkIndex   : altMarkerChunkIndex;
+  const id            = markerType === 0 ? 'main-marker'      : 'alt-marker';
   let viewerMoved     = false;
 
-  // dispose of old cursor
-  if (oldCursorTime !== null) {
+  // dispose of old marker
+  if (oldMarkerTime !== null) {
     if (chunkIndex >= dataCache.startIndex && chunkIndex < dataCache.endIndex) {
-      let timeCursor = document.getElementById(id);
-      if (timeCursor) {
-        timeCursor.remove();
-        console.log('removing cursor at time ' + oldCursorTime + ' from chunk ' + chunkIndex + '');
+      let timeMarker = document.getElementById(id);
+      if (timeMarker) {
+        timeMarker.remove();
+        console.log('removing marker at time ' + oldMarkerTime + ' from chunk ' + chunkIndex + '');
       } else {
         console.log('Could not find id: ' + id + ' chunk index ' + chunkIndex + ' is not in cache');
       }
@@ -753,46 +758,47 @@ handleCursorSet = function (time, cursorType) {
   }
 
   if (time === null) {
-    if (cursorType === 0) {
-      cursorTime         = null;
-      cursorChunkIndex   = null;
+    if (markerType === 0) {
+      markerTime         = null;
+      markerChunkIndex   = null;
     } else {
-      altCursorTime         = null;
-      altCursorChunkIndex   = null;
+      altMarkerTime         = null;
+      altMarkerChunkIndex   = null;
     }
     return;
   }
 
-  // first find the chunk with the cursor
+  // first find the chunk with the marker
   chunkIndex   = Math.floor(time / chunkTime);
 
-  // create new cursor
+  // create new marker
   if (chunkIndex >= dataCache.startIndex && chunkIndex < dataCache.endIndex) {
     let chunkElement = displayedContent.getElementsByClassName('column-chunk')[chunkIndex - dataCache.startIndex];
-    let cursor       = createTimeCursor(time, cursorType);
+    let marker       = new DOMParser().parseFromString(createTimeMarker(time, markerType), 'text/html').body.firstChild;
 
-    chunkElement.innerHTML += cursor;
+    //chunkElement.innerHTML += marker;
+    chunkElement.appendChild(marker);
 
-    console.log('adding cursor at time ' + time + ' from chunk ' + chunkIndex + '');
+    console.log('adding marker at time ' + time + ' from chunk ' + chunkIndex + '');
   } else {
     console.log('chunk index ' + chunkIndex + ' is not in cache');
   }
 
-  if (cursorType === 0) {
-    cursorTime            = time;
-    cursorChunkIndex      = chunkIndex;
+  if (markerType === 0) {
+    markerTime            = time;
+    markerChunkIndex      = chunkIndex;
 
     viewerMoved = moveViewToTime(time);
 
-    // Get values for all displayed signals at the cursor time
+    // Get values for all displayed signals at the marker time
     displayedSignals.forEach((signalId) => {
-      dataCache.valueAtCursor[signalId] = getValueAtTime(signalId, time);
+      dataCache.valueAtMarker[signalId] = getValueAtTime(signalId, time);
     });
 
     renderLabelsPanels();
   } else {
-    altCursorTime         = time;
-    altCursorChunkIndex   = chunkIndex;
+    altMarkerTime         = time;
+    altMarkerChunkIndex   = chunkIndex;
   }
 
   setTimeOnStatusBar();
@@ -814,12 +820,12 @@ moveViewToTime = function(time) {
 
 goToNextTransition = function (direction, edge) {
   if (selectedSignal === null) {
-    //handleCursorSet(cursorTime + direction, 0);
+    //handleMarkerSet(markerTime + direction, 0);
     return;
   }
 
   const data = waveformData[selectedSignal];
-  const time = cursorTime;
+  const time = markerTime;
   let indexIncrement;
 
   if (edge === undefined) {
@@ -841,7 +847,7 @@ goToNextTransition = function (direction, edge) {
   timeIndex = Math.max(timeIndex, 0);
   timeIndex = Math.min(timeIndex, data.transitionData.length - 1);
 
-  handleCursorSet(data.transitionData[timeIndex][0], 0);
+  handleMarkerSet(data.transitionData[timeIndex][0], 0);
 };
 
   // UI preferences
@@ -856,10 +862,10 @@ goToNextTransition = function (direction, edge) {
   searchState         = 0;
   searchInFocus       = false;
   parsedSearchValue   = null;
-  cursorTime          = null;
-  cursorChunkIndex    = null;
-  altCursorTime       = null;
-  altCursorChunkIndex = null;
+  markerTime          = null;
+  markerChunkIndex    = null;
+  altMarkerTime       = null;
+  altMarkerChunkIndex = null;
   timeScale           = 1;
   chunkTime           = 512;
   chunkWidth          = 512;
@@ -877,10 +883,10 @@ goToNextTransition = function (direction, edge) {
     startIndex:     0,
     endIndex:       0,
     columns:        [],
-    valueAtCursor:  {},
+    valueAtMarker:  {},
     updatesPending: 0,
     cusrorElement:  '',
-    altCursorElement: '',
+    altMarkerElement: '',
   };
 
   // drag handler variables
@@ -953,7 +959,7 @@ goToNextTransition = function (direction, edge) {
       data.textWidth = getValueTextWidth(data.signalWidth, numberFormat);
       isSelected = (index === selectedSignalIndex);
       labelsList.push(createLabel(signalId, waveformData[signalId].name, isSelected));
-      transitions.push(createValueDisplayElement(signalId, dataCache.valueAtCursor[signalId], isSelected));
+      transitions.push(createValueDisplayElement(signalId, dataCache.valueAtMarker[signalId], isSelected));
     });
     labels.innerHTML = labelsList.join('');
     transitionDisplay.innerHTML = transitions.join('');
@@ -1142,22 +1148,22 @@ goToNextTransition = function (direction, edge) {
     if (parsedSearchValue === null) {return;}
 
     if (searchState === 0 && direction === 1) {
-      handleCursorSet(parseInt(parsedSearchValue), 0);
+      handleMarkerSet(parseInt(parsedSearchValue), 0);
     } else {
       const signalWidth      = waveformData[selectedSignal].signalWidth;
       let trimmedSearchValue = parsedSearchValue;
       if (parsedSearchValue.length > signalWidth) {trimmedSearchValue = parsedSearchValue.slice(-1 * signalWidth);}
       let searchRegex = new RegExp(trimmedSearchValue, 'ig');
       const data      = waveformData[selectedSignal];
-      const timeIndex = data.transitionData.findIndex(([t, v]) => {return t >= cursorTime;});
+      const timeIndex = data.transitionData.findIndex(([t, v]) => {return t >= markerTime;});
       let indexOffset = 0;
 
       if (direction === -1) {indexOffset = -1;}
-      else if (cursorTime === data.transitionData[timeIndex][0]) {indexOffset = 1;}
+      else if (markerTime === data.transitionData[timeIndex][0]) {indexOffset = 1;}
 
       for (var i = timeIndex + indexOffset; i >= 0; i+=direction) {
         if (data.transitionData[i][1].match(searchRegex)) {
-          handleCursorSet(data.transitionData[i][0], 0);
+          handleMarkerSet(data.transitionData[i][0], 0);
           break;
         }
       }
@@ -1242,11 +1248,11 @@ goToNextTransition = function (direction, edge) {
     if (closestItemBelowIndex === -1) {closestItemBelowIndex = labelsList.length - 1;}
 
     if (closestItemBelow !== null) {
-      closestItemBelow.style.borderTop    = '2px dotted var(--vscode-editorCursor-foreground)';
+      closestItemBelow.style.borderTop    = '2px dotted var(--vscode-editorMarker-foreground)';
       closestItemBelow.style.borderBottom = '2px dotted transparent';
     } else if (closestItemAbove !== null) {
       closestItemAbove.style.borderTop    = '2px dotted transparent';
-      closestItemAbove.style.borderBottom = '2px dotted var(--vscode-editorCursor-foreground)';
+      closestItemAbove.style.borderBottom = '2px dotted var(--vscode-editorMarker-foreground)';
     }
 
     if (draggableItemIndex < closestItemAboveIndex) {
@@ -1364,7 +1370,7 @@ goToNextTransition = function (direction, edge) {
   });
   //scrollArea.addEventListener('wheel', handleScrollMouse, false);
 
-  // move handler to handle moving the cursor or selected signal with the arrow keys
+  // move handler to handle moving the marker or selected signal with the arrow keys
   window.addEventListener('keydown', (event) => {
     if (searchInFocus) {return;} 
     else {event.preventDefault();}
@@ -1374,14 +1380,14 @@ goToNextTransition = function (direction, edge) {
       console.log(dataCache);
     }
 
-    // left and right arrow keys move the cursor
-    // ctrl + left and right arrow keys move the cursor to the next transition
-    if ((event.key === 'ArrowRight') && (cursorTime !== null)) {
+    // left and right arrow keys move the marker
+    // ctrl + left and right arrow keys move the marker to the next transition
+    if ((event.key === 'ArrowRight') && (markerTime !== null)) {
       if (event.ctrlKey)  {goToNextTransition(1);}
-      else                {handleCursorSet(cursorTime + 1, 0);}
-    } else if ((event.key === 'ArrowLeft') && (cursorTime !== null)) {
+      else                {handleMarkerSet(markerTime + 1, 0);}
+    } else if ((event.key === 'ArrowLeft') && (markerTime !== null)) {
       if (event.ctrlKey)  {goToNextTransition(-1);}
-      else                {handleCursorSet(cursorTime - 1, 0);}
+      else                {handleMarkerSet(markerTime - 1, 0);}
 
     // up and down arrow keys move the selected signal
     // alt + up and down arrow keys reorder the selected signal up and down
@@ -1436,7 +1442,7 @@ goToNextTransition = function (direction, edge) {
       if (pixelDistance < snapToDistance) {snapToTime = nearestTime;}
     }
 
-    handleCursorSet(snapToTime, button);
+    handleMarkerSet(snapToTime, button);
   }
 
   // resize handler to handle resizing

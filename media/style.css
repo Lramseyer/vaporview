@@ -433,7 +433,7 @@ body {
   vector-effect: non-scaling-stroke;
 }
 
-.time-cursor {
+.time-marker {
   position: absolute;
   top: 0;
   height: 100%;
@@ -444,10 +444,10 @@ body {
   stroke: var(--vscode-editorLineNumber-activeForeground);
 }
 
-#main-cursor {
+#main-marker {
   stroke-dasharray: 2 2;
 }
 
-#alt-cursor {
+#alt-marker {
   stroke-dasharray: 6 2 2 2;
 }

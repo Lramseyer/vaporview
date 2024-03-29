@@ -37,7 +37,7 @@ This means that for VCD files, I have to parse the whole document to extract the
     - treeData: NetlistItem[] (extends vscode.TreeItem)
   - displayedSignalsView: vscode.TreeView<NetlistItem>
   - deltaTimeStatusBarItem: vscode.StatusBarItem
-  - cursorTimeStatusBarItem: vscode.StatusBarItem
+  - markerTimeStatusBarItem: vscode.StatusBarItem
   - selectedSignalStatusBarItem: vscode.StatusBarItem
   - activeWebview: vscode.WebviewPanel
   - activeDocument: VaporviewDocument (extends vscode.Disposable implements vscode.CustomDocument)
@@ -110,7 +110,7 @@ The `control-bar` is more or less static content. Sure there are button event ha
 
 The `waveform-labels-container` is also more or less static content, except that the labels can be rearranged. For that, I have click and drag handlers: `dragStart()`, `dragMove()`, and `dragEnd()`. And when a user rearranges signals, we have to call a function called `reorderSignals()` which triggers a whole bunch of DOM accesses across the webview.
 
-The `transition-display-container` really just updates to the signal values every time the cursor is updated.
+The `transition-display-container` really just updates to the signal values every time the marker is updated.
 
 The `scrollArea` is where most of the complexity lies, and will have it's own section...
 
@@ -126,14 +126,14 @@ As alluded to earlier in the data structures overview, the waveforms are rendere
     - .waveform-chunk
     - .waveform-chunk
     - ...
-  - #main-cursor (if applicable)
-  - #alt-cursor (if applicable)
+  - #main-marker (if applicable)
+  - #alt-marker (if applicable)
 
 Chunks are rendered with the functions:
 
 - `handleFetchColumns()`
 - `updateChunkInCache()`
-- `createTimeCursor()`
+- `createTimeMarker()`
 - `renderWaveformChunk()`
 - `createWaveformSVG()`
 
@@ -157,11 +157,11 @@ The 4 functions are used to draw bus elements
 - `parseValue()`
 - `valueIs4State()`
 
-### Cursors and other annotation
+### Markers and other annotation
 
-Cursors are essentially an SVG line that's drawn in the .column-chunk. This was a little tricky to implement, and may be due for a rewrite, as I plan to support a feature to highlight all transitions of a signal (or highlight all posedge or negedge transitions) You could say that I should just throw it in an SVG that I overlay over the chunk and be done with it, but that becomes problematic when I have event handlers in place for signal selection. `handleScrollAreaClick()` uses `event.target.closest()` to discern which  signal was selected. There might be a better way of doing this, and if there is, I'm all ears!
+Markers are essentially an SVG line that's drawn in the .column-chunk. This was a little tricky to implement, and may be due for a rewrite, as I plan to support a feature to highlight all transitions of a signal (or highlight all posedge or negedge transitions) You could say that I should just throw it in an SVG that I overlay over the chunk and be done with it, but that becomes problematic when I have event handlers in place for signal selection. `handleScrollAreaClick()` uses `event.target.closest()` to discern which  signal was selected. There might be a better way of doing this, and if there is, I'm all ears!
 
-- `createTimeCursor()`
+- `createTimeMarker()`
 
 ## Local state
 
@@ -170,13 +170,13 @@ I'm going to be honest, I was lazy in my implementation of this, and there are a
 In the local state, I have a `dataCache` variable, wich stores data as follows:
 
 - dataCache: object
-  - valueAtCursor: Map<string<signalID>, string>
+  - valueAtMarker: Map<string<signalID>, string>
   - startIndex: number
   - endIndex: number
   - columns: object[]
     - rulerChunk: html string
-    - cursor: html string
-    - altCursor: html string
+    - marker: html string
+    - altMarker: html string
     - waveformChunk: Map<string<signalID>, object>
       - html: html string
 
@@ -194,7 +194,7 @@ In the local state, I have a `dataCache` variable, wich stores data as follows:
 - #scrollArea: scroll
 - #scrollArea: wheel
 
-### Handle selection of cursors and signals
+### Handle selection of markers and signals
 - #scrollArea: click
 - #scrollArea: mousedown
 

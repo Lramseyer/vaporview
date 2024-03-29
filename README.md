@@ -12,8 +12,8 @@ VaporView is a VCD waveform viewer extension for Visual Studio Code designed for
 - **Shift + Scroll Wheel** - Scroll up and down on waveforms
 - **Up/Down Arrow** - Select signal above/below selected signal
 - **Alt + Up/Down Arrow** - Rearrange selected signal
-- **Ctrl + Left/Right Arrow** - Move cursor to previous/next value transition of selected signal
-- **Alt + Click or Middle Click** - Set Alt cursor
+- **Ctrl + Left/Right Arrow** - Move marker to previous/next value transition of selected signal
+- **Alt + Click or Middle Click** - Set Alt marker
 
 ### Adding and Removing Signals
 
@@ -29,7 +29,7 @@ The scroll wheel (or touchpad scroll) is used to pan in time or scroll up or dow
 
 #### Mouse Scrolling
 
-Scrolling behaves as you would expect except for when scrolling the actual waveforms (where it scrolls sideways by default.) To scroll up or down, either hold Shift and scroll, or move your cursor over to the signal name labels on the left and scroll normally.
+Scrolling behaves as you would expect except for when scrolling the actual waveforms (where it scrolls sideways by default.) To scroll up or down, either hold Shift and scroll, or move your marker over to the signal name labels on the left and scroll normally.
 
 #### Touchpad Scrolling
 
@@ -47,23 +47,23 @@ To rearrange signals, hover over the signal name, and you will see a rearrange g
 
 Alternatively, you can select a signal, hold Alt, and press on the Up or Down Arrows to reorder (similar to how you reorder lines in the text editor)
 
-### Cursor Handling
+### Marker Handling
 
-![](readme_assets/cursor.gif)
+![](readme_assets/marker.gif)
 
-There are two cursors in vaporview: a normal cursor, and an alt cursor. To place the cursor, simply click where you want it to be placed. Keep in mind that it will snap to edge if applicable. To place the alt cursor, either middle click, or Alt + click where you would like to place it. The Alt cursor will also snap to an edge if applicable.
+There are two markers in vaporview: a normal marker, and an alt marker. To place the marker, simply click where you want it to be placed. Keep in mind that it will snap to edge if applicable. To place the alt marker, either middle click, or Alt + click where you would like to place it. The Alt marker will also snap to an edge if applicable.
 
 It should also be noted that signals can be selected by clicking on them, You can also use the Up/Down Arrow keys to move the selection.
 
 #### Next/Previous Edge
 
-To move the cursor to the nearest edge _**of the selected signal**_, you can either click the control bar buttons, or use Ctrl + Left/Right Arrow (similar to how in the text editor, you can move the cursor to a word boundary)
+To move the marker to the nearest edge _**of the selected signal**_, you can either click the control bar buttons, or use Ctrl + Left/Right Arrow (similar to how in the text editor, you can move the marker to a word boundary)
 
 To move to the next positive edge or negative edge, you will have to use the control bar buttons. This only applies to single bit waveforms.
 
 #### Finding values and transitions in a particular waveform
 
-Finding a particular transition or a value in a waveform is done in relation to the selected signal and the cursor (similar to how Visual Studio Code handles search in relation to the cursor)
+Finding a particular transition or a value in a waveform is done in relation to the selected signal and the marker (similar to how Visual Studio Code handles search in relation to the marker)
 
 ## Requirements
 

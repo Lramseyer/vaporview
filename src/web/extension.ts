@@ -119,7 +119,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
   public displayedSignalsTreeDataProvider: DisplayedSignalsViewProvider;
   public displayedSignalsView: vscode.TreeView<NetlistItem>;
   public deltaTimeStatusBarItem: vscode.StatusBarItem;
-  public cursorTimeStatusBarItem: vscode.StatusBarItem;
+  public markerTimeStatusBarItem: vscode.StatusBarItem;
   public selectedSignalStatusBarItem: vscode.StatusBarItem;
   //public signalIdTable: Map<string, SignalIdViewRef>();
 
@@ -140,9 +140,9 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     });
     this._context.subscriptions.push(this.displayedSignalsView);
 
-    // Create a status bar item for cursor time and
+    // Create a status bar item for marker time and
     this.deltaTimeStatusBarItem      = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-    this.cursorTimeStatusBarItem     = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
+    this.markerTimeStatusBarItem     = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
     this.selectedSignalStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
 
   }
@@ -221,8 +221,8 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
           };
 
           if (e.time !== null) {
-            this.cursorTimeStatusBarItem.text = 'time: ' + formatTime(e.time);
-            this.cursorTimeStatusBarItem.show();
+            this.markerTimeStatusBarItem.text = 'time: ' + formatTime(e.time);
+            this.markerTimeStatusBarItem.show();
             if (e.altTime !== null) {
               const deltaT = e.time - e.altTime;
               this.deltaTimeStatusBarItem.text = 'Δt: ' + formatTime(deltaT);
@@ -231,7 +231,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
               this.deltaTimeStatusBarItem.hide();
             }
           } else {
-            this.cursorTimeStatusBarItem.hide();
+            this.markerTimeStatusBarItem.hide();
           }
           break;
         }
@@ -264,13 +264,13 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
         this.displayedSignalsTreeDataProvider.setTreeData(document.displayedSignalsTreeData.getTreeData());
         webviewPanel.webview.postMessage({command: 'getSelectionContext'});
         this.deltaTimeStatusBarItem.show();
-        this.cursorTimeStatusBarItem.show();
+        this.markerTimeStatusBarItem.show();
         this.selectedSignalStatusBarItem.show();
       } else {
         this.netlistTreeDataProvider.hide();
         this.displayedSignalsTreeDataProvider.hide();
         this.deltaTimeStatusBarItem.hide();
-        this.cursorTimeStatusBarItem.hide();
+        this.markerTimeStatusBarItem.hide();
         this.selectedSignalStatusBarItem.hide();
       }
     });
@@ -863,8 +863,10 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
     }
   }
 
+  console.log("minTimeStemp = " + minTimeStemp);
   // Prevent weird zoom ratios causing strange floating point math errors
-  minTimeStemp = 10 ** (Math.ceil(Math.log10(minTimeStemp)) | 0);
+  minTimeStemp = 10 ** (Math.round(Math.log10(minTimeStemp)) | 0);
+  console.log("adjusted minTimeStemp = " + minTimeStemp);
 
   waveformDataSet.metadata.chunkTime   = (BASE_CHUNK_TIME_WINDOW * minTimeStemp) / 4;
   waveformDataSet.metadata.defaultZoom = BASE_CHUNK_TIME_WINDOW / waveformDataSet.metadata.chunkTime;

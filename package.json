@@ -99,7 +99,6 @@
   },
   "dependencies": {
     "@vscode/codicons": "0.0.35",
-    "clusterize.js": "^1.0.0",
     "path": "^0.12.7"
   }
 }

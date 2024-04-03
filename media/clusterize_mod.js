@@ -1,5 +1,5 @@
 // This is a purpose modified version of the Clusterize.js module
-// It supports columns instead of columns, as well as dynamic resizing
+// It supports columns instead of rows, as well as dynamic resizing
 // The loading and unloading of columns also has also been modified to load and
 // unload dynamic content so that it doesn't have to be generated all at once.
 /* Clusterize.js - v1.0.0 - 2023-01-22

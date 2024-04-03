@@ -52,6 +52,28 @@
 			}
 		],
     "menus": {
+      "view/item/context": [
+        {
+          "command": "vaporview.addSelected",
+          "when": "viewItem == 'netlistItem' && view == 'netlistContainer'"
+        },
+        {
+          "command": "vaporview.removeSelectedNetlist",
+          "when": "viewItem == 'netlistItem' && view == 'netlistContainer'"
+        },
+        {
+          "command": "vaporview.removeSelectedDisplayedSignals",
+          "when": "viewItem == 'netlistItem' && view == 'displaylistContainer'"
+        },
+        {
+          "command": "vaporview.addAllInModule",
+          "when": "viewItem == 'netlistModule'"
+        },
+        {
+          "command": "vaporview.removeAllInModule",
+          "when": "viewItem == 'netlistModule'"
+        }
+      ],
       "webview/context": [
         {
           "command": "vaporview.removeSignal",
@@ -60,6 +82,26 @@
       ]
     },
     "commands": [
+      {
+        "command": "vaporview.addSelected",
+        "title": "Add Selected"
+      },
+      {
+        "command": "vaporview.addAllInModule",
+        "title": "Add All Signals In Module"
+      },
+      {
+        "command": "vaporview.removeSelectedNetlist",
+        "title": "Remove Selected"
+      },
+      {
+        "command": "vaporview.removeSelectedDisplayedSignals",
+        "title": "Remove Selected"
+      },
+      {
+        "command": "vaporview.removeAllInModule",
+        "title": "Remove All Signals In Module"
+      },
       {
         "command": "vaporview.removeSignal",
         "title": "Remove Signal"

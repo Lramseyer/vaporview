@@ -294,6 +294,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       const metadata   = changedItem.items[0][0];
       const signalId   = metadata.signalId;
       const signalData = document.documentData.netlistElements.get(signalId);
+      const netlistId  = metadata.netlistId;
 
       console.log(metadata);
 
@@ -304,7 +305,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       }
 
       if (metadata.checkboxState === vscode.TreeItemCheckboxState.Checked) {
-        this.renderSignal(webviewPanel, signalId, signalData);
+        this.renderSignal(webviewPanel, signalId, netlistId, signalData);
         this.displayedSignalsTreeDataProvider.addSignalToTreeData(metadata);
         document.setsignalIdTableDepricated(signalId, metadata);
       } else if (metadata.checkboxState === vscode.TreeItemCheckboxState.Unchecked) {
@@ -393,7 +394,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     }
   }
 
-  private renderSignal(panel: vscode.WebviewPanel, signalId: string, signalData: SignalWaveform | undefined) {
+  private renderSignal(panel: vscode.WebviewPanel, signalId: string, netlistId: string, signalData: SignalWaveform | undefined) {
     // Render the signal with the provided ID
     panel.webview.postMessage({ 
       command: 'render-signal',
@@ -421,12 +422,13 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     this.netlistViewSelectedSignals.forEach((element) => {
       const metadata   = element;
       const signalId   = metadata.signalId;
+      const netlistId  = metadata.netlistId;
       const signalData = document.documentData.netlistElements.get(signalId);
 
       // Only add the signal if it is not already displayed and the signal is not a module
       if (element.checkboxState === vscode.TreeItemCheckboxState.Unchecked && element.collapsibleState === vscode.TreeItemCollapsibleState.None) {
         this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Checked);
-        this.renderSignal(panel, signalId, signalData);
+        this.renderSignal(panel, signalId, netlistId, signalData);
         this.displayedSignalsTreeDataProvider.addSignalToTreeData(metadata);
         document.setsignalIdTableDepricated(signalId, metadata);
       }
@@ -927,12 +929,12 @@ function hashCode(s: string) {
 
 function newHashCode(s: string, hashTable: Map<string, NetlistIdRef>) {
   let   hash         = '';
-  let   hashColision = true;
+  let   hashCollision = true;
 
-  while (hash.length === 0 || hashColision) {
+  while (hash.length === 0 || hashCollision) {
     hash         = hashCode(s + hash).toString();
-    hashColision = hashTable.has(hash);
-    if (hashColision) {
+    hashCollision = hashTable.has(hash);
+    if (hashCollision) {
       console.log("hash collision for: " + hash);
     }
   }

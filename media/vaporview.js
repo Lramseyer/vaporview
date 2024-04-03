@@ -878,6 +878,7 @@ goToNextTransition = function (direction, edge) {
   contentData         = [];
   displayedSignals    = [];
   waveformData        = {};
+  netlistData         = {};
   updatePending       = false;
   dataCache           = {
     startIndex:     0,
@@ -1593,9 +1594,20 @@ goToNextTransition = function (direction, edge) {
       case 'render-signal': {
         // Handle rendering a signal, e.g., render the signal based on message content
 
-        displayedSignals.push(message.signalId);
-        waveformData[message.signalId] = message.waveformData;
-        waveformData[message.signalId].textWidth = getValueTextWidth(message.waveformData.signalWidth, numberFormat);
+        let signalId       = message.signalId;
+        let netlistId      = message.netlistId;
+        let transitionData = message.waveformData;
+
+        displayedSignals.push(signalId);
+        waveformData[signalId] = transitionData;
+        waveformData[signalId].textWidth = getValueTextWidth(transitionData.signalWidth, numberFormat);
+
+        netlistData[netlistId] = {
+          signalId: signalId,
+          width: transitionData.signalWidth,
+          signalName: transitionData.name,
+          modulePath: transitionData.modulePath
+        };
 
         //var childElement = createLabel(message.signalId, message.waveformData.name);
         //labels.innerHTML = labels.innerHTML + childElement;

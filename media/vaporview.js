@@ -1155,14 +1155,16 @@ goToNextTransition = function (direction, edge) {
     if (selectedSignal === null) {return;}
     if (parsedSearchValue === null) {return;}
 
+    const signalId = netlistData[selectedSignal].signalId;
+
     if (searchState === 0 && direction === 1) {
       handleMarkerSet(parseInt(parsedSearchValue), 0);
     } else {
-      const signalWidth      = waveformData[selectedSignal].signalWidth;
+      const signalWidth      = waveformData[signalId].signalWidth;
       let trimmedSearchValue = parsedSearchValue;
       if (parsedSearchValue.length > signalWidth) {trimmedSearchValue = parsedSearchValue.slice(-1 * signalWidth);}
       let searchRegex = new RegExp(trimmedSearchValue, 'ig');
-      const data      = waveformData[selectedSignal];
+      const data      = waveformData[signalId];
       const timeIndex = data.transitionData.findIndex(([t, v]) => {return t >= markerTime;});
       let indexOffset = 0;
 

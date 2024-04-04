@@ -831,8 +831,9 @@ goToNextTransition = function (direction, edge) {
     return;
   }
 
-  const data = waveformData[selectedSignal];
-  const time = markerTime;
+  const signalId = netlistData[selectedSignal].signalId;
+  const data     = waveformData[signalId];
+  const time     = markerTime;
   let indexIncrement;
 
   if (edge === undefined) {

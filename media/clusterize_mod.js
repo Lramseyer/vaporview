@@ -174,6 +174,7 @@
     self.append  = function(columns) {add('append',  columns);};
     self.prepend = function(columns) {add('prepend', columns);};
     self.render  = function() {self.insertToDOM(columns, cache);};
+    self.setChunkHeight = function(height) {self.options.chunkHeight = height;};
   };
 
   Clusterize.prototype = {
@@ -272,8 +273,10 @@
       if(thisClusterContentChanged || leftOffsetChanged) {
         callbacks.clusterWillChange && callbacks.clusterWillChange(itemsStart, itemsEnd);
         this.leftSpaceElement.style.width    = leftOffset + 'px';
+        this.leftSpaceElement.style.height   = this.options.chunkHeight + 'px';
         this.displayedSpaceElement.innerHTML = thisClusterColumns;
         this.rightSpaceElement.style.width   = rightOffset + 'px';
+        this.rightSpaceElement.style.height  = this.options.chunkHeight + 'px';
         this.contentElement.style['counter-increment'] = 'clusterize-counter ' + (columnsBefore - 1);
         callbacks.clusterChanged && callbacks.clusterChanged(itemsStart, itemsEnd);
       } else if(onlyRightOffsetChanged) {

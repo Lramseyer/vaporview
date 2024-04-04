@@ -46,9 +46,10 @@ This means that for VCD files, I have to parse the whole document to extract the
       - treeData: NetlistItem[] (extends vscode.TreeItem)
     - _displayedSignalsTreeDataProvider: DisplayedSignalsViewProvider
       - treeData: NetlistItem[] (extends vscode.TreeItem)
-    - _signalIdTable: Map<string, SignalIdViewRef>
+    - _netlistTable: Map<NetlistId, NetlistlIdRef>
       - netlistItem: NetlistItem
       - displayedItem: NetlistItem
+      - signalId: string
     - _delegate: VaporviewDocumentDelegate
     - _documentData: WaveformTop
       - metadata:   WaveformTopMetadata
@@ -59,19 +60,18 @@ This means that for VCD files, I have to parse the whole document to extract the
         - timeScale: number
         - defaultZoom: number
         - timeUnit: string
-      - netlistElements: Map<string, SignalWaveform>
-        - name: string
-        - modulePath: string
+      - netlistElements: Map<SignalId, SignalWaveform>
         - signalWidth: number
         - chunkStart: number[]
         - transitionData: TransitionData[]
-          - [number, number | string]
+          - [time: number, value: number | string]
 
 - NetlistItem (extends vscode.TreeItem)
   - label: string
   - type: string
   - width: number
   - signalId: string
+  - netlistId: string
   - name: string
   - modulePath: string,
   - children: NetlistItem[]
@@ -81,11 +81,15 @@ This means that for VCD files, I have to parse the whole document to extract the
 
 ## Parsing a VCD file
 
-When parsing a VCD file, the data is stored in a `WaveformTop` class (which stores the metadata and a `SignalWaveform` hash table,) and in a `NetlistTreeDataProvider` class, which maintains netlist topology. Now this may seem strange at first glance, but we really only care about netlist topology for the `TreeView`. each `TreeItem` contains data which can reference the `SignalWaveform` data from. Furthermore, we have to store a copy of each treeview for each document that's open so that if a user wants to open up multiple documents, we can repopulate the treeview according to its respective document. This is also important for future proofing. If we want to be able to open up documents and not load all of the transition data, we still want to load the whole netlist.
+When parsing a VCD file, the data is stored in a `WaveformTop` class (which stores the metadata and a `SignalWaveform` hash table,) and in a `NetlistTreeDataProvider` class, which maintains netlist topology. This is really important, because we need to know the netlist topology for the `TreeView`, but multiple `TreeItem` elements can reference the same `SignalWaveform` data.
+
+We have to store a copy of each treeview for each document that's open so that if a user wants to open up multiple documents, we can repopulate the treeview according to its respective document. This is also important for future proofing. If we want to be able to open up documents and not load all of the transition data, we still want to load the whole netlist.
+
+To tie these structures together, we have a `netlistTable`. This is a hash table with a `netlistId` that we create using a low budget hashing algorithm on the full module path and name. This `netlistId` becomes a key to reference a pointer to the tree items, as well as a key to the `netlistElements` structure to get the transition data.
 
 Once the metadata and netlist are parsed, we start parsing the transition data. This is where things get a little weird. See, for ease of rendering, I made it such that everything is in chunks. This way, we don't actually have to render the entire waveform. Since the actual HTML components of a waveform consume a non-trivial amount of data, we can dynamically render as we scroll. This isn't a big deal for smaller waveforms, but it is for larger waveforms. Maybe it's premature optimization, I don't know.
 
-The signal data has a few metadata elements such as the `name`, `modulePath`, and `signalWidth`. But all of the `transitionData` is stored as a flat array of transitions. Each transition is essentially a time and a value. The value is stored as a binary string (this could be improved, but remember that 4 state logic exists, and signals can be arbitrarily wide.) Now you might cringe at the idea of a flat array for this, but consider how javascript implements large arrays under the hood, before coming to me with your whizbang idea! To assist in all of this, we also have an array called `chunkStart`. This is a lookup table of the start index of each time chunk so that we can slice the array as necessary to get the initial state and transitions of a particular chunk.
+The signal data has some metadata elements such as the `signalWidth`. But all of the `transitionData` is stored as a flat array of transitions. Each transition is essentially a time and a value. The value is stored as a binary string (this could be improved, but remember that 4 state logic exists, and signals can be arbitrarily wide.) Now you might cringe at the idea of a flat array for this, but consider how javascript implements large arrays under the hood, before coming to me with your whizbang idea! To assist in all of this, we also have an array called `chunkStart`. This is a lookup table of the start index of each time chunk so that we can slice the array as necessary to get the initial state and transitions of a particular chunk.
 
 ## Document handlers
 
@@ -118,6 +122,10 @@ The `scrollArea` is where most of the complexity lies, and will have it's own se
 
 As alluded to earlier in the data structures overview, the waveforms are rendered in chunks. In fact the entire `scrollArea` is rendered in chunks. I originally used [clusterize.js](https://clusterize.js.org/), however that was designed for rows instead of columns, and does not support dynamically fetching content. It also has a weird way of discerning which chunk needs to be rendered. So I modified it to fit my needs. While it's barely recognizable, Denis Lukov (the author) deserves a shout out for his work that ultimately made this project possible. In summary, we create dummy elements to the left and right, and only render the chunks that are on the screen. We dynamically render the chunks as they're loaded in. And I use the term "render" loosely here, because we're really just creating the HTML for these chunks and inserting it to the DOM.
 
+Since it can take longer than 1 frame's worth of time to generate the HTML and parse it, I render the waveform content asyncronously. This was more challenging than I had initially imagined, and it might still have a few bugs. But in essence, the basic chunk element (the chunk with the ruler) is dynamically fetched and rendered, and everything else is asynchronously rendered, yeilding to a `requestAnimationFrame()` so that the scrolling is smooth, but the content can be rendered a few frames later.
+
+THere's a mutationObserver that checks the rendered content for changed chunks, and then calls `renderWaveformsAsync()` to insert the waveforms into their respective elements. The hard part in all of this, was when updates were done before a chunk finished rendering. For this, I had to add an `abortFlag` to each chunk, that when set, the `renderWaveformsAsync()` function knows to stop, and a garbage collection function to remove all chunks that are not in the cache.
+
 ### The anatomy of a chunk
 
 - .column-chunk
@@ -131,7 +139,8 @@ As alluded to earlier in the data structures overview, the waveforms are rendere
 
 Chunks are rendered with the functions:
 
-- `handleFetchColumns()`
+- `shallowFetchColumns()`
+- `renderWaveformsAsync()`
 - `updateChunkInCache()`
 - `createTimeMarker()`
 - `renderWaveformChunk()`
@@ -167,17 +176,36 @@ Markers are essentially an SVG line that's drawn in the .column-chunk. This was 
 
 I'm going to be honest, I was lazy in my implementation of this, and there are a bunch of global variables just lying around. I could probably put them into an object to make it a little safer.
 
-In the local state, I have a `dataCache` variable, wich stores data as follows:
+Here are some of the important structures for the viewer:
+
+- displayedSignals: netlistId[]
+
+- waveformData: Map<signalId, transitionData>
+  - transitionData: TransitionData[]
+    - [time: number, value: number | string]
+  - chunkStart[]
+    - startIndex: number
+  - signalWidth: number
+  - chunkCount: number
+  - textWidth: number
+
+- netlistData: Map<netlistId, netlistData>
+  - signalId: string
+  - signalWidth: number
+  - signalName: string
+  - modulePath: string
 
 - dataCache: object
-  - valueAtMarker: Map<string<signalID>, string>
+  - valueAtMarker: Map<signalID, string>
   - startIndex: number
   - endIndex: number
+  - updatesPending: number
+  - valueAtMarker: Map<SignalId, string>
   - columns: object[]
     - rulerChunk: html string
     - marker: html string
     - altMarker: html string
-    - waveformChunk: Map<string<signalID>, object>
+    - waveformChunk: Map<netlistId, object>
       - html: html string
 
 ## Event Handlers

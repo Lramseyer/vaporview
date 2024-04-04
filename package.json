@@ -8,7 +8,7 @@
     "color": "#C80000",
     "theme": "dark"
   },
-  "version": "0.9.2",
+  "version": "0.9.4",
   "repository": "https://github.com/lramseyer/vaporview",
   "engines": {
     "vscode": "^1.83.0"

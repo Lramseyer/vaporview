@@ -71,7 +71,7 @@ This extension was designed on version 1.83.
 
 ## Release Notes and development roadmap
 
-### 0.9.2 (Pre-release)
+### 0.9.4 (Pre-release)
 
 Supports all the features you would expect
 
@@ -86,7 +86,6 @@ Tentative features and bugfixes:
 - Update and finalize documentation
 - Export selection as WaveDrom
 - Save opened signals
-- Improve Large file handling
 
 ### Beyond 1.0
 

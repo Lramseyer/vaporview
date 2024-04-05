@@ -644,7 +644,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
             <div id="transition-display"></div>
           </div>
           <div id="scrollArea" class="clusterize-scroll">
-            <div id="contentArea" class="clusterize-content">
+            <div id="contentArea" class="clusterize-content" tabindex="0">
               <div id="left-space"></div>
               <div id="displayedContent">Loading data…</div>
               <div id="right-space"></div>
@@ -1150,7 +1150,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.executeCommand('workbench.view.extension.vaporView');
   }));
 
-  // Register a command to open the VaporView Sidebar
+  // Add or remove signal commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeSignal', (e) => {
     if (e.netlistId) {
       viewerProvider.removeSignalFromDocument(e.netlistId);
@@ -1177,6 +1177,23 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeAllInModule', (e) => {
     if (e.collapsibleState === vscode.TreeItemCollapsibleState.None) {return;}
     viewerProvider.removeSignalList(e.children);
+  }));
+
+  // WaveDrom commands
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.copyWaveDrom', (e) => {
+    console.log("copyWaveDrom");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setWaveDromClockRising', (e) => {
+    console.log("copyWaveDrom");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setWaveDromClockFalling', (e) => {
+    console.log("copyWaveDrom");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.unsetWaveDromClock', (e) => {
+    console.log("copyWaveDrom");
   }));
 
 }

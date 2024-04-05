@@ -43,7 +43,7 @@ To Zoom in or out, hold Ctrl, and Scroll to zoom. Or use the Zoom in/out buttons
 
 ![](readme_assets/rearrange.gif)
 
-To rearrange signals, hover over the signal name, and you will see a rearrange grabber indicator. Click and drag to rearrange.
+To rearrange signals, hover over the signal name, and you will see a rearrange grabber indicator on the left. Click and drag to rearrange.
 
 Alternatively, you can select a signal, hold Alt, and press on the Up or Down Arrows to reorder (similar to how you reorder lines in the text editor)
 
@@ -81,14 +81,15 @@ Get more coverage, from users like you! There will probably be bugs, so please r
 
 Tentative features and bugfixes:
 
-- When opening another vcd file, the netlist needs to load in the view properly
-- Activate extension on install
-- Update and finalize documentation
 - Export selection as WaveDrom
 - Save opened signals
+- Refine documentation
+- When opening another vcd file, the netlist needs to load in the view properly
+- Activate extension on install (not sure if this is possible)
 
 ### Beyond 1.0
 
+- Rewrite compute intensive components in Web Assembly for smoother performance
 - Add support for Enums
 - Add support to highlight all transitions of a signal
 - Add support for custom colors

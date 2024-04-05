@@ -83,7 +83,7 @@ busElement = function (flexWidth, transition, backgroundPositionX, backgroundSiz
       let leftOverflow  = Math.min(initialTime, 0);
       let rightOverflow = Math.max(initialTime + deltaTime - chunkTime, 0);
       if (totalWidth < textWidth) {
-        textOffset        = ((totalWidth - textWidth) / 2) - 5;
+        textOffset = ((totalWidth - textWidth) / 2) - 5;
       }
       textOffset       += ((leftOverflow + rightOverflow) / 2) * zoomRatio;
     }
@@ -738,6 +738,25 @@ setTimeOnStatusBar = function () {
     command: 'setTime',
     time:    markerTime,
     altTime: altMarkerTime
+  });
+};
+
+sendDisplayedSignals = function () {
+  vscode.postMessage({
+    command: 'setDisplayedSignals',
+    signals: displayedSignals
+  });
+};
+
+sendWebviewContext = function () {
+  vscode.postMessage({
+    command: 'contextUpdate',
+    matkerTime: markerTime,
+    altMarkerTime: altMarkerTime,
+    selectedSignal: selectedSignal,
+    displayedSignals: displayedSignals,
+    zoomRatio: zoomRatio,
+    scrollLeft: scrollArea.scrollLeft,
   });
 };
 
@@ -1596,6 +1615,7 @@ goToNextTransition = function (direction, edge) {
           displayedSpaceId: 'displayedContent',
           columnsInBlock:   4,
           blocksInCluster:  4,
+          emptyColumn:      `<div class="clusterize-no-data">No data</div>`,
           callbacks: {
             clusterWillChange: function(startIndex, endIndex) {handleClusterWillChange(startIndex, endIndex);},
             clusterChanged:    function(startIndex, endIndex) {handleClusterChanged(startIndex, endIndex);},
@@ -1693,9 +1713,8 @@ goToNextTransition = function (direction, edge) {
         break;
       }
       case 'getContext': {
-        return displayedSignals.map((netlistId) => {
-          return netlistData[netlistId].modulePath + "." + netlistData[netlistId].signalName;
-        });
+        sendWebviewContext();
+        break;
       }
     }
   });

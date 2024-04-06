@@ -1613,7 +1613,7 @@ goToNextTransition = function (direction, edge) {
           leftSpaceId:      'left-space',
           rightSpaceId:     'right-space',
           displayedSpaceId: 'displayedContent',
-          columnsInBlock:   4,
+          columnsInBlock:   1,
           blocksInCluster:  4,
           emptyColumn:      `<div class="clusterize-no-data">No data</div>`,
           callbacks: {

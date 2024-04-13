@@ -254,7 +254,7 @@ createRulerChunk = function (chunkIndex) {
   const chunkStartTime     = chunkIndex * chunkTime;
   const chunkStartPixel    = chunkIndex * chunkWidth;
   const numberStartpixel   = -1 * (chunkStartPixel % rulerNumberSpacing);
-  const tickStartpixel     = rulerTickSpacing   - (chunkStartPixel % rulerTickSpacing);
+  const tickStartpixel     = rulerTickSpacing   - (chunkStartPixel % rulerTickSpacing) - rulerNumberSpacing;
   var   numValue           = chunkStartTime + (numberStartpixel / zoomRatio);
   var   textElements       = [];
   var   tickElements       = [];
@@ -628,13 +628,6 @@ handleClusterWillChange = function (startIndex, endIndex) {
   //uncacheChunks(startIndex, endIndex);
 };
 
-setSeletedSignalOnStatusBar = function (netlistId) {
-  vscode.postMessage({
-    command: 'setSelectedSignal',
-    netlistId: netlistId
-  });
-};
-
 handleSignalSelect = function (netlistId) {
 
   let element;
@@ -658,7 +651,8 @@ handleSignalSelect = function (netlistId) {
   selectedSignalIndex = displayedSignals.findIndex((signal) => {return signal === netlistId;});
   if (selectedSignalIndex === -1) {selectedSignalIndex = null;}
 
-  setSeletedSignalOnStatusBar(netlistId);
+  //setSeletedSignalOnStatusBar(netlistId);
+  sendWebviewContext();
   renderLabelsPanels();
 
   if (netlistId === null) {return;}
@@ -697,7 +691,6 @@ getValueAtTime = function (signalId, time) {
   const transitionIndex = getNearestTransitionIndex(signalId, time);
 
   if (transitionIndex === -1) {return result;}
-
   if (transitionIndex > 0) {
     result.push(data[transitionIndex - 1][1]);
   }
@@ -732,12 +725,19 @@ getNearestTransition = function (signalId, time) {
   }
 };
 
+setSeletedSignalOnStatusBar = function (netlistId) {
+  vscode.postMessage({
+    command: 'setSelectedSignal',
+    netlistId: netlistId
+  });
+};
+
 setTimeOnStatusBar = function () {
   // .toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
   vscode.postMessage({
     command: 'setTime',
-    time:    markerTime,
-    altTime: altMarkerTime
+    markerTime:    markerTime,
+    altMarkerTime: altMarkerTime
   });
 };
 
@@ -748,15 +748,16 @@ sendDisplayedSignals = function () {
   });
 };
 
-sendWebviewContext = function () {
+sendWebviewContext = function (responseType) {
   vscode.postMessage({
     command: 'contextUpdate',
-    matkerTime: markerTime,
+    markerTime: markerTime,
     altMarkerTime: altMarkerTime,
     selectedSignal: selectedSignal,
     displayedSignals: displayedSignals,
     zoomRatio: zoomRatio,
     scrollLeft: scrollArea.scrollLeft,
+    numberFormat: numberFormat,
   });
 };
 
@@ -827,7 +828,8 @@ handleMarkerSet = function (time, markerType) {
     altMarkerChunkIndex   = chunkIndex;
   }
 
-  setTimeOnStatusBar();
+  //setTimeOnStatusBar();
+  sendWebviewContext();
 };
 
 isInView = function(time) {
@@ -1357,7 +1359,10 @@ goToNextTransition = function (direction, edge) {
 
   labelsScroll.addEventListener(    'scroll', (e) => {syncVerticalScroll(labelsScroll.scrollTop);});
   transitionScroll.addEventListener('scroll', (e) => {syncVerticalScroll(transitionScroll.scrollTop);});
-  scrollArea.addEventListener(      'scroll', (e) => {syncVerticalScroll(scrollArea.scrollTop);});
+  scrollArea.addEventListener(      'scroll', (e) => {
+    syncVerticalScroll(scrollArea.scrollTop);
+    clusterizeContent.scrollEv();
+  });
 
   function resetTouchpadScrollCount() {
     touchpadScrollCount = 0;
@@ -1429,6 +1434,10 @@ goToNextTransition = function (direction, edge) {
       if (event.altKey)  {reorderSignals(selectedSignalIndex, newIndex);}
       else               {handleSignalSelect(displayedSignals[newIndex]);}
     }
+
+    // "N" and Shoft + "N" go to the next transition
+    else if (event.key === 'n') {goToNextTransition(1);}
+    else if (event.key === 'N') {goToNextTransition(-1);}
 
   });
 
@@ -1503,7 +1512,14 @@ goToNextTransition = function (direction, edge) {
     document.addEventListener("mouseup", () => {
       resizeElement.classList.remove('is-resizing');
       document.removeEventListener("mousemove", resize, false);
+      handleResizeViewer();
     }, false);
+  };
+
+  resizeDebounce = 0;
+  function handleResizeViewer() {
+    clearTimeout(resizeDebounce);
+    resizeDebounce = setTimeout(clusterizeContent.refresh, 100);
   };
 
   function updateChunkHeight(height) {
@@ -1523,6 +1539,7 @@ goToNextTransition = function (direction, edge) {
   // resize handler to handle column resizing
   resize1.addEventListener("mousedown",   (e) => {handleResizeMousedown(e, resize1, 1);});
   resize2.addEventListener("mousedown",   (e) => {handleResizeMousedown(e, resize2, 2);});
+  window.addEventListener('resize',       ()  => {handleResizeViewer();}, false);
 
   // Control bar button event handlers
   zoomInButton.addEventListener( 'click', (e) => {handleZoom(-1, true);});
@@ -1698,22 +1715,22 @@ goToNextTransition = function (direction, edge) {
       break;
       }
       case 'getSelectionContext': {
-        setTimeOnStatusBar();
-        setSeletedSignalOnStatusBar(selectedSignal);
+        //setTimeOnStatusBar();
+        //setSeletedSignalOnStatusBar(selectedSignal);
 
-        let displaySignalContext = displayedSignals.map((netlistId) => {
-          return {
-            netlistId: netlistId,
-            signalName: netlistData[netlistId].signalName,
-            modulePath: netlistData[netlistId].modulePath
-          };
-        });
-
+        //let displaySignalContext = displayedSignals.map((netlistId) => {
+        //  return {
+        //    netlistId: netlistId,
+        //    signalName: netlistData[netlistId].signalName,
+        //    modulePath: netlistData[netlistId].modulePath
+        //  };
+        //});
+        sendWebviewContext('response');
         //vscode.postMessage({type: 'context', context: displaySignalContext});
         break;
       }
       case 'getContext': {
-        sendWebviewContext();
+        sendWebviewContext('response');
         break;
       }
     }

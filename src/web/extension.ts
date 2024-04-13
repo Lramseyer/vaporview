@@ -125,6 +125,20 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
   public netlistViewSelectedSignals: NetlistItem[] = [];
   public displayedSignalsViewSelectedSignals: NetlistItem[] = [];
 
+  public webviewContext = {
+    markerTime: null,
+    altMarkerTime: null,
+    selectedSignal: null,
+    displayedSignals: [],
+    zoomRatio: 1,
+    scrollLeft: 0,
+    numberFormat: 16,
+    waveDromClock: {
+      netlistId: null,
+      edge: '1',
+    },
+  };
+
   constructor(private readonly _context: vscode.ExtensionContext) {
 
     // Create and register the Netlist and Displayed Signals view container
@@ -177,6 +191,224 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     return document;
   }
 
+  formatTime = function(time: number, timeScale: number, timeUnit: string) {
+    const timeValue = time * timeScale;
+    return timeValue.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + ' ' + timeUnit;
+  };
+
+  is4State(value: string) {return value.match(/[xz]/i) ? true : false;};
+
+  parseValue(binaryString: string, numberFormat: number) {
+
+    let stringArray;
+    let xzMask = "";
+    let numericalData = binaryString;
+    let is4State: boolean = this.is4State(binaryString);
+
+    // If number format is binary
+    if (numberFormat === 2) {
+      return binaryString.replace(/\B(?=(\d{4})+(?!\d))/g, "_");
+    }
+  
+    // If number format is hexadecimal
+    if (numberFormat === 16) {
+      if (is4State) {
+        stringArray = binaryString.replace(/\B(?=(\d{4})+(?!\d))/g, "_").split("_");
+        return stringArray.map((chunk) => {
+          if (chunk.match(/[zZ]/)) {return "Z";}
+          if (chunk.match(/[xX]/)) {return "X";}
+          return parseInt(chunk, 2).toString(numberFormat);
+        }).join('').replace(/\B(?=(\d{4})+(?!\d))/g, "_");
+      } else {
+        stringArray = binaryString.replace(/\B(?=(\d{16})+(?!\d))/g, "_").split("_");
+        return stringArray.map((chunk) => {
+          let digits = Math.ceil(chunk.length / 4);
+          return parseInt(chunk, 2).toString(numberFormat).padStart(digits, '0');
+        }).join('_');
+      }
+    }
+  
+    // If number format is decimal
+    if (numberFormat === 10) {
+      if (is4State) {
+        numericalData = binaryString.replace(/[XZ]/i, "0");
+        xzMask = '|' +  binaryString.replace(/[01]/g, "0");
+      }
+      stringArray = numericalData.replace(/\B(?=(\d{32})+(?!\d))/g, "_").split("_");
+      return stringArray.map((chunk) => {return parseInt(chunk, 2).toString(numberFormat);}).join('_') + xzMask;
+    }
+  };
+
+  // Copies the waveform data between the markers as a WaveDrom JSON object
+  // This function is a bit cursed, but it works for now
+  copyWaveDrom() {
+    console.log("copyWaveDrom");
+
+    // Maximum number of transitions to display
+    // Maybe I should make this a user setting in the future...
+    const MAX_TRANSITIONS = 32;
+    let result = '{"signal": [\n';
+
+    if (!this.activeWebview) {return;}
+    const w           = this.webviewContext;
+    const data        = this.activeDocument;
+    if (!data) {return;}
+
+    // Marker and alt marker need to be set
+    if (w.markerTime === null || w.altMarkerTime === null) {
+      vscode.window.showErrorMessage('Please use the marker and alt marker to set time window for waveform data.');
+      return;
+    }
+
+    const chunkTime   = data.documentData.metadata.chunkTime;
+    const timeWindow  = [w.markerTime, w.altMarkerTime].sort((a, b) => a - b);
+    const chunkWindow = [Math.floor(timeWindow[0] / chunkTime), Math.ceil(timeWindow[1] / chunkTime)];
+    let allTransitions: any[] = [];
+
+    // Populate the waveDrom names with the selected signals
+    let waveDromData: any = {};
+    w.displayedSignals.forEach((netlistId: string) => {
+      const netlistItem = data.netlistIdTable.get(netlistId);
+      if (!netlistItem) {return;}
+
+      const signalName = netlistItem.netlistItem.modulePath + "." + netlistItem.netlistItem.name;
+      const signalId   = netlistItem.netlistItem.signalId;
+      const signalData = data.documentData.netlistElements.get(signalId);
+
+      if (!signalData) {return;}
+
+      const transitionData    = signalData?.transitionData;
+      const chunkStart        = signalData?.chunkStart;
+      const signalDataChunk   = transitionData.slice(Math.max(0, chunkStart[chunkWindow[0]] - 1), chunkStart[chunkWindow[1]]);
+      let   initialState: any = "x";
+      let   json: any         = {name: signalName, wave: ""};
+      let   signalDataTrimmed: TransitionData[] = [];
+      if (signalData.signalWidth > 1) {json.data = [];}
+
+      signalDataChunk.forEach((transition: TransitionData) => {
+        if (transition[0] <= timeWindow[0]) {initialState = transition[1];}
+        if (transition[0] >= timeWindow[0] && transition[0] <= timeWindow[1]) {signalDataTrimmed.push(transition);}
+      });
+
+      waveDromData[netlistId] = {json: json, signalData: signalDataTrimmed, signalWidth: signalData.signalWidth, initialState: initialState};
+      const taggedTransitions = signalDataTrimmed.map(t => [t[0], t[1], netlistId]);
+      allTransitions = allTransitions.concat(taggedTransitions);
+    });
+
+    let currentTime: number = timeWindow[0];
+    let transitionCount = 0;
+    const numberFormat  = w.numberFormat;
+
+    if (w.waveDromClock.netlistId === null) {
+
+      allTransitions = allTransitions.sort((a, b) => a[0] - b[0]);
+
+      for (let index = 0; index < allTransitions.length; index++) {
+        let time     = allTransitions[index][0];
+        let state    = allTransitions[index][1];
+        let netlistId = allTransitions[index][2];
+        if (currentTime >= timeWindow[1] || transitionCount >= MAX_TRANSITIONS) {break;}
+        if (time !== currentTime) {
+          currentTime = time;
+          transitionCount++;
+          w.displayedSignals.forEach((n) => {
+            let signal = waveDromData[n];
+            if (signal.initialState === null) {signal.json.wave += '.';}
+            else {
+              if (signal.signalWidth > 1) {
+                signal.json.wave += this.is4State(signal.initialState) ? "9" : "7";
+                signal.json.data.push(this.parseValue(signal.initialState, numberFormat));
+              } else {
+                signal.json.wave += signal.initialState;
+              }
+            }
+            signal.initialState = null;
+          });
+        }
+        waveDromData[netlistId].initialState = state;
+      }
+    } else {
+      let clockEdges = waveDromData[w.waveDromClock.netlistId].signalData.filter((t: TransitionData) => t[1] === w.waveDromClock.edge);
+      let edge       = w.waveDromClock.edge === '1' ? "p" : "n";
+      let nextEdge: any = null;
+      for (let index = 0; index < clockEdges.length; index++) {
+        let currentTime = clockEdges[index][0];
+        if (index === clockEdges.length - 1) {nextEdge = timeWindow[1];}
+        else {nextEdge    = clockEdges[index + 1][0];}
+        if (currentTime >= timeWindow[1] || transitionCount >= MAX_TRANSITIONS) {break;}
+        w.displayedSignals.forEach((n) => {
+          let signal = waveDromData[n];
+          let signalData = signal.signalData;
+          if (n === w.waveDromClock.netlistId) {signal.json.wave += edge;}
+          else {
+            let transition = signalData.find((t: TransitionData) => t[0] >= currentTime && t[0] < nextEdge);
+            if (!transition && index === 0) {transition = [currentTime, signal.initialState];}
+            if (!transition && index > 0) {
+              signal.json.wave += '.';
+            } else {
+              if (signal.signalWidth > 1) {
+                signal.json.wave += this.is4State(transition[1]) ? "9" : "7";
+                signal.json.data.push(this.parseValue(transition[1], numberFormat));
+              } else {
+                signal.json.wave += transition[1];
+              }
+            }
+            signal.initialState = undefined;
+          }
+        });
+        transitionCount++;
+      }
+    }
+
+    console.log(waveDromData);
+
+    if (transitionCount >= MAX_TRANSITIONS) {
+      vscode.window.showWarningMessage('The number of transitions exceeds the maximum limit of ' + MAX_TRANSITIONS);
+    }
+
+    // write the waveDrom JSON to the clipboard
+    w.displayedSignals.forEach((netlistId) => {
+      const signalData = waveDromData[netlistId].json;
+      result += '  ' + JSON.stringify(signalData) + ',\n';
+    });
+    vscode.env.clipboard.writeText(result + ']}');
+
+    vscode.window.showInformationMessage('WaveDrom JSON copied to clipboard.');
+  };
+
+  updateStatusBarItems(document: VaporviewDocument) {
+    this.deltaTimeStatusBarItem.hide();
+    this.markerTimeStatusBarItem.hide();
+    this.selectedSignalStatusBarItem.hide();
+    const w = this.webviewContext;
+
+    if (!document) {return;}
+
+    if (w.markerTime !== null) {
+      const timeScale = document.documentData.metadata.timeScale;
+      const timeUnit  = document.documentData.metadata.timeUnit;
+      this.markerTimeStatusBarItem.text = 'time: ' + this.formatTime(w.markerTime, timeScale, timeUnit);
+      this.markerTimeStatusBarItem.show();
+      if (w.altMarkerTime !== null) {
+        const deltaT = w.markerTime - w.altMarkerTime;
+        this.deltaTimeStatusBarItem.text = 'Δt: ' + this.formatTime(deltaT, timeScale, timeUnit);
+        this.deltaTimeStatusBarItem.show();
+      } else {
+        this.deltaTimeStatusBarItem.hide();
+      }
+    } else {
+      this.markerTimeStatusBarItem.hide();
+    }
+
+    if (w.selectedSignal !== null) {
+      const signalName = document.netlistIdTable.get(w.selectedSignal)?.netlistItem.name;
+      this.selectedSignalStatusBarItem.text = 'Selected signal: ' + signalName;
+      this.selectedSignalStatusBarItem.show();
+    } else {
+      this.selectedSignalStatusBarItem.hide();
+    }
+  };
+
   async resolveCustomEditor(
     document: VaporviewDocument,
     webviewPanel: vscode.WebviewPanel,
@@ -205,6 +437,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     webviewPanel.webview.onDidReceiveMessage(e => {
       console.log(e);
       console.log(document.uri);
+
       if (e.type === 'ready') {
         if (document.uri.scheme === 'untitled') {
           console.log("untitled scheme");
@@ -217,45 +450,48 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       switch (e.command) {
         case 'init': {
           // Webview is initialized, send the 'init' message
+          break;
         }
         case 'setTime': {
-          let formatTime = function(time: number) {
-            const timeValue = time * document.documentData.metadata.timeScale;
-            return timeValue.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + ' ' + document.documentData.metadata.timeUnit;
-          };
+          this.webviewContext.markerTime    = e.markerTime;
+          this.webviewContext.altMarkerTime = e.altMarkerTime;
 
-          if (e.time !== null) {
-            this.markerTimeStatusBarItem.text = 'time: ' + formatTime(e.time);
-            this.markerTimeStatusBarItem.show();
-            if (e.altTime !== null) {
-              const deltaT = e.time - e.altTime;
-              this.deltaTimeStatusBarItem.text = 'Δt: ' + formatTime(deltaT);
-              this.deltaTimeStatusBarItem.show();
-            } else {
-              this.deltaTimeStatusBarItem.hide();
-            }
-          } else {
-            this.markerTimeStatusBarItem.hide();
-          }
+          this.updateStatusBarItems(document);
           break;
         }
         case 'setSelectedSignal': {
-          if (e.netlistId !== null) {
-            this.selectedSignalStatusBarItem.show();
-            const signalName = document.netlistIdTable.get(e.netlistId)?.netlistItem.name;
-            this.selectedSignalStatusBarItem.text = 'Selected signal: ' + signalName;
-          } else {
-            this.selectedSignalStatusBarItem.hide();
-          }
+          this.webviewContext.selectedSignal = e.netlistId;
+          
+          this.updateStatusBarItems(document);
+          break;
+        }
+        case 'contextUpdate' : {
+          this.webviewContext.markerTime       = e.markerTime;
+          this.webviewContext.altMarkerTime    = e.altMarkerTime;
+          this.webviewContext.selectedSignal   = e.selectedSignal;
+          this.webviewContext.displayedSignals = e.displayedSignals;
+          this.webviewContext.zoomRatio        = e.zoomRatio;
+          this.webviewContext.scrollLeft       = e.scrollLeft;
+          this.webviewContext.numberFormat     = e.numberFormat;
+
+          this.updateStatusBarItems(document);
           break;
         }
         case 'close-webview' : {
+          console.log("close-webview");
           // Close the webview
           webviewPanel.dispose();
           break;
         }
       }
-      this.onMessage(document, e);
+      //this.onMessage(document, e);
+      switch (e.type) {
+        case 'response': {
+          const callback = this._callbacks.get(e.requestId);
+          callback?.(e.body);
+          return;
+        }
+      }
     });
 
     webviewPanel.onDidChangeViewState(e => {
@@ -357,16 +593,16 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     return p;
   }
 
-  private onMessage(document: VaporviewDocument, message: any) {
-    switch (message.type) {
-      case 'response':
-        {
-          const callback = this._callbacks.get(message.requestId);
-          callback?.(message.body);
-          return;
-        }
-    }
-  }
+  //private onMessage(document: VaporviewDocument, message: any) {
+  //  switch (message.type) {
+  //    case 'response':
+  //      {
+  //        const callback = this._callbacks.get(message.requestId);
+  //        callback?.(message.body);
+  //        return;
+  //      }
+  //  }
+  //}
 
   public removeSignalFromDocument(netlistId: NetlistId) {
 
@@ -659,7 +895,6 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 
     return htmlContent;
   }
-
 }
 
 /**
@@ -1181,19 +1416,24 @@ export function activate(context: vscode.ExtensionContext) {
 
   // WaveDrom commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.copyWaveDrom', (e) => {
-    console.log("copyWaveDrom");
+    viewerProvider.copyWaveDrom();
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.setWaveDromClockRising', (e) => {
-    console.log("copyWaveDrom");
+    viewerProvider.webviewContext.waveDromClock = {edge: '1', netlistId: e.netlistId,};
+    //console.log("setWaveDromClockRising");
+    //console.log(viewerProvider.webviewContext.waveDromClock);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.setWaveDromClockFalling', (e) => {
-    console.log("copyWaveDrom");
+    viewerProvider.webviewContext.waveDromClock = {edge: '0', netlistId: e.netlistId,};
+    //console.log("setWaveDromClockFalling");
+    //console.log(viewerProvider.webviewContext.waveDromClock);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.unsetWaveDromClock', (e) => {
-    console.log("copyWaveDrom");
+    viewerProvider.webviewContext.waveDromClock = {edge: '1', netlistId: null,};
+    //console.log("unsetWaveDromClock");
   }));
 
 }

@@ -60,9 +60,10 @@
           self.contentElement.style.pointerEvents = 'auto';
           pointerEventsSet = false;
       }, 50);
-    },
+    };
 
-    scrollEv = function() {
+    // public methods
+    self.scrollEv = function() {
       if (scrollEvInProgress) {return;}
       scrollEvInProgress = true;
       console.log('clusterize scroll');
@@ -72,35 +73,21 @@
       if (lastCluster[0] !== currentCluster[0] || lastCluster[1] !== currentCluster[1]) {
         self.insertToDOM(columns, leftRightOffsets, currentCluster);
       }
-      lastCluster = currentCluster;
+      lastCluster        = currentCluster;
       scrollEvInProgress = false;
-    },
-    resizeDebounce = 0,
-    resizeEv = function() {
-      console.log('resize');
-      clearTimeout(resizeDebounce);
-      resizeDebounce = setTimeout(self.refresh, 100);
     };
-    self.scrollElement.addEventListener('scroll', scrollEv, false);
-    window.addEventListener('resize', resizeEv, false);
-
-    // public methods
     self.refresh = function(columnWidth) {
-      const prevColumnWidth    = self.options.columnWidth;
-      if (columnWidth) {self.options.columnWidth = columnWidth;}
-      const scrollProgress     = self.getScrollProgress();
-      const columnWidthChanged = prevColumnWidth !== self.options.columnWidth;
+      console.log('clusterize refresh');
 
-      if (columnWidthChanged) {
+      if (columnWidth && self.options.columnWidth !== columnWidth) {
+        const scrollProgress     = self.getScrollProgress();
+        self.options.columnWidth = columnWidth;
         self.update(columns);
         self.getChunksWidth(columns);
-      }
-
-      if (self.scrollElement) {
         self.updateViewportWidth();
-        if (columnWidthChanged) {
-          self.scrollElement.scrollLeft = scrollProgress * ((columns.length * self.options.columnWidth) - self.options.viewportWidth);
-        }
+        self.scrollElement.scrollLeft = scrollProgress * ((columns.length * self.options.columnWidth) - self.options.viewportWidth);
+      } else {
+        self.updateViewportWidth();
       }
     };
     self.update = function(newColumns, columnWidth) {
@@ -115,9 +102,8 @@
       self.insertToDOM(columns, leftRightOffsets);
       self.scrollElement.scrollLeft = scrollLeft;
     };
-    self.clear             = function() {self.update([]);};
     self.getScrollProgress = function() {
-      return self.options.scrollLeft / ((columns.length * self.options.columnWidth) - self.options.viewportWidth) || 0;
+      return self.scrollElement.scrollLeft / ((columns.length * self.options.columnWidth) - self.options.viewportWidth) || 0;
     };
     self.append  = function(newColumns) {self.insertToDOM(columns.concat(newColumns), leftRightOffsets);};
     self.prepend = function(newColumns) {self.insertToDOM(newColumns.concat(columns), leftRightOffsets);};
@@ -129,8 +115,6 @@
     constructor: Clusterize,
 
     getChunksWidth: function(columns) {
-      console.log("getChunksWidth()");
-      console.log(this.options);
       var opts          = this.options;
       opts.clusterWidth = 0;
       if (!columns.length) {return;}
@@ -142,8 +126,7 @@
     },
     getBlockNum: function () {
       var opts           = this.options;
-      opts.scrollLeft    = this.scrollElement.scrollLeft;
-      const leftOffset   = opts.scrollLeft + opts.viewportWidth / 2;
+      const leftOffset   = this.scrollElement.scrollLeft + opts.viewportWidth / 2;
       const blockNum     = leftOffset / opts.blockWidth;
       const minColumnNum = Math.max(Math.round(blockNum - (opts.blocksInCluster / 2)), 0) * opts.columnsInBlock;
       const maxColumnNum = Math.min(Math.round(blockNum + (opts.blocksInCluster / 2)) * opts.columnsInBlock, opts.columnCount);
@@ -151,7 +134,6 @@
     },
     // if necessary verify data changed and insert to DOM
     insertToDOM: function(columns, leftRightOffsets, cluster) {
-      if (!this.options.clusterWidth) {throw new Error("Error! Cluster width is not defined, exploreEnvironment() is deprecated.");}
       var opts          = this.options,
           columnsLength = columns.length,
           leftOffset    = 0,
@@ -159,11 +141,11 @@
           columnsBefore = 0,
           itemsStart    = 0,
           itemsEnd      = columnsLength,
-          newColumns    =   columnsLength ? columns : opts.emptyColumn;
+          newColumns    = columnsLength ? columns : opts.emptyColumn;
       if (columnsLength <= opts.columnsInCluster) {
         newColumns = this.options.callbacks.fetchColumns(itemsStart, itemsEnd);
       } else {
-        if (!cluster) { cluster = this.getBlockNum();}
+        if (!cluster) {cluster = this.getBlockNum();}
         itemsStart    = Math.min(cluster[0], (opts.columnCount - opts.columnsInCluster) + (opts.columnsInBlock % opts.columnCount));
         itemsEnd      = Math.max(cluster[1], opts.columnsInCluster);
         leftOffset    = Math.max(itemsStart * opts.columnWidth, 0);
@@ -174,7 +156,6 @@
       }
       const thisClusterColumns        = newColumns.join('');
       const callbacks                 = this.options.callbacks;
-      //var thisClusterContentChanged = this.checkChanges('data',  thisClusterColumns, leftRightOffsets);
       const thisClusterContentChanged = callbacks.checkUpdatePending();
       const leftOffsetChanged         = leftOffset  !== leftRightOffsets[0];
       const onlyRightOffsetChanged    = rightOffset !== leftRightOffsets[1];
@@ -187,7 +168,7 @@
         this.displayedSpaceElement.innerHTML = thisClusterColumns;
         this.rightSpaceElement.style.width   = rightOffset + 'px';
         this.rightSpaceElement.style.height  = this.options.chunkHeight;
-        this.contentElement.style['counter-increment'] = 'clusterize-counter ' + (columnsBefore - 1);
+        //this.contentElement.style['counter-increment'] = 'clusterize-counter ' + (columnsBefore - 1);
         callbacks.clusterChanged(itemsStart, itemsEnd);
       } else if(onlyRightOffsetChanged) {
         this.rightSpaceElement.style.width = rightOffset + 'px';

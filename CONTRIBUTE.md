@@ -1,8 +1,26 @@
 # Source Code Documentation
 
-I wrote this in hopes that if anyone wants to help contribute to the development of VaporView, this document will help serve as a starting point. That being said, feel free to reach out to me if you have further questions. I would be more than happy to have other contributors.
+I wrote this in hopes that if anyone wants to help contribute to the development of VaporView, this document will help serve as a starting point. That being said, feel free to reach out to me if you have further questions. I would be more than happy to have other contributors!
 
-I should also mention if it's not obvious; I come from a hardware background. Web programming is not my area of expertise. You're not going to offend me by crutiquing my code or my choices. You're also not going to offend me for crutiquing my language choice - especially if you use Verdi through a VDI or VNC session and actually like it, because your opinion doesn't even matter at that point. I probably won't even hear about your opinion because of all of the network latency! Jokes aside, I hope this documentation is able to provide an explaination on how everything is implemented so that we can make this project into the best it can be.
+I should also mention if it's not obvious; I come from a hardware background. Web programming is not my area of expertise. You're not going to offend me by crutiquing my code or my choices. You're also not going to offend me for crutiquing my life choices - especially if you use Verdi through a VDI or VNC session and you actually like it, because your opinion doesn't even matter at that point. Jokes aside, I hope this documentation is able to provide an explaination on how everything is implemented so that we can make this project into the best it can be.
+
+## Low hanging fruit
+
+Since me and my gang of AI ghost writers have (up to this point) have been the sole contributors to this project, you might imagine that it's a lot of work to make this code useful _and_ nicely organized _and_ well documented _and_ have hice asthaetics _and_ juggle all of my other priorities of life like Skiing and Rock Climbing. So I have compiled a list of things that people like you, the reader could get started on to contribute to this project.
+
+- Improving the look of the assets, like the icons or the logo
+- Organizing the code by breaking it up into multiple files or improve naming conventions
+- Improving documentation
+
+## Not so low hanging fruit
+
+While not necissarily a priority, I have a list of things that would greatly enhance the usability of this extension, but they're kind of difficult (for me at least) and I might need some help with these:
+
+- Rewriting performance critical components (like the renderer) in Web Assembly
+- Supporting other file formats besides .vcd files
+- Support for large files with `fs.read()`
+
+You know what, if you can just get the build flow working such that I can use native node modules instead of the vscode version of `fs` _or_ get the (fsChunks API proposal)[https://github.com/microsoft/vscode/blob/main/src/vscode-dts/vscode.proposed.fsChunks.d.ts] in place, that would be a huge help. I could honestly do the rest.
 
 ## Extension overview
 
@@ -81,15 +99,15 @@ This means that for VCD files, I have to parse the whole document to extract the
 
 ## Parsing a VCD file
 
-When parsing a VCD file, the data is stored in a `WaveformTop` class (which stores the metadata and a `SignalWaveform` hash table,) and in a `NetlistTreeDataProvider` class, which maintains netlist topology. This is really important, because we need to know the netlist topology for the `TreeView`, but multiple `TreeItem` elements can reference the same `SignalWaveform` data.
+When parsing a VCD file, the data is stored in a `WaveformTop` class (which stores the metadata and a `SignalWaveform` hash table,) and in a `NetlistTreeDataProvider` class, which maintains netlist topology. This might seem weird at first, but we really only need to know the netlist topology for the `TreeView`. But since multiple `TreeItem` elements can reference the same `SignalWaveform` data, they are stored as separate structures.
 
-We have to store a copy of each treeview for each document that's open so that if a user wants to open up multiple documents, we can repopulate the treeview according to its respective document. This is also important for future proofing. If we want to be able to open up documents and not load all of the transition data, we still want to load the whole netlist.
+We have to store a copy of each treeview for each document that's open so that if a user wants to open up multiple documents, we can repopulate the treeview according to its respective document. In the future, I plan to add support for larger files that can't necissarily be completely loaded into memory _whenever the vscode team decides to support fs.read()_. When this feature gets added, I will read the file in chunks, but I will stil need to load in the full netlist. But that doesn't consume a ton of memory, so it won't be a problem. THen this way, it can reference back to which signal data to load into memory when reading the file.
 
-To tie these structures together, we have a `netlistTable`. This is a hash table with a `netlistId` that we create using a low budget hashing algorithm on the full module path and name. This `netlistId` becomes a key to reference a pointer to the tree items, as well as a key to the `netlistElements` structure to get the transition data.
+To tie these structures together, we have a `netlistTable`. This is a hash table with a `netlistId` that we create using a low budget hashing algorithm on the full module path and name. This `netlistId` becomes a key to reference a pointer to the tree items, as well as `signalId` key to the `netlistElements` structure to get the transition data. Unfortunately, multiple `netlistId`'s can point to the same `signalId` so we need to have 2 sets of keys. I learned this the hard way, because I originally used just a `signalId`, and it caused some really weird and annoying bugs!
 
 Once the metadata and netlist are parsed, we start parsing the transition data. This is where things get a little weird. See, for ease of rendering, I made it such that everything is in chunks. This way, we don't actually have to render the entire waveform. Since the actual HTML components of a waveform consume a non-trivial amount of data, we can dynamically render as we scroll. This isn't a big deal for smaller waveforms, but it is for larger waveforms. Maybe it's premature optimization, I don't know.
 
-The signal data has some metadata elements such as the `signalWidth`. But all of the `transitionData` is stored as a flat array of transitions. Each transition is essentially a time and a value. The value is stored as a binary string (this could be improved, but remember that 4 state logic exists, and signals can be arbitrarily wide.) Now you might cringe at the idea of a flat array for this, but consider how javascript implements large arrays under the hood, before coming to me with your whizbang idea! To assist in all of this, we also have an array called `chunkStart`. This is a lookup table of the start index of each time chunk so that we can slice the array as necessary to get the initial state and transitions of a particular chunk.
+The signal data has some metadata elements such as the `signalWidth`. But all of the `transitionData` is stored as a flat array of transitions. Each transition is essentially a time and a value. The value is stored as a binary string (this could be improved, but remember that 4 state logic exists, and signals can be arbitrarily wide.) Now you might cringe at the idea of a flat array for this, but before coming to me with your whizbang idea of how to re-implement this, first consider how javascript implements large arrays under the hood! To assist in all of this, we also have an array called `chunkStart`. This is a lookup table of the start index of each time chunk so that we can slice the array as necessary to get the initial state and transitions of a particular chunk.
 
 ## Document handlers
 

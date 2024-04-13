@@ -71,21 +71,23 @@ This extension was designed on version 1.83.
 
 ## Release Notes and development roadmap
 
-### 0.9.4 (Pre-release)
+### 0.9.5 (Current Pre-release)
 
-Supports all the features you would expect
+Supports all the features you would expect including signal placing, rearranging, marker handling, and exporting selection to WaveDrom!
 
 ### 1.0 - Marketplace launch
 
-Get more coverage, from users like you! There will probably be bugs, so please report them on the github discussion
+Get more coverage, from users like you! There will probably be bugs, so please report them on the github discussions!
 
-Tentative features and bugfixes:
+Additional features and bugfixes to known Issues:
 
-- Export selection as WaveDrom
-- Save opened signals
-- Refine documentation
-- When opening another vcd file, the netlist needs to load in the view properly
-- Activate extension on install (not sure if this is possible)
+- Features:
+  - Saving/loading opened signals
+- Bugfixes
+  - binary waveforms sometimes display a gap between chunks
+  - When opening another vcd file, the netlist needs to load in the view properly
+- Other:
+  - Refine documentation
 
 ### Beyond 1.0
 
@@ -95,6 +97,7 @@ Tentative features and bugfixes:
 - Add support for custom colors
 - Add support for linking timestamps in UVM logs (or other simulation logs) to jump to a timestamp
 - Add support for remote sessions to save on memory
+- Add support for larger files
 - Highly unlikely
   - Link netlist to RTL so that signals can be connected back to RTL locations
   - Support for other file formats
@@ -103,7 +106,7 @@ Tentative features and bugfixes:
 
 I originally built this because I work for an FPGA company, doing FPGA things, and I couldn't find a good _free_ VCD viewer extension. I also hate having to use VNC for viewing waveforms. So rather than spend $15, I spent 300 hours making this extension.
 
-This is and always will be open source. It's free to use for personal and professional use. There never will be a premium tier. Adaptations of the source code completely or even in part for other projects _is_ only allowed _if_ the project is also free and open source. Usage of the source code completely or in part for enterprise software is not allowed unless prior written permission is given by the owner of this project. And I am open to offers.
+This is and always will be open source. It's free to use for personal and professional use. There never will be feature regression in favor of a premium tier. In other words, every feature that is currently included, or on the roadmap will be free and open source. Adaptations of the source code completely or even in part for other projects _is_ only allowed _if_ the project is also free and open source. Adaptations of the source code completely or in part for enterprise software is not allowed _unless_ prior written permission is given by the owner of this project. And I am open to offers.
 
 This extension was written by one person, with a full time job that doesn't involve anything to do with writing javascript or typescript. If you would like to see a feature added or functionality changed, or better yet, if you would like to help contribute please visit the github repository and discuss there!
 

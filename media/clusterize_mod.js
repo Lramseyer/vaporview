@@ -57,8 +57,8 @@
       pointerEventsSet = true;
       clearTimeout(scrollDebounce);
       scrollDebounce = setTimeout(function () {
-          self.contentElement.style.pointerEvents = 'auto';
-          pointerEventsSet = false;
+        self.contentElement.style.pointerEvents = 'auto';
+        pointerEventsSet = false;
       }, 50);
     };
 
@@ -105,9 +105,9 @@
     self.getScrollProgress = function() {
       return self.scrollElement.scrollLeft / ((columns.length * self.options.columnWidth) - self.options.viewportWidth) || 0;
     };
+    self.render  = function()           {self.insertToDOM(columns,                    leftRightOffsets);};
     self.append  = function(newColumns) {self.insertToDOM(columns.concat(newColumns), leftRightOffsets);};
     self.prepend = function(newColumns) {self.insertToDOM(newColumns.concat(columns), leftRightOffsets);};
-    self.render  = function()           {self.insertToDOM(columns,                    leftRightOffsets);};
     self.setChunkHeight = function(height) {self.options.chunkHeight = `${height} + px`;};
   };
 

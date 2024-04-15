@@ -523,6 +523,9 @@ garbageCollectChunks = function () {
       return;
     }
   }
+  if (!updatePending) {
+    sendWebviewContext();
+  }
 };
 
 uncacheChunks = function (startIndex, endIndex, deleteChunk) {

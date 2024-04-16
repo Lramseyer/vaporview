@@ -373,7 +373,10 @@ updateChunkInCache = function (chunkIndex) {
 handleZoom = function (amount, adjustScroll) {
   // -1 zooms in, +1 zooms out
   // zoomRatio is in pixels per time unit
+  if (updatePending) {return;}
   if (amount === 0) {return;}
+
+  updatePending = true;
 
   const newZoomRatio  = zoomRatio * Math.pow(2, (-1 * amount));
   const centerTime    = (scrollArea.scrollLeft + (viewerWidth / 2)) / zoomRatio;
@@ -391,7 +394,6 @@ handleZoom = function (amount, adjustScroll) {
     dataCache.columns[i] = (updateChunkInCache(i));
   }
 
-  updatePending = true;
   clusterizeContent.refresh(chunkWidth);
   //clusterizeContent.render();
 

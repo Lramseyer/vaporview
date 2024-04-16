@@ -20,7 +20,7 @@ While not necissarily a priority, I have a list of things that would greatly enh
 - Supporting other file formats besides .vcd files
 - Support for large files with `fs.read()`
 
-You know what, if you can just get the build flow working such that I can use native node modules instead of the vscode version of `fs` _or_ get the (fsChunks API proposal)[https://github.com/microsoft/vscode/blob/main/src/vscode-dts/vscode.proposed.fsChunks.d.ts] in place, that would be a huge help. I could honestly do the rest.
+You know what, if you can just get the build flow working such that I can use native node modules instead of the vscode version of `fs` _or_ get the [fsChunks API proposal](https://github.com/microsoft/vscode/blob/main/src/vscode-dts/vscode.proposed.fsChunks.d.ts) in place, that would be a huge help. I could honestly do the rest.
 
 ## Extension overview
 

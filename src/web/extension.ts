@@ -162,6 +162,108 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     this.deltaTimeStatusBarItem      = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     this.markerTimeStatusBarItem     = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
     this.selectedSignalStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
+  }
+
+  private getNameFromNetlistId(netlistId: string | null) {
+    if (!netlistId) {return null;}
+    const netlistData = this.activeDocument?.netlistIdTable.get(netlistId)?.netlistItem;
+    const modulePath  = netlistData?.modulePath;
+    const signalName  = netlistData?.name;
+    return modulePath + '.' + signalName;
+  }
+
+  public saveSettings() {
+    console.log("saveSettings()");
+    if (!this.activeDocument) {
+      vscode.window.showErrorMessage('No viewer is active. Please select the viewer you wish to save settings.');
+      return;
+    }
+
+    const saveData = {
+      extensionVersion: vscode.extensions.getExtension('Lloyd Ramseyer.vaporview')?.packageJSON.version,
+      fileName: this.activeDocument.uri.fsPath,
+      displayedSignals: this.webviewContext.displayedSignals.map((n: string) => {return this.getNameFromNetlistId(n);}),
+      markerTime: this.webviewContext.markerTime,
+      altMarkerTime: this.webviewContext.altMarkerTime,
+      selectedSignal: this.getNameFromNetlistId(this.webviewContext.selectedSignal),
+      zoomRatio: this.webviewContext.zoomRatio,
+      scrollLeft: this.webviewContext.scrollLeft,
+      numberFormat: this.webviewContext.numberFormat,
+    };
+
+    const saveDataString = JSON.stringify(saveData, null, 2);
+
+    vscode.window.showSaveDialog({
+      saveLabel: 'Save settings',
+      filters: {JSON: ['json']}
+    }).then((uri) => {
+      if (uri) {
+        vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(saveDataString));
+      }
+    });
+  }
+
+  public async loadSettings() {
+    console.log("loadSettings()");
+
+    let version = vscode.extensions.getExtension('Lloyd Ramseyer.vaporview')?.packageJSON.version;
+    // show open file diaglog
+    let fileData = await new Promise<any>((resolve, reject) => {
+      vscode.window.showOpenDialog({
+        canSelectFiles: true,
+        canSelectFolders: false,
+        canSelectMany: false,
+        openLabel: 'Load settings',
+        filters: { JSON: ['json'] }
+      }).then((uri) => {
+        if (uri) {
+          vscode.workspace.fs.readFile(uri[0]).then((data) => {
+            const fileData = JSON.parse(new TextDecoder().decode(data));
+            resolve(fileData);
+          }, (error: any) => {
+            reject(error); // Reject if readFile fails
+          });
+        } else {
+          reject("No file selected"); // Reject if no file is selected
+        }
+      }, (error: any) => {
+        reject(error); // Reject if showOpenDialog fails
+      });
+    });
+
+    if (!fileData) {
+      console.log("No file data");
+      return;
+    }
+
+    if (!this.activeDocument) {
+      vscode.window.showErrorMessage('No viewer is active. Please select the viewer you wish to load settings.');
+      return;
+    }
+
+    if (fileData.fileName && fileData.fileName !== this.activeDocument.uri.fsPath) {
+      vscode.window.showWarningMessage('The settings file may not match the active viewer');
+    }
+
+    let missingSignals: string[] = [];
+    let foundSignals: string[] = [];
+
+    if (fileData.displayedSignals) {
+      fileData.displayedSignals.forEach((signal: string) => {
+        let metaData = this.netlistTreeDataProvider.findTreeItem(signal);
+        if (metaData) {
+          foundSignals.push(metaData.netlistId);
+        } else {
+          missingSignals.push(signal);
+        }
+      });
+    }
+
+    foundSignals.forEach((netlistId: string) => {
+      if (!this.webviewContext.displayedSignals.includes(netlistId as never)) {
+        this.addSignalToDocument(netlistId);
+      }
+    });
 
   }
 
@@ -170,7 +272,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
   async openCustomDocument(
     uri: vscode.Uri,
     openContext: { backupId?: string },
-    _token: vscode.CancellationToken
+    _token: vscode.CancellationToken,
   ): Promise<VaporviewDocument> {
     console.log("openCustomDocument()");
     const document: VaporviewDocument = await VaporviewDocument.create(uri, openContext.backupId, {
@@ -414,17 +516,6 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     webviewPanel: vscode.WebviewPanel,
     _token: vscode.CancellationToken
   ): Promise<void> {
-    console.log("resolveCustomEditor()");
-    // Add the webview to our internal set of active webviews
-    this.webviews.add(document.uri, webviewPanel);
-    this.activeWebview  = webviewPanel;
-    this.activeDocument = document;
-
-    // Setup initial content for the webview
-    webviewPanel.webview.options = {
-      enableScripts: true,
-    };
-    webviewPanel.webview.html = this.getWebViewContent(webviewPanel.webview);
 
     webviewPanel.onDidDispose(() => {
       if (this.webviews.getNumWebviews === 0) {
@@ -496,21 +587,24 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 
     webviewPanel.onDidChangeViewState(e => {
       console.log("onDidChangeViewState()");
+      console.log(vscode.window.activeTextEditor?.document);
       console.log(e);
 
       this.netlistViewSelectedSignals = [];
       this.displayedSignalsViewSelectedSignals = [];
 
       if (e.webviewPanel.active) {
-        this.activeWebview = webviewPanel;
+        this.activeWebview  = webviewPanel;
         this.activeDocument = document;
-        this.netlistTreeDataProvider.setTreeData(document.netlistTreeData.getTreeData());
-        this.displayedSignalsTreeDataProvider.setTreeData(document.displayedSignalsTreeData.getTreeData());
+        this.netlistTreeDataProvider.setTreeData(this.activeDocument.netlistTreeData.getTreeData());
+        this.displayedSignalsTreeDataProvider.setTreeData(this.activeDocument.displayedSignalsTreeData.getTreeData());
         webviewPanel.webview.postMessage({command: 'getSelectionContext'});
         this.deltaTimeStatusBarItem.show();
         this.markerTimeStatusBarItem.show();
         this.selectedSignalStatusBarItem.show();
-      } else {
+      } else if (!e.webviewPanel.active && e.webviewPanel === this.activeWebview) {
+        this.activeWebview  = undefined;
+        this.activeDocument = undefined;
         this.netlistTreeDataProvider.hide();
         this.displayedSignalsTreeDataProvider.hide();
         this.deltaTimeStatusBarItem.hide();
@@ -581,6 +675,20 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       });
     });
 
+    console.log("resolveCustomEditor()");
+    // Add the webview to our internal set of active webviews
+    this.webviews.add(document.uri, webviewPanel);
+    this.activeWebview  = webviewPanel;
+    this.activeDocument = document;
+
+    // Setup initial content for the webview
+    webviewPanel.webview.options = {
+      enableScripts: true,
+    };
+    webviewPanel.webview.html = this.getWebViewContent(webviewPanel.webview);
+
+    this.netlistTreeDataProvider.setTreeData(this.activeDocument.netlistTreeData.getTreeData());
+    this.displayedSignalsTreeDataProvider.setTreeData(this.activeDocument.displayedSignalsTreeData.getTreeData());
   }
 
   private _requestId = 1;
@@ -626,6 +734,25 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       }
     }
   }
+
+  public addSignalToDocument(netlistId: NetlistId) {
+    if (!this.activeWebview) {return;}
+    if (!this.activeDocument) {return;}
+    if (!this.activeWebview.active) {return;}
+
+    const panel    = this.activeWebview;
+    const document = this.activeDocument;
+    const metadata = document.netlistIdTable.get(netlistId)?.netlistItem;
+    if (!metadata) {return;}
+
+    const signalId   = metadata.signalId;
+    const signalData = document.documentData.netlistElements.get(signalId);
+
+    this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Checked);
+    this.renderSignal(panel, signalId, netlistId, signalData);
+    this.displayedSignalsTreeDataProvider.addSignalToTreeData(metadata);
+    document.setNetlistIdTable(netlistId, metadata);
+  };
 
   private renderSignal(panel: vscode.WebviewPanel, signalId: SignalId, netlistId: NetlistId, signalData: SignalWaveform | undefined) {
     // Render the signal with the provided ID
@@ -959,6 +1086,11 @@ class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistItem> {
 
   public getTreeData(): NetlistItem[] {return this.treeData;}
 
+  public findTreeItem(modulePath: string): NetlistItem | undefined {
+    let module = this.treeData.find((element) => element.label === modulePath.split('.')[0]);
+    return module?.findChild(modulePath.split('.').slice(1).join('.'));
+  }
+
   getTreeItem(element:  NetlistItem): vscode.TreeItem {return element;}
   getChildren(element?: NetlistItem): Thenable<NetlistItem[]> {
     if (element) {return Promise.resolve(element.children);} // Return the children of the selected element
@@ -1039,6 +1171,21 @@ class NetlistItem extends vscode.TreeItem {
       this.contextValue = 'netlistModule'; // Set a context value for parent nodes
     }
   }
+
+  findChild(label: string): NetlistItem | undefined {
+
+    if (label === '') {return this;}
+
+    let subModules    = label.split(".");
+    let currentModule = subModules.shift();
+    let childItem     = this.children.find((child) => child.label === currentModule);
+
+    if (childItem) {
+      return childItem.findChild(subModules.join("."));
+    } else {
+      return undefined;
+    }
+  };
 
   handleCommand() {
     console.log("handleCommand()");
@@ -1421,21 +1568,23 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.setWaveDromClockRising', (e) => {
     viewerProvider.webviewContext.waveDromClock = {edge: '1', netlistId: e.netlistId,};
-    //console.log("setWaveDromClockRising");
-    //console.log(viewerProvider.webviewContext.waveDromClock);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.setWaveDromClockFalling', (e) => {
     viewerProvider.webviewContext.waveDromClock = {edge: '0', netlistId: e.netlistId,};
-    //console.log("setWaveDromClockFalling");
-    //console.log(viewerProvider.webviewContext.waveDromClock);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.unsetWaveDromClock', (e) => {
     viewerProvider.webviewContext.waveDromClock = {edge: '1', netlistId: null,};
-    //console.log("unsetWaveDromClock");
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.saveViewerSettings', (e) => {
+    viewerProvider.saveSettings();
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.loadViewerSettings', (e) => {
+    viewerProvider.loadSettings();
+  }));
 }
 
 export default WaveformViewerProvider;

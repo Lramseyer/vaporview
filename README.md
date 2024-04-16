@@ -21,7 +21,9 @@ Signals may be added or removed through VaporView view container. Click on the V
 
 To Add a signal, simply check the box next to the netlist signal ID in the "Netlist" view. It will also show in the "Displayed Signals" view.
 
-To remove a signal, that signal can be un-checked from either the "Netlist" view or the "Displayed Signals" view.
+To remove a signal, that signal can be un-checked from either the "Netlist" view or the "Displayed Signals" view. Alternatively, you can right click on a signal in the viewer and select "remove signal" from the menu.
+
+To add or remove multiple signals, select the signals you would like to add or remove, right click and select "Add/Remove selected signals" from the menu.
 
 ### Scrolling
 
@@ -82,10 +84,9 @@ Get more coverage, from users like you! There will probably be bugs, so please r
 Additional features and bugfixes to known Issues:
 
 - Features:
-  - Saving/loading opened signals
+  - loading opened signals
 - Bugfixes
   - binary waveforms sometimes display a gap between chunks
-  - When opening another vcd file, the netlist needs to load in the view properly
 - Other:
   - Refine documentation
 

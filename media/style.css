@@ -425,6 +425,10 @@ body {
   margin: 0;
 }
 
+.binary-waveform-svg {
+  overflow: visible;
+}
+
 .binary-waveform-svg polyline {
   vector-effect: non-scaling-stroke;
 }

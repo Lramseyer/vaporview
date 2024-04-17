@@ -158,11 +158,11 @@
       },
       {
         "command": "vaporview.saveViewerSettings",
-        "title": "Save Viewer Settings"
+        "title": "Save Vaporview Settings"
       },
       {
         "command": "vaporview.loadViewerSettings",
-        "title": "Load Viewer Settings"
+        "title": "Load Vaporview Settings"
       }
     ]
   },

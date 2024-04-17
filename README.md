@@ -83,11 +83,10 @@ Get more coverage, from users like you! There will probably be bugs, so please r
 
 Additional features and bugfixes to known Issues:
 
-- Features:
-  - loading opened signals
+- Features
 - Bugfixes
-  - binary waveforms sometimes display a gap between chunks
-- Other:
+  - Binary waveforms display gap when zoomed in really far
+- Other
   - Refine documentation
 
 ### Beyond 1.0

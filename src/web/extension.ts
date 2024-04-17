@@ -518,7 +518,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
   ): Promise<void> {
 
     webviewPanel.onDidDispose(() => {
-      if (this.webviews.getNumWebviews === 0) {
+      if (this.activeWebview === webviewPanel) {
         this.netlistTreeDataProvider.setTreeData([]);
         this.displayedSignalsTreeDataProvider.setTreeData([]);
       }
@@ -1278,7 +1278,7 @@ class WaveformTop {
   }
 
   public dispose() {
-    console.log("dispose()");
+    console.log("dispose() - waveformTop");
     this.netlistElements.clear();
     this.metadata.timeEnd = 0;
     this.metadata.filename = "";

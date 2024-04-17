@@ -376,19 +376,19 @@ handleZoom = function (amount, adjustScroll) {
   if (updatePending) {return;}
   if (amount === 0) {return;}
 
-  updatePending = true;
-
+  
   const newZoomRatio  = zoomRatio * Math.pow(2, (-1 * amount));
   const centerTime    = (scrollArea.scrollLeft + (viewerWidth / 2)) / zoomRatio;
   touchpadScrollCount = 0;
-
+  
   if (newZoomRatio > maxZoomRatio) {
     console.log('zoom ratio is too high: ' + newZoomRatio + '');
     return;
   }
 
-  zoomRatio  = newZoomRatio;
-  chunkWidth = chunkTime * zoomRatio;
+  updatePending = true;
+  zoomRatio     = newZoomRatio;
+  chunkWidth    = chunkTime * zoomRatio;
 
   for (i = dataCache.startIndex; i < dataCache.endIndex; i++) {
     dataCache.columns[i] = (updateChunkInCache(i));
@@ -439,6 +439,7 @@ handleFetchColumns = function (startIndex, endIndex) {
 
 // Experimental asynchronous rendering path
 renderWaveformsAsync = async function (node, chunkIndex) {
+  updatePending = true;
   let innerHtml;
   let chunkData = {};
 
@@ -458,7 +459,7 @@ renderWaveformsAsync = async function (node, chunkIndex) {
         resolve();
       }));
     }
-    
+
     if (!dataCache.columns[chunkIndex].abortFlag) {
       dataCache.columns[chunkIndex].waveformChunk = chunkData;
       innerHtml = displayedSignals.map(signal => dataCache.columns[chunkIndex].waveformChunk[signal].html).join('');

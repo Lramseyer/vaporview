@@ -47,7 +47,7 @@ To Zoom in or out, hold **Ctrl**, and **Scroll** to zoom. Or use the Zoom in/out
 
 To rearrange signals, hover over the signal name, and you will see a rearrange grabber indicator on the left. Click and drag to rearrange.
 
-Alternatively, you can select a signal, hold **Alt**, and press on the **Up** or **Down** Arrows to reorder (similar to how you reorder lines in the text editor)
+Alternatively, you can select a signal, hold **Alt**, and press the **Up** or **Down** Arrows to reorder (similar to how you reorder lines in the text editor)
 
 ## Marker Handling
 
@@ -65,7 +65,7 @@ To move to the next positive edge or negative edge, you will have to use the con
 
 ### Finding values and transitions in a particular waveform
 
-Finding a particular transition or a value in a waveform is done in relation to the selected signal and the marker (similar to how Visual Studio Code handles search in relation to the marker)
+Finding a particular transition or a value in a waveform is done in relation to the selected signal and the marker (similar to how Visual Studio Code handles search in relation to the text cursor)
 
 ## Saving and loading opened signals
 
@@ -77,17 +77,21 @@ Vaporview allows you to save and load your signal list. To do this, hit **Ctrl +
 
 If you would like to export a portion of the viewer as WaveDrom, VaporView supports that ...with some limitations. Since WaveDrom is a simplified format for making waveform diagrams, not all of the precise timing detail can be captured in WaveDrom.
 
-A maximum of 32 events can be copied as WaveDrom. To select a copy range, simply place the marker and alt-marker at the start and end of your selection range (ordering doesn't matter, it was easier to make the software figure it out than to try to have to remember.) Right click on the waveforms, and select **"Copy Selection as WaveDrom"** from the menu. The WaveDrom JSON text will then be copied into your clipboard.
+A maximum of 32 events can be copied as WaveDrom. To select a copy range, simply place the marker and alt-marker at the start and end of your selection range (ordering doesn't matter) Right click on the waveforms, and select **"Copy Selection as WaveDrom"** from the menu. The WaveDrom JSON text will then be copied into your clipboard.
 
 All displayed signals will be copied in order that they are displayed in the viewer. They will be named with their full module path, and the number format for the values will copy as displayed in the viewer as well.
 
 ### Without a WaveDrom clock set
+
+![](readme_assets/wavedrom_no_clk.png)
 
 To unset the waveDrom clock, right click on the waveforms, and select **"Unset WaveDrom Clock"**
 
 When no WaveDrom clock is set, an "event" is classified by a value transition of any of the displayed signals. If multiple signals change value at the same time, that counts as only one event. Due to the limitations of WaveDrom, time events may not be spaced out proportionally.
 
 ### With a WaveDrom clock
+
+![](readme_assets/wavedrom_with_clk.png)
 
 To set which signal will be the WaveDrom Clock, right click on the signal you wish to be the clock, and select **"Set WaveDrom Clock Rising"** or **"Set WaveDrom Clock Falling"**. When a clock is set, a WaveDrom event will be counted on the edge of the selected clock. If other displayed signals do not have a value transition on the edge of the selected clock, the first (if it exists) value transition that occurs between the current and next clock edge will be logged. If multiple value transitions for a given signal (that is not the clock) occur in one clock cycle, it will only copy the first value transition. Note that because of this limitation, the WaveDrom output will not contain all of the information.
 
@@ -103,7 +107,7 @@ This is due to a limitation of the VScode 'fs' library. There is an [API proposa
 
 ### Binary waveforms display a gap when zoomed in really far
 
-This unfortunately seems to be an issue with the Chromium renderer (which is what VScode uses to render everything.) The workaround is to change the Zoom level of VScode itself, or your display scaling settings. To do that, press **Ctrl + "="** or **Ctrl + "-"**
+This unfortunately seems to be an issue with the Chromium renderer (which is what VScode uses to render everything.) The workaround is to change the Zoom level of VScode itself, or your display scaling settings. To change teh VScode Zoom Level, press **Ctrl + "="** or **Ctrl + "-"**
 
 # Release Notes and development roadmap
 
@@ -113,14 +117,11 @@ Supports all the features you would expect including signal placing, rearranging
 
 ## 1.0 - Marketplace launch
 
-Get more coverage, from users like you. There may be bugs, so please report them on the github discussions so I can fix them before launching them to the marketplace!
+Get more coverage, from users like you. There may be bugs, so please report them on the github discussions so I can fix them before launching them to the marketplace! In the meantime, I'll be refining the documentation.
 
-**Tasks gating the marketplace launch:**
+## Beyond 1.0
 
-- Other
-  - Refine documentation
-
-### Beyond 1.0
+In no particular order of priority, here's a list of features that are on my radar. If you have any preferences as to which should be priorized, or a suggestion that is not on this list, leave a comment on the github discussions!
 
 - Rewrite compute intensive components in Web Assembly for smoother performance
 - Add support for Enums
@@ -136,12 +137,14 @@ Get more coverage, from users like you. There may be bugs, so please report them
 
 # About This Extension
 
-I originally built this because I work for an FPGA company, doing FPGA things, and I couldn't find a good _free_ VCD viewer extension. I also hate having to use VNC for viewing waveforms. So rather than spend $15, I spent over 300 hours making this extension.
+I originally built this because I work for an FPGA company. I wanted a good _free_ waveform viewer extension, and I always thought it would be cool to make my own extension.
 
-This is and always will be open source. It's free to use for personal and professional use. There never will be feature regression in favor of a premium tier. In other words, every feature that is currently included, or on the roadmap will be free and open source. Adaptations of the source code completely or even in part for other projects _is_ only allowed _if_ the project is also free and open source. Adaptations of the source code completely or in part for enterprise software is not allowed _unless_ prior written permission is given by the owner of this project. Though I am open to offers.
+This is and always will be open source. It's free to use for personal and professional use. There never will be feature regression in favor of a premium tier. In other words, every feature that is currently included, or on the roadmap will be free and open source. Adaptations of the source code completely or even in part for other projects is only allowed _if_ the project is also free and open source. Adaptations of the source code completely or in part for enterprise software is not allowed _unless_ prior written permission is given by the owner of this project. Though I am open to offers.
 
 This extension was written by one person, with a full time job that doesn't involve anything to do with writing javascript or typescript. If you would like to see a feature added or functionality changed, or better yet, if you would like to help contribute please visit the github repository and discuss there!
 
 # Acknowledgements
+
+Thanks to my coworkers for their encouragement, feature requests, bug reports, and contribution of VCD files that made this project possible!
 
 This extension uses a heavily modified version of [clusterize.js](https://clusterize.js.org/)

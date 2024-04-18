@@ -2,11 +2,11 @@
 
 I wrote this in hopes that if anyone wants to help contribute to the development of VaporView, this document will help serve as a starting point. That being said, feel free to reach out to me if you have further questions. I would be more than happy to have other contributors!
 
-I should also mention if it's not obvious; I come from a hardware background. Web programming is not my area of expertise. You're not going to offend me by crutiquing my code or my choices. You're also not going to offend me for crutiquing my life choices - especially if you use Verdi through a VDI or VNC session and you actually like it, because your opinion doesn't even matter at that point. Jokes aside, I hope this documentation is able to provide an explaination on how everything is implemented so that we can make this project into the best it can be.
+I should also mention if it's not obvious; I come from a hardware background. Web programming is not my area of expertise. You're not going to offend me by crutiquing my code or my choices. You're also not going to offend me for crutiquing my life choices - especially if you use Verdi through a VDI or VNC session and you actually like it! I hope this documentation is able to provide an explaination on how everything is implemented so that we can make this project into the best it can be.
 
 ## Low hanging fruit
 
-Since me and my gang of AI ghost writers have (up to this point) have been the sole contributors to this project, you might imagine that it's a lot of work to make this code useful _and_ nicely organized _and_ well documented _and_ have hice asthaetics _and_ juggle all of my other priorities of life like Skiing and Rock Climbing. So I have compiled a list of things that people like you, the reader could get started on to contribute to this project.
+Since me and my gang of AI ghost writers have (up to this point) have been the sole contributors to this project, you might imagine that it's a lot of work to make this code useful _and_ nicely organized _and_ well documented _and_ have hice asthaetics _and_ juggle all of my other priorities of life like Skiing and Rock Climbing. So I have compiled a list of things that you could easily get started on to contribute to this project.
 
 - Improving the look of the assets, like the icons or the logo
 - Organizing the code by breaking it up into multiple files or improve naming conventions
@@ -20,20 +20,20 @@ While not necissarily a priority, I have a list of things that would greatly enh
 - Supporting other file formats besides .vcd files
 - Support for large files with `fs.read()`
 
-You know what, if you can just get the build flow working such that I can use native node modules instead of the vscode version of `fs` _or_ get the [fsChunks API proposal](https://github.com/microsoft/vscode/blob/main/src/vscode-dts/vscode.proposed.fsChunks.d.ts) in place, that would be a huge help. I could honestly do the rest.
+You know what, if you can just get the build flow working so that I can use native node modules instead of the vscode version of `fs` _or_ get the [fsChunks API proposal](https://github.com/microsoft/vscode/blob/main/src/vscode-dts/vscode.proposed.fsChunks.d.ts) in place, that would be a huge help. I could honestly do the rest.
 
 ## Extension overview
 
-There are 2 main parts to this extesnion: The VScode Extension (src/web/extension.ts) and the webview component (media/extension.js and media/clusterize_mod.js) They communicate via a messaging interface: `webview.postMessage()` and `vscode.postMessage()` on the extension and webview side respectively. This is mainly used for setting up the webview, and for adding and removing signals from the viewer. It's important to note that when a signal is rendered in the webview, the extension only sends over the waveform data for that signal that is being rendered. This is important for my future plans in supporting larger waveform files like what would be found in FSDBs. If we only load into mmory what is actually in the viewer, we're not going to run into memory issues.
+There are 2 main parts to this extesnion: The VScode Extension (src/web/extension.ts) and the webview component (media/extension.js and media/clusterize_mod.js) They communicate via a messaging interface: `webview.postMessage()` and `vscode.postMessage()` on the extension and webview side respectively. This is mainly used for setting up the webview, and for adding and removing signals from the viewer. It's important to note that when a signal is rendered in the webview, the extension only sends over the waveform data for that signal that is being rendered. This is important for my future plans in supporting larger waveform files. If we only load into memory what is actually in the viewer, we're not going to run into memory issues.
 
 ## The extension
 
-The extension uses several VScode API elements, which can be read up on in the API documentation: https://code.visualstudio.com/api/references/vscode-api#TreeItem
+The extension uses several VScode API elements, which can be read up on in the [API documentation](https://code.visualstudio.com/api/references/vscode-api)
 
 - Activity Bar/View Container
 - Views
-  - "Netlist"
-  - "Displayed Signals"
+  - Tree View
+  - Tree Item
 - Custom Readonly Editor
 - Webview
 
@@ -41,7 +41,7 @@ The extension uses several VScode API elements, which can be read up on in the A
 
 The data structures of this extension really are the key to making it work as well as it does. So I have outlined a summary of the prominent data structures in this extension, and I will also go over why they're laid out the way they are.
 
-I'll state the obvious first, and say that VCD is good for really only one thing; and that is being easy enough to understand at first glance, so that fools like myself can take a look at it and think "I could write a waveform viewer. How hard can it be?" Everything else, it's pretty terrible at. It's not memory efficient since it's plaintext, and it's not easily searchable. At the end of the day, a waveform dump is a sparsely populated data set. It is written in time, but accessed on a per signal basis.
+I'll state the obvious first, and say that VCD is good for really only one thing; and that is being easy enough to understand at first glance, so that fools like myself can take a look at it and think "I could write a waveform viewer. How hard can it be?" Everything else, it's pretty terrible at. It's not memory efficient since it's plaintext, and it's not easily searchable or easily queryable. At the end of the day, a waveform dump is a sparsely populated data set. It is written in time, but accessed on a per signal basis.
 
 This means that for VCD files, I have to parse the whole document to extract the waveform data. I take a very naiive approach to parsing VCD files, and there is definitely some obvious room for improvement here if anyone wants to give it a shot. I wouldn't call it a low hanging fruit, but it's not like you're rewriting LLVM either.
 
@@ -59,30 +59,38 @@ This means that for VCD files, I have to parse the whole document to extract the
   - selectedSignalStatusBarItem: vscode.StatusBarItem
   - activeWebview: vscode.WebviewPanel
   - activeDocument: VaporviewDocument (extends vscode.Disposable implements vscode.CustomDocument)
-    - _uri: vscode.Uri
-    - _netlistTreeDataProvider: NetlistTreeDataProvider
-      - treeData: NetlistItem[] (extends vscode.TreeItem)
-    - _displayedSignalsTreeDataProvider: DisplayedSignalsViewProvider
-      - treeData: NetlistItem[] (extends vscode.TreeItem)
-    - _netlistTable: Map<NetlistId, NetlistlIdRef>
-      - netlistItem: NetlistItem
-      - displayedItem: NetlistItem
-      - signalId: string
-    - _delegate: VaporviewDocumentDelegate
-    - _documentData: WaveformTop
-      - metadata:   WaveformTopMetadata
-        - timeEnd: number
-        - filename: string
-        - chunkTime: number
-        - chunkCount: number
-        - timeScale: number
-        - defaultZoom: number
-        - timeUnit: string
-      - netlistElements: Map<SignalId, SignalWaveform>
-        - signalWidth: number
-        - chunkStart: number[]
-        - transitionData: TransitionData[]
-          - [time: number, value: number | string]
+  - netlistViewSelectedSignals: NetlistItem[]
+  - displayedSignalsViewSelectedSignals: NetlistItem[]
+  - webviews: webviewCollection()
+    - numWebviews: number
+    - resource: string
+    - webviewPanel: vscode.WebviewPanel;
+
+- VaporviewDocument extends vscode.Disposable implements vscode.CustomDocument
+  - _uri: vscode.Uri
+  - _netlistTreeDataProvider: NetlistTreeDataProvider
+    - treeData: NetlistItem[] (extends vscode.TreeItem)
+  - _displayedSignalsTreeDataProvider: DisplayedSignalsViewProvider
+    - treeData: NetlistItem[] (extends vscode.TreeItem)
+  - _netlistTable: Map<NetlistId, NetlistlIdRef>
+    - netlistItem: NetlistItem
+    - displayedItem: NetlistItem
+    - signalId: string
+  - _delegate: VaporviewDocumentDelegate
+  - _documentData: WaveformTop
+    - metadata:   WaveformTopMetadata
+      - timeEnd: number
+      - filename: string
+      - chunkTime: number
+      - chunkCount: number
+      - timeScale: number
+      - defaultZoom: number
+      - timeUnit: string
+    - netlistElements: Map<SignalId, SignalWaveform>
+      - signalWidth: number
+      - chunkStart: number[]
+      - transitionData: TransitionData[]
+        - [time: number, value: number | string]
 
 - NetlistItem (extends vscode.TreeItem)
   - label: string
@@ -101,11 +109,11 @@ This means that for VCD files, I have to parse the whole document to extract the
 
 When parsing a VCD file, the data is stored in a `WaveformTop` class (which stores the metadata and a `SignalWaveform` hash table,) and in a `NetlistTreeDataProvider` class, which maintains netlist topology. This might seem weird at first, but we really only need to know the netlist topology for the `TreeView`. But since multiple `TreeItem` elements can reference the same `SignalWaveform` data, they are stored as separate structures.
 
-We have to store a copy of each treeview for each document that's open so that if a user wants to open up multiple documents, we can repopulate the treeview according to its respective document. In the future, I plan to add support for larger files that can't necissarily be completely loaded into memory _whenever the vscode team decides to support fs.read()_. When this feature gets added, I will read the file in chunks, but I will stil need to load in the full netlist. But that doesn't consume a ton of memory, so it won't be a problem. THen this way, it can reference back to which signal data to load into memory when reading the file.
+We have to store a copy of each treeview for each document that's open so that if a user wants to open up multiple documents, we can repopulate the treeview according to its respective document. In the future, I plan to add support for larger files that can't necissarily be completely loaded into memory _whenever the vscode team decides to support fs.read()_. When this feature gets added, I will read the file in chunks, but I will stil need to load in the full netlist. But that doesn't consume a ton of memory, so it won't be a problem. Then this way, it can reference back to which signal data to load into memory when reading the file.
 
-To tie these structures together, we have a `netlistTable`. This is a hash table with a `netlistId` that we create using a low budget hashing algorithm on the full module path and name. This `netlistId` becomes a key to reference a pointer to the tree items, as well as `signalId` key to the `netlistElements` structure to get the transition data. Unfortunately, multiple `netlistId`'s can point to the same `signalId` so we need to have 2 sets of keys. I learned this the hard way, because I originally used just a `signalId`, and it caused some really weird and annoying bugs!
+To tie these structures together, I should probably explain what a `SignalId` and a `NetlistId` are. A SignalId is essentially a hash of the signal name and module path, and it refers back to the `NetlistItems` in the `NetlistTreeDataProvider` as well as the `SignalId` The `SignalId` is what's actually used in the .vcd file. I create the `netlistId` with a low budget hashing algorithm. Unfortunately, multiple `netlistId`'s can point to the same `signalId` so we need to have 2 sets of keys. I learned this the hard way, because I originally used just a `signalId`, and it caused some really weird and annoying bugs!
 
-Once the metadata and netlist are parsed, we start parsing the transition data. This is where things get a little weird. See, for ease of rendering, I made it such that everything is in chunks. This way, we don't actually have to render the entire waveform. Since the actual HTML components of a waveform consume a non-trivial amount of data, we can dynamically render as we scroll. This isn't a big deal for smaller waveforms, but it is for larger waveforms. Maybe it's premature optimization, I don't know.
+Once the metadata and netlist are parsed, we start parsing the transition data. This is where things get a little weird. See, for ease of rendering, I made it such that everything is in chunks. This way, we don't actually have to render the entire waveform. Since the actual HTML components of a waveform consume a non-trivial amount of memory, we can dynamically render as we scroll. This isn't a big deal for smaller waveforms, but it is for larger waveforms. Maybe it's premature optimization, I don't know.
 
 The signal data has some metadata elements such as the `signalWidth`. But all of the `transitionData` is stored as a flat array of transitions. Each transition is essentially a time and a value. The value is stored as a binary string (this could be improved, but remember that 4 state logic exists, and signals can be arbitrarily wide.) Now you might cringe at the idea of a flat array for this, but before coming to me with your whizbang idea of how to re-implement this, first consider how javascript implements large arrays under the hood! To assist in all of this, we also have an array called `chunkStart`. This is a lookup table of the start index of each time chunk so that we can slice the array as necessary to get the initial state and transitions of a particular chunk.
 
@@ -122,7 +130,7 @@ As you might imagine, a waveform viewer requires a lot of custom UI elements tha
 3. It needs to follow suit with the VScode design language where posible
 4. It needs look and feel familiar to both VScode and other waveform viewers (like Verdi or GTKwave)
 
-for pretty much everything, I used the same colors and fonts as per the VScode theme so that it adapts to changing color themes. Since some themes have colors for things that other themes don't (like high contrast themes) it was actually surprisingly difficult to find the right color for everything. Annoyingly enough, the color thme text colors are not defined in the CSS! I wanted to use the numerical value color (that pastel green on the default thme) as the color of the waveforms. It looks good, but I want it to follow the color theme (which it doesn't)
+for pretty much everything, I used the same colors and fonts as per the VScode theme so that it adapts to changing color themes. Since some themes have colors for things that other themes don't (like high contrast themes) it was actually surprisingly difficult to find the right color for everything. Annoyingly enough, the color thme token colors are not defined in the CSS, and I wasn't able to find out how to grab them. I know how to use an `onDIdChangeActiveColorTheme()` event, but not how to actually get the token colors. If anyone knows how to get them, let me know! I wanted to use the numerical value color (that pastel green on the default theme) as the color of the waveforms. It looks good, but I want it to follow the color theme (which it doesn't quite do.)
 
 ## How it all gets rendered
 
@@ -142,7 +150,7 @@ As alluded to earlier in the data structures overview, the waveforms are rendere
 
 Since it can take longer than 1 frame's worth of time to generate the HTML and parse it, I render the waveform content asyncronously. This was more challenging than I had initially imagined, and it might still have a few bugs. But in essence, the basic chunk element (the chunk with the ruler) is dynamically fetched and rendered, and everything else is asynchronously rendered, yeilding to a `requestAnimationFrame()` so that the scrolling is smooth, but the content can be rendered a few frames later.
 
-THere's a mutationObserver that checks the rendered content for changed chunks, and then calls `renderWaveformsAsync()` to insert the waveforms into their respective elements. The hard part in all of this, was when updates were done before a chunk finished rendering. For this, I had to add an `abortFlag` to each chunk, that when set, the `renderWaveformsAsync()` function knows to stop, and a garbage collection function to remove all chunks that are not in the cache.
+There's a mutationObserver that checks the rendered content for changed chunks, and then calls `renderWaveformsAsync()` to insert the waveforms into their respective elements. The hard part in all of this, was when updates were done before a chunk finished rendering. For this, I had to add an `abortFlag` to each chunk, that when set, the `renderWaveformsAsync()` function knows to stop, and a garbage collection function to remove all chunks that are not in the cache.
 
 ### The anatomy of a chunk
 
@@ -170,6 +178,8 @@ binary waveform elements are SVG lines that are drawn and scaled to fit in the c
 
 - `binaryElementFromTransitionData()`
 - `polylinePathFromTransitionData()`
+
+Unfortunately, there seems to be a bug in chromium, where the SVG polylines aren't scaled properly at some display zoom levels. This causes gaps in the line between chunks when zoomed in really far. This is probably due to weird floating point math errors, but the workaround I have proposed is to change to a different zoom level.
 
 ### bus waveform elements
 
@@ -239,6 +249,7 @@ Here are some of the important structures for the viewer:
 - #transition-display-container: scroll
 - #scrollArea: scroll
 - #scrollArea: wheel
+- window: resize
 
 ### Handle selection of markers and signals
 - #scrollArea: click

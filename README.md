@@ -111,17 +111,17 @@ This unfortunately seems to be an issue with the Chromium renderer (which is wha
 
 # Release Notes and development roadmap
 
-## 0.9.5 (Current Pre-release)
+## 0.9.5 - Release Candidate
 
 Supports all the features you would expect including signal placing, rearranging, marker handling, saving/loading viewer settings, and exporting selection to WaveDrom!
 
 ## 1.0 - Marketplace launch
 
-Get more coverage, from users like you. There may be bugs, so please report them on the github discussions so I can fix them before launching them to the marketplace! In the meantime, I'll be refining the documentation.
+Get more coverage, from users like you. There may be bugs, so please report them on the [github discussions](https://github.com/Lramseyer/vaporview/discussions) so I can fix them before launching them to the marketplace!
 
 ## Beyond 1.0
 
-In no particular order of priority, here's a list of features that are on my radar. If you have any preferences as to which should be priorized, or a suggestion that is not on this list, leave a comment on the github discussions!
+In no particular order of priority, here's a list of features that are on my radar. If you have any preferences as to which should be priorized, or a suggestion that is not on this list, leave a comment on the [github discussions](https://github.com/Lramseyer/vaporview/discussions)!
 
 - Rewrite compute intensive components in Web Assembly for smoother performance
 - Add support for Enums
@@ -141,7 +141,7 @@ I originally built this because I work for an FPGA company. I wanted a good _fre
 
 This is and always will be open source. It's free to use for personal and professional use. There never will be feature regression in favor of a premium tier. In other words, every feature that is currently included, or on the roadmap will be free and open source. Adaptations of the source code completely or even in part for other projects is only allowed _if_ the project is also free and open source. Adaptations of the source code completely or in part for enterprise software is not allowed _unless_ prior written permission is given by the owner of this project. Though I am open to offers.
 
-This extension was written by one person, with a full time job that doesn't involve anything to do with writing javascript or typescript. If you would like to see a feature added or functionality changed, or better yet, if you would like to help contribute please visit the github repository and discuss there!
+This extension was written by one person, with a full time job that doesn't involve anything to do with writing javascript or typescript. If you would like to see a feature added or functionality changed, or better yet, if you would like to help contribute please visit the [github repository](https://github.com/Lramseyer/vaporview) and discuss there!
 
 # Acknowledgements
 

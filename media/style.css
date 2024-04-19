@@ -427,8 +427,8 @@ body {
 }
 
 .binary-waveform-svg {
-  overflow-y: hidden;
   overflow-x: visible;
+  overflow-y: clip;
 }
 
 .binary-waveform-svg polyline {

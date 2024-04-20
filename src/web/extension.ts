@@ -1504,7 +1504,9 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
 
   waveformDataSet.metadata.timeEnd = currentTimestamp + 1;
   signalValues.forEach((initialState, signalId) => {
-    waveformDataSet.addTransitionData(signalId, [currentTimestamp, "x"], initialState);
+    const postState   = 'X';
+    const signalWidth = waveformDataSet.netlistElements.get(signalId)?.signalWidth || 1;
+    waveformDataSet.addTransitionData(signalId, [currentTimestamp, postState.repeat(signalWidth)], initialState);
   });
 
   // Update the Netlist view with the parsed netlist data

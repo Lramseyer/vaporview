@@ -388,6 +388,7 @@ body {
 
 .waveform-chunk {
   display:     flex;
+  position: relative;
   align-items: center;
   height: var(--waveform-height);
   box-sizing: border-box;
@@ -404,15 +405,8 @@ body {
   width: inherit;
   overflow: hidden;
   user-select: none;
-  -webkit-mask-image: url(diamond.svg);
-  mask-image: url(diamond.svg);
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  background-position-y: center;
   justify-content: right;
-  background-repeat: no-repeat;
   height: var(--svg-height);
-  background-color: var(--vscode-debugTokenExpression-number);
 }
 
 .bus-waveform-value p {
@@ -429,6 +423,11 @@ body {
 .binary-waveform-svg {
   overflow-x: visible;
   overflow-y: clip;
+}
+
+.bus-waveform-svg {
+  position: absolute;
+  overflow: hidden;
 }
 
 .binary-waveform-svg polyline {

@@ -111,7 +111,7 @@ This unfortunately seems to be an issue with the Chromium renderer (which is wha
 
 # Release Notes and development roadmap
 
-## 0.9.5 - Release Candidate
+## 0.9.6 - Release Candidate
 
 Supports all the features you would expect including signal placing, rearranging, marker handling, saving/loading viewer settings, and exporting selection to WaveDrom!
 

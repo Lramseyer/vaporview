@@ -19,12 +19,12 @@ parseValue = function (binaryString, width, is4State) {
   // If number format is hexadecimal
   if (numberFormat === 16) {
     if (is4State) {
-      stringArray = binaryString.replace(/\B(?=(\d{4})+(?!\d))/g, "_").split("_");
+      stringArray = binaryString.replace(/\B(?=(.{4})+(?!.))/g, "_").split("_");
       return stringArray.map((chunk) => {
         if (chunk.match(/[zZ]/)) {return "Z";}
         if (chunk.match(/[xX]/)) {return "X";}
         return parseInt(chunk, 2).toString(numberFormat);
-      }).join('').replace(/\B(?=(\d{4})+(?!\d))/g, "_");
+      }).join('').replace(/\B(?=(.{4})+(?!.))/g, "_");
     } else {
       stringArray = binaryString.replace(/\B(?=(\d{16})+(?!\d))/g, "_").split("_");
       return stringArray.map((chunk) => {
@@ -55,96 +55,150 @@ valueIs4State = function (value) {
 
 // This function actually creates the individual bus elements, and has can
 // potentially called thousands of times during a render
-busElement = function (flexWidth, transition, backgroundPositionX, backgroundSizeX, deltaTime, spansChunk, signalWidth, textWidth) {
-  const value            = transition[1];
-  const backgroundWidth  = backgroundSizeX * zoomRatio;
-  const is4State         = valueIs4State(value);
-  const color            = is4State ? 'background-color:var(--vscode-debugTokenExpression-error)' : '';
-  const totalWidth       = deltaTime * zoomRatio;
-  const initialTime      = transition[0];
+busElement = function (time, deltaTime, displayValue, spansChunk, textWidth, leftOverflow, rightOverflow) {
   let pElement           = '';
   let justifyDirection   = '';
+  let textOffset         = 0;
+  const totalWidth       = deltaTime * zoomRatio; 
+  let flexWidthOverflow  = 0;
 
-  // Don't even bother rendering text if the element is too small. Since 
-  // there's an upper limit to the number of larger elements that will be 
-  // displayed, we can spend a little more time rendering them and making them
-  // readable in all cases.
-  if (totalWidth > 10) {
-    const displayValue = parseValue(value, signalWidth, is4State);
-    let textOffset     = 0;
+  if (totalWidth > textWidth) {
+    justifyDirection = 'justify-content: center';
+  }
 
-    if (totalWidth > textWidth) {
-      justifyDirection = 'justify-content: center';
+  // If the element spans the chunk boundary, we need to center the text
+  if (spansChunk) {
+    justifyDirection  = 'justify-content: center';
+    if (totalWidth < textWidth) {
+      textOffset = ((totalWidth - textWidth) / 2) - 5;
     }
+    textOffset       += ((leftOverflow + rightOverflow) / 2) * zoomRatio;
+    flexWidthOverflow = rightOverflow - leftOverflow;
+  }
 
-    // If the element spans the chunk boundary, we need to center the text
-    if (spansChunk) {
-      justifyDirection  = 'justify-content: center';
-      let leftOverflow  = Math.min(initialTime, 0);
-      let rightOverflow = Math.max(initialTime + deltaTime - chunkTime, 0);
-      if (totalWidth < textWidth) {
-        textOffset = ((totalWidth - textWidth) / 2) - 5;
+  if (displayValue === "X") {
+    console.log(textOffset + " " + totalWidth);
+  }
+
+  let flexWidth    = deltaTime - flexWidthOverflow;
+  let elementWidth = flexWidth * zoomRatio;
+
+  // If the element is too wide to fit in the viewer, we need to display
+  // the value in multiple places so it's always in sight
+  if (totalWidth > viewerWidth) {
+    // count the number of text elements that will be displayed 1 viewer width or 1 text width + 20 px (whichever is greater) in this state
+    let renderInterval = Math.max(viewerWidth, textWidth + 20);
+    let textCount      = 1 + Math.floor((totalWidth - textWidth) / renderInterval);
+    // figure out which ones are in the chunk and where they are relative to the chunk boundary
+    let firstOffset    = Math.min(time * zoomRatio, 0) + ((totalWidth - ((textCount - 1) * renderInterval)) / 2);
+    let lowerBound     = -0.5 * (textWidth + elementWidth);
+    let upperBound     =  0.5 * (textWidth + elementWidth);
+    let textPosition   = firstOffset - (0.5 * elementWidth);
+    let offsetStart    = Math.floor((lowerBound - firstOffset) / renderInterval);
+
+    for (let i = offsetStart; i < textCount; i++) {
+      if (textPosition >= lowerBound) {
+        if (textPosition > upperBound) {break;}
+        pElement += `<p style="left:${textPosition}px">${displayValue}</p>`;
       }
-      textOffset       += ((leftOverflow + rightOverflow) / 2) * zoomRatio;
+      textPosition += renderInterval;
     }
-
-    // If the element is too wide to fit in the viewer, we need to display
-    // the value in multiple places so it's always in sight
-    if (totalWidth > viewerWidth) {
-      // count the number of text elements that will be displayed 1 viewer width or 1 text width + 20 px (whichever is greater) in this state
-      let elementWidth   = flexWidth * zoomRatio;
-      let renderInterval = Math.max(viewerWidth, textWidth + 50);
-      let textCount      = 1 + Math.floor((totalWidth - textWidth) / renderInterval);
-      // figure out which ones are in the chunk and where they are relative to the chunk boundary
-      let firstOffset    = Math.min(transition[0] * zoomRatio, 0) + ((totalWidth - ((textCount - 1) * renderInterval)) / 2);
-      let lowerBound     = -0.5 * (textWidth + elementWidth);
-      let upperBound     =  0.5 * (textWidth + elementWidth);
-      let textPosition   = firstOffset - (0.5 * elementWidth);
-      let offsetStart    = Math.floor((lowerBound - firstOffset) / renderInterval);
-
-      for (let i = offsetStart; i < textCount; i++) {
-        if (textPosition >= lowerBound) {
-          if (textPosition > upperBound) {break;}
-          pElement += `<p style="left:${textPosition}px">${displayValue}</p>`;
-        }
-        textPosition += renderInterval;
-      }
-    } else {
-      pElement = `<p style="left:${textOffset}px">${displayValue}</p>`;
-    }
+  } else {
+    pElement = `<p style="left:${textOffset}px">${displayValue}</p>`;
   }
   
-  const divTag  = `<div class="bus-waveform-value" style="flex:${flexWidth};-webkit-mask-position:${backgroundPositionX * zoomRatio}px;-webkit-mask-size:${backgroundWidth}px;${color};${justifyDirection}">`;
+  const divTag  = `<div class="bus-waveform-value" style="flex:${flexWidth};${justifyDirection}">`;
   return `${divTag}${pElement}</div>`;
 };
 
 busElementsfromTransitionData = function (transitionData, initialState, postState, signalWidth, textWidth) {
-  let backgroundPositionX = Math.max(initialState[0], -1 * chunkTime);
-  let result       = [];
-  let initialTime  = 0;
-  let initialValue = initialState;
-  let flexWidth;
-  let backgroundSizeX;
-  let deltaTime;
-  let spansChunk    = true;
 
-  transitionData.forEach((transition) => {
-    flexWidth       = transition[0] - initialTime;
-    backgroundSizeX = (flexWidth - backgroundPositionX);
-    deltaTime       = (transition[0] - initialValue[0]);
-    result.push(busElement(flexWidth, initialValue, backgroundPositionX, backgroundSizeX, deltaTime, spansChunk, signalWidth, textWidth));
-    spansChunk          = false;
-    initialTime         = transition[0];
-    initialValue        = transition;
-    backgroundPositionX = 0;
-  });
-  spansChunk      = true;
-  deltaTime       = postState[0] - initialValue[0];
-  flexWidth       = chunkTime - initialTime;
-  backgroundSizeX = (Math.min(postState[0], 2 * chunkTime) - initialTime) - backgroundPositionX;
+  let elementWidth;
+  let is4State;
+  let value           = initialState[1];
+  let time            = initialState[0];
+  let emptyDivWidth   = 0;
+  let xPosition       = 0;
+  let yPosition       = 0;
+  let points          = [];
+  let endPoints       = [];
+  let xzValues        = [];
+  let textElements    = [];
+  let spansChunk      = true;
+  const minDrawWidth  = 12 / zoomRatio;
+  let leftOverflow    = Math.min(initialState[0], 0);
+  const rightOverflow = Math.max(postState[0] - chunkTime, 0);
 
-  result.push(busElement(flexWidth, initialValue, backgroundPositionX, backgroundSizeX, deltaTime, spansChunk, signalWidth, textWidth));
-  return result.join('');
+  for (let i = 0; i < transitionData.length; i++) {
+    points.push(time + ',0');
+    endPoints.push(time + ',0');
+    is4State     = valueIs4State(value);
+    elementWidth = transitionData[i][0] - time;
+    xPosition    = (elementWidth / 2) + time;
+    yPosition    =  elementWidth * 2;
+    if (is4State) {
+      xzValues.push(`<polyline fill="var(--vscode-debugTokenExpression-error)" points="0,${time} ${xPosition},${yPosition} ${transitionData[i][0]},0 ${xPosition},-${yPosition}"/>`);
+    } else {
+      points.push(xPosition + ',' + yPosition);
+      endPoints.push(xPosition + ',-' + yPosition);
+    }
+
+    // Don't even bother rendering text if the element is too small. Since 
+    // there's an upper limit to the number of larger elements that will be 
+    // displayed, we can spend a little more time rendering them and making them
+    // readable in all cases.
+    // We group the empty text elements that are too small to render together to
+    // reduce the number of DOM operations
+    if (elementWidth > minDrawWidth) {
+      if (emptyDivWidth > 0) {
+        textElements += `<div class="bus-waveform-value" style="flex:${emptyDivWidth};"></div>`;
+      }
+      emptyDivWidth = 0;
+      textElements += busElement(time, elementWidth, parseValue(value, signalWidth, is4State), spansChunk, textWidth, leftOverflow, 0);
+    } else {
+      emptyDivWidth += elementWidth + leftOverflow;
+    }
+
+    spansChunk   = false;
+    leftOverflow = 0;
+    time         = transitionData[i][0];
+    value        = transitionData[i][1];
+  }
+
+  points.push(time + ',0');
+  endPoints.push(time + ',0');
+  elementWidth = postState[0] - time;
+  xPosition    = (elementWidth / 2) + time;
+  is4State     = valueIs4State(value);
+  if (is4State) {
+    xzValues.push(`<polyline fill="var(--vscode-debugTokenExpression-error)" points="${time},0 ${xPosition},${elementWidth * 2} ${postState[0]},0 ${xPosition},-${elementWidth * 2}"/>`);
+  } else {
+    points.push(xPosition + ',' + elementWidth * 2);
+    points.push(postState[0] + ',0');
+    endPoints.push(xPosition + ',-' + elementWidth * 2);
+  }
+
+  if (elementWidth > minDrawWidth) {
+    if (emptyDivWidth > 0) {
+      textElements += `<div class="bus-waveform-value" style="flex:${emptyDivWidth};"></div>`;
+    }
+    emptyDivWidth = 0;
+    textElements += busElement(time, elementWidth, parseValue(value, signalWidth, is4State), true, textWidth, leftOverflow, rightOverflow);
+  } else {
+    emptyDivWidth += elementWidth + leftOverflow - rightOverflow;
+    textElements += `<div class="bus-waveform-value" style="flex:${emptyDivWidth};"></div>`;
+  }
+
+  let polyline      = points.concat(endPoints.reverse()).join(' ');
+  const svgHeight   = 20;
+  const gAttributes = `stroke="none" transform="scale(${zoomRatio})"`;
+  const polylineAttributes = `fill="var(--vscode-debugTokenExpression-number)"`;
+  let result = '';
+  result += `<svg height="${svgHeight}" width="${chunkWidth}" viewbox="0 -10 ${chunkWidth} ${svgHeight}" class="bus-waveform-svg">`;
+  result += `<g ${gAttributes}><polyline ${polylineAttributes} points="${polyline}"/>${xzValues.join("")}</g></svg>`;
+  result += textElements;
+
+  return result;
 };
 
 polylinePathFromTransitionData = function (transitionData, initialState, polylineAttributes) {
@@ -154,14 +208,14 @@ polylinePathFromTransitionData = function (transitionData, initialState, polylin
   var initialValue2state = initialValue;
   var initialTime        = Math.max(initialState[0], -10);
   var xzAccumulatedPath = "";
-  if (initialValue === "x" | initialValue === "z") {
+  if (valueIs4State(initialValue)) {
     xzAccumulatedPath = "-1,0 -1,1 ";
     initialValue2state = 0;
   }
   var accumulatedPath    = "-1," + initialValue2state + " ";
 
   transitionData.forEach(([time, value]) => {
-    if (initialValue === "x" | initialValue === "z") {
+    if (valueIs4State(initialValue)) {
       deltaTime          = time - initialTime;
       xzPolylines.push(`<rect x="${initialTime}" y="0" height="1" width="${deltaTime}" stroke="var(--vscode-debugTokenExpression-error)"/>`);
       initialValue2state = 0;
@@ -169,14 +223,14 @@ polylinePathFromTransitionData = function (transitionData, initialState, polylin
 
     accumulatedPath += time + "," + initialValue2state + " ";
 
-    if (value === "x" | value === "z") {accumulatedPath += time + "," + 0 + " ";}
-    else                               {accumulatedPath += time + "," + value + " ";}
+    if (valueIs4State(value)) {accumulatedPath += time + "," + 0 + " ";}
+    else                      {accumulatedPath += time + "," + value + " ";}
 
     initialTime        = time;
     initialValue       = value;
     initialValue2state = value;
   });
-  if (initialValue === "x" | initialValue === "z")  {
+  if (valueIs4State(initialValue))  {
     deltaTime = chunkTime - initialTime + 10;
     xzPolylines.push(`<rect x="${initialTime}" y="0" height="1" width="${deltaTime}" stroke="var(--vscode-debugTokenExpression-error)"/>`);
     initialValue2state = 0;
@@ -313,12 +367,14 @@ createValueDisplayElement = function (netlistId, value, isSelected) {
   const selectorClass = isSelected ? 'is-selected' : 'is-idle';
   const joinString    = '<p style="color:var(--vscode-foreground)">-></p>';
   const width         = netlistData[netlistId].signalWidth;
-  const displayValue  = value.map(v => {
-    return parseValue(v, width, valueIs4State(v));
+  const pElement      = value.map(v => {
+    const is4State     = valueIs4State(v);
+    const color        = is4State ? 'style="color:var(--vscode-debugTokenExpression-error)"' : '';
+    const displayValue = parseValue(v, width, is4State);
+    return `<p ${color}>${displayValue}</p>`;
   }).join(joinString);
 
-  return `<div class="waveform-label ${selectorClass}" id="value-${netlistId}" ${vscodeContext}>
-            <p>${displayValue}</p></div>`;
+  return `<div class="waveform-label ${selectorClass}" id="value-${netlistId}" ${vscodeContext}>${pElement}</div>`;
 };
 
 getValueTextWidth = function (width, numberFormat) {

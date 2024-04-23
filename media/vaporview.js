@@ -61,10 +61,15 @@ busElement = function (time, deltaTime, displayValue, spansChunk, textWidth, lef
   let textOffset         = 0;
   const totalWidth       = deltaTime * zoomRatio; 
   let flexWidthOverflow  = 0;
+  //const characterWidth   = 7.69;
 
   if (totalWidth > textWidth) {
     justifyDirection = 'justify-content: center';
   }
+  //else {
+    //let slice = charCount - Math.max(0, (Math.floor(totalWidth / characterWidth) - 1));
+    //displayValue = '*' + displayValue.slice(slice);
+  //}
 
   // If the element spans the chunk boundary, we need to center the text
   if (spansChunk) {
@@ -74,10 +79,6 @@ busElement = function (time, deltaTime, displayValue, spansChunk, textWidth, lef
     }
     textOffset       += ((leftOverflow + rightOverflow) / 2) * zoomRatio;
     flexWidthOverflow = rightOverflow - leftOverflow;
-  }
-
-  if (displayValue === "X") {
-    console.log(textOffset + " " + totalWidth);
   }
 
   let flexWidth    = deltaTime - flexWidthOverflow;
@@ -432,7 +433,6 @@ handleZoom = function (amount, adjustScroll) {
   if (updatePending) {return;}
   if (amount === 0) {return;}
 
-  
   const newZoomRatio  = zoomRatio * Math.pow(2, (-1 * amount));
   const centerTime    = (scrollArea.scrollLeft + (viewerWidth / 2)) / zoomRatio;
   touchpadScrollCount = 0;

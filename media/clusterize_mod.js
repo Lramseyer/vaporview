@@ -38,16 +38,16 @@
     // private parameters
     var columns          = data.columns,
         leftRightOffsets = [],
-        scrollLeft       = self.scrollElement.scrollLeft;
+        scrollLeft       = self.scrollElement.scrollLeft,
+        lastCluster      = [0, 0];
 
     // append initial data and restore the scroll position
     self.getChunksWidth(columns);
-    self.insertToDOM(columns, leftRightOffsets);
+    self.insertToDOM(leftRightOffsets, self.getBlockNum(columns));
     self.scrollElement.scrollLeft = scrollLeft;
 
     // adding scroll handler
-    var lastCluster        = [0, 0],
-        scrollDebounce     = 0,
+    var scrollDebounce     = 0,
         pointerEventsSet   = false,
         scrollEvInProgress = false,
 
@@ -71,7 +71,7 @@
       self.options.callbacks.scrollingProgress(self.getScrollProgress());
       let currentCluster = self.getBlockNum(columns);
       if (lastCluster[0] !== currentCluster[0] || lastCluster[1] !== currentCluster[1]) {
-        self.insertToDOM(columns, leftRightOffsets, currentCluster);
+        self.insertToDOM(leftRightOffsets, currentCluster);
       }
       lastCluster        = currentCluster;
       scrollEvInProgress = false;
@@ -99,15 +99,13 @@
         self.scrollElement.scrollLeft = 0;
         lastCluster = [0, 0];
       }
-      self.insertToDOM(columns, leftRightOffsets);
+      self.insertToDOM(leftRightOffsets, self.getBlockNum(columns));
       self.scrollElement.scrollLeft = scrollLeft;
     };
     self.getScrollProgress = function() {
       return self.scrollElement.scrollLeft / ((columns.length * self.options.columnWidth) - self.options.viewportWidth) || 0;
     };
-    self.render  = function()           {self.insertToDOM(columns,                    leftRightOffsets);};
-    self.append  = function(newColumns) {self.insertToDOM(columns.concat(newColumns), leftRightOffsets);};
-    self.prepend = function(newColumns) {self.insertToDOM(newColumns.concat(columns), leftRightOffsets);};
+    self.render  = function()           {self.insertToDOM(leftRightOffsets, self.getBlockNum(columns));};
     self.setChunkHeight = function(height) {self.options.chunkHeight = `${height} + px`;};
   };
 
@@ -125,52 +123,37 @@
       opts.clusterWidth     = opts.blocksInCluster * opts.blockWidth;
     },
     getBlockNum: function () {
-      var opts           = this.options;
-      const leftOffset   = this.scrollElement.scrollLeft + opts.viewportWidth / 2;
-      const blockNum     = leftOffset / opts.blockWidth;
+      const opts         = this.options;
+      const scrollCenter = this.scrollElement.scrollLeft + opts.viewportWidth / 2;
+      const blockNum     = scrollCenter / opts.blockWidth;
       const minColumnNum = Math.max(Math.round(blockNum - (opts.blocksInCluster / 2)), 0) * opts.columnsInBlock;
       const maxColumnNum = Math.min(Math.round(blockNum + (opts.blocksInCluster / 2)) * opts.columnsInBlock, opts.columnCount);
       return [minColumnNum, maxColumnNum];
     },
     // if necessary verify data changed and insert to DOM
-    insertToDOM: function(columns, leftRightOffsets, cluster) {
-      var opts          = this.options,
-          columnsLength = columns.length,
-          leftOffset    = 0,
-          rightOffset   = 0,
-          columnsBefore = 0,
-          itemsStart    = 0,
-          itemsEnd      = columnsLength,
-          newColumns    = columnsLength ? columns : opts.emptyColumn;
-      if (columnsLength <= opts.columnsInCluster) {
-        newColumns = this.options.callbacks.fetchColumns(itemsStart, itemsEnd);
-      } else {
-        if (!cluster) {cluster = this.getBlockNum();}
-        itemsStart    = Math.min(cluster[0], (opts.columnCount - opts.columnsInCluster) + (opts.columnsInBlock % opts.columnCount));
-        itemsEnd      = Math.max(cluster[1], opts.columnsInCluster);
-        leftOffset    = Math.max(itemsStart * opts.columnWidth, 0);
-        rightOffset   = Math.max((columnsLength - itemsEnd) * opts.columnWidth, 0);
-        newColumns    = this.options.callbacks.fetchColumns(itemsStart, itemsEnd);
-        columnsBefore = itemsStart;
-        if (leftOffset < 1) {columnsBefore++;}
-      }
-      const thisClusterColumns        = newColumns.join('');
-      const callbacks                 = this.options.callbacks;
-      const thisClusterContentChanged = callbacks.checkUpdatePending();
-      const leftOffsetChanged         = leftOffset  !== leftRightOffsets[0];
-      const onlyRightOffsetChanged    = rightOffset !== leftRightOffsets[1];
-      leftRightOffsets                = [leftOffset, rightOffset];
+    insertToDOM: function(leftRightOffsets, cluster) {
+      const opts                  = this.options;
+      const callbacks             = this.options.callbacks;
+      const itemsStart            = Math.max(Math.min(cluster[0], (opts.columnCount - opts.columnsInCluster) + (opts.columnsInBlock % opts.columnCount)), 0);
+      const itemsEnd              = Math.min(Math.max(cluster[1], opts.columnsInCluster), opts.columnCount);
+      const leftOffset            = opts.columnWidth * itemsStart;
+      const rightOffset           = opts.columnWidth * (opts.columnCount - itemsEnd);
+      const newColumns            = callbacks.fetchColumns(itemsStart, itemsEnd);
+      const thisClusterColumns    = newColumns.join('');
+      const clusterContentChanged = callbacks.checkUpdatePending();
+      const leftOffsetChanged     = leftOffset  !== leftRightOffsets[0];
+      const rightOffsetChanged    = rightOffset !== leftRightOffsets[1];
+      leftRightOffsets            = [leftOffset, rightOffset];
 
-      if (thisClusterContentChanged || leftOffsetChanged) {
+      if (clusterContentChanged || leftOffsetChanged) {
         callbacks.clusterWillChange(itemsStart, itemsEnd);
         this.leftSpaceElement.style.width    = leftOffset + 'px';
         this.leftSpaceElement.style.height   = this.options.chunkHeight;
         this.displayedSpaceElement.innerHTML = thisClusterColumns;
         this.rightSpaceElement.style.width   = rightOffset + 'px';
         this.rightSpaceElement.style.height  = this.options.chunkHeight;
-        //this.contentElement.style['counter-increment'] = 'clusterize-counter ' + (columnsBefore - 1);
         callbacks.clusterChanged(itemsStart, itemsEnd);
-      } else if(onlyRightOffsetChanged) {
+      } else if (rightOffsetChanged) {
         this.rightSpaceElement.style.width = rightOffset + 'px';
       }
       callbacks.clearUpdatePending();

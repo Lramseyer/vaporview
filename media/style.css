@@ -17,7 +17,7 @@ body {
   display: grid;
   height: 100%;
 
-  grid-template-rows:  32px auto;
+  grid-template-rows:  32px auto 10px;
   grid-template-columns: 150px 50px auto;
 }
 
@@ -169,7 +169,7 @@ body {
   grid-column-start: 1;
   grid-column-end: 3;
   grid-row-start: 2;
-  grid-row-end: 3;
+  grid-row-end: 4;
 }
 
 .labels-container {
@@ -185,6 +185,7 @@ body {
   grid-column-start: 1;
   grid-column-end: 2;
   grid-row-start: 2;
+  grid-row-end: 4;
 }
 
 #waveform-labels-spacer {
@@ -211,6 +212,7 @@ body {
   grid-column-start: 2;
   grid-column-end: 3;
   grid-row-start: 2;
+  grid-row-end: 4;
   color: var(--vscode-debugTokenExpression-number);
 }
 
@@ -240,14 +242,54 @@ body {
 }
 
 #scrollArea {
-  overflow: auto;
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: scroll;
   grid-column-start: 3;
   grid-row-start: 2;
+  grid-row-end: 4;
+  margin-left: 1px;
+}
+
+#scrollbarContainer {
+  position: relative;
+  grid-column-start: 3;
+  grid-row-start: 3;
   margin-left: 1px;
 }
 
 #displayedContent {
   display: inherit;
+}
+
+#contentArea {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  min-width: fit-content;
+}
+
+#contentArea:focus-visible {
+  outline: none;
+}
+
+#scrollbar {
+  position: absolute;
+  bottom : 0px;
+  left: 0px;
+
+  height: 10px;
+  width: 17px;
+  background-color: var(--vscode-scrollbarSlider-background);
+}
+
+#scrollbar:hover {
+  background-color: var(--vscode-scrollbarSlider-hoverBackground);
+}
+
+#scrollbar.is-dragging {
+  background-color: var(--vscode-scrollbarSlider-activeBackground);
 }
 
 #time-ruler {
@@ -265,17 +307,6 @@ body {
   padding-right: 5px;
   font-size: 12px;
   text-align: center;
-}
-
-#contentArea {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  min-width: fit-content;
-}
-
-#contentArea:focus-visible {
-  outline: none;
 }
 
 .ruler-chunk {
@@ -379,7 +410,8 @@ body {
 
 .ruler-tick {
   stroke:       var(--vscode-editorGhostText-foreground);
-  stroke-width: 1px;
+  stroke-dasharray: 1 9;
+  stroke-width:     5px;
 }
 
 .column-chunk {

@@ -309,28 +309,20 @@ createRulerChunk = function (chunkIndex) {
   const chunkStartTime     = chunkIndex * chunkTime;
   const chunkStartPixel    = chunkIndex * chunkWidth;
   const numberStartpixel   = -1 * (chunkStartPixel % rulerNumberSpacing);
-  const tickStartpixel     = rulerTickSpacing   - (chunkStartPixel % rulerTickSpacing) - rulerNumberSpacing;
+  const tickStartpixel     = rulerTickSpacing - (chunkStartPixel % rulerTickSpacing) - rulerNumberSpacing;
   var   numValue           = chunkStartTime + (numberStartpixel / zoomRatio);
   var   textElements       = [];
-  var   tickElements       = [];
 
   for (var i = numberStartpixel; i <= chunkWidth + 64; i+= rulerNumberSpacing ) {
     textElements.push(`<text x="${i}" y="20">${numValue * timeScale}</text>`);
     numValue += timeMarkerInterval;
   }
 
-  for (var i = tickStartpixel; i <= chunkWidth; i+= rulerTickSpacing) {
-    //tickElements.push(`<line x1="${i}" y1="30" x2="${i}" y2="35"/>`);
-    tickElements.push(`<use href="#rt" x="${i}"/>`);
-  }
-
   return `
     <div class="ruler-chunk">
       <svg height="40" width="${chunkWidth}" class="ruler-svg">
-        <symbol id="rt" viewBox="0 0 ${chunkWidth} 40"><line class="ruler-tick" x1="0" y1="30" x2="0" y2="35"/></symbol>
-        ${textElements.join('')}${tickElements.join('')}
-      </svg>
-    </div>`;
+      <line class="ruler-tick" x1="${tickStartpixel}" y1="32.5" x2="${chunkWidth}" y2="32.5"/>
+        ${textElements.join('')}</svg></div>`;
 };
 
 createBaseChunk = function (chunkIndex) {
@@ -427,14 +419,13 @@ updateChunkInCache = function (chunkIndex) {
 };
 
 // Event handler helper functions
-handleZoom = function (amount, adjustScroll) {
+handleZoom = function (amount, zoomOrigin, screenPosition) {
   // -1 zooms in, +1 zooms out
   // zoomRatio is in pixels per time unit
   if (updatePending) {return;}
   if (amount === 0) {return;}
 
   const newZoomRatio  = zoomRatio * Math.pow(2, (-1 * amount));
-  const centerTime    = (scrollArea.scrollLeft + (viewerWidth / 2)) / zoomRatio;
   touchpadScrollCount = 0;
   
   if (newZoomRatio > maxZoomRatio) {
@@ -442,22 +433,23 @@ handleZoom = function (amount, adjustScroll) {
     return;
   }
 
-  updatePending = true;
-  zoomRatio     = newZoomRatio;
-  chunkWidth    = chunkTime * zoomRatio;
+  console.log('zooming to ' + newZoomRatio + ' from ' + zoomRatio + '');
+
+  updatePending    = true;
+  zoomRatio        = newZoomRatio;
+  chunkWidth       = chunkTime * zoomRatio;
+  maxScrollLeft    = Math.round(Math.max((chunkCount * chunkWidth) - viewerWidth, 0));
+  pseudoScrollLeft = Math.max((zoomOrigin * zoomRatio) - screenPosition, 0);
 
   for (i = dataCache.startIndex; i < dataCache.endIndex; i++) {
     dataCache.columns[i] = (updateChunkInCache(i));
   }
 
-  clusterizeContent.refresh(chunkWidth);
-  //clusterizeContent.render();
+  console.log("new Scroll position: " + pseudoScrollLeft);
 
-  if (adjustScroll) {
-    scrollArea.scrollLeft = centerTime * zoomRatio - (viewerWidth / 2);
-  }
-
-  handleUpdatePending();
+  getChunksWidth();
+  updateContentArea(leftOffset, getBlockNum());
+  updateScrollbarResize();
 };
 
 // return chunks to be rendered
@@ -641,6 +633,12 @@ shallowFetchColumns = function (startIndex, endIndex) {
   let chunkIndex = startIndex;
   let shallowChunkClass;
   let idTag;
+
+  //handleClusterWillChange() :
+    console.log('aborting chunk cache outside of index ' + startIndex + ' to ' + endIndex + '');
+    console.log('chunk cache start index: ' + dataCache.startIndex + ' end index: ' + dataCache.endIndex + '');
+    //uncacheChunks(startIndex, endIndex);
+
   return dataCache.columns.slice(startIndex, endIndex).map(c => {
     let overlays  = '';
     let waveforms = "";
@@ -666,7 +664,58 @@ shallowFetchColumns = function (startIndex, endIndex) {
     c.isSafeToRemove = true;
     chunkIndex += 1;
     return result;
-  });
+  }).join('');
+};
+
+// ----------------------------------------------------------------------------
+// Modified Clusterize code
+// ----------------------------------------------------------------------------
+
+handleScrollEvent = function(newScrollLeft) {
+  const clampedScrollLeft = Math.max(Math.min(newScrollLeft, maxScrollLeft), 0);
+  contentLeft            += pseudoScrollLeft - clampedScrollLeft;
+  contentArea.style.left  = contentLeft + 'px';
+  pseudoScrollLeft        = clampedScrollLeft;
+  updateScrollBarPosition();
+  if (scrollEventPending) {return;}
+
+  console.log('scroll event');
+  scrollEventPending = true;
+  const thisCluster  = getBlockNum();
+  if (currentCluster[0] !== thisCluster[0] || currentCluster[1] !== thisCluster[1]) {
+    updateContentArea(leftOffset, thisCluster);
+    currentCluster = thisCluster;
+  }
+  scrollEventPending = false;
+};
+
+getChunksWidth = function() {
+  blockWidth       = chunkWidth      * columnsInBlock;
+  blocksInCluster  = Math.max(Math.ceil((viewerWidth / blockWidth) * 2), 2);
+  columnsInCluster = blocksInCluster * columnsInBlock;
+  clusterWidth     = blocksInCluster * blockWidth;
+};
+
+getBlockNum = function () {
+  const blockNum     = (pseudoScrollLeft + halfViewerWidth) / blockWidth;
+  const minColumnNum = Math.max(Math.round(blockNum - (blocksInCluster / 2)), 0) * columnsInBlock;
+  const maxColumnNum = Math.min(Math.round(blockNum + (blocksInCluster / 2)) * columnsInBlock, chunkCount);
+  return [minColumnNum, maxColumnNum];
+};
+
+updateContentArea = function(oldLeftOffset, cluster) {
+  //const itemsStart = Math.max(Math.min(cluster[0], (chunkCount - columnsInCluster) + (columnsInBlock % chunkCount)), 0);
+  //const itemsEnd   = Math.min(Math.max(cluster[1], columnsInCluster), chunkCount);
+  const leftHidden = chunkWidth * cluster[0];
+  if (updatePending || leftHidden !== oldLeftOffset) {
+    const newColumns       = shallowFetchColumns(cluster[0], cluster[1]);
+    contentLeft            = leftHidden - pseudoScrollLeft;
+    contentArea.style.left = contentLeft + 'px';
+    contentArea.innerHTML  = newColumns;
+    leftOffset             = leftHidden;
+    handleClusterChanged(cluster[0], cluster[1]);
+  }
+  handleUpdatePending();
 };
 
 // ----------------------------------------------------------------------------
@@ -679,15 +728,6 @@ handleClusterChanged = function (startIndex, endIndex) {
   uncacheChunks(startIndex, endIndex);
   dataCache.startIndex     = startIndex;
   dataCache.endIndex       = endIndex;
-};
-
-// Run after chunks are rendered
-handleClusterWillChange = function (startIndex, endIndex) {
-
-  console.log('aborting chunk cache outside of index ' + startIndex + ' to ' + endIndex + '');
-  console.log('chunk cache start index: ' + dataCache.startIndex + ' end index: ' + dataCache.endIndex + '');
-
-  //uncacheChunks(startIndex, endIndex);
 };
 
 handleSignalSelect = function (netlistId) {
@@ -818,7 +858,8 @@ sendWebviewContext = function (responseType) {
     selectedSignal: selectedSignal,
     displayedSignals: displayedSignals,
     zoomRatio: zoomRatio,
-    scrollLeft: scrollArea.scrollLeft,
+    //scrollLeft: scrollArea.scrollLeft,
+    scrollLeft: pseudoScrollLeft,
     numberFormat: numberFormat,
   });
 };
@@ -861,7 +902,7 @@ handleMarkerSet = function (time, markerType) {
 
   // create new marker
   if (chunkIndex >= dataCache.startIndex && chunkIndex < dataCache.endIndex) {
-    let chunkElement = displayedContent.getElementsByClassName('column-chunk')[chunkIndex - dataCache.startIndex];
+    let chunkElement = contentArea.getElementsByClassName('column-chunk')[chunkIndex - dataCache.startIndex];
     let marker       = new DOMParser().parseFromString(createTimeMarker(time, markerType), 'text/html').body.firstChild;
 
     //chunkElement.innerHTML += marker;
@@ -896,7 +937,8 @@ handleMarkerSet = function (time, markerType) {
 
 isInView = function(time) {
   const pixel      = time * zoomRatio;
-  const scrollLeft = scrollArea.scrollLeft;
+  //const scrollLeft = scrollArea.scrollLeft;
+  const scrollLeft = pseudoScrollLeft;
 
   if (pixel < scrollLeft || pixel > scrollLeft + viewerWidth) {return false;}
   else {return true;}
@@ -904,7 +946,10 @@ isInView = function(time) {
 
 moveViewToTime = function(time) {
   const moveViewer = !(isInView(time));
-  if (moveViewer) {scrollArea.scrollLeft = (time * zoomRatio) - (viewerWidth / 2);}
+  if (moveViewer) {
+    //scrollArea.scrollLeft = (time * zoomRatio) - halfViewerWidth;
+    handleScrollEvent((time * zoomRatio) - halfViewerWidth);
+  }
   return moveViewer;
 };
 
@@ -945,41 +990,54 @@ goToNextTransition = function (direction, edge) {
   rulerNumberSpacing = 100;
   rulerTickSpacing   = 10;
 
-  // state variables
+  // Scroll handler variables
+  pseudoScrollLeft    = 0;
+  contentLeft         = 0;
+  leftOffset          = 0;
+  viewerWidth         = 0;
+  halfViewerWidth     = 0;
+  maxScrollLeft       = 0;
+  maxScrollbarPosition = 0;
+  scrollbarWidth      = 17;
+  scrollbarPosition   = 0;
   touchpadScrolling   = false;
   touchpadScrollCount = 0;
-  selectedSignal      = null;
-  selectedSignalIndex = null;
-  searchState         = 0;
-  searchInFocus       = false;
-  parsedSearchValue   = null;
-  markerTime          = null;
-  markerChunkIndex    = null;
-  altMarkerTime       = null;
-  altMarkerChunkIndex = null;
+
+  // Zoom level variables
   timeScale           = 1;
+  chunkCount          = null;
   chunkTime           = 512;
   chunkWidth          = 512;
   zoomRatio           = 1;
   maxZoomRatio        = 64;
   chunkSample         = 1;
-  viewerWidth         = 0;
+
+  // Clusterize variables
+  updatePending       = false;
+  columnsInBlock      = 1;
+  blocksInCluster     = 4;
+  scrollEventPending  = false;
+  currentCluster      = [0, 0];
+  blockWidth          = columnsInBlock  * chunkWidth;
+  columnsInCluster    = blocksInCluster * columnsInBlock;
+  clusterWidth        = blocksInCluster * blockWidth;
+
+  // Marker and signal selection variables
+  selectedSignal      = null;
+  selectedSignalIndex = null;
+  markerTime          = null;
+  markerChunkIndex    = null;
+  altMarkerTime       = null;
+  altMarkerChunkIndex = null;
+
+  // Search handler variables
+  searchState         = 0;
+  searchInFocus       = false;
+  parsedSearchValue   = null;
+
+  // Data formatting variables
   numberFormat        = 16;
   bitChunkWidth       = 4;
-  contentData         = [];
-  displayedSignals    = [];
-  waveformData        = {};
-  netlistData         = {};
-  updatePending       = false;
-  dataCache           = {
-    startIndex:     0,
-    endIndex:       0,
-    columns:        [],
-    valueAtMarker:  {},
-    updatesPending: 0,
-    markerElement:  '',
-    altMarkerElement: '',
-  };
 
   // drag handler variables
   labelsList            = [];
@@ -990,6 +1048,21 @@ goToNextTransition = function (direction, edge) {
   pointerStartX         = null;
   pointerStartY         = null;
   resizeIndex           = null;
+
+  // Data variables
+  contentData         = [];
+  displayedSignals    = [];
+  waveformData        = {};
+  netlistData         = {};
+  dataCache           = {
+    startIndex:     0,
+    endIndex:       0,
+    columns:        [],
+    valueAtMarker:  {},
+    updatesPending: 0,
+    markerElement:  '',
+    altMarkerElement: '',
+  };
 
   // Initialize the webview when the document is ready
   document.addEventListener('DOMContentLoaded', () => {
@@ -1004,9 +1077,7 @@ goToNextTransition = function (direction, edge) {
   const transitionScroll  = document.getElementById('transition-display-container');
   const scrollArea        = document.getElementById('scrollArea');
   const contentArea       = document.getElementById('contentArea');
-  const leftSpace         = document.getElementById('left-space');
-  const rightSpace        = document.getElementById('right-space');
-  const displayedContent  = document.getElementById('displayedContent');
+  const scrollbar         = document.getElementById('scrollbar');
 
   // buttons
   const zoomInButton  = document.getElementById('zoom-in-button');
@@ -1154,7 +1225,7 @@ goToNextTransition = function (direction, edge) {
     handleSearchBarEntry({key: 'none'});
     renderLabelsPanels();
     updateWaveformInCache(updateSignals);
-    clusterizeContent.render();
+    updateContentArea(leftOffset, getBlockNum());
   };
 
   checkValidTimeString = function (inputText) {
@@ -1305,7 +1376,7 @@ goToNextTransition = function (direction, edge) {
     arrayMove(labelsList,       oldIndex, newIndex);
     handleSignalSelect(displayedSignals[newIndex]);
     renderLabelsPanels();
-    clusterizeContent.render();
+    updateContentArea(leftOffset, getBlockNum());
   }
 
   function updateIdleItemsStateAndPosition() {
@@ -1423,7 +1494,7 @@ goToNextTransition = function (direction, edge) {
   transitionScroll.addEventListener('scroll', (e) => {syncVerticalScroll(transitionScroll.scrollTop);});
   scrollArea.addEventListener(      'scroll', (e) => {
     syncVerticalScroll(scrollArea.scrollTop);
-    clusterizeContent.scrollEv();
+    //handleScrollEvent();
   });
 
   function resetTouchpadScrollCount() {
@@ -1432,6 +1503,8 @@ goToNextTransition = function (direction, edge) {
 
   // scroll handler to handle zooming and scrolling
   scrollArea.addEventListener('wheel', (event) => { 
+
+    event.preventDefault();
 
     if (!touchpadScrolling) {event.preventDefault();}
     const deltaY = event.deltaY;
@@ -1443,25 +1516,24 @@ goToNextTransition = function (direction, edge) {
     } else if (event.ctrlKey) {
       if      (updatePending) {return;}
       const bounds      = scrollArea.getBoundingClientRect();
-      const elementLeft = event.pageX - bounds.left;
-      const pixelLeft   = Math.round(scrollArea.scrollLeft + elementLeft);
-      const time        = Math.round(pixelLeft / zoomRatio);
+      const pixelLeft   = Math.round(event.pageX - bounds.left);
+      const time        = Math.round((pixelLeft - contentLeft) / zoomRatio) + (chunkTime * dataCache.startIndex);
 
       // scroll up zooms in (- deltaY), scroll down zooms out (+ deltaY)
-      if      (!touchpadScrolling && (deltaY > 0)) {handleZoom(1, false);}
-      else if (!touchpadScrolling && (deltaY < 0)) {handleZoom(-1, false);}
+      if      (!touchpadScrolling && (deltaY > 0)) {handleZoom( 1, time, pixelLeft);}
+      else if (!touchpadScrolling && (deltaY < 0)) {handleZoom(-1, time, pixelLeft);}
 
       // Handle zooming with touchpad since we apply scroll attenuation
       else if (touchpadScrolling) {
         touchpadScrollCount += deltaY;
         clearTimeout(resetTouchpadScrollCount);
         setTimeout(resetTouchpadScrollCount, 1000);
-        handleZoom(Math.round(touchpadScrollCount / 25), false);
+        handleZoom(Math.round(touchpadScrollCount / 25), time, pixelLeft);
       }
 
-      scrollArea.scrollLeft = (time * zoomRatio) - elementLeft;
     } else if (!touchpadScrolling){
-      scrollArea.scrollLeft += deltaY;
+      
+      handleScrollEvent(pseudoScrollLeft + deltaY);
     }
   });
   //scrollArea.addEventListener('wheel', handleScrollMouse, false);
@@ -1504,7 +1576,7 @@ goToNextTransition = function (direction, edge) {
   });
 
   function getTimeFromClick(event) {
-    const bounds      = displayedContent.getBoundingClientRect();
+    const bounds      = contentArea.getBoundingClientRect();
     const pixelLeft   = Math.round(event.pageX - bounds.left);
     return Math.round(pixelLeft / zoomRatio) + (chunkTime * dataCache.startIndex);
   }
@@ -1548,6 +1620,54 @@ goToNextTransition = function (direction, edge) {
     handleMarkerSet(snapToTime, button);
   }
 
+  updateScrollbarResize = function () {
+    scrollbarWidth        = Math.max(Math.round((viewerWidth ** 2) / (chunkCount * chunkWidth)), 17);
+    maxScrollbarPosition  = Math.max(viewerWidth - scrollbarWidth, 0);
+    updateScrollBarPosition();
+    scrollbar.style.width = scrollbarWidth + 'px';
+  };
+
+  updateScrollBarPosition = function () {
+    scrollbarPosition       = Math.round((pseudoScrollLeft / maxScrollLeft) * maxScrollbarPosition);
+    scrollbar.style.display = maxScrollLeft === 0 ? 'none' : 'block';
+    scrollbar.style.left    = scrollbarPosition + 'px';
+  };
+
+  updateViewportWidth = function() {
+    viewerWidth     = scrollArea.getBoundingClientRect().width;
+    halfViewerWidth = viewerWidth / 2;
+    maxScrollLeft   = Math.round(Math.max((chunkCount * chunkWidth) - viewerWidth, 0));
+    updateScrollbarResize();
+  };
+
+  function handleScrollbarMove(e) {
+    if (!scrollbarMoved) {
+      scrollbarMoved = e.clientX !== startX;
+      if (!scrollbarMoved) {return;}
+    }
+    const newPosition   = Math.min(Math.max(0, e.clientX - startX + scrollbarPosition), maxScrollbarPosition);
+    startX              = e.clientX;
+    const newScrollLeft = Math.round((newPosition / maxScrollbarPosition) * maxScrollLeft);
+    handleScrollEvent(newScrollLeft);
+    
+  }
+
+  function handleScrollbarDrag(event) {
+    event.preventDefault();
+    scrollbarMoved = false;
+    startX = event.clientX;
+    scrollbar.classList.add('is-dragging');
+
+    document.addEventListener('mousemove', handleScrollbarMove, false);
+
+    document.addEventListener('mouseup', () => {
+      scrollbar.classList.remove('is-dragging');
+      document.removeEventListener('mousemove', handleScrollbarMove, false);
+      scrollbarMoved = false;
+    });
+  };
+
+
   // resize handler to handle resizing
   function resize(e) {
     const gridTemplateColumns = webview.style.gridTemplateColumns;
@@ -1581,13 +1701,7 @@ goToNextTransition = function (direction, edge) {
   resizeDebounce = 0;
   function handleResizeViewer() {
     clearTimeout(resizeDebounce);
-    resizeDebounce = setTimeout(clusterizeContent.refresh, 100);
-  };
-
-  function updateChunkHeight(height) {
-    leftSpace.style.height  = height + 'px';
-    rightSpace.style.height = height + 'px';
-    clusterizeContent.setChunkHeight(height);
+    resizeDebounce = setTimeout(updateViewportWidth, 100);
   };
 
   // click handler to handle clicking inside the waveform viewer
@@ -1595,8 +1709,9 @@ goToNextTransition = function (direction, edge) {
   //scrollArea.addEventListener('click',     (e) => {handleScrollAreaClick(e, 0);});
   //scrollArea.addEventListener('mousedown', (e) => {if (e.button === 1) {handleScrollAreaClick(e, 1);}});
 
-  displayedContent.addEventListener('click',     (e) => {handleScrollAreaClick(e, 0);});
-  displayedContent.addEventListener('mousedown', (e) => {if (e.button === 1) {handleScrollAreaClick(e, 1);}});
+  contentArea.addEventListener('click',     (e) => {handleScrollAreaClick(e, 0);});
+  contentArea.addEventListener('mousedown', (e) => {if (e.button === 1) {handleScrollAreaClick(e, 1);}});
+  scrollbar.addEventListener('mousedown',   (e) => {handleScrollbarDrag(e);});
 
   // resize handler to handle column resizing
   resize1.addEventListener("mousedown",   (e) => {handleResizeMousedown(e, resize1, 1);});
@@ -1604,8 +1719,8 @@ goToNextTransition = function (direction, edge) {
   window.addEventListener('resize',       ()  => {handleResizeViewer();}, false);
 
   // Control bar button event handlers
-  zoomInButton.addEventListener( 'click', (e) => {handleZoom(-1, true);});
-  zoomOutButton.addEventListener('click', (e) => {handleZoom(1, true);});
+  zoomInButton.addEventListener( 'click', (e) => {handleZoom(-1, (pseudoScrollLeft + halfViewerWidth) / zoomRatio, halfViewerWidth);});
+  zoomOutButton.addEventListener('click', (e) => {handleZoom( 1, (pseudoScrollLeft + halfViewerWidth) / zoomRatio, halfViewerWidth);});
   prevNegedge.addEventListener(  'click', (e) => {goToNextTransition(-1, '0');});
   prevPosedge.addEventListener(  'click', (e) => {goToNextTransition(-1, '1');});
   nextNegedge.addEventListener(  'click', (e) => {goToNextTransition( 1, '0');});
@@ -1659,7 +1774,7 @@ goToNextTransition = function (direction, edge) {
       });
     });
   });
-  mutationObserver.observe(displayedContent, {childList: true});
+  mutationObserver.observe(contentArea, {childList: true});
 
   // Handle messages from the extension
   window.addEventListener('message', (event) => {
@@ -1679,32 +1794,10 @@ goToNextTransition = function (direction, edge) {
         chunkCount        = Math.ceil(waveformDataSet.timeEnd / waveformDataSet.chunkTime);
         dataCache.columns = new Array(chunkCount);
 
-        for (var i = 0; i < chunkCount; i++) {
-          contentData.push(createBaseChunk(i));
-        }
-
-        clusterizeContent  = new Clusterize({
-          columnCount:      chunkCount,
-          columnWidth:      chunkWidth,
-          columns:          contentData,
-          scrollId:         'scrollArea',
-          contentId:        'contentArea',
-          leftSpaceId:      'left-space',
-          rightSpaceId:     'right-space',
-          displayedSpaceId: 'displayedContent',
-          columnsInBlock:   1,
-          blocksInCluster:  4,
-          emptyColumn:      `<div class="clusterize-no-data">No data</div>`,
-          callbacks: {
-            clusterWillChange: function(startIndex, endIndex) {handleClusterWillChange(startIndex, endIndex);},
-            clusterChanged:    function(startIndex, endIndex) {handleClusterChanged(startIndex, endIndex);},
-            setViewerWidth:    function(width) {viewerWidth = width;},
-            scrollingProgress: function(progress) {},
-            fetchColumns:      (startIndex, endIndex) => {return shallowFetchColumns(startIndex, endIndex);},
-            checkUpdatePending: function() {return updatePending;},
-            clearUpdatePending: function() {handleUpdatePending();}
-          }
-        });
+        updatePending = true;
+        updateViewportWidth();
+        getChunksWidth();
+        updateContentArea(leftOffset, getBlockNum());
 
         break;
       }
@@ -1737,8 +1830,6 @@ goToNextTransition = function (direction, edge) {
         //var childElement = createLabel(netlistId, false);
         //labels.innerHTML = labels.innerHTML + childElement;
 
-        updateChunkHeight(40 + (28 * displayedSignals.length));
-
         console.log(displayedSignals);
         console.log(waveformData);
 
@@ -1746,7 +1837,8 @@ goToNextTransition = function (direction, edge) {
         renderLabelsPanels();
 
         updatePending    = true;
-        clusterizeContent.render();
+        updateContentArea(leftOffset, getBlockNum());
+        contentArea.style.height = (40 + (28 * displayedSignals.length)) + "px";
 
         break;
       }
@@ -1763,11 +1855,10 @@ goToNextTransition = function (direction, edge) {
           //document.getElementById('label-' + message.netlistId).outerHTML = "";
           //document.getElementById('label-' + message.netlistId).remove();
 
-          updateChunkHeight(40 + (28 * displayedSignals.length));
-
           updatePending    = true;
           renderLabelsPanels();
-          clusterizeContent.render();
+          updateContentArea(leftOffset, getBlockNum());
+          contentArea.style.height = (40 + (28 * displayedSignals.length)) + "px";
 
           if (selectedSignal === message.netlistId) {
             handleSignalSelect(null);

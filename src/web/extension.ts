@@ -851,8 +851,6 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       svgIconsUri:  webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'icons.svg')),
       jsFileUri:    webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'vaporview.js')),
       cssFileUri:   webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'style.css')),
-      testImageUri: webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'wave_temp.png')),
-      clusterize:   webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'clusterize_mod.js')),
       codiconsUri:  webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.css')),
     };
 
@@ -1006,15 +1004,11 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
             <div class="ruler-spacer"></div>
             <div id="transition-display"></div>
           </div>
-          <div id="scrollArea" class="clusterize-scroll">
-            <div id="contentArea" class="clusterize-content" tabindex="0">
-              <div id="left-space"></div>
-              <div id="displayedContent">Loading data…</div>
-              <div id="right-space"></div>
-            </div>
+          <div id="scrollArea">
+            <div id="contentArea" tabindex="0"></div>
           </div>
+          <div id="scrollbarContainer"><div id="scrollbar"></div></div>
         </div>
-        <script src="${webAssets.clusterize}"></script>
         <script src="${webAssets.jsFileUri}"></script>
       </body>
       </html>

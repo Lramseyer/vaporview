@@ -107,33 +107,7 @@ This is due to a limitation of the VScode 'fs' library. There is an [API proposa
 
 ### Binary waveforms display a gap when zoomed in really far
 
-This unfortunately seems to be an issue with the Chromium renderer (which is what VScode uses to render everything.) The workaround is to change the Zoom level of VScode itself, or your display scaling settings. To change teh VScode Zoom Level, press **Ctrl + "="** or **Ctrl + "-"**
-
-# Release Notes and development roadmap
-
-## 0.9.6 - Release Candidate
-
-Supports all the features you would expect including signal placing, rearranging, marker handling, saving/loading viewer settings, and exporting selection to WaveDrom!
-
-## 1.0 - Marketplace launch
-
-Get more coverage, from users like you. There may be bugs, so please report them on the [github discussions](https://github.com/Lramseyer/vaporview/discussions) so I can fix them before launching them to the marketplace!
-
-## Beyond 1.0
-
-In no particular order of priority, here's a list of features that are on my radar. If you have any preferences as to which should be priorized, or a suggestion that is not on this list, leave a comment on the [github discussions](https://github.com/Lramseyer/vaporview/discussions)!
-
-- Rewrite compute intensive components in Web Assembly for smoother performance
-- Add support for Enums
-- Add support to highlight all transitions of a signal
-- Add support for custom colors
-- Add support for linking timestamps in UVM logs (or other simulation logs) to jump to a timestamp
-- Add support for remote sessions to save on memory
-- Add support for larger files
-- Add support for .ghw files
-- Highly unlikely
-  - Link netlist to RTL so that signals can be connected back to RTL locations
-  - Support for other file formats
+This unfortunately seems to be an issue with the Chromium renderer (which is what VScode uses to render everything.) The workaround is to change the Zoom level of VScode itself, or your display scaling settings. To change the VScode Zoom Level, press **Ctrl + "="** or **Ctrl + "-"**
 
 # About This Extension
 

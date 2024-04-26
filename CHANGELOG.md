@@ -1,29 +1,5 @@
 # Change Log
 
-## 0.9.6 - Release Candidate
-
-Supports all the features you would expect including signal placing, rearranging, marker handling, saving/loading viewer settings, and exporting selection to WaveDrom!
-
-## Beyond 1.0
-
-In no particular order of priority, here's a list of features that are on my radar. If you have any preferences as to which should be priorized, or a suggestion that is not on this list, leave a comment on the [github discussions](https://github.com/Lramseyer/vaporview/discussions)!
-
-- Rewrite compute intensive components in Web Assembly for smoother performance
-- Add support for Enums
-- Add support to highlight all transitions of a signal
-- Add support for custom colors
-- Add support for linking timestamps in UVM logs (or other simulation logs) to jump to a timestamp
-- Add support for remote sessions to save on memory
-- Add support for larger files
-- Add support for .ghw files
-- Highly unlikely
-  - Link netlist to RTL so that signals can be connected back to RTL locations
-  - Support for other file formats
-
-## 1.0 - Marketplace launch
-
-Get more coverage, from users like you. There may be bugs, so please report them on the [github discussions](https://github.com/Lramseyer/vaporview/discussions) so I can fix them before launching them to the marketplace!
-
 ## 0.9.7
 
 - While you weren't looking, I replaced the horizontal scrollbar with a fake one to work around Chromium's 16 million pixel size limitation

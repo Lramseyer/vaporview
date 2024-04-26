@@ -325,10 +325,6 @@ createRulerChunk = function (chunkIndex) {
         ${textElements.join('')}</svg></div>`;
 };
 
-createBaseChunk = function (chunkIndex) {
-  return `<div class="column-chunk" style="min-width:${chunkWidth}px"></div>`;
-};
-
 createTimeMarker = function (time, markerType) {
   const x  = (time % chunkTime) * zoomRatio;
   const id = markerType === 0 ? 'main-marker' : 'alt-marker';
@@ -439,7 +435,7 @@ handleZoom = function (amount, zoomOrigin, screenPosition) {
   zoomRatio        = newZoomRatio;
   chunkWidth       = chunkTime * zoomRatio;
   maxScrollLeft    = Math.round(Math.max((chunkCount * chunkWidth) - viewerWidth, 0));
-  pseudoScrollLeft = Math.max((zoomOrigin * zoomRatio) - screenPosition, 0);
+  pseudoScrollLeft = Math.max(Math.min((zoomOrigin * zoomRatio) - screenPosition, maxScrollLeft), 0);
 
   for (i = dataCache.startIndex; i < dataCache.endIndex; i++) {
     dataCache.columns[i] = (updateChunkInCache(i));
@@ -858,7 +854,6 @@ sendWebviewContext = function (responseType) {
     selectedSignal: selectedSignal,
     displayedSignals: displayedSignals,
     zoomRatio: zoomRatio,
-    //scrollLeft: scrollArea.scrollLeft,
     scrollLeft: pseudoScrollLeft,
     numberFormat: numberFormat,
   });
@@ -937,7 +932,6 @@ handleMarkerSet = function (time, markerType) {
 
 isInView = function(time) {
   const pixel      = time * zoomRatio;
-  //const scrollLeft = scrollArea.scrollLeft;
   const scrollLeft = pseudoScrollLeft;
 
   if (pixel < scrollLeft || pixel > scrollLeft + viewerWidth) {return false;}
@@ -947,7 +941,6 @@ isInView = function(time) {
 moveViewToTime = function(time) {
   const moveViewer = !(isInView(time));
   if (moveViewer) {
-    //scrollArea.scrollLeft = (time * zoomRatio) - halfViewerWidth;
     handleScrollEvent((time * zoomRatio) - halfViewerWidth);
   }
   return moveViewer;
@@ -1531,9 +1524,15 @@ goToNextTransition = function (direction, edge) {
         handleZoom(Math.round(touchpadScrollCount / 25), time, pixelLeft);
       }
 
-    } else if (!touchpadScrolling){
-      
-      handleScrollEvent(pseudoScrollLeft + deltaY);
+    } else {
+      if (touchpadScrolling) {
+        handleScrollEvent(pseudoScrollLeft + event.deltaX);
+        scrollArea.scrollTop       += event.deltaY;
+        labelsScroll.scrollTop      = scrollArea.scrollTop;
+        transitionScroll.scrollTop  = scrollArea.scrollTop;
+      } else {
+        handleScrollEvent(pseudoScrollLeft + deltaY);
+      }
     }
   });
   //scrollArea.addEventListener('wheel', handleScrollMouse, false);
@@ -1706,9 +1705,6 @@ goToNextTransition = function (direction, edge) {
 
   // click handler to handle clicking inside the waveform viewer
   // gets the absolute x position of the click relative to the scrollable content
-  //scrollArea.addEventListener('click',     (e) => {handleScrollAreaClick(e, 0);});
-  //scrollArea.addEventListener('mousedown', (e) => {if (e.button === 1) {handleScrollAreaClick(e, 1);}});
-
   contentArea.addEventListener('click',     (e) => {handleScrollAreaClick(e, 0);});
   contentArea.addEventListener('mousedown', (e) => {if (e.button === 1) {handleScrollAreaClick(e, 1);}});
   scrollbar.addEventListener('mousedown',   (e) => {handleScrollbarDrag(e);});
@@ -1868,16 +1864,7 @@ goToNextTransition = function (direction, edge) {
       break;
       }
       case 'getSelectionContext': {
-        //setTimeOnStatusBar();
-        //setSeletedSignalOnStatusBar(selectedSignal);
 
-        //let displaySignalContext = displayedSignals.map((netlistId) => {
-        //  return {
-        //    netlistId: netlistId,
-        //    signalName: netlistData[netlistId].signalName,
-        //    modulePath: netlistData[netlistId].modulePath
-        //  };
-        //});
         sendWebviewContext('response');
         //vscode.postMessage({type: 'context', context: displaySignalContext});
         break;

@@ -25,7 +25,7 @@
 - Improved chunk sizing algorithm so that chunks aren't unnecessarily large
 - fixed a performance issue seen when zooming in really far.
 
-# 0.9.3
+## 0.9.3
 
 - Greatly improved viewer experience with large files
 - Implemented asynchronous rendering for much smoother performance

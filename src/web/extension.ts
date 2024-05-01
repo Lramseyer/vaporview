@@ -173,7 +173,6 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
   }
 
   public saveSettings() {
-    console.log("saveSettings()");
     if (!this.activeDocument) {
       vscode.window.showErrorMessage('No viewer is active. Please select the viewer you wish to save settings.');
       return;
@@ -204,9 +203,8 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
   }
 
   public async loadSettings() {
-    console.log("loadSettings()");
 
-    let version = vscode.extensions.getExtension('Lloyd Ramseyer.vaporview')?.packageJSON.version;
+    let version  = vscode.extensions.getExtension('Lloyd Ramseyer.vaporview')?.packageJSON.version;
     // show open file diaglog
     let fileData = await new Promise<any>((resolve, reject) => {
       vscode.window.showOpenDialog({
@@ -231,10 +229,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       });
     });
 
-    if (!fileData) {
-      console.log("No file data");
-      return;
-    }
+    if (!fileData) {return;}
 
     if (!this.activeDocument) {
       vscode.window.showErrorMessage('No viewer is active. Please select the viewer you wish to load settings.');
@@ -268,7 +263,6 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
   }
 
   //#region CustomEditorProvider
-
   async openCustomDocument(
     uri: vscode.Uri,
     openContext: { backupId?: string },
@@ -613,6 +607,20 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       }
     });
 
+    // Subscribe to the expand/collapse events - For some reason we need to do
+    // this because the collapsible state is not preserved when the tree view is refreshed
+    this.netlistView.onDidExpandElement((element) => {
+      if (!webviewPanel.active) {return;}
+      if (element.element.collapsibleState === vscode.TreeItemCollapsibleState.None) {return;}
+      element.element.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
+    });
+
+    this.netlistView.onDidCollapseElement((element) => {
+      if (!webviewPanel.active) {return;}
+      if (element.element.collapsibleState === vscode.TreeItemCollapsibleState.None) {return;}
+      element.element.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+    });
+
     // Subscribe to the checkbox state change event
     this.netlistView.onDidChangeCheckboxState((changedItem) => {
 
@@ -624,8 +632,6 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       const signalId   = metadata.signalId;
       const signalData = document.documentData.netlistElements.get(signalId);
       const netlistId  = metadata.netlistId;
-
-      console.log(metadata);
 
       // If the item is a parent node, uncheck it
       if (metadata.collapsibleState !== vscode.TreeItemCollapsibleState.None) {
@@ -1155,7 +1161,7 @@ class NetlistItem extends vscode.TreeItem {
     public readonly name:             string,
     public readonly modulePath:       string,
     public readonly children:         NetlistItem[] = [],
-    public readonly collapsibleState: vscode.TreeItemCollapsibleState,
+    public collapsibleState: vscode.TreeItemCollapsibleState,
     public checkboxState: vscode.TreeItemCheckboxState = vscode.TreeItemCheckboxState.Unchecked // Display preference
   ) {
     super(label, collapsibleState);
@@ -1235,7 +1241,6 @@ class WaveformTop {
 
   constructor() {
     this.netlistElements = new Map();
-    console.log(this);
   }
 
   public createSignalWaveform(signalId: SignalId, width: number) {
@@ -1255,7 +1260,7 @@ class WaveformTop {
       waveform.chunkStart[0] = 1;
     } else {
       // Console log an error message if the signal waveform doesn't exist
-      console.log("${signalID} not in netlist");
+      console.log(`${signalId} not in netlist (initialState)`);
     }
   }
 
@@ -1267,7 +1272,7 @@ class WaveformTop {
       waveform.addTransitionData(transitionData, this.metadata.chunkTime);
     } else {
       // Console log an error message if the signal waveform doesn't exist
-      console.log("${signalID} not in netlist");
+      console.log(`${signalId} not in netlist (transitionData)`);
     }
   }
 
@@ -1316,15 +1321,12 @@ function hashCode(s: string) {
 }
 
 function newHashCode(s: string, hashTable: Map<string, NetlistIdRef>) {
-  let   hash         = '';
-  let   hashCollision = true;
+  let hash          = '';
+  let hashCollision = true;
 
   while (hash.length === 0 || hashCollision) {
-    hash         = hashCode(s + hash).toString();
+    hash          = hashCode(s + hash).toString();
     hashCollision = hashTable.has(hash);
-    if (hashCollision) {
-      console.log("hash collision for: " + hash);
-    }
   }
 
   return hash;
@@ -1349,33 +1351,66 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
 
   // Split VCD data into lines
   const lines = vcdData.split('\n');
+  const lineCount = lines.length;
 
-  // Find the real minimum time step so that we can establish an apporpriate chunk size
-  let previousTimeStamp = -9999999;
-  let minTimeStemp      =  9999999;
+  console.log("Parsing VCD data. File contains " + lineCount + " lines.");
+
+  // Find the real minimum time step so that we can establish an apporpriate
+  // chunk size We find the optimal chunk time by finding the shortest rolling
+  // time step of 128 value changes in a row.
+
+  let timeStepArray: number[] = new Array(128).fill(-9999999);
+  let minTimeStemp      = 9999999;
+  let timeStepIndex     = 0;
+  let maxTime           = 0;
+  let eventCount        = 0;
   for (const line of lines) {
     const cleanedLine = line.trim();
     if (cleanedLine.startsWith('#')) {
       // Extract timestamp
       const timestampMatch = cleanedLine.match(/#(\d+)/);
       if (timestampMatch) {
+        eventCount++;
         const currentTimestamp = parseInt(timestampMatch[1]);
-        minTimeStemp      = Math.min(currentTimestamp - previousTimeStamp, minTimeStemp);
-        previousTimeStamp = currentTimestamp;
+        timeStepArray[timeStepIndex] = currentTimestamp;
+        timeStepIndex = (timeStepIndex + 1) % 128;
+        const rollingTimeStep = currentTimestamp - timeStepArray[timeStepIndex];
+        minTimeStemp = Math.min(rollingTimeStep, minTimeStemp);
       }
     }
   }
 
-  console.log("minTimeStemp = " + minTimeStemp);
+  if (eventCount < 128) {
+    minTimeStemp = timeStepArray[eventCount - 1];
+  }
+
+  //for (const line of lines) {
+  //  const cleanedLine = line.trim();
+  //  if (cleanedLine.startsWith('#')) {
+  //    // Extract timestamp
+  //    const timestampMatch = cleanedLine.match(/#(\d+)/);
+  //    if (timestampMatch) {
+  //      const currentTimestamp = parseInt(timestampMatch[1]);
+  //      maxTime           = currentTimestamp;
+  //      minTimeStemp      = Math.min(currentTimestamp - previousTimeStamp, minTimeStemp);
+  //      previousTimeStamp = currentTimestamp;
+  //    }
+  //  }
+  //}
+
   // Prevent weird zoom ratios causing strange floating point math errors
   minTimeStemp = 10 ** (Math.round(Math.log10(minTimeStemp)) | 0);
-  console.log("adjusted minTimeStemp = " + minTimeStemp);
+  waveformDataSet.metadata.chunkTime   = minTimeStemp;
+  waveformDataSet.metadata.defaultZoom = 1000 / waveformDataSet.metadata.chunkTime;
 
-  waveformDataSet.metadata.chunkTime   = (BASE_CHUNK_TIME_WINDOW * minTimeStemp) / 4;
-  waveformDataSet.metadata.defaultZoom = BASE_CHUNK_TIME_WINDOW / waveformDataSet.metadata.chunkTime;
-  console.log("minTimeStemp = " + minTimeStemp);
-  console.log("chunkTime = "    + waveformDataSet.metadata.chunkTime);
-  console.log("defaultZoom = "  + waveformDataSet.metadata.defaultZoom);
+  //// Prevent weird zoom ratios causing strange floating point math errors
+  //minTimeStemp = 10 ** (Math.round(Math.log10(minTimeStemp)) | 0);
+  //waveformDataSet.metadata.chunkTime   = (BASE_CHUNK_TIME_WINDOW * minTimeStemp) / 4;
+  //waveformDataSet.metadata.defaultZoom = BASE_CHUNK_TIME_WINDOW / waveformDataSet.metadata.chunkTime;
+
+  console.log("Minimum time step: " + minTimeStemp);
+  console.log("Chunk time: " + waveformDataSet.metadata.chunkTime);
+  console.log("Max time: " + maxTime);
 
   for (const line of lines) {
     // Remove leading and trailing whitespace
@@ -1384,28 +1419,35 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
     if (cleanedLine.startsWith('$scope')) {
       currentMode = 'scope';
       // Extract the current scope
-      const scopeMatch = cleanedLine.match(/\s+module\s+(\w+)/);
-      if (scopeMatch) {
-        const moduleName  = scopeMatch[1];
-        const netlistId   = newHashCode(modulePathString + "." + moduleName, netlistIdTable);
-        const newScope    = new NetlistItem(moduleName, 'module', 0, '', netlistId, '', modulePathString, [], vscode.TreeItemCollapsibleState.Expanded);
-        newScope.iconPath = new vscode.ThemeIcon('symbol-module', new vscode.ThemeColor('charts.purple'));
-        modulePath.push(moduleName);
-        modulePathString = modulePath.join(".");
-        if (currentScope) {
-          currentScope.children.push(newScope); // Add the new scope as a child of the current scope
-        } else {
-          netlistItems.push(newScope); // If there's no current scope, add it to the netlistItems
-        }
-        // Push the new scope onto the stack and set it as the current scope
-        stack.push(newScope);
-        currentScope = newScope;
+      const scopeData = cleanedLine.split(/\s+/);
+      const scopeType = scopeData[1];
+      const scopeName = scopeData[2];
+      let iconColor = new vscode.ThemeColor('charts.white');
+      if (scopeType === 'module') {
+        iconColor   = new vscode.ThemeColor('charts.purple');
+      } else if (scopeType === 'function') {
+        iconColor   = new vscode.ThemeColor('charts.yellow');
       }
+      const netlistId   = newHashCode(modulePathString + "." + scopeName, netlistIdTable);
+      const newScope    = new NetlistItem(scopeName, 'module', 0, '', netlistId, '', modulePathString, [], vscode.TreeItemCollapsibleState.Collapsed);
+      newScope.iconPath = new vscode.ThemeIcon('symbol-module', iconColor);
+      modulePath.push(scopeName);
+      modulePathString = modulePath.join(".");
+      if (currentScope) {
+        currentScope.children.push(newScope); // Add the new scope as a child of the current scope
+      } else {
+        netlistItems.push(newScope); // If there's no current scope, add it to the netlistItems
+      }
+      // Push the new scope onto the stack and set it as the current scope
+      stack.push(newScope);
+      currentScope = newScope;
+
     } else if (cleanedLine.startsWith('$upscope')) {
       stack.pop(); // Pop the current scope from the stack
       currentScope = stack[stack.length - 1]; // Update th current scope to the parent scope
       modulePath.pop();
       modulePathString = modulePath.join(".");
+      currentSignal = "";
     } else if (cleanedLine.startsWith('$var') && currentMode === 'scope') {
       // Extract signal information (signal type and name)
       //const varMatch = cleanedLine.match(/\$var\s+(wire|reg|integer|parameter|real)\s+(1|[\d+:]+)\s+(\w+)\s+(\w+(\[\d+)?(:\d+)?\]?)\s\$end/);

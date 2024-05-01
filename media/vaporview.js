@@ -138,7 +138,7 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
     xPosition    = (elementWidth / 2) + time;
     yPosition    =  elementWidth * 2;
     if (is4State) {
-      xzValues.push(`<polyline fill="var(--vscode-debugTokenExpression-error)" points="0,${time} ${xPosition},${yPosition} ${transitionData[i][0]},0 ${xPosition},-${yPosition}"/>`);
+      xzValues.push(`<polyline fill="var(--vscode-debugTokenExpression-error)" points="${time},0 ${xPosition},${yPosition} ${transitionData[i][0]},0 ${xPosition},-${yPosition}"/>`);
     } else {
       points.push(xPosition + ',' + yPosition);
       endPoints.push(xPosition + ',-' + yPosition);
@@ -387,7 +387,6 @@ getValueTextWidth = function (width, numberFormat) {
 };
 
 updateWaveformInCache = function (netlistIdList) {
-  console.log(dataCache);
   netlistIdList.forEach((netlistId) => {
     const signalId = netlistData[netlistId].signalId;
     for (var i = dataCache.startIndex; i < dataCache.endIndex; i++) {
@@ -441,8 +440,6 @@ handleZoom = function (amount, zoomOrigin, screenPosition) {
     dataCache.columns[i] = (updateChunkInCache(i));
   }
 
-  console.log("new Scroll position: " + pseudoScrollLeft);
-
   getChunksWidth();
   updateContentArea(leftOffset, getBlockNum());
   updateScrollbarResize();
@@ -488,7 +485,6 @@ renderWaveformsAsync = async function (node, chunkIndex) {
   let chunkData = {};
 
   try {
-    console.log('rendering chunk async ' + chunkIndex + '');
 
     // Render each waveform chunk asynchronously
     for (let netlistId of displayedSignals) {
@@ -675,7 +671,6 @@ handleScrollEvent = function(newScrollLeft) {
   updateScrollBarPosition();
   if (scrollEventPending) {return;}
 
-  console.log('scroll event');
   scrollEventPending = true;
   const thisCluster  = getBlockNum();
   if (currentCluster[0] !== thisCluster[0] || currentCluster[1] !== thisCluster[1]) {
@@ -1542,6 +1537,7 @@ goToNextTransition = function (direction, edge) {
     if (searchInFocus) {return;} 
     else {event.preventDefault();}
 
+    // debug handler to print the data cache
     if (event.key === 'd' && event.ctrlKey) {
       console.log(updatePending);
       console.log(dataCache);
@@ -1581,8 +1577,6 @@ goToNextTransition = function (direction, edge) {
   }
 
   function handleScrollAreaClick(event, eventButton) {
-
-    console.log(event);
 
     button = eventButton;
   
@@ -1775,7 +1769,7 @@ goToNextTransition = function (direction, edge) {
   // Handle messages from the extension
   window.addEventListener('message', (event) => {
     const message = event.data;
-    console.log(event);
+
     switch (message.command) {
       case 'create-ruler': {
         vscode.postMessage({ command: 'creating ruler from the js file' });
@@ -1825,9 +1819,6 @@ goToNextTransition = function (direction, edge) {
 
         //var childElement = createLabel(netlistId, false);
         //labels.innerHTML = labels.innerHTML + childElement;
-
-        console.log(displayedSignals);
-        console.log(waveformData);
 
         updateWaveformInCache([message.netlistId]);
         renderLabelsPanels();

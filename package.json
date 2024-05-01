@@ -41,16 +41,16 @@
       ]
     },
     "customEditors": [
-			{
-				"viewType": "vaporview.waveformViewer",
-				"displayName": "VaporView",
-				"selector": [
-					{
-						"filenamePattern": "*.vcd"
-					}
-				]
-			}
-		],
+      {
+        "viewType": "vaporview.waveformViewer",
+        "displayName": "VaporView",
+        "selector": [
+          {
+            "filenamePattern": "*.vcd"
+          }
+        ]
+      }
+    ],
     "submenus": [
       {
         "id": "vaporview.waveDrom",

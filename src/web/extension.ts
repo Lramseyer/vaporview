@@ -1384,24 +1384,10 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
     minTimeStemp = timeStepArray[eventCount - 1];
   }
 
-  //for (const line of lines) {
-  //  const cleanedLine = line.trim();
-  //  if (cleanedLine.startsWith('#')) {
-  //    // Extract timestamp
-  //    const timestampMatch = cleanedLine.match(/#(\d+)/);
-  //    if (timestampMatch) {
-  //      const currentTimestamp = parseInt(timestampMatch[1]);
-  //      maxTime           = currentTimestamp;
-  //      minTimeStemp      = Math.min(currentTimestamp - previousTimeStamp, minTimeStemp);
-  //      previousTimeStamp = currentTimestamp;
-  //    }
-  //  }
-  //}
-
   // Prevent weird zoom ratios causing strange floating point math errors
-  minTimeStemp = 10 ** (Math.round(Math.log10(minTimeStemp)) | 0);
-  waveformDataSet.metadata.chunkTime   = minTimeStemp;
-  waveformDataSet.metadata.defaultZoom = 1000 / waveformDataSet.metadata.chunkTime;
+  minTimeStemp = 10 ** (Math.round(Math.log10(minTimeStemp / 128)) | 0);
+  waveformDataSet.metadata.chunkTime   = minTimeStemp * 128;
+  waveformDataSet.metadata.defaultZoom = 512 / waveformDataSet.metadata.chunkTime;
 
   //// Prevent weird zoom ratios causing strange floating point math errors
   //minTimeStemp = 10 ** (Math.round(Math.log10(minTimeStemp)) | 0);
@@ -1417,20 +1403,23 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
     const cleanedLine = line.trim();
 
     if (cleanedLine.startsWith('$scope')) {
-      currentMode = 'scope';
+      currentMode   = 'scope';
+      currentSignal = "";
       // Extract the current scope
       const scopeData = cleanedLine.split(/\s+/);
       const scopeType = scopeData[1];
       const scopeName = scopeData[2];
       let iconColor = new vscode.ThemeColor('charts.white');
+      let iconType  = 'symbol-module';
       if (scopeType === 'module') {
         iconColor   = new vscode.ThemeColor('charts.purple');
+        iconType    = 'chip';
       } else if (scopeType === 'function') {
         iconColor   = new vscode.ThemeColor('charts.yellow');
       }
       const netlistId   = newHashCode(modulePathString + "." + scopeName, netlistIdTable);
       const newScope    = new NetlistItem(scopeName, 'module', 0, '', netlistId, '', modulePathString, [], vscode.TreeItemCollapsibleState.Collapsed);
-      newScope.iconPath = new vscode.ThemeIcon('symbol-module', iconColor);
+      newScope.iconPath = new vscode.ThemeIcon(iconType, iconColor);
       modulePath.push(scopeName);
       modulePathString = modulePath.join(".");
       if (currentScope) {
@@ -1447,7 +1436,7 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
       currentScope = stack[stack.length - 1]; // Update th current scope to the parent scope
       modulePath.pop();
       modulePathString = modulePath.join(".");
-      currentSignal = "";
+      currentSignal    = "";
     } else if (cleanedLine.startsWith('$var') && currentMode === 'scope') {
       // Extract signal information (signal type and name)
       //const varMatch = cleanedLine.match(/\$var\s+(wire|reg|integer|parameter|real)\s+(1|[\d+:]+)\s+(\w+)\s+(\w+(\[\d+)?(:\d+)?\]?)\s\$end/);

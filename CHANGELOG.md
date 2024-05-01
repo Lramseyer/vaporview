@@ -1,5 +1,15 @@
 # Change Log
 
+## 0.9.8
+
+- VCD parser fixes 
+  - Properly parse out module names
+  - Distinguish between modules and functions
+  - Improved algorithm to set chunk size
+- Minor fixes to rendering glitches
+- Netlist Viewer now maintains expanded state
+- Improved renderer to perform a _little_ better when zooming out really far
+
 ## 0.9.7
 
 - While you weren't looking, I replaced the horizontal scrollbar with a fake one to work around Chromium's 16 million pixel size limitation

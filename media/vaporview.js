@@ -128,7 +128,7 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
   let spansChunk      = true;
   const minDrawWidth  = 12 / zoomRatio;
   let leftOverflow    = Math.min(initialState[0], 0);
-  const rightOverflow = Math.max(postState[0] - chunkTime, 0);
+  const rightOverflow = Math.max(postState[0] - columnTime, 0);
 
   for (let i = 0; i < transitionData.length; i++) {
     points.push(time + ',0');
@@ -195,7 +195,7 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
   const gAttributes = `stroke="none" transform="scale(${zoomRatio})"`;
   const polylineAttributes = `fill="var(--vscode-debugTokenExpression-number)"`;
   let result = '';
-  result += `<svg height="${svgHeight}" width="${chunkWidth}" viewbox="0 -10 ${chunkWidth} ${svgHeight}" class="bus-waveform-svg">`;
+  result += `<svg height="${svgHeight}" width="${columnWidth}" viewbox="0 -10 ${columnWidth} ${svgHeight}" class="bus-waveform-svg">`;
   result += `<g ${gAttributes}><polyline ${polylineAttributes} points="${polyline}"/>${xzValues.join("")}</g></svg>`;
   result += textElements;
 
@@ -203,7 +203,6 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
 };
 
 polylinePathFromTransitionData = function (transitionData, initialState, polylineAttributes) {
-  var deltaTime;
   var xzPolylines        = [];
   var initialValue       = initialState[1];
   var initialValue2state = initialValue;
@@ -217,8 +216,12 @@ polylinePathFromTransitionData = function (transitionData, initialState, polylin
 
   transitionData.forEach(([time, value]) => {
     if (valueIs4State(initialValue)) {
-      deltaTime          = time - initialTime;
-      xzPolylines.push(`<rect x="${initialTime}" y="0" height="1" width="${deltaTime}" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+      xzPolylines.push(`<polyline points="${initialTime},0 ${time},0" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+      xzPolylines.push(`<polyline points="${initialTime},1 ${time},1" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+      xzPolylines.push(`<polyline points="${time},0 ${time},1" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+      if (initialTime >= 0) {
+        xzPolylines.push(`<polyline points="${initialTime},0 ${initialTime},1" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+      }
       initialValue2state = 0;
     }
 
@@ -232,12 +235,15 @@ polylinePathFromTransitionData = function (transitionData, initialState, polylin
     initialValue2state = value;
   });
   if (valueIs4State(initialValue))  {
-    deltaTime = chunkTime - initialTime + 10;
-    xzPolylines.push(`<rect x="${initialTime}" y="0" height="1" width="${deltaTime}" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+    xzPolylines.push(`<polyline points="${initialTime},0 ${columnTime},0" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+    xzPolylines.push(`<polyline points="${initialTime},1 ${columnTime},1" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+    if (initialTime >= 0) {
+      xzPolylines.push(`<polyline points="${initialTime},0 ${initialTime},1" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+    }
     initialValue2state = 0;
   }
 
-  accumulatedPath += chunkTime + "," + initialValue2state;
+  accumulatedPath += columnTime + "," + initialValue2state;
   return `<polyline points="` + accumulatedPath + `" ${polylineAttributes}/>` + xzPolylines.join('');
 };
 
@@ -248,7 +254,7 @@ binaryElementFromTransitionData = function (transitionData, initialState) {
   const polylineAttributes = `stroke="var(--vscode-debugTokenExpression-number)"`;
   const gAttributes = `fill="none" transform="translate(0.5 ${waveOffset}.5) scale(${zoomRatio} -${waveHeight})"`;
   let result = '';
-  result += `<svg height="${svgHeight}" width="${chunkWidth}" viewbox="0 0 ${chunkWidth} ${svgHeight}" class="binary-waveform-svg">`;
+  result += `<svg height="${svgHeight}" width="${columnWidth}" viewbox="0 0 ${columnWidth} ${svgHeight}" class="binary-waveform-svg">`;
   result += `<g ${gAttributes}>`;
   result += polylinePathFromTransitionData(transitionData, initialState, polylineAttributes);
   result += `</g></svg>`;
@@ -260,30 +266,30 @@ createWaveformSVG = function (transitionData, initialState, postState, width, ch
   const vscodeContext = netlistData[netlistId].vscodeContext;
   if (netlistId === selectedSignal) {className += ' is-selected';}
   if (width === 1) {
-    return `<div class="${className}" id="idx${chunkIndex}-${chunkSample}--${netlistId}" ${vscodeContext}>
+    return `<div class="${className}" id="idx${chunkIndex}-${chunksInColumn}--${netlistId}" ${vscodeContext}>
               ${binaryElementFromTransitionData(transitionData, initialState)}
             </div>`;
   } else {
-    return `<div class="${className}" id="idx${chunkIndex}-${chunkSample}--${netlistId}" ${vscodeContext}>
+    return `<div class="${className}" id="idx${chunkIndex}-${chunksInColumn}--${netlistId}" ${vscodeContext}>
               ${busElementsfromTransitionData(transitionData, initialState, postState, width, textWidth)}
             </div>`;
   }
 };
 
-renderWaveformChunk = function (netlistId, chunkIndex) {
+renderWaveformChunk = function (netlistId, chunkStartIndex) {
   var result         = {};
   const signalId     = netlistData[netlistId].signalId;
   const data         = waveformData[signalId];
-  const timeStart    = chunkIndex * chunkTime;
-  const timeEnd      = timeStart + chunkTime;
+  const timeStart    = chunkStartIndex * chunkTime;
+  const timeEnd      = timeStart + columnTime;
   const width        = data.signalWidth;
-  const startIndex   = data.chunkStart[chunkIndex];
-  const endIndex     = data.chunkStart[chunkIndex + 1];
+  const startIndex   = data.chunkStart[chunkStartIndex];
+  const endIndex     = data.chunkStart[chunkStartIndex + chunksInColumn];
   const initialState = data.transitionData[startIndex - 1];
   const textWidth    = data.textWidth;
 
   let   postState;
-  if (chunkIndex === data.chunkStart.length - 1) {
+  if (chunkStartIndex >= data.chunkStart.length - chunksInColumn) {
     postState  = [timeEnd, data.transitionData[data.transitionData.length - 1][1]];
   } else {
     postState  = data.transitionData[endIndex];
@@ -299,34 +305,34 @@ renderWaveformChunk = function (netlistId, chunkIndex) {
     return [time - timeStart, value];
   });
 
-  result.html = createWaveformSVG(chunkTransitionData, relativeInitialState, relativePostState, width, chunkIndex, netlistId, textWidth);
+  result.html = createWaveformSVG(chunkTransitionData, relativeInitialState, relativePostState, width, chunkStartIndex, netlistId, textWidth);
   return result;
 };
 
 // This function creates ruler elements for a chunk
-createRulerChunk = function (chunkIndex) {
+createRulerChunk = function (chunkStartIndex) {
   const timeMarkerInterval = rulerNumberSpacing / zoomRatio;
-  const chunkStartTime     = chunkIndex * chunkTime;
-  const chunkStartPixel    = chunkIndex * chunkWidth;
+  const chunkStartTime     = chunkStartIndex * chunkTime;
+  const chunkStartPixel    = chunkStartIndex * chunkWidth;
   const numberStartpixel   = -1 * (chunkStartPixel % rulerNumberSpacing);
   const tickStartpixel     = rulerTickSpacing - (chunkStartPixel % rulerTickSpacing) - rulerNumberSpacing;
   var   numValue           = chunkStartTime + (numberStartpixel / zoomRatio);
   var   textElements       = [];
 
-  for (var i = numberStartpixel; i <= chunkWidth + 64; i+= rulerNumberSpacing ) {
+  for (var i = numberStartpixel; i <= columnWidth + 64; i+= rulerNumberSpacing ) {
     textElements.push(`<text x="${i}" y="20">${numValue * timeScale}</text>`);
     numValue += timeMarkerInterval;
   }
 
   return `
     <div class="ruler-chunk">
-      <svg height="40" width="${chunkWidth}" class="ruler-svg">
-      <line class="ruler-tick" x1="${tickStartpixel}" y1="32.5" x2="${chunkWidth}" y2="32.5"/>
+      <svg height="40" width="${columnWidth}" class="ruler-svg">
+      <line class="ruler-tick" x1="${tickStartpixel}" y1="32.5" x2="${columnWidth}" y2="32.5"/>
         ${textElements.join('')}</svg></div>`;
 };
 
 createTimeMarker = function (time, markerType) {
-  const x  = (time % chunkTime) * zoomRatio;
+  const x  = (time % columnTime) * zoomRatio;
   const id = markerType === 0 ? 'main-marker' : 'alt-marker';
   return `
     <svg id="${id}" class="time-marker" style="left:${x}px">
@@ -389,7 +395,7 @@ getValueTextWidth = function (width, numberFormat) {
 updateWaveformInCache = function (netlistIdList) {
   netlistIdList.forEach((netlistId) => {
     const signalId = netlistData[netlistId].signalId;
-    for (var i = dataCache.startIndex; i < dataCache.endIndex; i++) {
+    for (var i = dataCache.startIndex; i < dataCache.endIndex; i+=chunksInColumn) {
       dataCache.columns[i].waveformChunk[netlistId] = renderWaveformChunk(netlistId, i);
     }
     dataCache.valueAtMarker[signalId] = getValueAtTime(signalId, markerTime);
@@ -435,12 +441,19 @@ handleZoom = function (amount, zoomOrigin, screenPosition) {
   chunkWidth       = chunkTime * zoomRatio;
   maxScrollLeft    = Math.round(Math.max((chunkCount * chunkWidth) - viewerWidth, 0));
   pseudoScrollLeft = Math.max(Math.min((zoomOrigin * zoomRatio) - screenPosition, maxScrollLeft), 0);
+  for (i = dataCache.startIndex; i < dataCache.endIndex; i+=chunksInColumn) {
+    dataCache.columns[i] = undefined;
+  }
+  getChunksWidth();
+  const startIndex  = Math.ceil(dataCache.startIndex / chunksInColumn) * chunksInColumn;
+  const endIndex    = Math.floor(dataCache.endIndex / chunksInColumn) * chunksInColumn;
+  dataCache.startIndex = startIndex;
+  dataCache.endIndex   = endIndex;
 
-  for (i = dataCache.startIndex; i < dataCache.endIndex; i++) {
+  for (i = startIndex; i < dataCache.endIndex; i+=chunksInColumn) {
     dataCache.columns[i] = (updateChunkInCache(i));
   }
 
-  getChunksWidth();
   updateContentArea(leftOffset, getBlockNum());
   updateScrollbarResize();
 };
@@ -451,14 +464,14 @@ handleFetchColumns = function (startIndex, endIndex) {
   if (startIndex < dataCache.startIndex) {
     const upperBound = Math.min(dataCache.startIndex, endIndex);
     console.log('building chunks from ' + startIndex + ' to ' + upperBound + '');
-    for (var i = upperBound - 1; i >= startIndex; i-=1) {
+    for (var i = upperBound - 1; i >= startIndex; i-=chunksInColumn) {
       dataCache.columns[i] = (updateChunkInCache(i));
     }
   }
   if (endIndex > dataCache.endIndex) {
     const lowerBound = Math.max(dataCache.endIndex, startIndex);
     console.log('building chunks from ' + lowerBound + ' to ' + endIndex + '');
-    for (var i = lowerBound; i < endIndex; i+=1) {
+    for (var i = lowerBound; i < endIndex; i+=chunksInColumn) {
       dataCache.columns[i] = (updateChunkInCache(i));
     }
   }
@@ -467,7 +480,7 @@ handleFetchColumns = function (startIndex, endIndex) {
   dataCache.endIndex   = Math.max(endIndex,   dataCache.endIndex);
 
   return dataCache.columns.slice(startIndex, endIndex).map(c => {
-    return `<div class="column-chunk" style="width:${chunkWidth}px">
+    return `<div class="column-chunk" style="width:${columnWidth}px">
       ${c.rulerChunk}
       <div class="waveform-column" style="font-family:monospaced">
         ${displayedSignals.map((signal) => {return c.waveformChunk[signal].html;}).join('')}
@@ -507,7 +520,7 @@ renderWaveformsAsync = async function (node, chunkIndex) {
 
     // Update the DOM in the next animation frame
     await new Promise(resolve => requestAnimationFrame(() => {
-      let domRef = document.getElementById('waveform-column-' + chunkIndex + '-' + chunkSample);
+      let domRef = document.getElementById('waveform-column-' + chunkIndex + '-' + chunksInColumn);
       if (domRef && !dataCache.columns[chunkIndex].abortFlag) { // Always check if the element still exists
         domRef.innerHTML = innerHtml;
         node.classList.remove('rendering-chunk');
@@ -607,14 +620,14 @@ shallowFetchColumns = function (startIndex, endIndex) {
   if (startIndex < dataCache.startIndex) {
     const upperBound = Math.min(dataCache.startIndex, endIndex);
     console.log('building shallow chunks from ' + startIndex + ' to ' + upperBound + '');
-    for (var i = upperBound - 1; i >= startIndex; i-=1) {
+    for (var i = upperBound - chunksInColumn; i >= startIndex; i-=chunksInColumn) {
       updateChunkInCacheShallow(i);
     }
   }
   if (endIndex > dataCache.endIndex) {
     const lowerBound = Math.max(dataCache.endIndex, startIndex);
     console.log('building shallow chunks from ' + lowerBound + ' to ' + endIndex + '');
-    for (var i = lowerBound; i < endIndex; i+=1) {
+    for (var i = lowerBound; i < endIndex; i+=chunksInColumn) {
       updateChunkInCacheShallow(i);
     }
   }
@@ -622,7 +635,6 @@ shallowFetchColumns = function (startIndex, endIndex) {
   dataCache.startIndex = Math.min(startIndex, dataCache.startIndex);
   dataCache.endIndex   = Math.max(endIndex,   dataCache.endIndex);
 
-  let chunkIndex = startIndex;
   let shallowChunkClass;
   let idTag;
 
@@ -631,32 +643,39 @@ shallowFetchColumns = function (startIndex, endIndex) {
     console.log('chunk cache start index: ' + dataCache.startIndex + ' end index: ' + dataCache.endIndex + '');
     //uncacheChunks(startIndex, endIndex);
 
-  return dataCache.columns.slice(startIndex, endIndex).map(c => {
-    let overlays  = '';
-    let waveforms = "";
+  let returnData = [];
+  let overlays;
+  let waveforms;
+  let result;
+
+  for (var chunkIndex = startIndex; chunkIndex < endIndex; chunkIndex+=chunksInColumn) {
+    overlays  = '';
+    waveforms = "";
     shallowChunkClass = "";
-    idTag = `${chunkIndex}-${chunkSample}`;
-    if (!c) {console.log('chunk ' + chunkIndex + ' is undefined');}
-    if (c.waveformChunk) {
-      waveforms = displayedSignals.map((signal) => {return c.waveformChunk[signal].html;}).join('');
+    idTag = `${chunkIndex}-${chunksInColumn}`;
+    if (!dataCache.columns[chunkIndex]) {console.log('chunk ' + chunkIndex + ' is undefined');}
+    if (dataCache.columns[chunkIndex].waveformChunk) {
+      waveforms = displayedSignals.map((signal) => {return dataCache.columns[chunkIndex].waveformChunk[signal].html;}).join('');
     } else {
       shallowChunkClass = " shallow-chunk";
     }
-    if (chunkIndex === markerChunkIndex)    {overlays += createTimeMarker(markerTime, 0);}
-    if (chunkIndex === altMarkerChunkIndex) {overlays += createTimeMarker(altMarkerTime, 1);}
 
-    let result = `<div class="column-chunk${shallowChunkClass}" id="column-${idTag}" style="width:${chunkWidth}px">
-    ${c.rulerChunk}
+    if (Math.floor(chunkIndex / chunksInColumn) === Math.floor(markerChunkIndex / chunksInColumn))    {overlays += createTimeMarker(markerTime, 0);}
+    if (Math.floor(chunkIndex / chunksInColumn) === Math.floor(altMarkerChunkIndex / chunksInColumn)) {overlays += createTimeMarker(altMarkerTime, 1);}
+
+    result = `<div class="column-chunk${shallowChunkClass}" id="column-${idTag}" style="width:${columnWidth}px">
+    ${dataCache.columns[chunkIndex].rulerChunk}
     <div class="waveform-column" id="waveform-column-${idTag}" style="font-family:monospaced">
     ${waveforms}
     </div>
     ${overlays}
     </div>`;
-    
-    c.isSafeToRemove = true;
-    chunkIndex += 1;
-    return result;
-  }).join('');
+
+    dataCache.columns[chunkIndex].isSafeToRemove = true;
+    returnData.push(result);
+  }
+
+  return returnData.join('');
 };
 
 // ----------------------------------------------------------------------------
@@ -681,21 +700,26 @@ handleScrollEvent = function(newScrollLeft) {
 };
 
 getChunksWidth = function() {
-  blockWidth       = chunkWidth      * columnsInBlock;
-  blocksInCluster  = Math.max(Math.ceil((viewerWidth / blockWidth) * 2), 2);
-  columnsInCluster = blocksInCluster * columnsInBlock;
-  clusterWidth     = blocksInCluster * blockWidth;
+  const chunksInCluster  = Math.max(Math.ceil((viewerWidth / chunkWidth) * 2), 2);
+  chunksInColumn         = 4 ** (Math.max(0,(Math.floor(Math.log2(chunksInCluster) / 2) - 1)));
+  columnWidth            = chunkWidth      * chunksInColumn;
+  columnsInCluster       = Math.max(Math.ceil((viewerWidth / columnWidth) * 2), 2);
+  columnTime             = chunkTime * chunksInColumn;
+
+  console.log('chunks in cluster: ' + chunksInCluster + '; chunks in column: ' + chunksInColumn + '; column width: ' + columnWidth + '; blocks in cluster: ' + columnsInCluster + '');
 };
 
 getBlockNum = function () {
-  const blockNum     = (pseudoScrollLeft + halfViewerWidth) / blockWidth;
-  const minColumnNum = Math.max(Math.round(blockNum - (blocksInCluster / 2)), 0) * columnsInBlock;
-  const maxColumnNum = Math.min(Math.round(blockNum + (blocksInCluster / 2)) * columnsInBlock, chunkCount);
+  const blockNum     = (pseudoScrollLeft + halfViewerWidth) / columnWidth;
+  const minColumnNum = Math.max(Math.round(blockNum - (columnsInCluster / 2)), 0) * chunksInColumn;
+  const maxColumnNum = Math.min(Math.round(blockNum + (columnsInCluster / 2)) * chunksInColumn, chunkCount);
+
+  console.log('min column number: ' + minColumnNum + '; max column number: ' + maxColumnNum + '');
   return [minColumnNum, maxColumnNum];
 };
 
 updateContentArea = function(oldLeftOffset, cluster) {
-  //const itemsStart = Math.max(Math.min(cluster[0], (chunkCount - columnsInCluster) + (columnsInBlock % chunkCount)), 0);
+  //const itemsStart = Math.max(Math.min(cluster[0], (chunkCount - columnsInCluster) + (chunksInColumn % chunkCount)), 0);
   //const itemsEnd   = Math.min(Math.max(cluster[1], columnsInCluster), chunkCount);
   const leftHidden = chunkWidth * cluster[0];
   if (updatePending || leftHidden !== oldLeftOffset) {
@@ -726,14 +750,14 @@ handleSignalSelect = function (netlistId) {
   let element;
   let index;
 
-  for (var i = dataCache.startIndex; i < dataCache.endIndex; i++) {
-    element = document.getElementById('idx' + i + '-' + chunkSample + '--' + selectedSignal);
+  for (var i = dataCache.startIndex; i < dataCache.endIndex; i+=chunksInColumn) {
+    element = document.getElementById('idx' + i + '-' + chunksInColumn + '--' + selectedSignal);
     if (element) {
       element.classList.remove('is-selected');
       dataCache.columns[i].waveformChunk[selectedSignal].html = element.outerHTML;
     }
 
-    element = document.getElementById('idx' + i + '-' + chunkSample + '--' + netlistId);
+    element = document.getElementById('idx' + i + '-' + chunksInColumn + '--' + netlistId);
     if (element) {
       element.classList.add('is-selected');
       dataCache.columns[i].waveformChunk[netlistId].html = element.outerHTML;
@@ -863,7 +887,7 @@ handleMarkerSet = function (time, markerType) {
 
   // dispose of old marker
   if (oldMarkerTime !== null) {
-    if (chunkIndex >= dataCache.startIndex && chunkIndex < dataCache.endIndex) {
+    if (chunkIndex >= dataCache.startIndex && chunkIndex < dataCache.endIndex + chunksInColumn) {
       let timeMarker = document.getElementById(id);
       if (timeMarker) {
         timeMarker.remove();
@@ -879,23 +903,23 @@ handleMarkerSet = function (time, markerType) {
   if (time === null) {
     if (markerType === 0) {
       markerTime         = null;
-      markerChunkIndex   = null;
+      markerChunkIndex   = undefined;
     } else {
       altMarkerTime         = null;
-      altMarkerChunkIndex   = null;
+      altMarkerChunkIndex   = undefined;
     }
     return;
   }
 
   // first find the chunk with the marker
   chunkIndex   = Math.floor(time / chunkTime);
-
+  
   // create new marker
-  if (chunkIndex >= dataCache.startIndex && chunkIndex < dataCache.endIndex) {
-    let chunkElement = contentArea.getElementsByClassName('column-chunk')[chunkIndex - dataCache.startIndex];
-    let marker       = new DOMParser().parseFromString(createTimeMarker(time, markerType), 'text/html').body.firstChild;
+  if (chunkIndex >= dataCache.startIndex && chunkIndex < dataCache.endIndex + chunksInColumn) {
+    const clusterIndex = Math.floor((chunkIndex - dataCache.startIndex) / chunksInColumn);
+    let chunkElement   = contentArea.getElementsByClassName('column-chunk')[clusterIndex];
+    let marker         = new DOMParser().parseFromString(createTimeMarker(time, markerType), 'text/html').body.firstChild;
 
-    //chunkElement.innerHTML += marker;
     chunkElement.appendChild(marker);
 
     console.log('adding marker at time ' + time + ' from chunk ' + chunkIndex + '');
@@ -998,25 +1022,23 @@ goToNextTransition = function (direction, edge) {
   chunkWidth          = 512;
   zoomRatio           = 1;
   maxZoomRatio        = 64;
-  chunkSample         = 1;
+  chunksInColumn      = 1;
+  columnTime          = chunkTime * chunksInColumn;
 
   // Clusterize variables
   updatePending       = false;
-  columnsInBlock      = 1;
-  blocksInCluster     = 4;
+  columnsInCluster    = 4;
   scrollEventPending  = false;
   currentCluster      = [0, 0];
-  blockWidth          = columnsInBlock  * chunkWidth;
-  columnsInCluster    = blocksInCluster * columnsInBlock;
-  clusterWidth        = blocksInCluster * blockWidth;
+  columnWidth         = chunksInColumn  * chunkWidth;
 
   // Marker and signal selection variables
   selectedSignal      = null;
   selectedSignalIndex = null;
   markerTime          = null;
-  markerChunkIndex    = null;
+  markerChunkIndex    = undefined;
   altMarkerTime       = null;
-  altMarkerChunkIndex = null;
+  altMarkerChunkIndex = undefined;
 
   // Search handler variables
   searchState         = 0;

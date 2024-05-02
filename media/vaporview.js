@@ -296,12 +296,13 @@ renderWaveformChunk = function (netlistId, chunkStartIndex) {
   }
   const relativeInitialState = [initialState[0] - timeStart, initialState[1]];
   const relativePostState    = [postState[0]    - timeStart, postState[1]];
+  //let chunkTransitionData    = [];
+  //for (let i = startIndex; i < endIndex; i++) {
+  //  const [time, value] = data.transitionData[i];
+  //  chunkTransitionData.push([time - timeStart, value]);
+  //}
 
   var chunkTransitionData = data.transitionData.slice(startIndex, endIndex).map(([time, value]) => {
-    //if (time < timeStart || time >= timeEnd) {
-    //  console.log('transition data out of range: ' + signalId + time + ' at index ' + startIndex + '');
-    //}
-
     return [time - timeStart, value];
   });
 
@@ -397,6 +398,7 @@ updateWaveformInCache = function (netlistIdList) {
     const signalId = netlistData[netlistId].signalId;
     for (var i = dataCache.startIndex; i < dataCache.endIndex; i+=chunksInColumn) {
       dataCache.columns[i].waveformChunk[netlistId] = renderWaveformChunk(netlistId, i);
+      parseHtmlInChunk(i);
     }
     dataCache.valueAtMarker[signalId] = getValueAtTime(signalId, markerTime);
   });
@@ -458,44 +460,12 @@ handleZoom = function (amount, zoomOrigin, screenPosition) {
   updateScrollbarResize();
 };
 
-// return chunks to be rendered
-handleFetchColumns = function (startIndex, endIndex) {
-
-  if (startIndex < dataCache.startIndex) {
-    const upperBound = Math.min(dataCache.startIndex, endIndex);
-    console.log('building chunks from ' + startIndex + ' to ' + upperBound + '');
-    for (var i = upperBound - 1; i >= startIndex; i-=chunksInColumn) {
-      dataCache.columns[i] = (updateChunkInCache(i));
-    }
-  }
-  if (endIndex > dataCache.endIndex) {
-    const lowerBound = Math.max(dataCache.endIndex, startIndex);
-    console.log('building chunks from ' + lowerBound + ' to ' + endIndex + '');
-    for (var i = lowerBound; i < endIndex; i+=chunksInColumn) {
-      dataCache.columns[i] = (updateChunkInCache(i));
-    }
-  }
-
-  dataCache.startIndex = Math.min(startIndex, dataCache.startIndex);
-  dataCache.endIndex   = Math.max(endIndex,   dataCache.endIndex);
-
-  return dataCache.columns.slice(startIndex, endIndex).map(c => {
-    return `<div class="column-chunk" style="width:${columnWidth}px">
-      ${c.rulerChunk}
-      <div class="waveform-column" style="font-family:monospaced">
-        ${displayedSignals.map((signal) => {return c.waveformChunk[signal].html;}).join('')}
-      </div>
-      ${c.marker}
-      ${c.altMarker}
-    </div>`;
-  });
-};
-
 // Experimental asynchronous rendering path
 renderWaveformsAsync = async function (node, chunkIndex) {
-  updatePending = true;
-  let innerHtml;
-  let chunkData = {};
+  updatePending       = true;
+  let chunkData       = {};
+  let chunkElements   = {};
+  let orderedElements = [];
 
   try {
 
@@ -507,7 +477,8 @@ renderWaveformsAsync = async function (node, chunkIndex) {
 
       // Assume renderWaveformChunk is a heavy operation; simulate breaking it up
       await new Promise(resolve => requestAnimationFrame(() => {
-        chunkData[netlistId] = renderWaveformChunk(netlistId, chunkIndex);
+        chunkData[netlistId]     = renderWaveformChunk(netlistId, chunkIndex);
+        chunkElements[netlistId] = domParser.parseFromString(chunkData[netlistId].html, 'text/html').body.firstChild;
         if (!dataCache.columns[chunkIndex]) {console.log(chunkIndex);}
         resolve();
       }));
@@ -515,14 +486,14 @@ renderWaveformsAsync = async function (node, chunkIndex) {
 
     if (!dataCache.columns[chunkIndex].abortFlag) {
       dataCache.columns[chunkIndex].waveformChunk = chunkData;
-      innerHtml = displayedSignals.map(signal => dataCache.columns[chunkIndex].waveformChunk[signal].html).join('');
     }
 
     // Update the DOM in the next animation frame
     await new Promise(resolve => requestAnimationFrame(() => {
+      displayedSignals.forEach((netlistId) => {orderedElements.push(chunkElements[netlistId]);});
       let domRef = document.getElementById('waveform-column-' + chunkIndex + '-' + chunksInColumn);
       if (domRef && !dataCache.columns[chunkIndex].abortFlag) { // Always check if the element still exists
-        domRef.innerHTML = innerHtml;
+        domRef.replaceChildren(...orderedElements);
         node.classList.remove('rendering-chunk');
       }
       resolve();
@@ -608,9 +579,36 @@ updateChunkInCacheShallow = function (chunkIndex) {
     altMarker:     [],
     abortFlag:     false,
     isSafeToRemove: false,
+    element:       undefined,
   };
 
   dataCache.columns[chunkIndex] = result;
+};
+
+parseHtmlInChunk = function (chunkIndex) {
+  let overlays  = '';
+  let waveforms = "";
+  let shallowChunkClass = "";
+  let idTag = `${chunkIndex}-${chunksInColumn}`;
+  if (dataCache.columns[chunkIndex].waveformChunk) {
+    waveforms = displayedSignals.map((signal) => {return dataCache.columns[chunkIndex].waveformChunk[signal].html;}).join('');
+  } else {
+    shallowChunkClass = " shallow-chunk";
+  }
+
+  if (Math.floor(chunkIndex / chunksInColumn) === Math.floor(markerChunkIndex / chunksInColumn))    {overlays += createTimeMarker(markerTime, 0);}
+  if (Math.floor(chunkIndex / chunksInColumn) === Math.floor(altMarkerChunkIndex / chunksInColumn)) {overlays += createTimeMarker(altMarkerTime, 1);}
+
+  result = `<div class="column-chunk${shallowChunkClass}" id="column-${idTag}" style="width:${columnWidth}px">
+  ${dataCache.columns[chunkIndex].rulerChunk}
+  <div class="waveform-column" id="waveform-column-${idTag}" style="font-family:monospaced">
+  ${waveforms}
+  </div>
+  ${overlays}
+  </div>`;
+
+  dataCache.columns[chunkIndex].element        = domParser.parseFromString(result, 'text/html').body.firstChild;
+  dataCache.columns[chunkIndex].isSafeToRemove = true;
 };
 
 shallowFetchColumns = function (startIndex, endIndex) {
@@ -635,47 +633,21 @@ shallowFetchColumns = function (startIndex, endIndex) {
   dataCache.startIndex = Math.min(startIndex, dataCache.startIndex);
   dataCache.endIndex   = Math.max(endIndex,   dataCache.endIndex);
 
-  let shallowChunkClass;
-  let idTag;
-
-  //handleClusterWillChange() :
-    console.log('aborting chunk cache outside of index ' + startIndex + ' to ' + endIndex + '');
-    console.log('chunk cache start index: ' + dataCache.startIndex + ' end index: ' + dataCache.endIndex + '');
-    //uncacheChunks(startIndex, endIndex);
+  console.log('aborting chunk cache outside of index ' + startIndex + ' to ' + endIndex + '');
+  console.log('chunk cache start index: ' + dataCache.startIndex + ' end index: ' + dataCache.endIndex + '');
+  //uncacheChunks(startIndex, endIndex);
 
   let returnData = [];
-  let overlays;
-  let waveforms;
-  let result;
 
   for (var chunkIndex = startIndex; chunkIndex < endIndex; chunkIndex+=chunksInColumn) {
-    overlays  = '';
-    waveforms = "";
-    shallowChunkClass = "";
-    idTag = `${chunkIndex}-${chunksInColumn}`;
     if (!dataCache.columns[chunkIndex]) {console.log('chunk ' + chunkIndex + ' is undefined');}
-    if (dataCache.columns[chunkIndex].waveformChunk) {
-      waveforms = displayedSignals.map((signal) => {return dataCache.columns[chunkIndex].waveformChunk[signal].html;}).join('');
-    } else {
-      shallowChunkClass = " shallow-chunk";
+    if (!dataCache.columns[chunkIndex].element) {
+      parseHtmlInChunk(chunkIndex);
     }
-
-    if (Math.floor(chunkIndex / chunksInColumn) === Math.floor(markerChunkIndex / chunksInColumn))    {overlays += createTimeMarker(markerTime, 0);}
-    if (Math.floor(chunkIndex / chunksInColumn) === Math.floor(altMarkerChunkIndex / chunksInColumn)) {overlays += createTimeMarker(altMarkerTime, 1);}
-
-    result = `<div class="column-chunk${shallowChunkClass}" id="column-${idTag}" style="width:${columnWidth}px">
-    ${dataCache.columns[chunkIndex].rulerChunk}
-    <div class="waveform-column" id="waveform-column-${idTag}" style="font-family:monospaced">
-    ${waveforms}
-    </div>
-    ${overlays}
-    </div>`;
-
-    dataCache.columns[chunkIndex].isSafeToRemove = true;
-    returnData.push(result);
+    returnData.push(dataCache.columns[chunkIndex].element);
   }
 
-  return returnData.join('');
+  return returnData;
 };
 
 // ----------------------------------------------------------------------------
@@ -726,7 +698,7 @@ updateContentArea = function(oldLeftOffset, cluster) {
     const newColumns       = shallowFetchColumns(cluster[0], cluster[1]);
     contentLeft            = leftHidden - pseudoScrollLeft;
     contentArea.style.left = contentLeft + 'px';
-    contentArea.innerHTML  = newColumns;
+    contentArea.replaceChildren(...newColumns);
     leftOffset             = leftHidden;
     handleClusterChanged(cluster[0], cluster[1]);
   }
@@ -918,7 +890,7 @@ handleMarkerSet = function (time, markerType) {
   if (chunkIndex >= dataCache.startIndex && chunkIndex < dataCache.endIndex + chunksInColumn) {
     const clusterIndex = Math.floor((chunkIndex - dataCache.startIndex) / chunksInColumn);
     let chunkElement   = contentArea.getElementsByClassName('column-chunk')[clusterIndex];
-    let marker         = new DOMParser().parseFromString(createTimeMarker(time, markerType), 'text/html').body.firstChild;
+    let marker         = domParser.parseFromString(createTimeMarker(time, markerType), 'text/html').body.firstChild;
 
     chunkElement.appendChild(marker);
 
@@ -1073,6 +1045,7 @@ goToNextTransition = function (direction, edge) {
     markerElement:  '',
     altMarkerElement: '',
   };
+  domParser           = new DOMParser();
 
   // Initialize the webview when the document is ready
   document.addEventListener('DOMContentLoaded', () => {
@@ -1133,7 +1106,7 @@ goToNextTransition = function (direction, edge) {
       labelsList.push(createLabel(netlistId, isSelected));
       transitions.push(createValueDisplayElement(netlistId, dataCache.valueAtMarker[signalId], isSelected));
     });
-    labels.innerHTML = labelsList.join('');
+    labels.innerHTML            = labelsList.join('');
     transitionDisplay.innerHTML = transitions.join('');
   };
 
@@ -1386,6 +1359,12 @@ goToNextTransition = function (direction, edge) {
     arrayMove(labelsList,       oldIndex, newIndex);
     handleSignalSelect(displayedSignals[newIndex]);
     renderLabelsPanels();
+    for (var i = dataCache.startIndex; i < dataCache.endIndex; i+=chunksInColumn) {
+      const waveformColumn = document.getElementById('waveform-column-' + i + '-' + chunksInColumn);
+      const children       = Array.from(waveformColumn.children);
+      arrayMove(children, oldIndex, newIndex);
+      waveformColumn.replaceChildren(...children);
+    }
     updateContentArea(leftOffset, getBlockNum());
   }
 
@@ -1838,9 +1817,6 @@ goToNextTransition = function (direction, edge) {
           modulePath: message.modulePath,
           vscodeContext: `data-vscode-context=${JSON.stringify(context)}`
         };
-
-        //var childElement = createLabel(netlistId, false);
-        //labels.innerHTML = labels.innerHTML + childElement;
 
         updateWaveformInCache([message.netlistId]);
         renderLabelsPanels();

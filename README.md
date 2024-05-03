@@ -39,7 +39,11 @@ Scrolling behaves as you would expect except for when scrolling the actual wavef
 
 ## Zooming
 
-To Zoom in or out, hold **Ctrl**, and **Scroll** to zoom. Or use the Zoom in/out buttons on the top right.
+Zooming can be done one of 3 ways:
+
+- Hold **Ctrl**, and **Scroll**
+- Use the Zoom in/out buttons on the top right
+- Click and drag over the area you wish to zoom in on
 
 ## Rearranging signals
 

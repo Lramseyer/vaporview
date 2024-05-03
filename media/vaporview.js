@@ -428,12 +428,16 @@ handleZoom = function (amount, zoomOrigin, screenPosition) {
   if (updatePending) {return;}
   if (amount === 0) {return;}
 
-  const newZoomRatio  = zoomRatio * Math.pow(2, (-1 * amount));
+  let newZoomRatio  = zoomRatio * Math.pow(2, (-1 * amount));
   touchpadScrollCount = 0;
   
   if (newZoomRatio > maxZoomRatio) {
-    console.log('zoom ratio is too high: ' + newZoomRatio + '');
-    return;
+    newZoomRatio = maxZoomRatio;
+
+    if (newZoomRatio === zoomRatio) {
+      console.log('zoom ratio is too high: ' + newZoomRatio + '');
+      return;
+    }
   }
 
   console.log('zooming to ' + newZoomRatio + ' from ' + zoomRatio + '');
@@ -653,7 +657,6 @@ shallowFetchColumns = function (startIndex, endIndex) {
 // ----------------------------------------------------------------------------
 // Modified Clusterize code
 // ----------------------------------------------------------------------------
-
 handleScrollEvent = function(newScrollLeft) {
   const clampedScrollLeft = Math.max(Math.min(newScrollLeft, maxScrollLeft), 0);
   contentLeft            += pseudoScrollLeft - clampedScrollLeft;
@@ -674,7 +677,7 @@ handleScrollEvent = function(newScrollLeft) {
 getChunksWidth = function() {
   const chunksInCluster  = Math.max(Math.ceil((viewerWidth / chunkWidth) * 2), 2);
   chunksInColumn         = 4 ** (Math.max(0,(Math.floor(Math.log2(chunksInCluster) / 2) - 1)));
-  columnWidth            = chunkWidth      * chunksInColumn;
+  columnWidth            = chunkWidth * chunksInColumn;
   columnsInCluster       = Math.max(Math.ceil((viewerWidth / columnWidth) * 2), 2);
   columnTime             = chunkTime * chunksInColumn;
 
@@ -1577,6 +1580,64 @@ goToNextTransition = function (direction, edge) {
     return Math.round(pixelLeft / zoomRatio) + (chunkTime * dataCache.startIndex);
   }
 
+  highlightElement    = null;
+  function drawHighlightZoom(event) {
+
+    highlightEndEvent = event;
+    const width       = Math.abs(highlightEndEvent.pageX - highlightStartEvent.pageX);
+    const left        = Math.min(highlightStartEvent.pageX, highlightEndEvent.pageX);
+    const elementLeft = left - scrollArea.getBoundingClientRect().left;
+    const style       = `left: ${elementLeft}px; width: ${width}px; height: ${contentArea.style.height};`;
+
+    if (width > 5) {mouseupEventType = 'highlightZoom';}
+
+    if (!highlightElement) {
+      highlightElement = domParser.parseFromString(`<div id="highlight-zoom" style="${style}"></div>`, 'text/html').body.firstChild;
+      scrollArea.appendChild(highlightElement);
+    } else {
+      highlightElement.style.width = width + 'px';
+      highlightElement.style.left  = elementLeft + 'px';
+    }
+
+    if (!highlightDebounce) {
+      highlightDebounce = setTimeout(() => {
+        mouseupEventType  = 'highlightZoom';
+      }, 300);
+    }
+  }
+
+  function highlightZoom() {
+    const timeStart = getTimeFromClick(highlightStartEvent);
+    const timeEnd   = getTimeFromClick(highlightEndEvent);
+    const time      = Math.round((timeStart + timeEnd) / 2);
+    const width     = Math.abs(highlightStartEvent.pageX - highlightEndEvent.pageX);
+    const amount    = Math.ceil(Math.log2(width / viewerWidth));
+
+    if (highlightElement) {
+      highlightElement.remove();
+      highlightElement = null;
+    }
+
+    handleZoom(amount, time, halfViewerWidth);
+  }
+
+  highlightDebounce    = null;
+  highlightListenerSet = false;
+  function handleScrollAreaMouseDown(event) {
+    if (event.button === 1) {
+      handleScrollAreaClick(event, 1);
+    } else if (event.button === 0) {
+      highlightStartEvent = event;
+      mouseupEventType    = 'markerSet';
+
+      if (!highlightListenerSet) {
+        scrollArea.addEventListener('mousemove', drawHighlightZoom, false);
+        highlightListenerSet = true;
+      }
+
+    }
+  }
+
   function handleScrollAreaClick(event, eventButton) {
 
     button = eventButton;
@@ -1653,12 +1714,7 @@ goToNextTransition = function (direction, edge) {
     scrollbar.classList.add('is-dragging');
 
     document.addEventListener('mousemove', handleScrollbarMove, false);
-
-    document.addEventListener('mouseup', () => {
-      scrollbar.classList.remove('is-dragging');
-      document.removeEventListener('mousemove', handleScrollbarMove, false);
-      scrollbarMoved = false;
-    });
+    mouseupEventType = 'scroll';
   };
 
 
@@ -1680,16 +1736,13 @@ goToNextTransition = function (direction, edge) {
     }
   };
 
-  function handleResizeMousedown(event, resizeElement, index) {
-    resizeIndex = index;
+  function handleResizeMousedown(event, element, index) {
+    resizeIndex   = index;
+    resizeElement = element;
     event.preventDefault();
     resizeElement.classList.add('is-resizing');
     document.addEventListener("mousemove", resize, false);
-    document.addEventListener("mouseup", () => {
-      resizeElement.classList.remove('is-resizing');
-      document.removeEventListener("mousemove", resize, false);
-      handleResizeViewer();
-    }, false);
+    mouseupEventType = 'resize';
   };
 
   resizeDebounce = 0;
@@ -1698,10 +1751,39 @@ goToNextTransition = function (direction, edge) {
     resizeDebounce = setTimeout(updateViewportWidth, 100);
   };
 
+  function handleMouseUp(event) {
+    if (mouseupEventType === 'rearrange') {
+      dragEnd();
+    } else if (mouseupEventType === 'resize') {
+      resizeElement.classList.remove('is-resizing');
+      document.removeEventListener("mousemove", resize, false);
+      handleResizeViewer();
+    } else if (mouseupEventType === 'scroll') {
+      scrollbar.classList.remove('is-dragging');
+      document.removeEventListener('mousemove', handleScrollbarMove, false);
+      scrollbarMoved = false;
+    } else if (mouseupEventType === 'highlightZoom') {
+      scrollArea.removeEventListener('mousemove', drawHighlightZoom, false);
+      highlightListenerSet = false;
+      highlightZoom();
+    } else if (mouseupEventType === 'markerSet') {
+      clearTimeout(highlightDebounce);
+      handleScrollAreaClick(highlightStartEvent, 0);
+      scrollArea.removeEventListener('mousemove', drawHighlightZoom, false);
+      highlightListenerSet = false;
+      if (highlightElement) {
+        highlightElement.remove();
+        highlightElement = null;
+      }
+    }
+    mouseupEventType = null;
+  }
+
+  mouseupEventType = null;
+
   // click handler to handle clicking inside the waveform viewer
   // gets the absolute x position of the click relative to the scrollable content
-  contentArea.addEventListener('click',     (e) => {handleScrollAreaClick(e, 0);});
-  contentArea.addEventListener('mousedown', (e) => {if (e.button === 1) {handleScrollAreaClick(e, 1);}});
+  contentArea.addEventListener('mousedown', (e) => {handleScrollAreaMouseDown(e);});
   scrollbar.addEventListener('mousedown',   (e) => {handleScrollbarDrag(e);});
 
   // resize handler to handle column resizing
@@ -1739,7 +1821,7 @@ goToNextTransition = function (direction, edge) {
 
   // click and drag handlers to rearrange the order of waveform signals
   labels.addEventListener('mousedown', dragStart);
-  document.addEventListener('mouseup', dragEnd);
+  document.addEventListener('mouseup', handleMouseUp);
 
   // Event handlers to handle clicking on a waveform label to select a signal
   labels.addEventListener(           'click', (e) => clicklabel(e, labels));
@@ -1837,11 +1919,14 @@ goToNextTransition = function (direction, edge) {
           break;
         } else {
           displayedSignals.splice(index, 1);
-          //document.getElementById('label-' + message.netlistId).outerHTML = "";
-          //document.getElementById('label-' + message.netlistId).remove();
-
           updatePending    = true;
           renderLabelsPanels();
+          for (var i = dataCache.startIndex; i < dataCache.endIndex; i+=chunksInColumn) {
+            const waveformColumn = document.getElementById('waveform-column-' + i + '-' + chunksInColumn);
+            const children       = Array.from(waveformColumn.children);
+            children.splice(index, 1);
+            waveformColumn.replaceChildren(...children);
+          }
           updateContentArea(leftOffset, getBlockNum());
           contentArea.style.height = (40 + (28 * displayedSignals.length)) + "px";
 

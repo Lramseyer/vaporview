@@ -21,6 +21,11 @@ class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocume
     console.log("create()");
     console.log(uri.fsPath);
 
+    const netlistTreeDataProvider          = new NetlistTreeDataProvider();
+    const displayedSignalsTreeDataProvider = new DisplayedSignalsViewProvider();
+    const waveformDataSet                  = new WaveformTop();
+    const netlistIdTable                   = new Map<string, NetlistIdRef>();
+
     // Read the VCD file using vscode.workspace.openTextDocument
     // This doesn't like files over 50MB, so I will have to try something different
     //const vcdDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(uri.fsPath));
@@ -29,15 +34,21 @@ class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocume
     // Todo: Bifurcate the code here to read the file using the file system API
     // This way, the file can be read in chunks and the data can be parsed incrementally
     const vcdDocument = await vscode.workspace.fs.readFile(uri);
-    const vcdContent  = new TextDecoder().decode(vcdDocument);
 
-    const netlistTreeDataProvider          = new NetlistTreeDataProvider();
-    const displayedSignalsTreeDataProvider = new DisplayedSignalsViewProvider();
-    const waveformDataSet                  = new WaveformTop();
-    const netlistIdTable                   = new Map<string, NetlistIdRef>();
+    // For long files, we show a notification with a progress bar
+    vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: "Loading VCD file",
+      cancellable: false
+    }, (progress) => {
+      progress.report({ increment: 1, message: "Opening VCD File"});
 
-    // Parse the VCD data for this specific file
-    parseVCDData(vcdContent, netlistTreeDataProvider, waveformDataSet, netlistIdTable);
+      const vcdContent  = new TextDecoder().decode(vcdDocument);
+  
+      // Parse the VCD data for this specific file
+      parseVCDData(vcdContent, netlistTreeDataProvider, waveformDataSet, netlistIdTable, progress);
+      return Promise.resolve();
+    });
 
     // Optionally, you can refresh the Netlist view
     netlistTreeDataProvider.refresh();
@@ -1333,7 +1344,8 @@ function newHashCode(s: string, hashTable: Map<string, NetlistIdRef>) {
 }
 
 // Function to parse the VCD data and populate the Netlist view
-function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataProvider, waveformDataSet: WaveformTop, netlistIdTable: NetlistIdTable) {
+function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataProvider, waveformDataSet: WaveformTop, netlistIdTable: NetlistIdTable, progress: vscode.Progress<{ message?: string; increment?: number; }>) {
+
   // Define a data structure to store the netlist items
   const netlistItems: NetlistItem[] = [];
   const stack:        NetlistItem[] = [];
@@ -1364,7 +1376,10 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
   let timeStepIndex     = 0;
   let maxTime           = 0;
   let eventCount        = 0;
+
+  progress.report({ increment: 4, message: "Analyzing VCD File"});
   for (const line of lines) {
+
     const cleanedLine = line.trim();
     if (cleanedLine.startsWith('#')) {
       // Extract timestamp
@@ -1398,7 +1413,18 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
   console.log("Chunk time: " + waveformDataSet.metadata.chunkTime);
   console.log("Max time: " + maxTime);
 
+  progress.report({ increment: 5, message: "Parsing VCD File"});
+
+  const progressBarUpdateInterval = Math.floor(lineCount / 9);
+  let lineNum = 0;
   for (const line of lines) {
+    lineNum++;
+
+    if (lineNum % progressBarUpdateInterval === 0) {
+      console.log("Progress: " + lineNum + " / " + lineCount);
+      progress.report({ increment: 10, message: "Parsing VCD File"});
+    }
+
     // Remove leading and trailing whitespace
     const cleanedLine = line.trim();
 
@@ -1553,6 +1579,10 @@ export function activate(context: vscode.ExtensionContext) {
       },
       supportsMultipleEditorsPerDocument: false,
     });
+
+  // I want to get semantic tokens for the current theme
+  // The API is not available yet, so I'm just going to log the theme
+  //vscode.window.onDidChangeActiveColorTheme((e) => {});
 
   // Commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.viewVaporViewSidebar', () => {

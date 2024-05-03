@@ -293,6 +293,17 @@ body {
   background-color: var(--vscode-scrollbarSlider-activeBackground);
 }
 
+#highlight-zoom {
+  position: absolute;
+  z-index: 100;
+  background-color: var(--vscode-editor-selectionBackground);
+  opacity: 0.5;
+  left: 0px;
+  top: 0px;
+  width: 100%;
+  border-radius: 2px;
+}
+
 #time-ruler {
   display: flex;
   align-items: center;
@@ -410,7 +421,7 @@ body {
 }
 
 .ruler-tick {
-  stroke:       var(--vscode-editorGhostText-foreground);
+  stroke:       var(--vscode-editorLineNumber-foreground);
   stroke-dasharray: 1 9;
   stroke-width:     5px;
 }

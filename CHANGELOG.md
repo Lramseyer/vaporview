@@ -2,13 +2,15 @@
 
 ## 0.9.8
 
-- VCD parser fixes 
-  - Properly parse out module names
-  - Distinguish between modules and functions
+- VCD parser fixes and improvements
+  - Fixed a few parser glitches that caused some netlist elements to not be registered
+  - Properly parse out module names and module types
   - Improved algorithm to set chunk size
-- Minor fixes to rendering glitches
+  - Added progress bar to indicate status when loading large files
 - Netlist Viewer now maintains expanded state
+- Minor fixes to rendering glitches
 - Improved renderer to perform a _little_ better when zooming out really far
+- Added feature to click and drag on an area to zoom in on it
 
 ## 0.9.7
 

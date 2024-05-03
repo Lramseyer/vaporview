@@ -24,7 +24,7 @@ You know what, if you can just get the build flow working so that I can use nati
 
 ## Extension overview
 
-There are 2 main parts to this extesnion: The VScode Extension (src/web/extension.ts) and the webview component (media/extension.js and media/clusterize_mod.js) They communicate via a messaging interface: `webview.postMessage()` and `vscode.postMessage()` on the extension and webview side respectively. This is mainly used for setting up the webview, and for adding and removing signals from the viewer. It's important to note that when a signal is rendered in the webview, the extension only sends over the waveform data for that signal that is being rendered. This is important for my future plans in supporting larger waveform files. If we only load into memory what is actually in the viewer, we're not going to run into memory issues.
+There are 2 main parts to this extesnion: The VScode Extension (src/web/extension.ts) and the webview component (media/extension.js) They communicate via a messaging interface: `webview.postMessage()` and `vscode.postMessage()` on the extension and webview side respectively. This is mainly used for setting up the webview, and for adding and removing signals from the viewer. It's important to note that when a signal is rendered in the webview, the extension only sends over the waveform data for that signal that is being rendered. This is important for my future plans in supporting larger waveform files. If we only load into memory what is actually in the viewer, we're not going to run into memory issues.
 
 ## The extension
 

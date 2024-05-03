@@ -1439,6 +1439,7 @@ goToNextTransition = function (direction, edge) {
 
     document.addEventListener('mousemove', dragMove);
 
+    mouseupEventType      = 'rearrange';
     draggableItemIndex    = labelsList.indexOf(draggableItem);
     draggableItemNewIndex = draggableItemIndex;
     idleItems             = labelsList.filter((item) => {return item.classList.contains('is-idle');});
@@ -1753,7 +1754,7 @@ goToNextTransition = function (direction, edge) {
 
   function handleMouseUp(event) {
     if (mouseupEventType === 'rearrange') {
-      dragEnd();
+      dragEnd(event);
     } else if (mouseupEventType === 'resize') {
       resizeElement.classList.remove('is-resizing');
       document.removeEventListener("mousemove", resize, false);

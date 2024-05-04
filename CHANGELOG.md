@@ -11,6 +11,7 @@
 - Minor fixes to rendering glitches
 - Improved renderer to perform a _little_ better when zooming out really far
 - Added feature to click and drag on an area to zoom in on it
+- Added feature to link linking timestamps in UVM logs (or other simulation logs) to jump to a timestamp when viewed in the terminal
 
 ## 0.9.7
 

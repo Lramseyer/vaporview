@@ -67,6 +67,10 @@ To move the marker to the nearest edge _**of the selected signal**_, you can eit
 
 To move to the next positive edge or negative edge, you will have to use the control bar buttons. This only applies to single bit waveforms.
 
+### Placing markers as links from log files
+
+When log files are opened in the terminal, VaporView will automatically parse out timestamps. Use **Ctrl + Click** to place a marker and move to that timestamp. Note that if multiple viewers are open, it will place a marker in the last active viewer.
+
 ### Finding values and transitions in a particular waveform
 
 Finding a particular transition or a value in a waveform is done in relation to the selected signal and the marker (similar to how Visual Studio Code handles search in relation to the text cursor)
@@ -105,7 +109,7 @@ This extension was designed on Vscode version 1.83
 
 # Development Roadmap
 
-## 0.9.7 - Release Candidate
+## 0.9.8 - Release Candidate
 
 Supports all the features you would expect including signal placing, rearranging, marker handling, saving/loading viewer settings, and exporting selection to WaveDrom!
 

@@ -1938,6 +1938,11 @@ goToNextTransition = function (direction, edge) {
 
       break;
       }
+      case 'setMarker': {
+        // Handle setting the marker, e.g., update the marker position
+        handleMarkerSet(message.time, 0);
+        break;
+      }
       case 'getSelectionContext': {
 
         sendWebviewContext('response');

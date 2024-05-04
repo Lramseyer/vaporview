@@ -123,6 +123,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
   private static readonly viewType = 'vaporview.waveformViewer';
   private readonly webviews = new WebviewCollection();
   private activeWebview: vscode.WebviewPanel | undefined;
+  private lastActiveWebview: vscode.WebviewPanel | undefined;
   private activeDocument: VaporviewDocument | undefined;
 
   public netlistTreeDataProvider: NetlistTreeDataProvider;
@@ -483,6 +484,11 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     vscode.window.showInformationMessage('WaveDrom JSON copied to clipboard.');
   };
 
+  setMarkerAtTime(time: number) {
+    if (!this.lastActiveWebview) {return;}
+    this.lastActiveWebview.webview.postMessage({command: 'setMarker', time: time});
+  }
+
   updateStatusBarItems(document: VaporviewDocument) {
     this.deltaTimeStatusBarItem.hide();
     this.markerTimeStatusBarItem.hide();
@@ -526,6 +532,9 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       if (this.activeWebview === webviewPanel) {
         this.netlistTreeDataProvider.setTreeData([]);
         this.displayedSignalsTreeDataProvider.setTreeData([]);
+      }
+      if (this.lastActiveWebview === webviewPanel) {
+        this.lastActiveWebview = undefined;
       }
     });
 
@@ -600,6 +609,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 
       if (e.webviewPanel.active) {
         this.activeWebview  = webviewPanel;
+        this.lastActiveWebview = webviewPanel;
         this.activeDocument = document;
         this.netlistTreeDataProvider.setTreeData(this.activeDocument.netlistTreeData.getTreeData());
         this.displayedSignalsTreeDataProvider.setTreeData(this.activeDocument.displayedSignalsTreeData.getTreeData());
@@ -696,6 +706,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     // Add the webview to our internal set of active webviews
     this.webviews.add(document.uri, webviewPanel);
     this.activeWebview  = webviewPanel;
+    this.lastActiveWebview = webviewPanel;
     this.activeDocument = document;
 
     // Setup initial content for the webview
@@ -1567,6 +1578,36 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
 export function activate(context: vscode.ExtensionContext) {
 
   const viewerProvider = new WaveformViewerProvider(context);
+  const uvmTimestampRegex = /@\s+(\d+)/g;
+
+  // Register terminal link provider for UVM log time stamps
+  interface CustomTerminalLink extends vscode.TerminalLink {data: string;}
+  vscode.window.registerTerminalLinkProvider({
+    provideTerminalLinks: (context: vscode.TerminalLinkContext, token: vscode.CancellationToken) => {
+      // Detect the first instance of the word "link" if it exists and linkify it
+      const matches = [...context.line.matchAll(uvmTimestampRegex)];
+      //      echo "UVM_LOW @ 50000"
+      if (matches.length === 0) {return [];}
+      return matches.map(match => {
+        const line       = context.line;
+        const startIndex = line.indexOf(match[0]);
+
+        return {
+          startIndex,
+          length: match[0].length,
+          tooltip: 'go to time ' + match[1] + ' in waveform viewer',
+          data: match[0],
+        } as CustomTerminalLink;
+      });
+    },
+
+    handleTerminalLink: (link: CustomTerminalLink) => {
+      console.log("UVM Timestamp link clicked:");
+      const time = parseInt([...link.data.matchAll(uvmTimestampRegex)][0][1]);
+      console.log(time);
+      viewerProvider.setMarkerAtTime(time);
+    }
+  });
 
   // Associates .vcd files with vaporview extension
   // See package.json for more details

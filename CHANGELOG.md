@@ -11,7 +11,9 @@
 - Minor fixes to rendering glitches
 - Improved renderer to perform a _little_ better when zooming out really far
 - Added feature to click and drag on an area to zoom in on it
-- Added feature to link linking timestamps in UVM logs (or other simulation logs) to jump to a timestamp when viewed in the terminal
+- Added terminal links feature
+  - Timestamps in UVM logs (or other simulation logs) when Ctrl + clicked will set a marker in the viewer and jump to that timestamp
+  - Netlist paths, when Ctrl + clicked will add that netlist element (if it exists) into the viewer
 
 ## 0.9.7
 

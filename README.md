@@ -4,6 +4,24 @@ VaporView is a VCD waveform viewer extension for Visual Studio Code designed for
 
 ![](readme_assets/overview.png)
 
+# Features
+
+## Waveform Viewer
+
+VaporView automatically opens .vcd files in the waveform viewer. In the viewer, you can:
+- Add, remove, and rearrange signals
+- Pan and zoom in on the view
+- Place and move markers
+- Search for values witin a waveform dump
+
+## Terminal Links
+
+VaporView associates timestamps and netlist paths as links in the terminal. These links are activated by **Ctrl + Clicking** on the link. The following formats are recognized by Vaporview:
+
+- UVM timestamp - ie: `@ 50000`
+- Timestamp with Units - ie: `50,000 ns` (comma is optional)
+- Netlist elements - ie: `top.submodule.signal`
+
 # Controls
 
 ## Keyboard Shortcuts
@@ -25,6 +43,8 @@ To remove a signal, that signal can be un-checked from either the "Netlist" view
 
 To add or remove multiple signals, select the signals you would like to add or remove, right click and select "Add/Remove selected signals" from the menu.
 
+Signals can also be added by clicking on a link in the terminal with the full signal path.
+
 ## Scrolling
 
 The scroll wheel (or touchpad scroll) is used to pan in time or scroll up or down. By default, mouse mode scrolling is enabled. To toggle between scrolling modes, click the **"Enable Touchpad Scrolling"** Button on the top right
@@ -45,6 +65,8 @@ Zooming can be done one of 3 ways:
 - Use the Zoom in/out buttons on the top right
 - Click and drag over the area you wish to zoom in on
 
+![](readme_assets/zoom.gif)
+
 ## Rearranging signals
 
 ![](readme_assets/rearrange.gif)
@@ -57,13 +79,13 @@ Alternatively, you can select a signal, hold **Alt**, and press the **Up** or **
 
 ![](readme_assets/marker.gif)
 
-There are two markers in vaporview: a normal marker, and an alt-marker. To place the marker, simply click where you want it to be placed. Keep in mind that it will snap to edge if applicable. To place the alt-marker, either **Middle Click**, or **Alt + Click** where you would like to place it. The alt-marker will also snap to an edge if applicable.
+There are two markers in VaporView: a normal marker, and an alt-marker. To place the marker, simply click where you want it to be placed. Keep in mind that it will snap to edge if applicable. To place the alt-marker, either **Middle Click**, or **Alt + Click** where you would like to place it. The alt-marker will also snap to an edge if applicable.
 
 It should also be noted that signals can be selected by clicking on them, You can also use the **Up/Down** Arrow keys to move the selection.
 
 ### Next/Previous Edge
 
-To move the marker to the nearest edge _**of the selected signal**_, you can either click the control bar buttons, or use **Ctrl + Left/Right** Arrow (similar to how in the text editor, you can move the marker to a word boundary) Alternatively, Vaporview also supports the Verdi bindings of using **"N"** and **"Shift + N"** to go to the next and previous edge respectively.
+To move the marker to the nearest edge _**of the selected signal**_, you can either click the control bar buttons, or use **Ctrl + Left/Right** Arrow (similar to how in the text editor, you can move the marker to a word boundary) Alternatively, VaporView also supports the Verdi bindings of using **"N"** and **"Shift + N"** to go to the next and previous edge respectively.
 
 To move to the next positive edge or negative edge, you will have to use the control bar buttons. This only applies to single bit waveforms.
 
@@ -77,7 +99,7 @@ Finding a particular transition or a value in a waveform is done in relation to 
 
 ## Saving and loading opened signals
 
-Vaporview allows you to save and load your signal list. To do this, hit **Ctrl + Shift + P** and Type **">Save Vaproview Settings"** or **">Load Vaproview Settings"** and press **Enter** to slect the command. A dialog box will pop up prompting which file you would like to save/load settings from.
+VaporView allows you to save and load your signal list. To do this, hit **Ctrl + Shift + P** and Type **">Save Vaproview Settings"** or **">Load Vaproview Settings"** and press **Enter** to slect the command. A dialog box will pop up prompting which file you would like to save/load settings from.
 
 **Note:** The settings will only load for the active viewer tab that is in focus, and will look up signals by name. If the module paths have changed, it may not load in the signals properly. The settings files however are plaintext (JSON) and can be edited if need be.
 
@@ -115,13 +137,12 @@ Supports all the features you would expect including signal placing, rearranging
 
 ## Beyond 1.0
 
-In no particular order of priority, here's a list of features that are on my radar. If you have any preferences as to which should be priorized, or a suggestion that is not on this list, leave a comment on the [github discussions](https://github.com/Lramseyer/vaporview/discussions)!
+In no particular order of priority, here's a list of features that are on my radar. If you have any preferences as to which should be priorized, or a suggestion that is not on this list, leave a comment on the [github discussions](https://github.com/Lramseyer/VaporView/discussions)!
 
 - Rewrite compute intensive components in Web Assembly for smoother performance
 - Add support for Enums
 - Add support to highlight all transitions of a signal
 - Add support for custom colors
-- Add support for linking timestamps in UVM logs (or other simulation logs) to jump to a timestamp
 - Add support for remote sessions to save on memory
 - Add support for larger files
 - Add support for .ghw files
@@ -131,7 +152,7 @@ In no particular order of priority, here's a list of features that are on my rad
 
 ## 1.0 - Marketplace launch
 
-Get more coverage, from users like you. There may be bugs, so please report them on the [github discussions](https://github.com/Lramseyer/vaporview/discussions) so I can fix them before launching them to the marketplace!
+Get more coverage, from users like you. There may be bugs, so please report them on the [github discussions](https://github.com/Lramseyer/VaporView/discussions) so I can fix them before launching them to the marketplace!
 
 # Known Issues
 
@@ -149,7 +170,7 @@ I originally built this because I work for an FPGA company. I wanted a good _fre
 
 This is and always will be open source. It's free to use for personal and professional use. There never will be feature regression in favor of a premium tier. In other words, every feature that is currently included, or on the roadmap will be free and open source. Adaptations of the source code completely or even in part for other projects is only allowed _if_ the project is also free and open source. Adaptations of the source code completely or in part for enterprise software is not allowed _unless_ prior written permission is given by the owner of this project. Though I am open to offers.
 
-This extension was written by one person, with a full time job that doesn't involve anything to do with writing javascript or typescript. If you would like to see a feature added or functionality changed, or better yet, if you would like to help contribute please visit the [github repository](https://github.com/Lramseyer/vaporview) and discuss there!
+This extension was written by one person, with a full time job that doesn't involve anything to do with writing javascript or typescript. If you would like to see a feature added or functionality changed, or better yet, if you would like to help contribute please visit the [github repository](https://github.com/Lramseyer/VaporView) and discuss there!
 
 # Acknowledgements
 

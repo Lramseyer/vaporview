@@ -1854,6 +1854,8 @@ goToNextTransition = function (direction, edge) {
   window.addEventListener('message', (event) => {
     const message = event.data;
 
+    console.log('received message: ' + message.command);
+
     switch (message.command) {
       case 'create-ruler': {
         vscode.postMessage({ command: 'creating ruler from the js file' });
@@ -1904,9 +1906,10 @@ goToNextTransition = function (direction, edge) {
         updateWaveformInCache([message.netlistId]);
         renderLabelsPanels();
 
-        updatePending    = true;
+        updatePending  = true;
         updateContentArea(leftOffset, getBlockNum());
         contentArea.style.height = (40 + (28 * displayedSignals.length)) + "px";
+        handleSignalSelect(netlistId);
 
         break;
       }
@@ -1939,8 +1942,14 @@ goToNextTransition = function (direction, edge) {
       break;
       }
       case 'setMarker': {
+        console.log('setting marker');
         // Handle setting the marker, e.g., update the marker position
         handleMarkerSet(message.time, 0);
+        break;
+      }
+      case 'setSelectedSignal': {
+        // Handle setting the selected signal, e.g., update the selected signal
+        handleSignalSelect(message.netlistId);
         break;
       }
       case 'getSelectionContext': {

@@ -16,7 +16,7 @@ VaporView automatically opens .vcd files in the waveform viewer. In the viewer, 
 
 ## Terminal Links
 
-VaporView associates timestamps and netlist paths as links in the terminal. These links are activated by **Ctrl + Clicking** on the link. The following formats are recognized by Vaporview:
+VaporView associates timestamps and netlist paths as links in the terminal. These links are activated by **Ctrl + Clicking** on the link. Timespamp links will place the marker at the designated timestamp and move the viewer to that marker (if necessary) whereas netlist path links will add the designated signal into the viewer. The following formats are recognized by VaporView:
 
 - UVM timestamp - ie: `@ 50000`
 - Timestamp with Units - ie: `50,000 ns` (comma is optional)

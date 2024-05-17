@@ -192,7 +192,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     }
 
     const saveData = {
-      extensionVersion: vscode.extensions.getExtension('Lloyd Ramseyer.vaporview')?.packageJSON.version,
+      extensionVersion: vscode.extensions.getExtension('Lramseyer.vaporview')?.packageJSON.version,
       fileName: this.activeDocument.uri.fsPath,
       displayedSignals: this.webviewContext.displayedSignals.map((n: string) => {return this.getNameFromNetlistId(n);}),
       markerTime: this.webviewContext.markerTime,
@@ -217,7 +217,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 
   public async loadSettings() {
 
-    let version  = vscode.extensions.getExtension('Lloyd Ramseyer.vaporview')?.packageJSON.version;
+    let version  = vscode.extensions.getExtension('Lramseyer.vaporview')?.packageJSON.version;
     // show open file diaglog
     let fileData = await new Promise<any>((resolve, reject) => {
       vscode.window.showOpenDialog({

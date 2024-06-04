@@ -5,7 +5,7 @@
   "description": "VCD Waveform Viewer for VS code",
   "icon": "media/icon.png",
   "galleryBanner": {
-    "color": "#C80000",
+    "color": "#202020",
     "theme": "dark"
   },
   "version": "1.0.0",

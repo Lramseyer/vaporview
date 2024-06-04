@@ -694,8 +694,6 @@ getBlockNum = function () {
 };
 
 updateContentArea = function(oldLeftOffset, cluster) {
-  //const itemsStart = Math.max(Math.min(cluster[0], (chunkCount - columnsInCluster) + (chunksInColumn % chunkCount)), 0);
-  //const itemsEnd   = Math.min(Math.max(cluster[1], columnsInCluster), chunkCount);
   const leftHidden = chunkWidth * cluster[0];
   if (updatePending || leftHidden !== oldLeftOffset) {
     const newColumns       = shallowFetchColumns(cluster[0], cluster[1]);

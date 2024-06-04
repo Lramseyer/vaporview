@@ -2,7 +2,7 @@
 
 VaporView is a VCD waveform viewer extension for Visual Studio Code designed for FPGA/RTL developers.
 
-![](readme_assets/overview.png)
+![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/overview.png?raw=true)
 
 # Features
 
@@ -55,7 +55,7 @@ Scrolling behaves as you would expect except for when scrolling the actual wavef
 
 ### Touchpad Scrolling
 
-![Sure, Verdi can open FSDB files, but can it do this?](readme_assets/touchpad_scroll.gif)
+![Sure, Verdi can open FSDB files, but can it do this?](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/touchpad_scroll.gif?raw=true)
 
 ## Zooming
 
@@ -65,11 +65,11 @@ Zooming can be done one of 3 ways:
 - Use the Zoom in/out buttons on the top right
 - Click and drag over the area you wish to zoom in on
 
-![](readme_assets/zoom.gif)
+![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/zoom.gif?raw=true)
 
 ## Rearranging signals
 
-![](readme_assets/rearrange.gif)
+![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/rearrange.gif?raw=true)
 
 To rearrange signals, hover over the signal name, and you will see a rearrange grabber indicator on the left. Click and drag to rearrange.
 
@@ -77,7 +77,7 @@ Alternatively, you can select a signal, hold **Alt**, and press the **Up** or **
 
 ## Marker Handling
 
-![](readme_assets/marker.gif)
+![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/marker.gif?raw=true)
 
 There are two markers in VaporView: a normal marker, and an alt-marker. To place the marker, simply click where you want it to be placed. Keep in mind that it will snap to edge if applicable. To place the alt-marker, either **Middle Click**, or **Alt + Click** where you would like to place it. The alt-marker will also snap to an edge if applicable.
 
@@ -113,7 +113,7 @@ All displayed signals will be copied in order that they are displayed in the vie
 
 ### Without a WaveDrom clock set
 
-![](readme_assets/wavedrom_no_clk.png)
+![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/wavedrom_no_clk.png?raw=true)
 
 To unset the waveDrom clock, right click on the waveforms, and select **"Unset WaveDrom Clock"**
 
@@ -121,7 +121,7 @@ When no WaveDrom clock is set, an "event" is classified by a value transition of
 
 ### With a WaveDrom clock
 
-![](readme_assets/wavedrom_with_clk.png)
+![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/wavedrom_with_clk.png?raw=true)
 
 To set which signal will be the WaveDrom Clock, right click on the signal you wish to be the clock, and select **"Set WaveDrom Clock Rising"** or **"Set WaveDrom Clock Falling"**. When a clock is set, a WaveDrom event will be counted on the edge of the selected clock. If other displayed signals do not have a value transition on the edge of the selected clock, the first (if it exists) value transition that occurs between the current and next clock edge will be logged. If multiple value transitions for a given signal (that is not the clock) occur in one clock cycle, it will only copy the first value transition. Note that because of this limitation, the WaveDrom output will not contain all of the information.
 

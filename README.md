@@ -1,6 +1,6 @@
 # VaporView
 
-VaporView is a VCD waveform viewer extension for Visual Studio Code designed for FPGA/RTL developers.
+VaporView is an open source VCD waveform viewer extension for Visual Studio Code designed for FPGA/RTL developers.
 
 ![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/overview.png?raw=true)
 
@@ -131,7 +131,7 @@ This extension was designed on Vscode version 1.83
 
 # Development Roadmap
 
-## 0.9.8 - Release Candidate
+## 1.0.0 - Initial Release
 
 Supports all the features you would expect including signal placing, rearranging, marker handling, saving/loading viewer settings, and exporting selection to WaveDrom!
 
@@ -149,10 +149,6 @@ In no particular order of priority, here's a list of features that are on my rad
 - Highly unlikely
   - Link netlist to RTL so that signals can be connected back to RTL locations
   - Support for other file formats
-
-## 1.0 - Marketplace launch
-
-Get more coverage, from users like you. There may be bugs, so please report them on the [github discussions](https://github.com/Lramseyer/VaporView/discussions) so I can fix them before launching them to the marketplace!
 
 # Known Issues
 
@@ -175,5 +171,3 @@ This extension was written by one person, with a full time job that doesn't invo
 # Acknowledgements
 
 Thanks to my coworkers for their encouragement, feature requests, bug reports, and contribution of VCD files that made this project possible!
-
-This extension uses a heavily modified version of [clusterize.js](https://clusterize.js.org/)

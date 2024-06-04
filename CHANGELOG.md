@@ -1,5 +1,10 @@
 # Change Log
 
+# 1.0.0
+
+- Small documentation updatesin preparation for marketplace release
+- Commented out debug statements
+
 ## 0.9.8
 
 - VCD parser fixes and improvements

@@ -18,8 +18,8 @@ class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocume
     backupId: string | undefined,
     delegate: VaporviewDocumentDelegate,
   ): Promise<VaporviewDocument | PromiseLike<VaporviewDocument>> {
-    console.log("create()");
-    console.log(uri.fsPath);
+    //console.log("create()");
+    //console.log(uri.fsPath);
 
     const netlistTreeDataProvider          = new NetlistTreeDataProvider();
     const displayedSignalsTreeDataProvider = new DisplayedSignalsViewProvider();
@@ -281,7 +281,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     openContext: { backupId?: string },
     _token: vscode.CancellationToken,
   ): Promise<VaporviewDocument> {
-    console.log("openCustomDocument()");
+    //console.log("openCustomDocument()");
     const document: VaporviewDocument = await VaporviewDocument.create(uri, openContext.backupId, {
       getViewerContext: async () => {
         const webviewsForDocument = Array.from(this.webviews.get(document.uri));
@@ -351,7 +351,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
   // Copies the waveform data between the markers as a WaveDrom JSON object
   // This function is a bit cursed, but it works for now
   copyWaveDrom() {
-    console.log("copyWaveDrom");
+    //console.log("copyWaveDrom");
 
     // Maximum number of transitions to display
     // Maybe I should make this a user setting in the future...
@@ -469,7 +469,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       }
     }
 
-    console.log(waveDromData);
+    //console.log(waveDromData);
 
     if (transitionCount >= MAX_TRANSITIONS) {
       vscode.window.showWarningMessage('The number of transitions exceeds the maximum limit of ' + MAX_TRANSITIONS);
@@ -502,7 +502,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
   setMarkerAtTimeWithUnits(time: number, unit: string) {
 
     if (!this.lastActiveDocument) {
-      console.log('No active document');
+      //console.log('No active document');
       return;
     }
 
@@ -595,12 +595,12 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 
     // Wait for the webview to be properly ready before we init
     webviewPanel.webview.onDidReceiveMessage(e => {
-      console.log(e);
-      console.log(document.uri);
+      //console.log(e);
+      //console.log(document.uri);
 
       if (e.type === 'ready') {
         if (document.uri.scheme === 'untitled') {
-          console.log("untitled scheme");
+          //console.log("untitled scheme");
         }
         webviewPanel.webview.postMessage({
           command: 'create-ruler',
@@ -638,7 +638,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
           break;
         }
         case 'close-webview' : {
-          console.log("close-webview");
+          //console.log("close-webview");
           // Close the webview
           webviewPanel.dispose();
           break;
@@ -655,9 +655,9 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     });
 
     webviewPanel.onDidChangeViewState(e => {
-      console.log("onDidChangeViewState()");
-      console.log(vscode.window.activeTextEditor?.document);
-      console.log(e);
+      //console.log("onDidChangeViewState()");
+      //console.log(vscode.window.activeTextEditor?.document);
+      //console.log(e);
 
       this.netlistViewSelectedSignals = [];
       this.displayedSignalsViewSelectedSignals = [];
@@ -701,7 +701,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     // Subscribe to the checkbox state change event
     this.netlistView.onDidChangeCheckboxState((changedItem) => {
 
-      console.log(this.netlistView);
+      //console.log(this.netlistView);
 
       if (!webviewPanel.active) {return;}
 
@@ -758,7 +758,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       });
     });
 
-    console.log("resolveCustomEditor()");
+    //console.log("resolveCustomEditor()");
     // Add the webview to our internal set of active webviews
     this.webviews.add(document.uri, webviewPanel);
     this.activeWebview  = webviewPanel;
@@ -824,16 +824,16 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     const metadata = this.lastActiveDocument?.netlistTreeData.findTreeItem(signalName);
   
     if (!metadata) {
-      console.log('Signal not found');
+      //console.log('Signal not found');
       return;
     }
 
-    console.log('found signal ' + signalName);
+    //console.log('found signal ' + signalName);
 
     const netlistId   = metadata.netlistId;
     const isDisplayed = this.webviewContext.displayedSignals.includes(netlistId as never);
     if (isDisplayed) {
-      console.log('Signal already displayed');
+      //console.log('Signal already displayed');
       if (this.lastActiveWebview) {
         this.lastActiveWebview.webview.postMessage({
           command: 'setSelectedSignal',
@@ -841,7 +841,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
         });
       }
     } else {
-      console.log('Adding signal to document');
+      //console.log('Adding signal to document');
       this.addSignalToDocument(metadata.netlistId, true);
     }
   }
@@ -1306,8 +1306,8 @@ class NetlistItem extends vscode.TreeItem {
   };
 
   handleCommand() {
-    console.log("handleCommand()");
-    console.log(this);
+    //console.log("handleCommand()");
+    //console.log(this);
   };
 
   // Method to toggle the checkbox state
@@ -1378,7 +1378,7 @@ class WaveformTop {
       waveform.chunkStart[0] = 1;
     } else {
       // Console log an error message if the signal waveform doesn't exist
-      console.log(`${signalId} not in netlist (initialState)`);
+      //console.log(`${signalId} not in netlist (initialState)`);
     }
   }
 
@@ -1390,12 +1390,12 @@ class WaveformTop {
       waveform.addTransitionData(transitionData, this.metadata.chunkTime);
     } else {
       // Console log an error message if the signal waveform doesn't exist
-      console.log(`${signalId} not in netlist (transitionData)`);
+      //console.log(`${signalId} not in netlist (transitionData)`);
     }
   }
 
   public dispose() {
-    console.log("dispose() - waveformTop");
+    //console.log("dispose() - waveformTop");
     this.netlistElements.clear();
     this.metadata.timeEnd = 0;
     this.metadata.filename = "";
@@ -1472,7 +1472,7 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
   const lines = vcdData.split('\n');
   const lineCount = lines.length;
 
-  console.log("Parsing VCD data. File contains " + lineCount + " lines.");
+  //console.log("Parsing VCD data. File contains " + lineCount + " lines.");
 
   // Find the real minimum time step so that we can establish an apporpriate
   // chunk size We find the optimal chunk time by finding the shortest rolling
@@ -1516,9 +1516,9 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
   //waveformDataSet.metadata.chunkTime   = (BASE_CHUNK_TIME_WINDOW * minTimeStemp) / 4;
   //waveformDataSet.metadata.defaultZoom = BASE_CHUNK_TIME_WINDOW / waveformDataSet.metadata.chunkTime;
 
-  console.log("Minimum time step: " + minTimeStemp);
-  console.log("Chunk time: " + waveformDataSet.metadata.chunkTime);
-  console.log("Max time: " + maxTime);
+  //console.log("Minimum time step: " + minTimeStemp);
+  //console.log("Chunk time: " + waveformDataSet.metadata.chunkTime);
+  //console.log("Max time: " + maxTime);
 
   progress.report({ increment: 5, message: "Parsing VCD File"});
 
@@ -1528,7 +1528,7 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
     lineNum++;
 
     if (lineNum % progressBarUpdateInterval === 0) {
-      console.log("Progress: " + lineNum + " / " + lineCount);
+      //console.log("Progress: " + lineNum + " / " + lineCount);
       progress.report({ increment: 10, message: "Parsing VCD File"});
     }
 
@@ -1740,19 +1740,19 @@ export function activate(context: vscode.ExtensionContext) {
       switch (link.type) {
         case 'uvm-timestamp': {
           const time = parseInt([...link.data.matchAll(uvmTimestampRegex)][0][1]);
-          console.log("UVM Timestamp link clicked: " + time);
+          //console.log("UVM Timestamp link clicked: " + time);
           viewerProvider.setMarkerAtTime(time);
           break;
         }
         case 'timestamp-with-units': {
           const time  = parseFloat([...link.data.matchAll(timeStampWithUnits)][0][1]);
           const units = [...link.data.matchAll(timeStampWithUnits)][0][2];
-          console.log("Timestamp with units link clicked: " + time + '; units: ' + units);
+          //console.log("Timestamp with units link clicked: " + time + '; units: ' + units);
           viewerProvider.setMarkerAtTimeWithUnits(time, units);
           break;
         }
         case 'netlist-element': {
-          console.log("Netlist element link clicked: " + link.data);
+          //console.log("Netlist element link clicked: " + link.data);
           viewerProvider.addSignalByNameToDocument(link.data);
           break;
         }

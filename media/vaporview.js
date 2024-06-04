@@ -440,7 +440,7 @@ handleZoom = function (amount, zoomOrigin, screenPosition) {
     }
   }
 
-  console.log('zooming to ' + newZoomRatio + ' from ' + zoomRatio + '');
+  //console.log('zooming to ' + newZoomRatio + ' from ' + zoomRatio + '');
 
   updatePending    = true;
   zoomRatio        = newZoomRatio;
@@ -483,7 +483,7 @@ renderWaveformsAsync = async function (node, chunkIndex) {
       await new Promise(resolve => requestAnimationFrame(() => {
         chunkData[netlistId]     = renderWaveformChunk(netlistId, chunkIndex);
         chunkElements[netlistId] = domParser.parseFromString(chunkData[netlistId].html, 'text/html').body.firstChild;
-        if (!dataCache.columns[chunkIndex]) {console.log(chunkIndex);}
+        //if (!dataCache.columns[chunkIndex]) {console.log(chunkIndex);}
         resolve();
       }));
     }
@@ -505,9 +505,9 @@ renderWaveformsAsync = async function (node, chunkIndex) {
 
     if (dataCache.columns[chunkIndex]) {
       if (dataCache.columns[chunkIndex].abortFlag) {
-        console.log('aborting render for chunk ' + chunkIndex);
-          console.log('late deleting chunk  ' + chunkIndex);
-          dataCache.columns[chunkIndex] = undefined;
+        //console.log('aborting render for chunk ' + chunkIndex);
+        //console.log('late deleting chunk  ' + chunkIndex);
+        dataCache.columns[chunkIndex] = undefined;
       } else {
         dataCache.columns[chunkIndex].isSafeToRemove = true;
       }
@@ -521,7 +521,7 @@ renderWaveformsAsync = async function (node, chunkIndex) {
 
 handleUpdatePending = function () {
   if (dataCache.updatesPending === 0) {
-    console.log('all updates are done, running garbage collection');
+    //console.log('all updates are done, running garbage collection');
     updatePending = false;
     garbageCollectChunks();
   }
@@ -542,7 +542,7 @@ garbageCollectChunks = function () {
     if (!updatePending) {
       dataCache.columns[i] = undefined;
     } else {
-      console.log('aborting garbage collection');
+      //console.log('aborting garbage collection');
       return;
     }
   }
@@ -550,7 +550,7 @@ garbageCollectChunks = function () {
     if (!updatePending) {
       dataCache.columns[i] = undefined;
     } else {
-      console.log('aborting garbage collection');
+      //console.log('aborting garbage collection');
       return;
     }
   }
@@ -573,7 +573,7 @@ updateChunkInCacheShallow = function (chunkIndex) {
 
   if (dataCache.columns[chunkIndex]) {
     dataCache.columns[chunkIndex].abortFlag = false;
-    console.log('chunk ' + chunkIndex + ' is already in cache');
+    //console.log('chunk ' + chunkIndex + ' is already in cache');
     return;
   }
 
@@ -617,18 +617,18 @@ parseHtmlInChunk = function (chunkIndex) {
 
 shallowFetchColumns = function (startIndex, endIndex) {
 
-  console.log('shallow fetching chunks from ' + startIndex + ' to ' + endIndex + '');
+  //console.log('shallow fetching chunks from ' + startIndex + ' to ' + endIndex + '');
 
   if (startIndex < dataCache.startIndex) {
     const upperBound = Math.min(dataCache.startIndex, endIndex);
-    console.log('building shallow chunks from ' + startIndex + ' to ' + upperBound + '');
+    //console.log('building shallow chunks from ' + startIndex + ' to ' + upperBound + '');
     for (var i = upperBound - chunksInColumn; i >= startIndex; i-=chunksInColumn) {
       updateChunkInCacheShallow(i);
     }
   }
   if (endIndex > dataCache.endIndex) {
     const lowerBound = Math.max(dataCache.endIndex, startIndex);
-    console.log('building shallow chunks from ' + lowerBound + ' to ' + endIndex + '');
+    //console.log('building shallow chunks from ' + lowerBound + ' to ' + endIndex + '');
     for (var i = lowerBound; i < endIndex; i+=chunksInColumn) {
       updateChunkInCacheShallow(i);
     }
@@ -637,14 +637,14 @@ shallowFetchColumns = function (startIndex, endIndex) {
   dataCache.startIndex = Math.min(startIndex, dataCache.startIndex);
   dataCache.endIndex   = Math.max(endIndex,   dataCache.endIndex);
 
-  console.log('aborting chunk cache outside of index ' + startIndex + ' to ' + endIndex + '');
-  console.log('chunk cache start index: ' + dataCache.startIndex + ' end index: ' + dataCache.endIndex + '');
+  //console.log('aborting chunk cache outside of index ' + startIndex + ' to ' + endIndex + '');
+  //console.log('chunk cache start index: ' + dataCache.startIndex + ' end index: ' + dataCache.endIndex + '');
   //uncacheChunks(startIndex, endIndex);
 
   let returnData = [];
 
   for (var chunkIndex = startIndex; chunkIndex < endIndex; chunkIndex+=chunksInColumn) {
-    if (!dataCache.columns[chunkIndex]) {console.log('chunk ' + chunkIndex + ' is undefined');}
+    //if (!dataCache.columns[chunkIndex]) {console.log('chunk ' + chunkIndex + ' is undefined');}
     if (!dataCache.columns[chunkIndex].element) {
       parseHtmlInChunk(chunkIndex);
     }
@@ -681,7 +681,7 @@ getChunksWidth = function() {
   columnsInCluster       = Math.max(Math.ceil((viewerWidth / columnWidth) * 2), 2);
   columnTime             = chunkTime * chunksInColumn;
 
-  console.log('chunks in cluster: ' + chunksInCluster + '; chunks in column: ' + chunksInColumn + '; column width: ' + columnWidth + '; blocks in cluster: ' + columnsInCluster + '');
+  //console.log('chunks in cluster: ' + chunksInCluster + '; chunks in column: ' + chunksInColumn + '; column width: ' + columnWidth + '; blocks in cluster: ' + columnsInCluster + '');
 };
 
 getBlockNum = function () {
@@ -689,7 +689,7 @@ getBlockNum = function () {
   const minColumnNum = Math.max(Math.round(blockNum - (columnsInCluster / 2)), 0) * chunksInColumn;
   const maxColumnNum = Math.min(Math.round(blockNum + (columnsInCluster / 2)) * chunksInColumn, chunkCount);
 
-  console.log('min column number: ' + minColumnNum + '; max column number: ' + maxColumnNum + '');
+  //console.log('min column number: ' + minColumnNum + '; max column number: ' + maxColumnNum + '');
   return [minColumnNum, maxColumnNum];
 };
 
@@ -864,12 +864,12 @@ handleMarkerSet = function (time, markerType) {
       let timeMarker = document.getElementById(id);
       if (timeMarker) {
         timeMarker.remove();
-        console.log('removing marker at time ' + oldMarkerTime + ' from chunk ' + chunkIndex + '');
+        //console.log('removing marker at time ' + oldMarkerTime + ' from chunk ' + chunkIndex + '');
       } else {
-        console.log('Could not find id: ' + id + ' chunk index ' + chunkIndex + ' is not in cache');
+        //console.log('Could not find id: ' + id + ' chunk index ' + chunkIndex + ' is not in cache');
       }
     } else {
-      console.log('chunk index ' + chunkIndex + ' is not in cache');
+      //console.log('chunk index ' + chunkIndex + ' is not in cache');
     }
   }
 
@@ -895,9 +895,9 @@ handleMarkerSet = function (time, markerType) {
 
     chunkElement.appendChild(marker);
 
-    console.log('adding marker at time ' + time + ' from chunk ' + chunkIndex + '');
+    //console.log('adding marker at time ' + time + ' from chunk ' + chunkIndex + '');
   } else {
-    console.log('chunk index ' + chunkIndex + ' is not in cache');
+    //console.log('chunk index ' + chunkIndex + ' is not in cache');
   }
 
   if (markerType === 0) {
@@ -958,7 +958,7 @@ goToNextTransition = function (direction, edge) {
   }
 
   if (timeIndex === -1) {
-    console.log('search found a -1 index');
+    //console.log('search found a -1 index');
     return;
   }
 
@@ -1835,8 +1835,8 @@ goToNextTransition = function (direction, edge) {
           let chunkIndex = parseInt(node.id.split('-')[1]);
           const data     = dataCache.columns[chunkIndex];
           if (!data || data.abortFlag || !data.isSafeToRemove) {
-            console.log('chunk ' + chunkIndex + ' is not safe to touch');
-            console.log(data);
+            //console.log('chunk ' + chunkIndex + ' is not safe to touch');
+            //console.log(data);
             return;
           }
           dataCache.columns[chunkIndex].isSafeToRemove = false;
@@ -1852,12 +1852,12 @@ goToNextTransition = function (direction, edge) {
   window.addEventListener('message', (event) => {
     const message = event.data;
 
-    console.log('received message: ' + message.command);
+    //console.log('received message: ' + message.command);
 
     switch (message.command) {
       case 'create-ruler': {
         vscode.postMessage({ command: 'creating ruler from the js file' });
-        console.log("creating ruler");
+        //console.log("creating ruler");
         waveformDataSet   = message.waveformDataSet;
         document.title    = waveformDataSet.filename;
         chunkTime         = waveformDataSet.chunkTime;
@@ -1915,9 +1915,9 @@ goToNextTransition = function (direction, edge) {
         // Handle deleting a signal, e.g., remove the signal from the DOM
 
         const index = displayedSignals.findIndex((netlistId) => netlistId === message.netlistId);
-        console.log('deleting signal' + message.signalId + 'at index' + index);
+        //console.log('deleting signal' + message.signalId + 'at index' + index);
         if (index === -1) {
-          console.log('could not find signal ' + message.netlistId + ' to delete');
+          //console.log('could not find signal ' + message.netlistId + ' to delete');
           break;
         } else {
           displayedSignals.splice(index, 1);
@@ -1940,7 +1940,7 @@ goToNextTransition = function (direction, edge) {
       break;
       }
       case 'setMarker': {
-        console.log('setting marker');
+        //console.log('setting marker');
         // Handle setting the marker, e.g., update the marker position
         handleMarkerSet(message.time, 0);
         break;

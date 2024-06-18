@@ -121,65 +121,93 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
   let emptyDivWidth   = 0;
   let xPosition       = 0;
   let yPosition       = 0;
-  let points          = [];
-  let endPoints       = [];
+  let points          = [time + ',0'];
+  let endPoints       = [time + ',0'];
   let xzValues        = [];
   let textElements    = [];
   let spansChunk      = true;
-  const minDrawWidth  = 12 / zoomRatio;
+  let moveCursor      = false;
+  let drawBackgroundStrokes = false;
+  const minTextWidth  = 12 / zoomRatio;
+  const minDrawWidth  = 1 / zoomRatio;
   let leftOverflow    = Math.min(initialState[0], 0);
   const rightOverflow = Math.max(postState[0] - columnTime, 0);
 
   for (let i = 0; i < transitionData.length; i++) {
-    points.push(time + ',0');
-    endPoints.push(time + ',0');
-    is4State     = valueIs4State(value);
-    elementWidth = transitionData[i][0] - time;
-    xPosition    = (elementWidth / 2) + time;
-    yPosition    =  elementWidth * 2;
-    if (is4State) {
-      xzValues.push(`<polyline fill="var(--vscode-debugTokenExpression-error)" points="${time},0 ${xPosition},${yPosition} ${transitionData[i][0]},0 ${xPosition},-${yPosition}"/>`);
-    } else {
-      points.push(xPosition + ',' + yPosition);
-      endPoints.push(xPosition + ',-' + yPosition);
-    }
 
-    // Don't even bother rendering text if the element is too small. Since 
-    // there's an upper limit to the number of larger elements that will be 
-    // displayed, we can spend a little more time rendering them and making them
-    // readable in all cases.
-    // We group the empty text elements that are too small to render together to
-    // reduce the number of DOM operations
+    elementWidth = transitionData[i][0] - time;
+
+    // If the element is too small to draw, we need to skip it
     if (elementWidth > minDrawWidth) {
-      if (emptyDivWidth > 0) {
-        textElements += `<div class="bus-waveform-value" style="flex:${emptyDivWidth};"></div>`;
+
+      if (moveCursor) {
+        points.push(time + ',0');
+        endPoints.push(time + ',0');
+        moveCursor = false;
       }
-      emptyDivWidth = 0;
-      textElements += busElement(time, elementWidth, parseValue(value, signalWidth, is4State), spansChunk, textWidth, leftOverflow, 0);
+
+      is4State     = valueIs4State(value);
+      xPosition    = (elementWidth / 2) + time;
+      yPosition    =  elementWidth * 2;
+      if (is4State) {
+        xzValues.push(`<polyline fill="var(--vscode-debugTokenExpression-error)" points="${time},0 ${xPosition},${yPosition} ${transitionData[i][0]},0 ${xPosition},-${yPosition}"/>`);
+      } else {
+        points.push(xPosition + ',' + yPosition);
+        endPoints.push(xPosition + ',-' + yPosition);
+      }
+
+      // Don't even bother rendering text if the element is too small. Since 
+      // there's an upper limit to the number of larger elements that will be 
+      // displayed, we can spend a little more time rendering them and making them
+      // readable in all cases.
+      // We group the empty text elements that are too small to render together to
+      // reduce the number of DOM operations
+      if (elementWidth > minTextWidth) {
+        if (emptyDivWidth > 0) {
+          textElements += `<div class="bus-waveform-value" style="flex:${emptyDivWidth};"></div>`;
+        }
+        emptyDivWidth = 0;
+        textElements += busElement(time, elementWidth, parseValue(value, signalWidth, is4State), spansChunk, textWidth, leftOverflow, 0);
+      } else {
+        emptyDivWidth += elementWidth + leftOverflow;
+      }
+
+      points.push(transitionData[i][0] + ',0');
+      endPoints.push(transitionData[i][0] + ',0');
     } else {
       emptyDivWidth += elementWidth + leftOverflow;
+      drawBackgroundStrokes = true;
+      moveCursor = true;
     }
 
-    spansChunk   = false;
-    leftOverflow = 0;
     time         = transitionData[i][0];
     value        = transitionData[i][1];
+    spansChunk   = false;
+    leftOverflow = 0;
   }
 
-  points.push(time + ',0');
-  endPoints.push(time + ',0');
   elementWidth = postState[0] - time;
-  xPosition    = (elementWidth / 2) + time;
-  is4State     = valueIs4State(value);
-  if (is4State) {
-    xzValues.push(`<polyline fill="var(--vscode-debugTokenExpression-error)" points="${time},0 ${xPosition},${elementWidth * 2} ${postState[0]},0 ${xPosition},-${elementWidth * 2}"/>`);
-  } else {
-    points.push(xPosition + ',' + elementWidth * 2);
-    points.push(postState[0] + ',0');
-    endPoints.push(xPosition + ',-' + elementWidth * 2);
-  }
 
   if (elementWidth > minDrawWidth) {
+
+    if (moveCursor) {
+      points.push(time + ',0');
+      endPoints.push(time + ',0');
+      moveCursor = false;
+    }
+
+    xPosition    = (elementWidth / 2) + time;
+    is4State     = valueIs4State(value);
+    if (is4State) {
+      xzValues.push(`<polyline fill="var(--vscode-debugTokenExpression-error)" points="${time},0 ${xPosition},${elementWidth * 2} ${postState[0]},0 ${xPosition},-${elementWidth * 2}"/>`);
+    } else {
+      points.push(xPosition + ',' + elementWidth * 2);
+      points.push(postState[0] + ',0');
+      endPoints.push(xPosition + ',-' + elementWidth * 2);
+    }
+  }
+
+  if (elementWidth > minTextWidth) {
     if (emptyDivWidth > 0) {
       textElements += `<div class="bus-waveform-value" style="flex:${emptyDivWidth};"></div>`;
     }
@@ -194,9 +222,14 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
   const svgHeight   = 20;
   const gAttributes = `stroke="none" transform="scale(${zoomRatio})"`;
   const polylineAttributes = `fill="var(--vscode-debugTokenExpression-number)"`;
+  let backgroundStrokes = "";
+  if (drawBackgroundStrokes) {
+    backgroundStrokes += `<polyline points="0,0 ${columnTime},0" stroke="var(--vscode-debugTokenExpression-number)" stroke-width="3px" stroke-opacity="40%" vector-effect="non-scaling-stroke"/>`;
+    backgroundStrokes += `<polyline points="0,0 ${columnTime},0" stroke="var(--vscode-debugTokenExpression-number)" stroke-width="1px" stroke-opacity="80%" vector-effect="non-scaling-stroke"/>`;
+  }
   let result = '';
   result += `<svg height="${svgHeight}" width="${columnWidth}" viewbox="0 -10 ${columnWidth} ${svgHeight}" class="bus-waveform-svg">`;
-  result += `<g ${gAttributes}><polyline ${polylineAttributes} points="${polyline}"/>${xzValues.join("")}</g></svg>`;
+  result += `<g ${gAttributes}>${backgroundStrokes}<polyline ${polylineAttributes} points="${polyline}"/>${xzValues.join("")}</g></svg>`;
   result += textElements;
 
   return result;
@@ -329,6 +362,29 @@ createRulerChunk = function (chunkStartIndex) {
     <div class="ruler-chunk">
       <svg height="40" width="${columnWidth}" class="ruler-svg">
       <line class="ruler-tick" x1="${tickStartpixel}" y1="32.5" x2="${columnWidth}" y2="32.5"/>
+        ${textElements.join('')}</svg></div>`;
+};
+
+// This function creates ruler elements for a chunk
+createRulerElement = function (chunkStartIndex) {
+  const timeMarkerInterval = rulerNumberSpacing / zoomRatio;
+  const chunkStartTime     = chunkStartIndex * chunkTime;
+  const chunkStartPixel    = chunkStartIndex * chunkWidth;
+  const numberStartpixel   = -1 * (chunkStartPixel % rulerNumberSpacing);
+  const tickStartpixel     = rulerTickSpacing - (chunkStartPixel % rulerTickSpacing) - rulerNumberSpacing;
+  const totalWidth         = columnWidth * columnsInCluster;
+  var   numValue           = chunkStartTime + (numberStartpixel / zoomRatio);
+  var   textElements       = [];
+
+  for (var i = numberStartpixel; i <= totalWidth + 64; i+= rulerNumberSpacing ) {
+    textElements.push(`<text x="${i}" y="20">${numValue * timeScale}</text>`);
+    numValue += timeMarkerInterval;
+  }
+
+  return `
+    <div class="ruler-chunk">
+      <svg height="40" width="${totalWidth}" class="ruler-svg">
+      <line class="ruler-tick" x1="${tickStartpixel}" y1="32.5" x2="${totalWidth}" y2="32.5"/>
         ${textElements.join('')}</svg></div>`;
 };
 
@@ -675,7 +731,7 @@ handleScrollEvent = function(newScrollLeft) {
 };
 
 getChunksWidth = function() {
-  const chunksInCluster  = Math.max(Math.ceil((viewerWidth / chunkWidth) * 2), 2);
+  const chunksInCluster  = Math.max(Math.ceil((viewerWidth + 1000) / chunkWidth), 2);
   chunksInColumn         = 4 ** (Math.max(0,(Math.floor(Math.log2(chunksInCluster) / 2) - 1)));
   columnWidth            = chunkWidth * chunksInColumn;
   columnsInCluster       = Math.max(Math.ceil((viewerWidth / columnWidth) * 2), 2);

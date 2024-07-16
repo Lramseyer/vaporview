@@ -7,7 +7,7 @@
 
 // Parse VCD values into either binary, hex, or decimal
 // This function is so cursed...
-parseValue = function (binaryString, width, is4State) {
+parseValue = function (binaryString, width, is4State, numberFormat) {
 
   let stringArray;
 
@@ -112,7 +112,7 @@ busElement = function (time, deltaTime, displayValue, spansChunk, textWidth, lef
   return `${divTag}${pElement}</div>`;
 };
 
-busElementsfromTransitionData = function (transitionData, initialState, postState, signalWidth, textWidth) {
+busElementsfromTransitionData = function (transitionData, initialState, postState, signalWidth, textWidth, numberFormat) {
 
   let elementWidth;
   let is4State;
@@ -167,7 +167,7 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
           textElements += `<div class="bus-waveform-value" style="flex:${emptyDivWidth};"></div>`;
         }
         emptyDivWidth = 0;
-        textElements += busElement(time, elementWidth, parseValue(value, signalWidth, is4State), spansChunk, textWidth, leftOverflow, 0);
+        textElements += busElement(time, elementWidth, parseValue(value, signalWidth, is4State, numberFormat), spansChunk, textWidth, leftOverflow, 0);
       } else {
         emptyDivWidth += elementWidth + leftOverflow;
       }
@@ -212,7 +212,7 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
       textElements += `<div class="bus-waveform-value" style="flex:${emptyDivWidth};"></div>`;
     }
     emptyDivWidth = 0;
-    textElements += busElement(time, elementWidth, parseValue(value, signalWidth, is4State), true, textWidth, leftOverflow, rightOverflow);
+    textElements += busElement(time, elementWidth, parseValue(value, signalWidth, is4State, numberFormat), true, textWidth, leftOverflow, rightOverflow);
   } else {
     emptyDivWidth += elementWidth + leftOverflow - rightOverflow;
     textElements += `<div class="bus-waveform-value" style="flex:${emptyDivWidth};"></div>`;
@@ -300,11 +300,12 @@ createWaveformSVG = function (transitionData, initialState, postState, width, ch
   if (netlistId === selectedSignal) {className += ' is-selected';}
   if (width === 1) {
     return `<div class="${className}" id="idx${chunkIndex}-${chunksInColumn}--${netlistId}" ${vscodeContext}>
-              ${binaryElementFromTransitionData(transitionData, initialState)}
-            </div>`;
+    ${binaryElementFromTransitionData(transitionData, initialState)}
+    </div>`;
   } else {
+    const numberFormat  = netlistData[netlistId].numberFormat;
     return `<div class="${className}" id="idx${chunkIndex}-${chunksInColumn}--${netlistId}" ${vscodeContext}>
-              ${busElementsfromTransitionData(transitionData, initialState, postState, width, textWidth)}
+              ${busElementsfromTransitionData(transitionData, initialState, postState, width, textWidth, numberFormat)}
             </div>`;
   }
 };
@@ -419,10 +420,11 @@ createValueDisplayElement = function (netlistId, value, isSelected) {
   const selectorClass = isSelected ? 'is-selected' : 'is-idle';
   const joinString    = '<p style="color:var(--vscode-foreground)">-></p>';
   const width         = netlistData[netlistId].signalWidth;
+  const numberFormat  = netlistData[netlistId].numberFormat;
   const pElement      = value.map(v => {
     const is4State     = valueIs4State(v);
     const color        = is4State ? 'style="color:var(--vscode-debugTokenExpression-error)"' : '';
-    const displayValue = parseValue(v, width, is4State);
+    const displayValue = parseValue(v, width, is4State, numberFormat);
     return `<p ${color}>${displayValue}</p>`;
   }).join(joinString);
 
@@ -774,38 +776,6 @@ handleClusterChanged = function (startIndex, endIndex) {
   dataCache.endIndex       = endIndex;
 };
 
-handleSignalSelect = function (netlistId) {
-
-  let element;
-  let index;
-
-  for (var i = dataCache.startIndex; i < dataCache.endIndex; i+=chunksInColumn) {
-    element = document.getElementById('idx' + i + '-' + chunksInColumn + '--' + selectedSignal);
-    if (element) {
-      element.classList.remove('is-selected');
-      dataCache.columns[i].waveformChunk[selectedSignal].html = element.outerHTML;
-    }
-
-    element = document.getElementById('idx' + i + '-' + chunksInColumn + '--' + netlistId);
-    if (element) {
-      element.classList.add('is-selected');
-      dataCache.columns[i].waveformChunk[netlistId].html = element.outerHTML;
-    }
-  }
-
-  selectedSignal      = netlistId;
-  selectedSignalIndex = displayedSignals.findIndex((signal) => {return signal === netlistId;});
-  if (selectedSignalIndex === -1) {selectedSignalIndex = null;}
-
-  //setSeletedSignalOnStatusBar(netlistId);
-  sendWebviewContext();
-  renderLabelsPanels();
-
-  if (netlistId === null) {return;}
-
-  updateButtonsForSelectedWaveform(netlistData[netlistId].signalWidth);
-};
-
 getNearestTransitionIndex = function (signalId, time) {
 
   if (time === null) {return -1;}
@@ -903,7 +873,6 @@ sendWebviewContext = function (responseType) {
     displayedSignals: displayedSignals,
     zoomRatio: zoomRatio,
     scrollLeft: pseudoScrollLeft,
-    numberFormat: numberFormat,
   });
 };
 
@@ -1075,7 +1044,6 @@ goToNextTransition = function (direction, edge) {
   parsedSearchValue   = null;
 
   // Data formatting variables
-  numberFormat        = 16;
   bitChunkWidth       = 4;
 
   // drag handler variables
@@ -1156,10 +1124,11 @@ goToNextTransition = function (direction, edge) {
     let labelsList  = [];
     let transitions = [];
     displayedSignals.forEach((netlistId, index) => {
-      const signalId   = netlistData[netlistId].signalId;
-      let data         = waveformData[signalId];
-      data.textWidth   = getValueTextWidth(data.signalWidth, numberFormat);
-      const isSelected = (index === selectedSignalIndex);
+      const signalId     = netlistData[netlistId].signalId;
+      const numberFormat = netlistData[netlistId].numberFormat;
+      let data           = waveformData[signalId];
+      data.textWidth     = getValueTextWidth(data.signalWidth, numberFormat);
+      const isSelected   = (index === selectedSignalIndex);
       labelsList.push(createLabel(netlistId, isSelected));
       transitions.push(createValueDisplayElement(netlistId, dataCache.valueAtMarker[signalId], isSelected));
     });
@@ -1180,16 +1149,42 @@ goToNextTransition = function (direction, edge) {
     }
   };
 
-  toggleButtonState = function (buttonId) {
-    if (buttonId.classList.contains('disabled-button')) {
-      return;
+  handleSignalSelect = function (netlistId) {
+
+    let element;
+    let index;
+  
+    for (var i = dataCache.startIndex; i < dataCache.endIndex; i+=chunksInColumn) {
+      element = document.getElementById('idx' + i + '-' + chunksInColumn + '--' + selectedSignal);
+      if (element) {
+        element.classList.remove('is-selected');
+        dataCache.columns[i].waveformChunk[selectedSignal].html = element.outerHTML;
+      }
+  
+      element = document.getElementById('idx' + i + '-' + chunksInColumn + '--' + netlistId);
+      if (element) {
+        element.classList.add('is-selected');
+        dataCache.columns[i].waveformChunk[netlistId].html = element.outerHTML;
+      }
     }
-    if (buttonId.classList.contains('selected-button')) {
-      buttonId.classList.remove('selected-button');
-      buttonId.classList.remove('disabled-button');
-    } else {
-      buttonId.classList.add('selected-button');
-    }
+  
+    selectedSignal      = netlistId;
+    selectedSignalIndex = displayedSignals.findIndex((signal) => {return signal === netlistId;});
+    if (selectedSignalIndex === -1) {selectedSignalIndex = null;}
+  
+    //setSeletedSignalOnStatusBar(netlistId);
+    sendWebviewContext();
+    renderLabelsPanels();
+  
+    if (netlistId === null) {return;}
+  
+    const numberFormat = netlistData[netlistId].numberFormat;
+  
+    updateButtonsForSelectedWaveform(netlistData[netlistId].signalWidth);
+  
+    if (numberFormat === 2)  {valueIconRef.setAttribute('href', '#search-binary');}
+    if (numberFormat === 10) {valueIconRef.setAttribute('href', '#search-decimal');}
+    if (numberFormat === 16) {valueIconRef.setAttribute('href', '#search-hex');}
   };
 
   handleTouchScroll = function () {
@@ -1235,37 +1230,16 @@ goToNextTransition = function (direction, edge) {
     handleSearchBarEntry({key: 'none'});
   };
 
-  handleFormatSelect = function (button) {
-    numberFormat = button;
-    setButtonState(formatBinary, 1);
-    setButtonState(formatHex, 1);
-    setButtonState(formatDecimal, 1);
-    if (button === 2) {
-      bitChunkWidth = 4;
-      valueIconRef.setAttribute('href', '#search-binary');
-      setButtonState(formatBinary, 2);
-    } else if (button === 16) {
-      bitChunkWidth = 16;
-      valueIconRef.setAttribute('href', '#search-hex');
-      setButtonState(formatHex, 2);
-    } else if (button === 10) {
-      bitChunkWidth = 32;
-      valueIconRef.setAttribute('href', '#search-decimal');
-      setButtonState(formatDecimal, 2);
-    } else {
-      numberFormat  = 2;
-      bitChunkWidth = 4;
-      console.log('formatting error: ' + button + '');
-    }
-
-    let updateSignals = displayedSignals.filter((netlistId) => {
-      return netlistData[netlistId].signalWidth > 1;
-    });
-    updatePending     = true;
-    handleSearchBarEntry({key: 'none'});
-    renderLabelsPanels();
-    updateWaveformInCache(updateSignals);
-    updateContentArea(leftOffset, getBlockNum());
+  setSignalContextAttribute = function (netlistId) {
+    const width        = netlistData[netlistId].signalWidth;
+    const numberFormat = netlistData[netlistId].numberFormat;
+    return `data-vscode-context=${JSON.stringify({
+      webviewSection: "signal",
+      width: width,
+      preventDefaultContextMenuItems: true,
+      netlistId: netlistId,
+      numberFormat: numberFormat
+    })}`;
   };
 
   checkValidTimeString = function (inputText) {
@@ -1318,8 +1292,12 @@ goToNextTransition = function (direction, edge) {
   };
 
   handleSearchBarEntry = function (event) {
-    const inputText = searchBar.value;
-    let inputValid  = true;
+    const inputText  = searchBar.value;
+    let inputValid   = true;
+    let numberFormat = 16;
+    if (selectedSignal) {
+      numberFormat = netlistData[selectedSignal].numberFormat;
+    }
 
     // check to see that the input is valid
     if (searchState === 0) {         inputValid = checkValidTimeString(inputText);
@@ -1868,12 +1846,6 @@ goToNextTransition = function (direction, edge) {
   setButtonState(previousButton, 0);
   touchScroll.addEventListener(   'click', (e) => {handleTouchScroll();});
 
-  // format button event handlers
-  formatBinary.addEventListener( 'click', (e) => {handleFormatSelect(2);});
-  formatHex.addEventListener(    'click', (e) => {handleFormatSelect(16);});
-  formatDecimal.addEventListener('click', (e) => {handleFormatSelect(10);});
-  formatEnum.addEventListener(   'click', (e) => {toggleButtonState(formatEnum);});
-
   // click and drag handlers to rearrange the order of waveform signals
   labels.addEventListener('mousedown', dragStart);
   document.addEventListener('mouseup', handleMouseUp);
@@ -1937,25 +1909,21 @@ goToNextTransition = function (direction, edge) {
         let signalId       = message.signalId;
         let netlistId      = message.netlistId;
         let transitionData = message.waveformData;
+        let numberFormat   = message.numberFormat;
 
         displayedSignals.push(netlistId);
         waveformData[signalId] = transitionData;
         waveformData[signalId].textWidth = getValueTextWidth(transitionData.signalWidth, numberFormat);
-
-        let context = {
-          webviewSection: "signal",
-          width: transitionData.signalWidth,
-          preventDefaultContextMenuItems: true,
-          netlistId: netlistId
-        };
 
         netlistData[netlistId] = {
           signalId: signalId,
           signalWidth: transitionData.signalWidth,
           signalName: message.signalName,
           modulePath: message.modulePath,
-          vscodeContext: `data-vscode-context=${JSON.stringify(context)}`
+          numberFormat: message.numberFormat,
         };
+
+        netlistData[netlistId].vscodeContext = setSignalContextAttribute(netlistId);
 
         updateWaveformInCache([message.netlistId]);
         renderLabelsPanels();
@@ -1994,6 +1962,27 @@ goToNextTransition = function (direction, edge) {
         }
 
       break;
+      }
+      case 'setNumberFormat': {
+
+        numberFormat = message.numberFormat;
+        netlistId    = message.netlistId;
+
+        netlistData[netlistId].numberFormat  = numberFormat;
+        netlistData[netlistId].vscodeContext = setSignalContextAttribute(netlistId);
+
+        updatePending = true;
+        updateWaveformInCache([message.netlistId]);
+        renderLabelsPanels();
+        updateContentArea(leftOffset, getBlockNum());
+
+        if (netlistId === selectedSignal) {
+          if (numberFormat === 2)  {valueIconRef.setAttribute('href', '#search-binary');}
+          if (numberFormat === 10) {valueIconRef.setAttribute('href', '#search-decimal');}
+          if (numberFormat === 16) {valueIconRef.setAttribute('href', '#search-hex');}
+        }
+
+        break;
       }
       case 'setMarker': {
         //console.log('setting marker');

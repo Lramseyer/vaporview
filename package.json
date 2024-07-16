@@ -8,7 +8,7 @@
     "color": "#202020",
     "theme": "dark"
   },
-  "version": "1.0.0",
+  "version": "1.0.1",
   "repository": "https://github.com/lramseyer/vaporview",
   "engines": {
     "vscode": "^1.83.0"
@@ -53,6 +53,11 @@
       {
         "id": "vaporview.waveDrom",
         "label": "WaveDrom"
+      },
+      {
+        "id": "vaporview.valueFormat",
+        "label": "Format Values",
+        "when": "webviewSection == 'signal' && width != '1'"
       }
     ],
     "menus": {
@@ -85,9 +90,28 @@
           "group": "0_default"
         },
         {
+          "submenu": "vaporview.valueFormat",
+          "when": "webviewSection == 'signal'",
+          "group": "0_default"
+        },
+        {
           "submenu": "vaporview.waveDrom",
           "when": "webviewSection == 'signal'",
           "group": "1_waveDrom"
+        }
+      ],
+      "vaporview.valueFormat": [
+        {
+          "command": "vaporview.displayAsBinary",
+          "when": "webviewSection == 'signal'"
+        },
+        {
+          "command": "vaporview.displayAsDecimal",
+          "when": "webviewSection == 'signal'"
+        },
+        {
+          "command": "vaporview.displayAsHexadecimal",
+          "when": "webviewSection == 'signal'"
         }
       ],
       "vaporview.waveDrom": [
@@ -133,6 +157,18 @@
       {
         "command": "vaporview.removeSignal",
         "title": "Remove Signal"
+      },
+      {
+        "command": "vaporview.displayAsBinary",
+        "title": "Binary"
+      },
+      {
+        "command": "vaporview.displayAsDecimal",
+        "title": "Decimal"
+      },
+      {
+        "command": "vaporview.displayAsHexadecimal",
+        "title": "Hexadecimal"
       },
       {
         "command": "vaporview.copyWaveDrom",

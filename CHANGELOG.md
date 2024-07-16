@@ -1,5 +1,10 @@
 # Change Log
 
+## 1.0.1
+
+- Improved performance of multi bit renderer
+- Allow for number format to be changed on a per-signal basis
+
 # 1.0.0
 
 - Small documentation updatesin preparation for marketplace release

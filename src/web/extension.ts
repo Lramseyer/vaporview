@@ -93,10 +93,10 @@ class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocume
   public get displayedSignalsTreeData(): DisplayedSignalsViewProvider { return this._displayedSignalsTreeDataProvider; }
   public get netlistIdTable(): Map<string, NetlistIdRef> { return this._netlistIdTable; }
 
-  public setNetlistIdTable(netlistId: NetlistId, dissplayedSignalViewRef: NetlistItem | undefined) {
+  public setNetlistIdTable(netlistId: NetlistId, displayedSignalViewRef: NetlistItem | undefined) {
     let viewRef = this._netlistIdTable.get(netlistId);
     if (viewRef === undefined) {return;}
-    viewRef.displayedItem = dissplayedSignalViewRef;
+    viewRef.displayedItem = displayedSignalViewRef;
     this._netlistIdTable.set(netlistId, viewRef);
   }
 
@@ -179,10 +179,14 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 
   private getNameFromNetlistId(netlistId: string | null) {
     if (!netlistId) {return null;}
-    const netlistData = this.activeDocument?.netlistIdTable.get(netlistId)?.netlistItem;
-    const modulePath  = netlistData?.modulePath;
-    const signalName  = netlistData?.name;
-    return modulePath + '.' + signalName;
+    const netlistData  = this.activeDocument?.netlistIdTable.get(netlistId)?.netlistItem;
+    const modulePath   = netlistData?.modulePath;
+    const signalName   = netlistData?.name;
+    const numberFormat = netlistData?.numberFormat;
+    return {
+      name: modulePath + '.' + signalName,
+      numberFormat: numberFormat,
+    };
   }
 
   public saveSettings() {
@@ -194,13 +198,12 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     const saveData = {
       extensionVersion: vscode.extensions.getExtension('Lramseyer.vaporview')?.packageJSON.version,
       fileName: this.activeDocument.uri.fsPath,
-      displayedSignals: this.webviewContext.displayedSignals.map((n: string) => {return this.getNameFromNetlistId(n);}),
       markerTime: this.webviewContext.markerTime,
       altMarkerTime: this.webviewContext.altMarkerTime,
       selectedSignal: this.getNameFromNetlistId(this.webviewContext.selectedSignal),
       zoomRatio: this.webviewContext.zoomRatio,
       scrollLeft: this.webviewContext.scrollLeft,
-      numberFormat: this.webviewContext.numberFormat,
+      displayedSignals: this.webviewContext.displayedSignals.map((n: string) => {return this.getNameFromNetlistId(n);}),
     };
 
     const saveDataString = JSON.stringify(saveData, null, 2);
@@ -254,25 +257,34 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     }
 
     let missingSignals: string[] = [];
-    let foundSignals: string[] = [];
+    let foundSignals: any[] = [];
 
     if (fileData.displayedSignals) {
-      fileData.displayedSignals.forEach((signal: string) => {
+      fileData.displayedSignals.forEach((signalInfo: any) => {
+        const signal       = signalInfo.name;
+        const numberFormat = signalInfo.numberFormat;
         let metaData = this.netlistTreeDataProvider.findTreeItem(signal);
         if (metaData) {
-          foundSignals.push(metaData.netlistId);
+          foundSignals.push({
+            netlistId: metaData.netlistId,
+            numberFormat: numberFormat,
+          });
         } else {
           missingSignals.push(signal);
         }
       });
     }
 
-    foundSignals.forEach((netlistId: string) => {
+    console.log(missingSignals);
+
+    foundSignals.forEach((signalInfo: any) => {
+      const netlistId    = signalInfo.netlistId;
+      const numberFormat = signalInfo.numberFormat;
       if (!this.webviewContext.displayedSignals.includes(netlistId as never)) {
         this.addSignalToDocument(netlistId, false);
       }
+      this.setValueFormat(netlistId, numberFormat);
     });
-
   }
 
   //#region CustomEditorProvider
@@ -406,7 +418,6 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 
     let currentTime: number = timeWindow[0];
     let transitionCount = 0;
-    const numberFormat  = w.numberFormat;
 
     if (w.waveDromClock.netlistId === null) {
 
@@ -422,6 +433,8 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
           transitionCount++;
           w.displayedSignals.forEach((n) => {
             let signal = waveDromData[n];
+            let numberFormat = data.netlistIdTable.get(n)?.netlistItem.numberFormat;
+            if (!numberFormat) {numberFormat = 16;}
             if (signal.initialState === null) {signal.json.wave += '.';}
             else {
               if (signal.signalWidth > 1) {
@@ -448,6 +461,8 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
         w.displayedSignals.forEach((n) => {
           let signal = waveDromData[n];
           let signalData = signal.signalData;
+          let numberFormat = data.netlistIdTable.get(n)?.netlistItem.numberFormat;
+            if (!numberFormat) {numberFormat = 16;}
           if (n === w.waveDromClock.netlistId) {signal.json.wave += edge;}
           else {
             let transition = signalData.find((t: TransitionData) => t[0] >= currentTime && t[0] < nextEdge);
@@ -882,15 +897,21 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     // Render the signal with the provided ID
     const netlistIdTable = document.netlistIdTable;
     if (!netlistIdTable) {return;}
-    const name           = netlistIdTable.get(netlistId)?.netlistItem.name;
-    const modulePath     = netlistIdTable.get(netlistId)?.netlistItem.modulePath;
+    const netlistItem   = netlistIdTable.get(netlistId)?.netlistItem;
+    if (!netlistItem) {return;}
+
+    const name         = netlistItem.name;
+    const modulePath   = netlistItem.modulePath;
+    const numberFormat = netlistItem.numberFormat;
+
     panel.webview.postMessage({ 
       command: 'render-signal',
       netlistId: netlistId,
       signalId: signalId,
       waveformData: signalData,
       signalName: name,
-      modulePath: modulePath
+      modulePath: modulePath,
+      numberFormat: numberFormat
    });
   }
 
@@ -961,6 +982,22 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     } else if (view === 'displayedSignals') {
       this.removeSignalList(this.displayedSignalsViewSelectedSignals);
     }
+  }
+
+  public setValueFormat(id: NetlistId, format: number) {
+    if (!this.activeWebview) {return;}
+    if (!this.activeDocument) {return;}
+    if (!this.activeWebview.active) {return;}
+
+    const panel    = this.activeWebview;
+    const document = this.activeDocument;
+
+    const netlistRef = document.netlistIdTable.get(id);
+    if (netlistRef) {
+      netlistRef.netlistItem.numberFormat = format;
+    }
+
+    panel.webview.postMessage({command: 'setNumberFormat', netlistId: id, numberFormat: format});
   }
 
   // To do: implement nonce with this HTML:
@@ -1108,20 +1145,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
             <div id="resize-2" class="resize-bar"></div>
           </div>
           <div id="waveform-labels-container" class="labels-container">
-            <div id="waveform-labels-spacer" class="ruler-spacer">
-              <div class="format-button" title="Format in Binary" id="format-binary-button">
-                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#search-binary"/></svg>
-              </div>
-              <div class="format-button selected-button" title="Format in Hexidecimal" id="format-hex-button">
-                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#search-hex"/></svg>
-              </div>
-              <div class="format-button" title="Format in Decimal" id="format-decimal-button">
-                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#search-decimal"/></svg>
-              </div>
-              <div class="format-button" title="Format as Enumerator (if available)" id="format-enum-button">
-                <svg class="custom-icon" viewBox="0 0 16 16"><use href="#search-enum"/></svg>
-              </div>
-            </div>
+            <div id="waveform-labels-spacer" class="ruler-spacer"> </div>
             <div id="waveform-labels"> </div>
           </div>
           <div id="transition-display-container" class="labels-container">
@@ -1270,6 +1294,8 @@ class NetlistItem extends vscode.TreeItem {
   private _onDidChangeCheckboxState: vscode.EventEmitter<vscode.TreeItem | undefined | null> = new vscode.EventEmitter<vscode.TreeItem | undefined | null>();
   onDidChangeCheckboxState: vscode.Event<vscode.TreeItem | undefined | null> = this._onDidChangeCheckboxState.event;
 
+  public numberFormat: number;
+
   constructor(
     public readonly label:            string,
     public readonly type:             string,
@@ -1283,6 +1309,7 @@ class NetlistItem extends vscode.TreeItem {
     public checkboxState: vscode.TreeItemCheckboxState = vscode.TreeItemCheckboxState.Unchecked // Display preference
   ) {
     super(label, collapsibleState);
+    this.numberFormat = 16;
     if (collapsibleState === vscode.TreeItemCollapsibleState.None) {
       this.contextValue = 'netlistItem'; // Set a context value for leaf nodes
     } else {
@@ -1808,6 +1835,25 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeAllInModule', (e) => {
     if (e.collapsibleState === vscode.TreeItemCollapsibleState.None) {return;}
     viewerProvider.removeSignalList(e.children);
+  }));
+
+  // Value Format commands
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsBinary', (e) => {
+    if (e.netlistId) {
+      viewerProvider.setValueFormat(e.netlistId, 2);
+    }
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsHexadecimal', (e) => {
+    if (e.netlistId) {
+      viewerProvider.setValueFormat(e.netlistId, 16);
+    }
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsDecimal', (e) => {
+    if (e.netlistId) {
+      viewerProvider.setValueFormat(e.netlistId, 10);
+    }
   }));
 
   // WaveDrom commands

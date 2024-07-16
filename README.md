@@ -131,7 +131,7 @@ This extension was designed on Vscode version 1.83
 
 # Development Roadmap
 
-## 1.0.0 - Initial Release
+## 1.0.1 - Latest Release
 
 Supports all the features you would expect including signal placing, rearranging, marker handling, saving/loading viewer settings, and exporting selection to WaveDrom!
 
@@ -140,21 +140,21 @@ Supports all the features you would expect including signal placing, rearranging
 In no particular order of priority, here's a list of features that are on my radar. If you have any preferences as to which should be priorized, or a suggestion that is not on this list, leave a comment on the [github discussions](https://github.com/Lramseyer/VaporView/discussions)!
 
 - Rewrite compute intensive components in Web Assembly for smoother performance
-- Add support for Enums
+- Migrate file parsing to wellen library
+  - Add support for larger files
+  - Add support for .ghw and .fst files
+- Add support for Enums and named values
 - Add support to highlight all transitions of a signal
-- Add support for custom colors
+- Add support for custom colors - waiting for the VScode API to allow access to semantic token colors - [Github issue](https://github.com/microsoft/vscode/issues/32813)
 - Add support for remote sessions to save on memory
-- Add support for larger files
-- Add support for .ghw files
-- Highly unlikely
-  - Link netlist to RTL so that signals can be connected back to RTL locations
-  - Support for other file formats
+- Link netlist to RTL tokens so that signals can be connected back to RTL locations (this may require interoperability with another extension)
+- Allow users to link .objdump files to a program counter value for a more integrated debug experience
 
 # Known Issues
 
 ### File Sizes larger than 2GB are not supported
 
-This is due to a limitation of the VScode 'fs' library. There is an [API proposal](https://github.com/microsoft/vscode/blob/main/src/vscode-dts/vscode.proposed.fsChunks.d.ts) to expand this functionality as well as another workaround that I couldn't quite get to work. But this limitation will hopefully be removed in the future!
+This is due to a limitation of the VScode 'fs' library. There is an [API proposal](https://github.com/microsoft/vscode/blob/main/src/vscode-dts/vscode.proposed.fsChunks.d.ts) to expand this functionality as well as another workaround that I couldn't quite get to work. But this limitation will hopefully be removed in the future! The other alternative is to use the [wellen library](https://docs.rs/wellen/0.9.14/wellen/index.html). If anyone wants to help me with this, I have an [open ticket](https://github.com/Lramseyer/vaporview/issues/13)!
 
 ### Binary waveforms display a gap when zoomed in really far
 

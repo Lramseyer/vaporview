@@ -103,15 +103,15 @@
       "vaporview.valueFormat": [
         {
           "command": "vaporview.displayAsBinary",
-          "when": "webviewSection == 'signal'"
+          "when": "webviewSection == 'signal' && width != '1'"
         },
         {
           "command": "vaporview.displayAsDecimal",
-          "when": "webviewSection == 'signal'"
+          "when": "webviewSection == 'signal' && width != '1'"
         },
         {
           "command": "vaporview.displayAsHexadecimal",
-          "when": "webviewSection == 'signal'"
+          "when": "webviewSection == 'signal' && width != '1'"
         }
       ],
       "vaporview.waveDrom": [

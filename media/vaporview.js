@@ -1233,8 +1233,12 @@ goToNextTransition = function (direction, edge) {
   setSignalContextAttribute = function (netlistId) {
     const width        = netlistData[netlistId].signalWidth;
     const numberFormat = netlistData[netlistId].numberFormat;
+    const modulePath   = netlistData[netlistId].modulePath;
+    const signalName   = netlistData[netlistId].signalName;
     return `data-vscode-context=${JSON.stringify({
       webviewSection: "signal",
+      modulePath: modulePath,
+      signalName: signalName,
       width: width,
       preventDefaultContextMenuItems: true,
       netlistId: netlistId,

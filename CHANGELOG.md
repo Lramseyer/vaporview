@@ -4,6 +4,7 @@
 
 - Improved performance of multi bit renderer
 - Allow for number format to be changed on a per-signal basis
+- Added netlist path to context menu events in case other extension developers want to integrate with VaporView
 
 # 1.0.0
 

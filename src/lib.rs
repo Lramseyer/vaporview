@@ -2,12 +2,13 @@
 // `host.wit`
 wit_bindgen::generate!({
 	// the name of the world in the `*.wit` input file
-	world: "calculator",
+	world: "filehandler",
 });
 
 struct Calculator;
 
 impl Guest for Calculator {
+
 
 	fn calc(op: Operation) -> u32 {
 		log(&format!("Starting calculation: {:?}", op));
@@ -18,8 +19,9 @@ impl Guest for Calculator {
 			Operation::Div(operands) => operands.left / operands.right,
 		};
 		log(&format!("Finished calculation: {:?}", op));
-		result
+		result 
 	}
+
 }
 
 // Export the Calculator to the extension code.

@@ -3,10 +3,10 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 import { Connection, RAL } from '@vscode/wasm-component-model';
-import { calculator } from './calculator';
+import { filehandler } from './filehandler';
 
 async function main(): Promise<void> {
-	const connection = await Connection.createWorker(calculator._);
+	const connection = await Connection.createWorker(filehandler._);
 	connection.listen();
 }
 

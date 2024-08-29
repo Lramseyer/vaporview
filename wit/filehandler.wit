@@ -1,4 +1,4 @@
-// wit/calculator.wit
+// wit/filehandler.wit
 package vscode:example;
 
 interface types {
@@ -14,7 +14,7 @@ interface types {
 		div(operands)
 	}
 }
-world calculator {
+world filehandler {
 	use types.{ operation };
 	import log: func(msg: string);
 

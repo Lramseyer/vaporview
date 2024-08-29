@@ -10,12 +10,22 @@
   },
   "version": "1.0.1",
   "repository": "https://github.com/lramseyer/vaporview",
+  "categories": [
+    "Debuggers",
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "VCD",
+    "Waveform",
+    "Logic Analyzer"
+  ],
   "engines": {
-    "vscode": "^1.83.0"
+    "vscode": "^1.89.0"
   },
-  "categories": [ "Debuggers", "Visualization", "Other" ],
+  "main": "./out/extension",
+  "browser": "./dist/web/extension",
   "activationEvents": [],
-  "browser": "./dist/web/extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -200,35 +210,27 @@
       }
     ]
   },
-  "scripts": {
-    "test": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. --extensionTestsPath=dist/web/test/suite/index.js",
-    "pretest": "npm run compile-web",
-    "vscode:prepublish": "npm run package-web",
-    "compile-web": "webpack",
-    "watch-web": "webpack --watch",
-    "package-web": "webpack --mode production --devtool hidden-source-map",
-    "lint": "eslint src --ext ts",
-    "run-in-browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. ."
-  },
-  "devDependencies": {
-    "@types/mocha": "^10.0.2",
-    "@types/vscode": "^1.83.0",
-    "@types/webpack-env": "^1.18.2",
-    "@typescript-eslint/eslint-plugin": "^6.7.3",
-    "@typescript-eslint/parser": "^6.7.3",
-    "@vscode/test-web": "^0.0.46",
-    "assert": "^2.1.0",
-    "eslint": "^8.50.0",
-    "fs": "0.0.1-security",
-    "mocha": "^10.2.0",
-    "process": "^0.11.10",
-    "ts-loader": "^9.4.4",
-    "typescript": "^5.2.2",
-    "webpack": "^5.88.2",
-    "webpack-cli": "^5.1.4"
-  },
   "dependencies": {
     "@vscode/codicons": "0.0.35",
-    "path": "^0.12.7"
+    "@vscode/wasm-component-model": "0.1.0-pre.12"
+  },
+  "devDependencies": {
+    "@types/vscode": "1.89.0",
+    "@types/node": "^18.14.6",
+    "@typescript-eslint/eslint-plugin": "^7.6.0",
+    "@typescript-eslint/parser": "^7.6.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.5.2",
+    "esbuild": "^0.20.2",
+    "serve": "^14.2.1"
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "build": "npm run compile && cargo build --target wasm32-unknown-unknown",
+    "compile": "tsc -b",
+    "watch": "tsc -b -w",
+    "lint": "eslint ./src --ext .ts,.tsx",
+    "generate:model": "wit2ts --outDir ./src ./wit",
+    "serve": "serve --cors -l 5000 --ssl-cert $HOME/certs/localhost.pem --ssl-key $HOME/certs/localhost-key.pem"
   }
 }

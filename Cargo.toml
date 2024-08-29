@@ -1,0 +1,11 @@
+[package]
+name = "calculator"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wellen = "0.9.18"
+wit-bindgen = "0.21.0"

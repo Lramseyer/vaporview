@@ -10,6 +10,8 @@ interface VaporviewDocumentDelegate {
   getViewerContext(): Promise<Uint8Array>;
 }
 
+let wasmModule: WebAssembly.Module;
+
 class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocument {
 
   static async create(
@@ -177,36 +179,18 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     this.markerTimeStatusBarItem     = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
     this.selectedSignalStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
 
-    // The channel for printing the log.
-    const log = vscode.window.createOutputChannel('WASM Log', { log: true });
-    this._context.subscriptions.push(log);
+
 
     // The implementation of the log function that is called from WASM
     this.service = {
       log: (msg: string) => {
-        log.info(msg);
+        //_context.subscriptions.log.info(msg);
         console.log(msg);
       }
     };
 
-    this.loadWasm();
   }
 
-  async loadWasm() {
-
-    console.log('Loading WASM worker');
-
-    // Load the Wasm module
-    const binaryFile = vscode.Uri.joinPath(this._context.extensionUri, 'target', 'wasm32-unknown-unknown', 'debug', 'filehandler.wasm');
-    const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'out', 'worker.js').fsPath;
-    const binaryData = await vscode.workspace.fs.readFile(binaryFile);
-    const module     = await WebAssembly.compile(binaryData);
-
-    const worker     = new Worker(workerFile);
-    const api        = await filehandler._.bind(this.service, module, worker);
-
-    await api.calc(Types.Operation.Add({ left: 1, right: 2}));
-  }
 
   private getNameFromNetlistId(netlistId: string | null) {
     if (!netlistId) {return null;}
@@ -251,7 +235,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 
   public async loadSettings() {
 
-    let version  = vscode.extensions.getExtension('Lramseyer.vaporview')?.packageJSON.version;
+    //let version  = vscode.extensions.getExtension('Lramseyer.vaporview')?.packageJSON.version;
     // show open file diaglog
     const fileData = await new Promise<any>((resolve, reject) => {
       vscode.window.showOpenDialog({
@@ -324,6 +308,21 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     openContext: { backupId?: string },
     _token: vscode.CancellationToken,
   ): Promise<VaporviewDocument> {
+
+
+    //console.log('Loading WASM worker');
+    //// Load the Wasm module
+    //const binaryFile = vscode.Uri.joinPath(this._context.extensionUri, 'target', 'wasm32-unknown-unknown', 'debug', 'filehandler.wasm');
+    const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'out', 'worker.js').fsPath;
+    //const binaryData = await vscode.workspace.fs.readFile(binaryFile);
+    //const module     = await WebAssembly.compile(binaryData);
+
+    const worker     = new Worker(workerFile);
+    const api        = await filehandler._.bind(this.service, wasmModule, worker);
+
+    await api.calc(Types.Operation.Add({ left: 1, right: 2}));
+
+
     //console.log("openCustomDocument()");
     const document: VaporviewDocument = await VaporviewDocument.create(uri, openContext.backupId, {
       getViewerContext: async () => {
@@ -1541,7 +1540,7 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
   const timeStepArray: number[] = new Array(128).fill(-9999999);
   let minTimeStemp      = 9999999;
   let timeStepIndex     = 0;
-  let maxTime           = 0;
+  //let maxTime           = 0;
   let eventCount        = 0;
 
   progress.report({ increment: 4, message: "Analyzing VCD File"});
@@ -1734,7 +1733,31 @@ function parseVCDData(vcdData: string, netlistTreeDataProvider: NetlistTreeDataP
 
 export async function activate(context: vscode.ExtensionContext) {
 
+  console.log('Loading WASM worker');
+
+  // Load the Wasm module
+  const binaryFile = vscode.Uri.joinPath(context.extensionUri, 'target', 'wasm32-unknown-unknown', 'debug', 'filehandler.wasm');
+  const binaryData = await vscode.workspace.fs.readFile(binaryFile);
+  wasmModule       = await WebAssembly.compile(binaryData);
+
+  // The channel for printing the log.
+  const log = vscode.window.createOutputChannel('WASM Log', { log: true });
+  context.subscriptions.push(log);
+
+  // Register Custom Editor Provider (The viewer window)
+  // Associates .vcd files with vaporview extension
+  // See package.json for more details
   const viewerProvider = new WaveformViewerProvider(context);
+
+  vscode.window.registerCustomEditorProvider(
+    'vaporview.waveformViewer',
+    viewerProvider,
+    {
+      webviewOptions: {
+        retainContextWhenHidden: true,
+      },
+      supportsMultipleEditorsPerDocument: false,
+    });
 
   // Terminal link provider code
   // Detect UVM timestamps - ie: @ 1234
@@ -1819,18 +1842,6 @@ export async function activate(context: vscode.ExtensionContext) {
       }
     }
   });
-
-  // Associates .vcd files with vaporview extension
-  // See package.json for more details
-  vscode.window.registerCustomEditorProvider(
-    'vaporview.waveformViewer',
-    viewerProvider,
-    {
-      webviewOptions: {
-        retainContextWhenHidden: true,
-      },
-      supportsMultipleEditorsPerDocument: false,
-    });
 
   // I want to get semantic tokens for the current theme
   // The API is not available yet, so I'm just going to log the theme

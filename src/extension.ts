@@ -16,43 +16,14 @@ class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocume
 
   static async create(
     uri: vscode.Uri,
+    waveformDataSet: WaveformTop,
+    netlistTreeDataProvider: NetlistTreeDataProvider,
+    displayedSignalsTreeDataProvider: DisplayedSignalsViewProvider,
+    netlistIdTable: Map<string, NetlistIdRef>,
     backupId: string | undefined,
+    wasmWorker: Worker,
     delegate: VaporviewDocumentDelegate,
   ): Promise<VaporviewDocument | PromiseLike<VaporviewDocument>> {
-    //console.log("create()");
-    //console.log(uri.fsPath);
-
-    const netlistTreeDataProvider          = new NetlistTreeDataProvider();
-    const displayedSignalsTreeDataProvider = new DisplayedSignalsViewProvider();
-    const waveformDataSet                  = new WaveformTop();
-    const netlistIdTable                   = new Map<string, NetlistIdRef>();
-
-    // Read the VCD file using vscode.workspace.openTextDocument
-    // This doesn't like files over 50MB, so I will have to try something different
-    //const vcdDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(uri.fsPath));
-    //const vcdContent  = vcdDocument.getText();
-
-    // Todo: Bifurcate the code here to read the file using the file system API
-    // This way, the file can be read in chunks and the data can be parsed incrementally
-    const vcdDocument = await vscode.workspace.fs.readFile(uri);
-
-    // For long files, we show a notification with a progress bar
-    vscode.window.withProgress({
-      location: vscode.ProgressLocation.Notification,
-      title: "Loading VCD file",
-      cancellable: false
-    }, (progress) => {
-      progress.report({ increment: 1, message: "Opening VCD File"});
-
-      const vcdContent  = new TextDecoder().decode(vcdDocument);
-  
-      // Parse the VCD data for this specific file
-      parseVCDData(vcdContent, netlistTreeDataProvider, waveformDataSet, netlistIdTable, progress);
-      return Promise.resolve();
-    });
-
-    // Optionally, you can refresh the Netlist view
-    netlistTreeDataProvider.refresh();
 
     return new VaporviewDocument(
       uri,
@@ -60,6 +31,7 @@ class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocume
       netlistTreeDataProvider,
       displayedSignalsTreeDataProvider,
       netlistIdTable,
+      wasmWorker,
       delegate
     );
   }
@@ -70,6 +42,7 @@ class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocume
   private _displayedSignalsTreeDataProvider: DisplayedSignalsViewProvider;
   private _netlistIdTable: Map<string, NetlistIdRef>;
   private readonly _delegate: VaporviewDocumentDelegate;
+  public _wasmWorker: Worker;
 
   private constructor(
     uri: vscode.Uri,
@@ -77,6 +50,7 @@ class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocume
     _netlistTreeDataProvider: NetlistTreeDataProvider,
     _displayedSignalsTreeDataProvider: DisplayedSignalsViewProvider,
     _netlistIdTable: Map<string, NetlistIdRef>,
+    _wasmWorker: Worker,
     delegate: VaporviewDocumentDelegate
   ) {
     super(() => this.dispose());
@@ -85,6 +59,7 @@ class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocume
     this._netlistTreeDataProvider = _netlistTreeDataProvider;
     this._displayedSignalsTreeDataProvider = _displayedSignalsTreeDataProvider;
     this._netlistIdTable = _netlistIdTable;
+    this._wasmWorker = _wasmWorker;
     this._delegate = delegate;
   }
 
@@ -309,22 +284,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     _token: vscode.CancellationToken,
   ): Promise<VaporviewDocument> {
 
-
-    //console.log('Loading WASM worker');
-    //// Load the Wasm module
-    //const binaryFile = vscode.Uri.joinPath(this._context.extensionUri, 'target', 'wasm32-unknown-unknown', 'debug', 'filehandler.wasm');
-    const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'out', 'worker.js').fsPath;
-    //const binaryData = await vscode.workspace.fs.readFile(binaryFile);
-    //const module     = await WebAssembly.compile(binaryData);
-
-    const worker     = new Worker(workerFile);
-    const api        = await filehandler._.bind(this.service, wasmModule, worker);
-
-    await api.calc(Types.Operation.Add({ left: 1, right: 2}));
-
-
-    //console.log("openCustomDocument()");
-    const document: VaporviewDocument = await VaporviewDocument.create(uri, openContext.backupId, {
+    const delegate = {
       getViewerContext: async () => {
         const webviewsForDocument = Array.from(this.webviews.get(document.uri));
         if (!webviewsForDocument.length) {
@@ -334,7 +294,54 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
         const response = await this.postMessageWithResponse<number[]>(panel, 'getContext', {});
         return new Uint8Array(response);
       }
+    };
+
+    const waveformDataSet                  = new WaveformTop();
+    const netlistTreeDataProvider          = new NetlistTreeDataProvider();
+    const displayedSignalsTreeDataProvider = new DisplayedSignalsViewProvider();
+    const netlistIdTable                   = new Map<string, NetlistIdRef>();
+
+    //// Load the Wasm worker
+    const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'out', 'worker.js').fsPath;
+    const wasmWorker = new Worker(workerFile);
+    const api        = await filehandler._.bind(this.service, wasmModule, wasmWorker);
+
+    await api.calc(Types.Operation.Add({ left: 1, right: 2}));
+
+    //console.log("create()");
+    //console.log(uri.fsPath);
+
+    // Read the VCD file using vscode.workspace.openTextDocument
+    // This doesn't like files over 50MB, so I will have to try something different
+    //const vcdDocument = await vscode.workspace.openTextDocument(vscode.Uri.file(uri.fsPath));
+    //const vcdContent  = vcdDocument.getText();
+
+    // Todo: Bifurcate the code here to read the file using the file system API
+    // This way, the file can be read in chunks and the data can be parsed incrementally
+    const vcdDocument = await vscode.workspace.fs.readFile(uri);
+
+    // For long files, we show a notification with a progress bar
+    vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: "Loading VCD file",
+      cancellable: false
+    }, (progress) => {
+      progress.report({ increment: 1, message: "Opening VCD File"});
+
+      const vcdContent  = new TextDecoder().decode(vcdDocument);
+  
+      // Parse the VCD data for this specific file
+      parseVCDData(vcdContent, netlistTreeDataProvider, waveformDataSet, netlistIdTable, progress);
+      return Promise.resolve();
     });
+
+    // Optionally, you can refresh the Netlist view
+    netlistTreeDataProvider.refresh();
+
+    //console.log("openCustomDocument()");
+    const document: VaporviewDocument = await VaporviewDocument.create(uri, 
+      waveformDataSet, netlistTreeDataProvider, displayedSignalsTreeDataProvider,
+      netlistIdTable, openContext.backupId, wasmWorker, delegate);
 
     this.netlistTreeDataProvider.setTreeData(document.netlistTreeData.getTreeData());
     this.displayedSignalsTreeDataProvider.setTreeData(document.displayedSignalsTreeData.getTreeData());

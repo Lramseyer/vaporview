@@ -13,7 +13,10 @@ interface types {
 		mul(operands),
 		div(operands)
 	}
+
+
 }
+
 world filehandler {
 	use types.{ operation };
 	import log: func(msg: string);

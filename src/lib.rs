@@ -5,10 +5,9 @@ wit_bindgen::generate!({
 	world: "filehandler",
 });
 
-struct Calculator;
+struct Filecontext;
 
-impl Guest for Calculator {
-
+impl Guest for Filecontext {
 
 	fn calc(op: Operation) -> u32 {
 		log(&format!("Starting calculation: {:?}", op));
@@ -24,5 +23,5 @@ impl Guest for Calculator {
 
 }
 
-// Export the Calculator to the extension code.
-export!(Calculator);
+// Export the Filecontext to the extension code.
+export!(Filecontext);

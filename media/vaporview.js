@@ -1912,18 +1912,30 @@ goToNextTransition = function (direction, edge) {
 
         let signalId       = message.signalId;
         let netlistId      = message.netlistId;
-        let transitionData = message.waveformData;
+        let _waveformData   = message.waveformData;
+        let transitionData = _waveformData.transitionData;
         let numberFormat   = message.numberFormat;
 
         displayedSignals.push(netlistId);
-        waveformData[signalId] = transitionData;
-        waveformData[signalId].textWidth = getValueTextWidth(transitionData.signalWidth, numberFormat);
+        waveformData[signalId] = _waveformData;
+        waveformData[signalId].textWidth  = getValueTextWidth(_waveformData.signalWidth, numberFormat);
+
+        // Create ChunkStart array
+        waveformData[signalId].chunkStart = new Array(chunkCount).fill(transitionData.length);
+        let chunkIndex = 0;
+        for (let i = 0; i < transitionData.length; i++) {
+          while (transitionData[i][0] >= chunkTime * chunkIndex) {
+            waveformData[signalId].chunkStart[chunkIndex] = i;
+            chunkIndex++;
+          }
+        }
+        waveformData[signalId].chunkStart[0] = 1;
 
         netlistData[netlistId] = {
-          signalId: signalId,
-          signalWidth: transitionData.signalWidth,
-          signalName: message.signalName,
-          modulePath: message.modulePath,
+          signalId:     signalId,
+          signalWidth:  _waveformData.signalWidth,
+          signalName:   message.signalName,
+          modulePath:   message.modulePath,
           numberFormat: message.numberFormat,
         };
 

@@ -15,8 +15,8 @@ interface VaporviewDocumentDelegate {
 
 let wasmModule: WebAssembly.Module;
 
-class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocument {
-
+export class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocument {
+  
   static async create(
     uri: vscode.Uri,
     backupId: string | undefined,
@@ -24,46 +24,30 @@ class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocume
     delegate: VaporviewDocumentDelegate,
   ): Promise<VaporviewDocument | PromiseLike<VaporviewDocument>> {
 
+    const open = promisify(fs.open);
+    const close = promisify(fs.close);
+
     // This should probably be a user setting
     const MAX_FILESIZE_LOAD_SIGNALS = 1024 * 1024 * 1024 * 4; // 4 GB
 
-    const open                             = promisify(fs.open);
-    const close                            = promisify(fs.close);
     const waveformDataSet                  = new WaveformTop();
     const netlistTreeDataProvider          = new NetlistTreeDataProvider();
     const displayedSignalsTreeDataProvider = new DisplayedSignalsViewProvider();
-    const netlistIdTable                   = new Map<string, NetlistIdRef>();
+    const netlistIdTable                   = new Array<NetlistIdRef>(1);
 
     const stats      = fs.statSync(uri.fsPath);
     const fd         = await open(uri.fsPath, 'r');
     waveformDataSet.metadata.fileSize = stats.size;
 
-    // For long files, we show a notification with a progress bar
     await vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification,
-      title: "Loading VCD file",
+      title: "Parsing Netlist",
       cancellable: false
-    }, async (progress) => {
-      progress.report({ increment: 1, message: "Opening VCD File"});
+    }, async () => {
+      // Parse the VCD data for this specific file
+      await parseVcdNetlist(fd, netlistTreeDataProvider, waveformDataSet, netlistIdTable);
       return Promise.resolve();
     });
-  
-
-    // Parse the VCD data for this specific file
-    await parseVcdNetlist(fd, netlistTreeDataProvider, waveformDataSet, netlistIdTable);
-
-    if (stats.size < MAX_FILESIZE_LOAD_SIGNALS) {
-      await parseVcdWaveforms(fd, waveformDataSet);
-    } else {
-      vscode.window.showWarningMessage(
-        'File too large to load waveforms. Please select signals to load.\
-        You can edit the max file size in the settings.');
-    }
-
-    close(fd);
-
-    // Optionally, you can refresh the Netlist view
-    netlistTreeDataProvider.refresh();
 
     const document = new VaporviewDocument(
       uri,
@@ -75,6 +59,25 @@ class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocume
       delegate
     );
 
+    if (stats.size < MAX_FILESIZE_LOAD_SIGNALS) {
+      vscode.window.withProgress({
+        location: vscode.ProgressLocation.Notification,
+        title: "Parsing Waveforms",
+        cancellable: false
+      }, async (progress) => {
+        await parseVcdWaveforms(fd, waveformDataSet, document, progress);
+        return Promise.resolve();
+      });
+    } else {
+      vscode.window.showWarningMessage(
+        'File too large to load waveforms. Please select signals to load.\
+        You can edit the max file size in the settings.');
+      close(fd);
+    }
+
+    // Optionally, you can refresh the Netlist view
+    netlistTreeDataProvider.refresh();
+
     return document;
   }
 
@@ -82,16 +85,18 @@ class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocume
   private _documentData: WaveformTop;
   private _netlistTreeDataProvider: NetlistTreeDataProvider;
   private _displayedSignalsTreeDataProvider: DisplayedSignalsViewProvider;
-  private _netlistIdTable: Map<string, NetlistIdRef>;
+  private _netlistIdTable: NetlistIdRef[];
   private readonly _delegate: VaporviewDocumentDelegate;
   public _wasmWorker: Worker;
+  public webviewPanel: vscode.WebviewPanel | undefined = undefined;
+  private webviewInitialized: boolean = false;
 
   private constructor(
     uri: vscode.Uri,
     waveformData: WaveformTop,
     _netlistTreeDataProvider: NetlistTreeDataProvider,
     _displayedSignalsTreeDataProvider: DisplayedSignalsViewProvider,
-    _netlistIdTable: Map<string, NetlistIdRef>,
+    _netlistIdTable: NetlistIdRef[],
     _wasmWorker: Worker,
     delegate: VaporviewDocumentDelegate
   ) {
@@ -109,13 +114,33 @@ class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocume
   public get documentData(): WaveformTop { return this._documentData; }
   public get netlistTreeData(): NetlistTreeDataProvider { return this._netlistTreeDataProvider; }
   public get displayedSignalsTreeData(): DisplayedSignalsViewProvider { return this._displayedSignalsTreeDataProvider; }
-  public get netlistIdTable(): Map<string, NetlistIdRef> { return this._netlistIdTable; }
+  public get netlistIdTable(): NetlistIdRef[] { return this._netlistIdTable; }
+
+  public onWebviewReady(webviewPanel: vscode.WebviewPanel) {
+    console.log("onWebviewReady");
+    this.webviewPanel = webviewPanel;
+    if (this.webviewInitialized) {return;}
+    if (!this._documentData.metadata.waveformsLoaded) {return;}
+    console.log("creating ruler");
+    webviewPanel.webview.postMessage({
+      command: 'create-ruler',
+      waveformDataSet: this._documentData.metadata,
+    });
+    this.webviewInitialized = true;
+  }
+
+  public onDoneParsingWaveforms() {
+    console.log("onDoneParsingWaveforms");
+    if (this.webviewPanel) {
+      this.onWebviewReady(this.webviewPanel);
+    }
+  }
 
   public setNetlistIdTable(netlistId: NetlistId, displayedSignalViewRef: NetlistItem | undefined) {
-    const viewRef = this._netlistIdTable.get(netlistId);
+    const viewRef = this._netlistIdTable[netlistId];
     if (viewRef === undefined) {return;}
     viewRef.displayedItem = displayedSignalViewRef;
-    this._netlistIdTable.set(netlistId, viewRef);
+    this._netlistIdTable[netlistId] = viewRef;
   }
 
   //private readonly _onDidDispose = this._register(new vscode.EventEmitter<void>());
@@ -167,7 +192,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     scrollLeft: 0,
     numberFormat: 16,
     waveDromClock: {
-      netlistId: null,
+      netlistId: 0,
       edge: '1',
     },
   };
@@ -205,13 +230,11 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
         console.log(msg);
       }
     };
-
   }
 
-
-  private getNameFromNetlistId(netlistId: string | null) {
+  private getNameFromNetlistId(netlistId: NetlistId | null) {
     if (!netlistId) {return null;}
-    const netlistData  = this.activeDocument?.netlistIdTable.get(netlistId)?.netlistItem;
+    const netlistData  = this.activeDocument?.netlistIdTable[netlistId]?.netlistItem;
     const modulePath   = netlistData?.modulePath;
     const signalName   = netlistData?.name;
     const numberFormat = netlistData?.numberFormat;
@@ -235,7 +258,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       selectedSignal: this.getNameFromNetlistId(this.webviewContext.selectedSignal),
       zoomRatio: this.webviewContext.zoomRatio,
       scrollLeft: this.webviewContext.scrollLeft,
-      displayedSignals: this.webviewContext.displayedSignals.map((n: string) => {return this.getNameFromNetlistId(n);}),
+      displayedSignals: this.webviewContext.displayedSignals.map((n: NetlistId) => {return this.getNameFromNetlistId(n);}),
     };
 
     const saveDataString = JSON.stringify(saveData, null, 2);
@@ -433,8 +456,8 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 //
 //    // Populate the waveDrom names with the selected signals
 //    const waveDromData: any = {};
-//    w.displayedSignals.forEach((netlistId: string) => {
-//      const netlistItem = data.netlistIdTable.get(netlistId);
+//    w.displayedSignals.forEach((netlistId: NetlistId) => {
+//      const netlistItem = data.netlistIdTable[netlistId];
 //      if (!netlistItem) {return;}
 //
 //      const signalName = netlistItem.netlistItem.modulePath + "." + netlistItem.netlistItem.name;
@@ -464,7 +487,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 //    let currentTime: number = timeWindow[0];
 //    let transitionCount = 0;
 //
-//    if (w.waveDromClock.netlistId === null) {
+//    if (w.waveDromClock[netlistId] === null) {
 //
 //      allTransitions = allTransitions.sort((a, b) => a[0] - b[0]);
 //
@@ -478,7 +501,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 //          transitionCount++;
 //          w.displayedSignals.forEach((n) => {
 //            const signal = waveDromData[n];
-//            let numberFormat = data.netlistIdTable.get(n)?.netlistItem.numberFormat;
+//            let numberFormat = data.netlistIdTable[n]?.netlistItem.numberFormat;
 //            if (!numberFormat) {numberFormat = 16;}
 //            if (signal.initialState === null) {signal.json.wave += '.';}
 //            else {
@@ -506,7 +529,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 //        w.displayedSignals.forEach((n) => {
 //          const signal = waveDromData[n];
 //          const signalData = signal.signalData;
-//          let numberFormat = data.netlistIdTable.get(n)?.netlistItem.numberFormat;
+//          let numberFormat = data.netlistIdTable[n]?.netlistItem.numberFormat;
 //            if (!numberFormat) {numberFormat = 16;}
 //          if (n === w.waveDromClock.netlistId) {signal.json.wave += edge;}
 //          else {
@@ -615,7 +638,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     }
 
     if (w.selectedSignal !== null) {
-      const signalName = document.netlistIdTable.get(w.selectedSignal)?.netlistItem.name;
+      const signalName = document.netlistIdTable[w.selectedSignal]?.netlistItem.name;
       this.selectedSignalStatusBarItem.text = 'Selected signal: ' + signalName;
       this.selectedSignalStatusBarItem.show();
     } else {
@@ -642,7 +665,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
           scrollLeft: 0,
           numberFormat: 16,
           waveDromClock: {
-            netlistId: null,
+            netlistId: 0,
             edge: '1',
           },
         };
@@ -662,10 +685,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
         if (document.uri.scheme === 'untitled') {
           //console.log("untitled scheme");
         }
-        webviewPanel.webview.postMessage({
-          command: 'create-ruler',
-          waveformDataSet: document.documentData.metadata,
-        });
+        document.onWebviewReady(webviewPanel);
       }
       switch (e.command) {
         case 'init': {
@@ -868,7 +888,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 
     this.removeSignalFromWebview(panel, netlistId);
 
-    const metadataELements = document.netlistIdTable.get(netlistId);
+    const metadataELements = document.netlistIdTable[netlistId];
     if (metadataELements) {
       const netlistItem = metadataELements.netlistItem;
       this.netlistTreeDataProvider.setCheckboxState(netlistItem, vscode.TreeItemCheckboxState.Unchecked);
@@ -926,7 +946,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       document = this.lastActiveDocument;
     }
 
-    const metadata = document.netlistIdTable.get(netlistId)?.netlistItem;
+    const metadata = document.netlistIdTable[netlistId]?.netlistItem;
     if (!metadata) {return;}
 
     const signalId   = metadata.signalId;
@@ -942,7 +962,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     // Render the signal with the provided ID
     const netlistIdTable = document.netlistIdTable;
     if (!netlistIdTable) {return;}
-    const netlistItem   = netlistIdTable.get(netlistId)?.netlistItem;
+    const netlistItem   = netlistIdTable[netlistId]?.netlistItem;
     if (!netlistItem) {return;}
 
     const name         = netlistItem.name;
@@ -1037,7 +1057,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     const panel    = this.activeWebview;
     const document = this.activeDocument;
 
-    const netlistRef = document.netlistIdTable.get(id);
+    const netlistRef = document.netlistIdTable[id];
     if (netlistRef) {
       netlistRef.netlistItem.numberFormat = format;
     }
@@ -1346,7 +1366,7 @@ export class NetlistItem extends vscode.TreeItem {
     public readonly type:             string,
     public readonly width:            number,
     public readonly signalId:         string, // Signal-specific information
-    public readonly netlistId:        string, // Netlist-specific information
+    public readonly netlistId:        NetlistId, // Netlist-specific information
     public readonly name:             string,
     public readonly modulePath:       string,
     public readonly children:         NetlistItem[] = [],
@@ -1416,11 +1436,11 @@ export type NetlistIdRef = {
   signalId: SignalId;
 };
 
-export type NetlistIdTable = Map<NetlistId, NetlistIdRef>;
+export type NetlistIdTable = Array<NetlistIdRef>;
 
 type TransitionData = [number, number | string];
 type SignalId  = string;
-type NetlistId = string;
+type NetlistId = number;
 
 export class WaveformTop {
   public netlistElements: Map<SignalId, SignalWaveform>;
@@ -1686,7 +1706,7 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.unsetWaveDromClock', (e) => {
-    viewerProvider.webviewContext.waveDromClock = {edge: '1', netlistId: null,};
+    viewerProvider.webviewContext.waveDromClock = {edge: '1', netlistId: 0,};
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.saveViewerSettings', (e) => {

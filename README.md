@@ -131,30 +131,29 @@ This extension was designed on Vscode version 1.83
 
 # Development Roadmap
 
-## 1.0.1 - Latest Release
+## 1.1.0 - Latest Release
 
 Supports all the features you would expect including signal placing, rearranging, marker handling, saving/loading viewer settings, and exporting selection to WaveDrom!
+
+New for 1.1.0 - Added large VCD file support. Contents of VCD files are statically loaded into memory, so the file size limit is configurable (or will be upon release.) If a file is too large, netlist will still be loaded.
 
 ## Beyond 1.0
 
 In no particular order of priority, here's a list of features that are on my radar. If you have any preferences as to which should be priorized, or a suggestion that is not on this list, leave a comment on the [github discussions](https://github.com/Lramseyer/VaporView/discussions)!
 
-- Rewrite compute intensive components in Web Assembly for smoother performance
-- Migrate file parsing to wellen library
-  - Add support for larger files
-  - Add support for .ghw and .fst files
-- Add support for Enums and named values
+- Rewrite compute intensive components in Web Assembly for smoother performance (namely file parsing)
+- Other filetype support - FST, GHW, etc.
+- Datatypes
+  - Float 8 - 64, signed integers
+  - Add support for custom Enums and named values. Including callback functions for those daring enough!
+- Improve renderer to better render non-2 state
 - Add support to highlight all transitions of a signal
 - Add support for custom colors - waiting for the VScode API to allow access to semantic token colors - [Github issue](https://github.com/microsoft/vscode/issues/32813)
 - Add support for remote sessions to save on memory
-- Link netlist to RTL tokens so that signals can be connected back to RTL locations (this may require interoperability with another extension)
+- Link netlist to RTL tokens so that signals can be connected back to RTL locations - rtlbrowse stems file support (this may require interoperability with another extension)
 - Allow users to link .objdump files to a program counter value for a more integrated debug experience
 
 # Known Issues
-
-### File Sizes larger than 2GB are not supported
-
-This is due to a limitation of the VScode 'fs' library. There is an [API proposal](https://github.com/microsoft/vscode/blob/main/src/vscode-dts/vscode.proposed.fsChunks.d.ts) to expand this functionality as well as another workaround that I couldn't quite get to work. But this limitation will hopefully be removed in the future! The other alternative is to use the [wellen library](https://docs.rs/wellen/0.9.14/wellen/index.html). If anyone wants to help me with this, I have an [open ticket](https://github.com/Lramseyer/vaporview/issues/13)!
 
 ### Binary waveforms display a gap when zoomed in really far
 

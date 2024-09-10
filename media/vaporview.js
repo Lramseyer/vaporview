@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 (function () {
   const vscode = acquireVsCodeApi();
 
@@ -1528,7 +1529,7 @@ goToNextTransition = function (direction, edge) {
 
   function resetTouchpadScrollCount() {
     touchpadScrollCount = 0;
-  };
+  }
 
   // scroll handler to handle zooming and scrolling
   scrollArea.addEventListener('wheel', (event) => { 
@@ -1752,7 +1753,7 @@ goToNextTransition = function (direction, edge) {
 
     document.addEventListener('mousemove', handleScrollbarMove, false);
     mouseupEventType = 'scroll';
-  };
+  }
 
 
   // resize handler to handle resizing
@@ -1771,7 +1772,7 @@ goToNextTransition = function (direction, edge) {
       webview.style.gridTemplateColumns = `${column1}px ${newWidth}px auto`;
       resize2.style.left = `${newPosition}px`;
     }
-  };
+  }
 
   function handleResizeMousedown(event, element, index) {
     resizeIndex   = index;
@@ -1780,13 +1781,13 @@ goToNextTransition = function (direction, edge) {
     resizeElement.classList.add('is-resizing');
     document.addEventListener("mousemove", resize, false);
     mouseupEventType = 'resize';
-  };
+  }
 
   resizeDebounce = 0;
   function handleResizeViewer() {
     clearTimeout(resizeDebounce);
     resizeDebounce = setTimeout(updateViewportWidth, 100);
-  };
+  }
 
   function handleMouseUp(event) {
     if (mouseupEventType === 'rearrange') {

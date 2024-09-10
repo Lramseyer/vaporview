@@ -2,7 +2,7 @@
 
 import * as vscode from 'vscode';
 import { Worker } from 'worker_threads';
-import { parseVcdNetlist, parseVcdWaveforms } from './parseVcd';
+import { parseVcdNetlist, parseVcdWaveforms, parseFst } from './parseVcd';
 import * as fs from 'fs';
 import { promisify } from 'util';
 
@@ -34,10 +34,22 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     const netlistTreeDataProvider          = new NetlistTreeDataProvider();
     const displayedSignalsTreeDataProvider = new DisplayedSignalsViewProvider();
     const netlistIdTable                   = new Array<NetlistIdRef>(1);
+    const document = new VaporviewDocument(
+      uri,
+      waveformDataSet,
+      netlistTreeDataProvider,
+      displayedSignalsTreeDataProvider,
+      netlistIdTable,
+      wasmWorker,
+      delegate
+    );
 
-    const stats      = fs.statSync(uri.fsPath);
-    const fd         = await open(uri.fsPath, 'r');
+    const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase();
+    const stats    = fs.statSync(uri.fsPath);
+    const fd       = await open(uri.fsPath, 'r');
     waveformDataSet.metadata.fileSize = stats.size;
+
+    if (fileType === 'vcd') {
 
     await vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification,
@@ -48,16 +60,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       await parseVcdNetlist(fd, netlistTreeDataProvider, waveformDataSet, netlistIdTable);
       return Promise.resolve();
     });
-
-    const document = new VaporviewDocument(
-      uri,
-      waveformDataSet,
-      netlistTreeDataProvider,
-      displayedSignalsTreeDataProvider,
-      netlistIdTable,
-      wasmWorker,
-      delegate
-    );
 
     if (stats.size < MAX_FILESIZE_LOAD_SIGNALS) {
       vscode.window.withProgress({
@@ -75,6 +77,10 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       close(fd);
     }
 
+    } else if (fileType === 'fst') {
+      parseFst(fd, netlistTreeDataProvider, waveformDataSet, netlistIdTable, document);
+    }
+
     // Optionally, you can refresh the Netlist view
     netlistTreeDataProvider.refresh();
 
@@ -89,7 +95,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   private readonly _delegate: VaporviewDocumentDelegate;
   public _wasmWorker: Worker;
   public webviewPanel: vscode.WebviewPanel | undefined = undefined;
-  private webviewInitialized: boolean = false;
+  private _webviewInitialized: boolean = false;
 
   private constructor(
     uri: vscode.Uri,
@@ -115,18 +121,19 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public get netlistTreeData(): NetlistTreeDataProvider { return this._netlistTreeDataProvider; }
   public get displayedSignalsTreeData(): DisplayedSignalsViewProvider { return this._displayedSignalsTreeDataProvider; }
   public get netlistIdTable(): NetlistIdRef[] { return this._netlistIdTable; }
+  public get webviewInitialized(): boolean { return this._webviewInitialized; }
 
   public onWebviewReady(webviewPanel: vscode.WebviewPanel) {
     console.log("onWebviewReady");
     this.webviewPanel = webviewPanel;
-    if (this.webviewInitialized) {return;}
+    if (this._webviewInitialized) {return;}
     if (!this._documentData.metadata.waveformsLoaded) {return;}
     console.log("creating ruler");
     webviewPanel.webview.postMessage({
       command: 'create-ruler',
       waveformDataSet: this._documentData.metadata,
     });
-    this.webviewInitialized = true;
+    this._webviewInitialized = true;
   }
 
   public onDoneParsingWaveforms() {
@@ -782,10 +789,15 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     this.netlistView.onDidChangeCheckboxState((changedItem) => {
 
       //console.log(this.netlistView);
+      const metadata = changedItem.items[0][0];
 
       if (!webviewPanel.active) {return;}
+      if (!document.webviewInitialized) {
+        console.log('Webview not initialized');
+        this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Unchecked);
+        return;
+      }
 
-      const metadata   = changedItem.items[0][0];
       const signalId   = metadata.signalId;
       const signalData = document.documentData.netlistElements.get(signalId);
       const netlistId  = metadata.netlistId;

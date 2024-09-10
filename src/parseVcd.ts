@@ -1,10 +1,29 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as readline from 'readline';
-import { promisify } from 'util';
+import { promisify, types } from 'util';
 import { byte } from '@vscode/wasm-component-model';
 
+import lz4js from 'lz4js';
+//import fastlz from 'fastlz';
+import zlib from 'zlib';
+
+
 import {NetlistIdRef, NetlistIdTable, NetlistItem, NetlistTreeDataProvider, WaveformTop, VaporviewDocument} from './extension';
+import { endianness } from 'os';
+import { time } from 'console';
+
+// Define icons for the different module types
+const moduleIcon  = new vscode.ThemeIcon('chip',          new vscode.ThemeColor('charts.purple'));
+const funcIcon    = new vscode.ThemeIcon('symbol-module', new vscode.ThemeColor('charts.yellow'));
+const defaultIcon = new vscode.ThemeIcon('symbol-module', new vscode.ThemeColor('charts.white'));
+
+// Define icons for the different signal types
+const regIcon   = new vscode.ThemeIcon('symbol-array',     new vscode.ThemeColor('charts.green'));
+const wireIcon  = new vscode.ThemeIcon('symbol-interface', new vscode.ThemeColor('charts.pink'));
+const intIcon   = new vscode.ThemeIcon('symbol-variable',  new vscode.ThemeColor('charts.blue'));
+const paramIcon = new vscode.ThemeIcon('settings',         new vscode.ThemeColor('charts.orange'));
+const realIcon  = new vscode.ThemeIcon('symbol-constant',  new vscode.ThemeColor('charts.purple'));
 
 export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: NetlistTreeDataProvider, waveformDataSet: WaveformTop, netlistIdTable: NetlistIdTable) {
 
@@ -31,18 +50,6 @@ export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: Netli
   const buffer     = Buffer.alloc(CHUNK_SIZE);
   const metadata   = waveformDataSet.metadata;
   const totalSize  = metadata.fileSize;
-
-  // Define icons for the different module types
-  const moduleIcon  = new vscode.ThemeIcon('chip',          new vscode.ThemeColor('charts.purple'));
-  const funcIcon    = new vscode.ThemeIcon('symbol-module', new vscode.ThemeColor('charts.yellow'));
-  const defaultIcon = new vscode.ThemeIcon('symbol-module', new vscode.ThemeColor('charts.white'));
-
-  // Define icons for the different signal types
-  const regIcon   = new vscode.ThemeIcon('symbol-array',     new vscode.ThemeColor('charts.green'));
-  const wireIcon  = new vscode.ThemeIcon('symbol-interface', new vscode.ThemeColor('charts.pink'));
-  const intIcon   = new vscode.ThemeIcon('symbol-variable',  new vscode.ThemeColor('charts.blue'));
-  const paramIcon = new vscode.ThemeIcon('settings',         new vscode.ThemeColor('charts.orange'));
-  const realIcon  = new vscode.ThemeIcon('symbol-constant',  new vscode.ThemeColor('charts.purple'));
 
   fileOffset = 0;
   byteOffset = 0;
@@ -81,7 +88,7 @@ export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: Netli
             // Assign an icon to the signal based on its type
             if ((signalType === 'wire') || (signalType === 'reg')) {
               if (signalSize > 1) {signalItem.iconPath = regIcon;}
-              else {signalItem.iconPath = wireIcon;}
+              else                {signalItem.iconPath = wireIcon;}
             }
             else if (signalType === 'integer')   {signalItem.iconPath = intIcon;}
             else if (signalType === 'parameter') {signalItem.iconPath = paramIcon;}
@@ -102,7 +109,7 @@ export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: Netli
         const scopeType = scopeData[1];
         const scopeName = scopeData[2];
         let icon        = defaultIcon;
-        if (scopeType === 'module') {icon = moduleIcon;} 
+        if      (scopeType === 'module') {icon = moduleIcon;} 
         else if (scopeType === 'function') {icon = funcIcon;}
         const netlistId   = 0;
         const newScope    = new NetlistItem(scopeName, 'module', 0, '', netlistId, '', modulePathString, [], vscode.TreeItemCollapsibleState.Collapsed);
@@ -603,4 +610,378 @@ export async function parseVCDDataExternal(path: string, netlistTreeDataProvider
       waveformDataSet.metadata.chunkCount = Math.ceil(waveformDataSet.metadata.timeEnd / waveformDataSet.metadata.chunkTime);
     });
   
+}
+
+// FST Parsing
+
+export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeDataProvider, waveformDataSet: WaveformTop, netlistIdTable: NetlistIdTable, document: VaporviewDocument) {
+
+  console.log("Parsing FST Waveforms");
+  const read = promisify(fs.read);
+  const close = promisify(fs.close);
+
+  // Read the FST header
+  const analyzeBuffer = Buffer.alloc(1024);
+  const fileSize      = waveformDataSet.metadata.fileSize;
+  let fileOffset      = 0;
+  let blockType       = 0;
+  let blockLength     = 0;
+
+  let heirarchy;
+  let geometryMetaData;
+  const valueChangeBlocks = [];
+  let blackoutBlock;
+
+  await read(fd, analyzeBuffer, 0, 1024, fileOffset);
+  const header = parseFstHeader(analyzeBuffer);
+
+  while (fileOffset < fileSize) {
+    await read(fd, analyzeBuffer, 0, 1024, fileOffset);
+    blockType = analyzeBuffer.readUInt8(0);
+    blockLength = Number(analyzeBuffer.readBigUInt64BE(1));
+    console.log(analyzeBuffer);
+    console.log("Block type: " + blockType);
+    console.log("Block length: " + blockLength);
+
+    // Process Value Change Block
+    if (blockType === 1 || blockType === 5 || blockType === 8) {
+      valueChangeBlocks.push(await analyzeValueChangeBlock(fd, analyzeBuffer, blockType, fileOffset, blockLength));
+    } else if (blockType === 4 || blockType === 6 || blockType === 7) {
+      heirarchy = await analyzeHierarchyBlock(fd, analyzeBuffer, blockType, fileOffset, blockLength, netlistIdTable, netlistTreeDataProvider, waveformDataSet);
+    } else if (blockType === 3) {
+      geometryMetaData = analyzeGeometryBlock(analyzeBuffer, fileOffset, blockLength);
+    } else if (blockType === 2) {
+      blackoutBlock = analyzeBlackOutBlock(analyzeBuffer, fileOffset, blockLength);
+    }
+
+    fileOffset += blockLength + 1;
   }
+
+  close(fd);
+
+  console.log(header);
+  console.log(heirarchy);
+  console.log(geometryMetaData);
+  console.log(valueChangeBlocks);
+
+}
+
+function parseFstHeader(bufferData: Buffer) {
+  return {
+    type:                 bufferData.readUInt8(0),
+    length:               Number(bufferData.readBigUInt64BE(1)),
+    startTime:            Number(bufferData.readBigUInt64BE(9)),
+    endTime:              Number(bufferData.readBigUInt64BE(17)),
+    endianness:           bufferData.readDoubleLE(25) === Math.E ? 'little' : 'big',
+    writerMemUse:         Number(bufferData.readBigUInt64BE(33)),
+    numScopes:            Number(bufferData.readBigUInt64BE(41)),
+    numHierarchyVars:     Number(bufferData.readBigUInt64BE(49)),
+    numVars:              Number(bufferData.readBigUInt64BE(57)),
+    numValueChangeBlocks: Number(bufferData.readBigUInt64BE(65)),
+    timeScale:            bufferData.readInt8(73),
+    writer:               bufferData.subarray(74, 202).toString('utf8').replace(/\0/g, ''), // Remove null characters
+    date:                 bufferData.subarray(202, 228).toString('utf8').replace(/\0/g, ''), // Remove null characters
+    fileType:             bufferData.readUInt8(321),
+    timeZero:             Number(bufferData.readBigInt64BE(322))
+  };
+}
+
+function analyzeBlackOutBlock(bufferData: Buffer, fileOffset: number, blockLength: number) {
+  return {};
+}
+
+function analyzeGeometryBlock(bufferData: Buffer, fileOffset: number, blockLength: number) {
+  return {
+    length: blockLength,
+    uncompressedLength: Number(bufferData.readBigUInt64BE(9)),
+    entryCount: Number(bufferData.readBigUInt64BE(17)),
+  };
+}
+
+function parseStringNullTerminate(bufferData: Buffer, offset: number) {
+  let str: string = "";
+  let pointer: number = offset;
+  while (bufferData[pointer] !== 0) {
+    str += String.fromCharCode(bufferData[pointer]);
+    pointer++;
+  }
+  return {string: str, pointer: pointer + 1};
+}
+
+function parseVarInt(bufferData: Buffer, offset: number) {
+  let varint  = 0;
+  let bitshift = 0;
+  let pointer = offset;
+  while (bufferData[pointer] >= 128) {
+    varint |= (bufferData[pointer] & 0x7F) << bitshift;
+    bitshift += 7;
+    pointer++;
+  }
+  varint |= bufferData[pointer] << bitshift;
+  return {varint: varint, pointer: pointer + 1};
+}
+
+async function analyzeHierarchyBlock(fd: number, bufferData: Buffer, blockType: number, fileOffset: number, blockLength: number,  netlistIdTable: NetlistIdTable, netlistTreeDataProvider: NetlistTreeDataProvider, waveformDataSet: WaveformTop) {
+
+  const netlistItems: NetlistItem[] = [];
+  const moduleStack:  NetlistItem[] = [];
+  const modulePath:   string[]      = [];
+  let modulePathString = "";
+  let currentScope:   NetlistItem | undefined;
+  let nextNetlistId = 1;
+  let signalId      = 0;
+  let signalCount   = 0;
+  let moduleCount   = 0;
+  const metadata    = waveformDataSet.metadata;
+
+  const read = promisify(fs.read);
+  const result = {
+    length: blockLength,
+    compression: "Gzip",
+    uncompressedLength: Number(bufferData.readBigUInt64BE(9)),
+    uncompressedOnceLength: 0,
+    dataOffset: 17,
+  };
+
+  if (blockType === 6) {
+    result.compression = "lz4";
+  } else if (blockType === 7) {
+    result.compression = "lz4Duo";
+    result.uncompressedOnceLength = Number(bufferData.readBigUInt64BE(17));
+    result.dataOffset = 25;
+  }
+
+  const compressedLength = blockLength - result.dataOffset;
+  const heirarchyDataCompressed = Buffer.alloc(compressedLength);
+  await read(fd, heirarchyDataCompressed, 0, compressedLength, fileOffset + result.dataOffset);
+  let dataUnit8Array;
+  let dataBuffer = Buffer.alloc(result.uncompressedLength);
+
+  console.log("Uncompressed length : " + result.uncompressedLength);
+  console.log("Compressed length : " + compressedLength);
+  console.log(heirarchyDataCompressed);
+
+  if (result.compression === "Gzip") {
+
+    dataBuffer = zlib.gunzipSync(heirarchyDataCompressed, { finishFlush: zlib.constants.Z_SYNC_FLUSH });
+  } else if (result.compression === "lz4") {
+    dataUnit8Array = lz4js.decompress(heirarchyDataCompressed);
+  } else if (result.compression === "lz4Duo") {
+    dataUnit8Array = lz4js.decompress(lz4js.decompress(heirarchyDataCompressed));
+  }
+
+  console.log(dataBuffer);
+
+  const scopeTypeLow = ["VCD_MODULE", "VCD_TASK", "VCD_FUNCTION", "VCD_BEGIN",
+    "VCD_FORK", "VCD_GENERATE", "VCD_STRUCT", "VCD_UNION", "VCD_CLASS",
+    "VCD_INTERFACE", "VCD_PACKAGE", "VCD_PROGRAM", "VHDL_ARCHITECTURE", 
+    "VHDL_PROCEDURE", "VHDL_FUNCTION", "VHDL_RECORD", "VHDL_PROCESS", 
+    "VHDL_BLOCK", "VHDL_FOR_GENERATE", "VHDL_IF_GENERATE", "VHDL_GENERATE",
+    "VHDL_PACKAGE "];
+  // 252 "GEN_ATTRBEGIN", 253 "GEN_ATTREND", 254 "VCD_SCOPE", 255 "VCD_UPSCOPE"
+  const scopeTypeHigh = ["GEN_ATTRBEGIN", " GEN_ATTREND", "VCD_SCOPE", "VCD_UPSCOPE "];
+  const variableType = ["VCD_EVENT", "VCD_INTEGER", "VCD_PARAMETER", "VCD_REAL",
+    "VCD_REAL_PARAMETER", "VCD_REG", "VCD_SUPPLY", "VCD_SUPPLY", "VCD_TIM",
+    "VCD_TR", "VCD_TRIAND", "VCD_TRIOR", "VCD_TRIREG", "VCD_TRI0", "VCD_TRI1",
+    "VCD_WAND", "VCD_WIRE", "VCD_WOR", "VCD_PORT", "VCD_SPARRAY",
+    "VCD_REALTIME", "GEN_STRING", "SV_BIT", "SV_LOGIC", "SV_INT",
+    "SV_SHORTINT", "SV_LONGINT", "SV_BYTE", "SV_ENUM", "SV_SHORTREAL"];
+    const miscType = ["COMMENT", "ENVVAR", "SUPVAR", "PATHNAME", "SOURCESTEM",
+      "SOURCEISTEM", "VALUELIST", "ENUMTABLE", "UNKNOWN"];
+    const arrayType = ["NONE", "UNPACKED", "PACKED", "SPARSE"];
+    const enumType = ["SV_INTEGER", "SV_BIT", "SV_LOGIC", "SV_INT", "SV_SHORTINT", "SV_LONGINT", "SV_BYTE", "SV_UNSIGNED_INTEGER", "SV_UNSIGNED_BIT", "SV_UNSIGNED_LOGIC", "SV_UNSIGNED_INT", "SV_UNSIGNED_SHORTINT", "SV_UNSIGNED_LONGINT", "SV_UNSIGNED_BYTE", "REG", "TIME"];
+    const packType = ["NONE", "UNPACKED", "PACKED", "SPARSE"];
+    const attributeType = ["MISC", "ARRAY", "ENUM", "PACK"];
+    const attributeSubtype = [miscType, arrayType, enumType, packType];
+  const varDir = ["IMPLICIT", "INPUT", "OUTPUT", "INOUT", "BUFFER", "LINKAGE"];
+  
+
+  let pointer: number = 0;
+  let parseString: {string: string, pointer: number};
+  let varInt: {varint: number, pointer: number};
+  const netlist = [];
+  while (pointer < dataBuffer.length) {
+
+    if (dataBuffer[pointer] === 252) { // GEN_ATTRBEGIN
+      // Attribute
+      pointer++;
+      const attribute   = {class: "attribute", type: "", name: "", value: 0};
+      const typeIndex   = dataBuffer[pointer++];
+      attribute.type    = attributeType[typeIndex] + ":" + attributeSubtype[typeIndex][dataBuffer[pointer++]];
+      parseString       = parseStringNullTerminate(dataBuffer, pointer);
+      attribute.name    = parseString.string;
+      pointer           = parseString.pointer;
+      varInt            = parseVarInt(dataBuffer, pointer);
+      attribute.value   = varInt.varint;
+      pointer           = varInt.pointer;
+      netlist.push(attribute);
+      if (dataBuffer[pointer] === 253) { pointer++; } // GEN_ATTREND
+    } else if (dataBuffer[pointer] === 254) { // VCD_SCOPE
+      // Scope
+      pointer++;
+      const scope     = {class: "scope", type: "", name: "", component: ""};
+      scope.type      = scopeTypeLow[dataBuffer[pointer++]];
+      parseString     = parseStringNullTerminate(dataBuffer, pointer);
+      scope.name      = parseString.string;
+      pointer         = parseString.pointer;
+      parseString     = parseStringNullTerminate(dataBuffer, pointer);
+      scope.component = parseString.string;
+      pointer         = parseString.pointer;
+      netlist.push(scope);
+
+      moduleCount++;
+      let icon        = defaultIcon;
+      if      (scope.type === 'VCD_MODULE') {icon = moduleIcon;} 
+      else if (scope.type === 'VCD_FUNCTION') {icon = funcIcon;}
+      const newScope    = new NetlistItem(scope.name, 'module', 0, '', 0, '', modulePathString, [], vscode.TreeItemCollapsibleState.Collapsed);
+      newScope.iconPath = icon;
+      modulePath.push(scope.name);
+      modulePathString = modulePath.join(".");
+      if (currentScope) {
+        currentScope.children.push(newScope); // Add the new scope as a child of the current scope
+      } else {
+        netlistItems.push(newScope); // If there's no current scope, add it to the netlistItems
+      }
+      // Push the new scope onto the moduleStack and set it as the current scope
+      moduleStack.push(newScope);
+      currentScope = newScope;
+    } else if (dataBuffer[pointer] <= 29) {
+      // Variable
+      const variable       = {class: "variable", type: "", direction: "", name: "", length: 0, structAlias: 0};
+      variable.type        = variableType[dataBuffer[pointer++]];
+      variable.direction   = varDir[dataBuffer[pointer++]];
+      parseString          = parseStringNullTerminate(dataBuffer, pointer);
+      variable.name        = parseString.string;
+      pointer              = parseString.pointer;
+      varInt               = parseVarInt(dataBuffer, pointer);
+      variable.length      = varInt.varint;
+      pointer              = varInt.pointer;
+      varInt               = parseVarInt(dataBuffer, pointer);
+      variable.structAlias = varInt.varint;
+      pointer              = varInt.pointer;
+      netlist.push(variable);
+
+      // Extract signal information (signal type and name)
+      //const varMatch = cleanedLine.match(/\$var\s+(wire|reg|integer|parameter|real)\s+(1|[\d+:]+)\s+(\w+)\s+(\w+(\[\d+)?(:\d+)?\]?)\s\$end/);
+      if (currentScope) {
+        signalCount++;
+        const signalName = variable.name;
+        const signalType = variable.type;
+        const signalSize = variable.length;
+        const netlistId  = nextNetlistId++;
+        // Yes, this is a terrible hack, but converting signalId to struct pointers
+        // is not something we do many times over, so I'm allowing it for now
+        const signalID   = (variable.structAlias === 0 ? variable.structAlias - 1 : signalId++).toString();
+
+        // Create a NetlistItem for the signal and add it to the current scope
+        const signalItem = new NetlistItem(signalName, signalType, signalSize, signalID, netlistId, signalName, modulePathString, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked);
+
+        // Assign an icon to the signal based on its type
+        if ((signalType === 'VCD_WIRE') || (signalType === 'VCD_REG')) {
+          if (signalSize > 1) {signalItem.iconPath = regIcon;}
+          else                {signalItem.iconPath = wireIcon;}
+        }
+        else if (signalType === 'VCD_INTEGER')   {signalItem.iconPath = intIcon;}
+        else if (signalType === 'VCD_PARAMETER') {signalItem.iconPath = paramIcon;}
+        else if (signalType === 'VCD_REAL')      {signalItem.iconPath = realIcon;}
+        else {signalItem.iconPath = realIcon;}
+
+        currentScope.children.push(signalItem);
+        netlistIdTable[netlistId] = {netlistItem: signalItem, displayedItem: undefined, signalId: signalID};
+        waveformDataSet.createSignalWaveform(signalID, signalSize);
+      }
+    } else if (dataBuffer[pointer] === 255) {
+      // Upscope
+      netlist.push("VCD_UPSCOPE");
+      pointer++;
+
+      moduleStack.pop(); // Pop the current scope from the moduleStack
+      modulePath.pop();
+      currentScope     = moduleStack[moduleStack.length - 1]; // Update th current scope to the parent scope
+      modulePathString = modulePath.join(".");
+    } else {
+      console.log("Unknown block type: " + dataBuffer[pointer] + " at pointer " + pointer);
+      break;
+    }
+  }
+
+  metadata.moduleCount = moduleCount;
+  metadata.signalCount = signalCount;
+
+  // Update the Netlist view with the parsed netlist data
+  netlistTreeDataProvider.setTreeData(netlistItems);
+
+  console.log(netlist.slice(0, 1000));
+  console.log(netlist.length);
+
+  return result;
+}
+
+async function analyzeValueChangeBlock(fd: number, bufferData: Buffer, blockType: number, fileOffset: number, blockLength: number) {
+  const read = promisify(fs.read);
+  const buffer = Buffer.alloc(1024);
+  let blockOffset = 0;
+  let varInt = {varint: 0, pointer: 0};
+  const vcBlock = {
+    length: blockLength,
+    startTime: Number(bufferData.readBigUInt64BE(9)),
+    endTime: Number(bufferData.readBigUInt64BE(17)),
+    memRequired: Number(bufferData.readBigUInt64BE(25)),
+    bitsUncompressedLength: 0,
+    bitsCompressedLength: 0,
+    bitsCount: 0,
+    bitsBlockOffset: 33,
+    wavesCount: 0,
+    wavesPackType: "none",
+    wavesBlockOffset: 0,
+    positionLength: 0,
+    positionBlockOffset: 0,
+    timeUncompressedLength: 0,
+    timeCompressedLength: 0,
+    timeCount: 0,
+    timeBlockOffset: 0
+  };
+  let pointer = 33;
+  varInt                         = parseVarInt(bufferData, pointer);
+  vcBlock.bitsUncompressedLength = varInt.varint;
+  pointer                        = varInt.pointer;
+  varInt                         = parseVarInt(bufferData, pointer);
+  vcBlock.bitsCompressedLength   = varInt.varint;
+  pointer                        = varInt.pointer;
+  varInt                         = parseVarInt(bufferData, pointer);
+  vcBlock.bitsCount              = varInt.varint;
+  vcBlock.bitsBlockOffset        = varInt.pointer;
+
+  // Jump to after the Bits Array
+  blockOffset = vcBlock.bitsBlockOffset + vcBlock.bitsCompressedLength;
+  await read(fd, buffer, 0, 1024, fileOffset + blockOffset);
+  pointer                  = 0;
+  varInt                   = parseVarInt(buffer, pointer);
+  vcBlock.wavesCount       = varInt.varint;
+  pointer                  = varInt.pointer;
+  const packType           = String.fromCharCode(buffer[pointer++]);
+  vcBlock.wavesBlockOffset = pointer + blockOffset;
+  if (packType === "!" || packType === "Z") {
+    vcBlock.wavesPackType = "zlib";
+  } else if (packType === "F") {
+    vcBlock.wavesPackType = "fastlz";
+  } else if (packType === "4") {
+    vcBlock.wavesPackType = "lz4";
+  }
+
+  // Jump to the end
+  blockOffset = blockLength - 23;
+  await read(fd, buffer, 0, 28, fileOffset + blockOffset);
+  vcBlock.timeUncompressedLength = Number(buffer.readBigUInt64BE(0));
+  vcBlock.timeCompressedLength   = Number(buffer.readBigUInt64BE(8));
+  vcBlock.timeCount              = Number(buffer.readBigUInt64BE(16));
+  vcBlock.timeBlockOffset        = blockOffset - vcBlock.timeCompressedLength;
+
+  // jump to position data
+  blockOffset = vcBlock.timeBlockOffset - 8;
+  await read(fd, buffer, 0, 24, fileOffset + blockOffset);
+  vcBlock.positionLength      = Number(buffer.readBigUInt64BE(0));
+  vcBlock.positionBlockOffset = blockOffset - vcBlock.positionLength;
+
+  return vcBlock;
+}

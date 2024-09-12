@@ -4,7 +4,7 @@ import * as readline from 'readline';
 import { promisify, types } from 'util';
 import { byte } from '@vscode/wasm-component-model';
 
-import lz4js from 'lz4js';
+import lz4js, { compress } from 'lz4js';
 //import fastlz from 'fastlz';
 import zlib from 'zlib';
 
@@ -12,6 +12,8 @@ import zlib from 'zlib';
 import {NetlistIdRef, NetlistIdTable, NetlistItem, NetlistTreeDataProvider, WaveformTop, VaporviewDocument} from './extension';
 import { endianness } from 'os';
 import { time } from 'console';
+import { buffer } from 'stream/consumers';
+import { AsyncLocalStorage } from 'async_hooks';
 
 // Define icons for the different module types
 const moduleIcon  = new vscode.ThemeIcon('chip',          new vscode.ThemeColor('charts.purple'));
@@ -612,7 +614,19 @@ export async function parseVCDDataExternal(path: string, netlistTreeDataProvider
   
 }
 
-// FST Parsing
+/* ****************************************************************************
+* This is a WIP FST parser. It can currently identify and analyze all block
+* types, it can't parse all of the blocks yet. It can discern and populate the
+* netlist for certain compression techniques
+* 
+* To DO:
+* Header Block
+*   lz4 compression
+* Blackout Block
+* Value Change Block
+*   Bits Array
+*   Waves Blocks
+***************************************************************************** */
 
 export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeDataProvider, waveformDataSet: WaveformTop, netlistIdTable: NetlistIdTable, document: VaporviewDocument) {
 
@@ -632,21 +646,26 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
   const valueChangeBlocks = [];
   let blackoutBlock;
 
+  // Parse header block
   await read(fd, analyzeBuffer, 0, 1024, fileOffset);
   const header = parseFstHeader(analyzeBuffer);
 
+  // Parse all subsequent blocks. We don't go super in-depth with Value Change
+  // Blocks, because we want to decode the netlist first
   while (fileOffset < fileSize) {
     await read(fd, analyzeBuffer, 0, 1024, fileOffset);
     blockType = analyzeBuffer.readUInt8(0);
     blockLength = Number(analyzeBuffer.readBigUInt64BE(1));
-    console.log(analyzeBuffer);
+
     console.log("Block type: " + blockType);
     console.log("Block length: " + blockLength);
 
     // Process Value Change Block
     if (blockType === 1 || blockType === 5 || blockType === 8) {
+      console.log("analyzing value change block");
       valueChangeBlocks.push(await analyzeValueChangeBlock(fd, analyzeBuffer, blockType, fileOffset, blockLength));
     } else if (blockType === 4 || blockType === 6 || blockType === 7) {
+      console.log("analyzing Hierarchy block");
       heirarchy = await analyzeHierarchyBlock(fd, analyzeBuffer, blockType, fileOffset, blockLength, netlistIdTable, netlistTreeDataProvider, waveformDataSet);
     } else if (blockType === 3) {
       geometryMetaData = analyzeGeometryBlock(analyzeBuffer, fileOffset, blockLength);
@@ -655,6 +674,28 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
     }
 
     fileOffset += blockLength + 1;
+  }
+
+  // once we decode the netlist, we can analyze the Value Change blocks
+  for (let i = 0; i < valueChangeBlocks.length; i++) {
+    const vcBlock = valueChangeBlocks[i];
+
+    // time Table
+    vcBlock.timeTable = decodeTimeTable(fd, vcBlock);
+
+    // Position Table
+    let posTable: any;
+    if (vcBlock.aliasType === 1) {
+      posTable = decodePositionTable(fd, vcBlock, header.numVars);
+    } else if (vcBlock.aliasType === 5) {
+      posTable = decodePositionTableAlias(fd, vcBlock, header.numVars);
+    } else {
+      posTable = decodePositionTableAlias2(fd, vcBlock, header.numVars);
+    }
+
+    vcBlock.waveformOffsets = posTable.waveformOffsets;
+    vcBlock.waveformLengths = posTable.waveformLengths;
+
   }
 
   close(fd);
@@ -691,11 +732,17 @@ function analyzeBlackOutBlock(bufferData: Buffer, fileOffset: number, blockLengt
 }
 
 function analyzeGeometryBlock(bufferData: Buffer, fileOffset: number, blockLength: number) {
-  return {
+  const result = {
+    fileOffset: fileOffset,
     length: blockLength,
     uncompressedLength: Number(bufferData.readBigUInt64BE(9)),
     entryCount: Number(bufferData.readBigUInt64BE(17)),
+    compression: "zlib"
   };
+  if (result.uncompressedLength === result.length - 24) {
+    result.compression = "none";
+  }
+  return result;
 }
 
 function parseStringNullTerminate(bufferData: Buffer, offset: number) {
@@ -736,8 +783,10 @@ async function analyzeHierarchyBlock(fd: number, bufferData: Buffer, blockType: 
 
   const read = promisify(fs.read);
   const result = {
+    fileOffset: fileOffset,
     length: blockLength,
-    compression: "Gzip",
+    compression: "gzip",
+    compressedLength: 0,
     uncompressedLength: Number(bufferData.readBigUInt64BE(9)),
     uncompressedOnceLength: 0,
     dataOffset: 17,
@@ -746,31 +795,35 @@ async function analyzeHierarchyBlock(fd: number, bufferData: Buffer, blockType: 
   if (blockType === 6) {
     result.compression = "lz4";
   } else if (blockType === 7) {
-    result.compression = "lz4Duo";
+    result.compression = "lz4duo";
     result.uncompressedOnceLength = Number(bufferData.readBigUInt64BE(17));
     result.dataOffset = 25;
   }
 
-  const compressedLength = blockLength - result.dataOffset;
-  const heirarchyDataCompressed = Buffer.alloc(compressedLength);
-  await read(fd, heirarchyDataCompressed, 0, compressedLength, fileOffset + result.dataOffset);
+  result.compressedLength = blockLength - result.dataOffset;
+  const heirarchyDataCompressed = Buffer.alloc(result.compressedLength);
+  await read(fd, heirarchyDataCompressed, 0, result.compressedLength, fileOffset + result.dataOffset);
   let dataUnit8Array;
   let dataBuffer = Buffer.alloc(result.uncompressedLength);
 
   console.log("Uncompressed length : " + result.uncompressedLength);
-  console.log("Compressed length : " + compressedLength);
+  console.log("Compressed length : " + result.compressedLength);
+  console.log("compression type: " + result.compression);
+  console.log(bufferData);
   console.log(heirarchyDataCompressed);
 
-  if (result.compression === "Gzip") {
+  if (result.compression === "gzip") {
 
     dataBuffer = zlib.gunzipSync(heirarchyDataCompressed, { finishFlush: zlib.constants.Z_SYNC_FLUSH });
   } else if (result.compression === "lz4") {
-    dataUnit8Array = lz4js.decompress(heirarchyDataCompressed);
-  } else if (result.compression === "lz4Duo") {
-    dataUnit8Array = lz4js.decompress(lz4js.decompress(heirarchyDataCompressed));
+    console.log('Compressed Data Magic Number (4, 34, 77, 18):', heirarchyDataCompressed.slice(0, 4));
+    dataUnit8Array = lz4js.decompress(Uint8Array.from(heirarchyDataCompressed), result.uncompressedLength);
+    console.log(dataUnit8Array);
+    dataBuffer = Buffer.from(dataUnit8Array);
+  } else if (result.compression === "lz4duo") {
+    dataUnit8Array = lz4js.decompress(Uint8Array.from(heirarchyDataCompressed), result.uncompressedOnceLength);
+    dataBuffer = Buffer.from(dataUnit8Array);
   }
-
-  console.log(dataBuffer);
 
   const scopeTypeLow = ["VCD_MODULE", "VCD_TASK", "VCD_FUNCTION", "VCD_BEGIN",
     "VCD_FORK", "VCD_GENERATE", "VCD_STRUCT", "VCD_UNION", "VCD_CLASS",
@@ -794,7 +847,7 @@ async function analyzeHierarchyBlock(fd: number, bufferData: Buffer, blockType: 
     const attributeType = ["MISC", "ARRAY", "ENUM", "PACK"];
     const attributeSubtype = [miscType, arrayType, enumType, packType];
   const varDir = ["IMPLICIT", "INPUT", "OUTPUT", "INOUT", "BUFFER", "LINKAGE"];
-  
+
 
   let pointer: number = 0;
   let parseString: {string: string, pointer: number};
@@ -911,8 +964,8 @@ async function analyzeHierarchyBlock(fd: number, bufferData: Buffer, blockType: 
   // Update the Netlist view with the parsed netlist data
   netlistTreeDataProvider.setTreeData(netlistItems);
 
-  console.log(netlist.slice(0, 1000));
-  console.log(netlist.length);
+  //console.log(netlist.slice(0, 1000));
+  //console.log(netlist.length);
 
   return result;
 }
@@ -922,7 +975,10 @@ async function analyzeValueChangeBlock(fd: number, bufferData: Buffer, blockType
   const buffer = Buffer.alloc(1024);
   let blockOffset = 0;
   let varInt = {varint: 0, pointer: 0};
-  const vcBlock = {
+
+  // I should probably fix the typing on this later
+  const vcBlock: any = {
+    fileOffset: fileOffset,
     length: blockLength,
     startTime: Number(bufferData.readBigUInt64BE(9)),
     endTime: Number(bufferData.readBigUInt64BE(17)),
@@ -931,6 +987,7 @@ async function analyzeValueChangeBlock(fd: number, bufferData: Buffer, blockType
     bitsCompressedLength: 0,
     bitsCount: 0,
     bitsBlockOffset: 33,
+    aliasType: blockType,
     wavesCount: 0,
     wavesPackType: "none",
     wavesBlockOffset: 0,
@@ -939,8 +996,12 @@ async function analyzeValueChangeBlock(fd: number, bufferData: Buffer, blockType
     timeUncompressedLength: 0,
     timeCompressedLength: 0,
     timeCount: 0,
-    timeBlockOffset: 0
+    timeBlockOffset: 0,
+    timeTable: [],
+    waveformOffsets: [],
+    waveformLengths: []
   };
+
   let pointer = 33;
   varInt                         = parseVarInt(bufferData, pointer);
   vcBlock.bitsUncompressedLength = varInt.varint;
@@ -984,4 +1045,99 @@ async function analyzeValueChangeBlock(fd: number, bufferData: Buffer, blockType
   vcBlock.positionBlockOffset = blockOffset - vcBlock.positionLength;
 
   return vcBlock;
+}
+
+async function decodePositionTable(fd: number, vcBlock: any, numVars: number) {
+
+  console.log("unsupported Alias Type");
+  return {waveformOffsets: [], waveformLengths: []};
+}
+
+// FST_BL_VCDATA_DYN_ALIAS
+async function decodePositionTableAlias(fd: number, vcBlock: any, numVars: number) {
+
+  const read = promisify(fs.read);
+  const bufferData = Buffer.alloc(vcBlock.positionLength);
+  const chainTable: number[] = [];
+  const chainTableLengths: number[] = new Array(numVars).fill(0);
+  let previousIndex = 0;
+  let value = 0;
+  let pointer = 0;
+  let varInt;
+  let varIntValue;
+  let zeros = 0;
+  await read(fd, bufferData, 0, vcBlock.positionLength, vcBlock.fileOffset + vcBlock.positionBlockOffset);
+
+  console.log("position table Raw data:");
+  console.log(bufferData);
+  while (pointer < vcBlock.positionLength) {
+    varInt = parseVarInt(bufferData, pointer);
+    varIntValue = varInt.varint;
+    pointer = varInt.pointer;
+    const index = chainTable.length;
+    if (varIntValue === 0) {
+      chainTable.push(0);
+      varInt = parseVarInt(bufferData, pointer);
+      varIntValue = varInt.varint;
+      pointer = varInt.pointer;
+      chainTableLengths[index] = -1 * varIntValue;
+    } else if ((varIntValue & 1) === 1) {
+      value += varIntValue >> 1;
+      if (index > 0) {
+        const length = value - chainTable[previousIndex];
+        chainTableLengths[previousIndex] = length;
+      }
+      chainTable.push(value);
+      previousIndex = index;
+    } else {
+      zeros  = varIntValue >> 1;
+      for (let i = 0; i < zeros; i++) {chainTable.push(0);}
+    }
+  }
+
+  for (let i = 0; i < numVars; i++) {
+    const length = chainTableLengths[i];
+    if (length < 0 && chainTable[i] === 0) {
+      const index = (-1 * length) - 1;
+      if (index < i) {
+        chainTable[i] = chainTable[index];
+        chainTableLengths[i] = chainTableLengths[index];
+      }
+    }
+  }
+
+  return {waveformOffsets: chainTable, waveformLengths: chainTableLengths};
+}
+
+async function decodePositionTableAlias2(fd: number, vcBlock: any, numVars: number) {
+
+  console.log("unsupported Alias Type");
+  return {waveformOffsets: [], waveformLengths: []};
+}
+
+async function decodeTimeTable(fd: number, vcBlock: any) {
+
+  const read = promisify(fs.read);
+  const timeTable  = [];
+  const bufferData = Buffer.alloc(vcBlock.timeCompressedLength);
+  let timeDataBuffer: Buffer;
+  await read(fd, bufferData, 0, vcBlock.timeCompressedLength, vcBlock.fileOffset + vcBlock.timeBlockOffset);
+
+  if (vcBlock.timeCompressedLength !== vcBlock.timeUncompressedLength) {
+    timeDataBuffer = zlib.unzipSync(bufferData, { finishFlush: zlib.constants.Z_SYNC_FLUSH });
+  } else {
+    timeDataBuffer = bufferData;
+  }
+
+  let pointer = 0;
+  let time = vcBlock.startTime;
+  let varInt;
+  while (pointer < vcBlock.timeUncompressedLength) {
+    varInt  = parseVarInt(timeDataBuffer, pointer);
+    time   += varInt.varint;
+    pointer = varInt.pointer;
+    timeTable.push(time);
+  }
+
+  return timeTable;
 }

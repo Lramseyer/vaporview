@@ -55,6 +55,9 @@
         "selector": [
           {
             "filenamePattern": "*.vcd"
+          },
+          {
+            "filenamePattern": "*.fst"
           }
         ]
       }
@@ -214,11 +217,13 @@
     "@types/lz4js": "^0.2.1",
     "@vscode/codicons": "0.0.35",
     "@vscode/wasm-component-model": "0.1.0-pre.12",
+    "lz4": "^0.6.5",
     "lz4js": "^0.2.0",
     "signed-varint": "^2.0.1",
     "varint": "^6.0.0"
   },
   "devDependencies": {
+    "@types/lz4": "^0.6.4",
     "@types/node": "^18.14.6",
     "@types/vscode": "1.89.0",
     "@typescript-eslint/eslint-plugin": "^7.6.0",

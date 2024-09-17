@@ -133,6 +133,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       command: 'create-ruler',
       waveformDataSet: this._documentData.metadata,
     });
+    console.log(this._documentData.metadata);
     this._webviewInitialized = true;
   }
 
@@ -1450,9 +1451,9 @@ export type NetlistIdRef = {
 
 export type NetlistIdTable = Array<NetlistIdRef>;
 
-type TransitionData = [number, number | string];
-type SignalId  = string;
-type NetlistId = number;
+export type TransitionData = [number, number | string];
+export type SignalId  = string;
+export type NetlistId = number;
 
 export class WaveformTop {
   public netlistElements: Map<SignalId, SignalWaveform>;
@@ -1478,6 +1479,48 @@ export class WaveformTop {
     this.netlistElements = new Map();
   }
 
+  public createChunks(totalSize: number, signalIdList: string[]) {
+    // Discern Chunk size
+    let minTimeStemp      = 9999999;
+    const eventCount = this.timeChain.length;
+    const currentTimestamp = this.timeChain[eventCount - 1];
+    console.log("Event count: " + eventCount);
+  
+    if (eventCount <= 128) {
+      minTimeStemp = this.timeChain[eventCount - 1];
+    } else {
+      for (let i = 128; i < eventCount; i++) {
+        const rollingTimeStep = this.timeChain[i] - this.timeChain[i - 128];
+        minTimeStemp = Math.min(rollingTimeStep, minTimeStemp);
+      }
+    }
+  
+    // Prevent weird zoom ratios causing strange floating point math errors
+    minTimeStemp    = 10 ** (Math.round(Math.log10(minTimeStemp / 128)) | 0);
+    const chunkTime = minTimeStemp * 128;
+    this.metadata.chunkTime   = chunkTime;
+    this.metadata.defaultZoom = 512 / chunkTime;
+  
+    let chunkIndex = 0;
+    for (let i = 0; i < eventCount; i++) {
+      const time = this.timeChain[i];
+      while (time >= chunkTime * chunkIndex) {
+        this.timeChainChunkStart.push(i);
+        chunkIndex++;
+      }
+    }
+    this.timeChainChunkStart.push(eventCount);
+    this.timeOffset.push(totalSize);
+  
+    this.metadata.timeEnd = currentTimestamp + 1;
+    signalIdList.forEach((signalId) => {
+      const postState   = 'X';
+      const signalWidth = this.netlistElements.get(signalId)?.signalWidth || 1;
+      this.addTransitionData(signalId, [currentTimestamp, postState.repeat(signalWidth)]);
+      this.metadata.chunkCount = Math.ceil(this.metadata.timeEnd / this.metadata.chunkTime);
+    });
+  }
+
   public createSignalWaveform(signalId: SignalId, width: number) {
     // Check if the signal waveform already exists, and if not, create a new one
     if (!this.netlistElements.has(signalId)) {
@@ -1487,27 +1530,23 @@ export class WaveformTop {
   }
 
   public setInitialState(signalId: SignalId, initialState: number | string = "x") {
-    // Check if the signal waveform exists in the map
     const waveform = this.netlistElements.get(signalId);
-    if (waveform) {
-      // Add the transition data to the signal waveform
-      waveform.transitionData.push([0, initialState]);
-    } else {
-      // Console log an error message if the signal waveform doesn't exist
-      //console.log(`${signalId} not in netlist (initialState)`);
-    }
+    if (waveform) {waveform.transitionData.push([0, initialState]);}
   }
 
   public addTransitionData(signalId: SignalId, transitionData: TransitionData) {
-    // Check if the signal waveform exists in the map
     const waveform = this.netlistElements.get(signalId);
-    if (waveform) {
-      // Add the transition data to the signal waveform
-      waveform.addTransitionData(transitionData);
-    } else {
-      // Console log an error message if the signal waveform doesn't exist
-      //console.log(`${signalId} not in netlist (transitionData)`);
-    }
+    if (waveform) {waveform.addTransitionData(transitionData);}
+  }
+
+  public addTransitionDataBlock(signalId: SignalId, transitionData: TransitionData[]) {
+    const waveform = this.netlistElements.get(signalId);
+    if (waveform) {waveform.addTransitionDataBlock(transitionData);}
+  }
+
+  public addTransitionDataDeduped(signalId: SignalId, transitionData: TransitionData) {
+    const waveform = this.netlistElements.get(signalId);
+    if (waveform) {waveform.addTransitionDataDeduped(transitionData);}
   }
 
   public dispose() {
@@ -1532,6 +1571,29 @@ class SignalWaveform {
 
   public addTransitionData(transitionValue: TransitionData) {
     this.transitionData.push(transitionValue);
+  }
+
+  public addTransitionDataBlock(transitionValues: TransitionData[]) {
+    const length = this.transitionData.length;
+    if (length === 0) {
+      this.transitionData = transitionValues;
+    } else if (this.transitionData[length - 1][1] === transitionValues[0][1]) {
+      this.transitionData = this.transitionData.concat(transitionValues.slice(1));
+    } else {
+      this.transitionData = this.transitionData.concat(transitionValues);
+    }
+  }
+
+  public addTransitionDataDeduped(transitionValue: TransitionData) {
+
+    const lastTransition = this.transitionData[this.transitionData.length - 1];
+    if (this.transitionData.length === 0) {
+      this.transitionData.push(transitionValue);
+    } else if (lastTransition[VALUE_INDEX] === transitionValue[VALUE_INDEX]) {
+      this.transitionData[this.transitionData.length - 1] = transitionValue;
+    } else {
+      this.transitionData.push(transitionValue);
+    }
   }
 }
 
@@ -1660,6 +1722,8 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeSignal', (e) => {
     if (e.netlistId) {
       viewerProvider.removeSignalFromDocument(e.netlistId);
+
+      console.log(e);
     }
   }));
 

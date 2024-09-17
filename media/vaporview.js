@@ -54,6 +54,14 @@ valueIs4State = function (value) {
   else {return false;}
 };
 
+htmlSafe = function (string) {
+  return string.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+};
+
+htmlAttributeSafe = function (string) {
+  return string.replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+};
+
 // This function actually creates the individual bus elements, and has can
 // potentially called thousands of times during a render
 busElement = function (time, deltaTime, displayValue, spansChunk, textWidth, leftOverflow, rightOverflow) {
@@ -404,9 +412,9 @@ createLabel = function (netlistId, isSelected) {
   //if (isSelected) {selectorClass = 'is-selected';}
   const vscodeContext = netlistData[netlistId].vscodeContext;
   const selectorClass = isSelected ? 'is-selected' : 'is-idle';
-  const signalName    = netlistData[netlistId].signalName;
-  const modulePath    = netlistData[netlistId].modulePath + '.';
-  const fullPath      = modulePath + signalName;
+  const signalName    = htmlSafe(netlistData[netlistId].signalName);
+  const modulePath    = htmlSafe(netlistData[netlistId].modulePath + '.');
+  const fullPath      = htmlAttributeSafe(modulePath + signalName);
   return `<div class="waveform-label ${selectorClass}" id="label-${netlistId}" title="${fullPath}" ${vscodeContext}>
             <div class='codicon codicon-grabber'></div>
             <p style="opacity:50%">${modulePath}</p><p>${signalName}</p>
@@ -1910,6 +1918,8 @@ goToNextTransition = function (direction, edge) {
       }
       case 'render-signal': {
         // Handle rendering a signal, e.g., render the signal based on message content
+
+        console.log(message);
 
         let signalId       = message.signalId;
         let netlistId      = message.netlistId;

@@ -14,6 +14,137 @@ interface VaporviewDocumentDelegate {
 }
 
 let wasmModule: WebAssembly.Module;
+const BASE_CHUNK_TIME_WINDOW = 512;
+const TIME_INDEX   = 0;
+const VALUE_INDEX  = 1;
+
+type WaveformTopMetadata = {
+  fileName:    string;
+  fileSize:    number;
+  waveformsStartOffset: number;
+  waveformsLoaded: boolean;
+  moduleCount: number;
+  signalCount: number;
+  timeEnd:     number;
+  chunkTime:   number;
+  chunkCount:  number;
+  timeScale:   number;
+  defaultZoom: number;
+  timeUnit:    string;
+};
+
+export type NetlistIdTable = Array<NetlistIdRef>;
+export type TransitionData = [number, number | string];
+export type SignalId  = string;
+export type NetlistId = number;
+export type NetlistIdRef = {
+  netlistItem: NetlistItem;
+  displayedItem: NetlistItem | undefined;
+  signalId: SignalId;
+};
+
+export class WaveformTop {
+  public netlistElements: Map<SignalId, SignalWaveform>;
+  public timeChain:       number[] = [];
+  public timeOffset:      number[] = [];
+  public timeChainChunkStart: number[] = [];
+  public metadata:   WaveformTopMetadata = {
+    fileName:    "",
+    fileSize:    0,
+    waveformsStartOffset: 0,
+    waveformsLoaded: false,
+    moduleCount: 0,
+    signalCount: 0,
+    timeEnd:     0,
+    chunkTime:   BASE_CHUNK_TIME_WINDOW,
+    chunkCount:  0,
+    timeScale:   1,
+    defaultZoom: 1,
+    timeUnit:    "ns",
+  };
+
+  constructor() {
+    this.netlistElements = new Map();
+  }
+
+  public createChunks(totalSize: number, signalIdList: string[]) {
+    // Discern Chunk size
+    let minTimeStemp      = 9999999;
+    const eventCount = this.timeChain.length;
+    const currentTimestamp = this.timeChain[eventCount - 1];
+    console.log("Event count: " + eventCount);
+  
+    if (eventCount <= 128) {
+      minTimeStemp = this.timeChain[eventCount - 1];
+    } else {
+      for (let i = 128; i < eventCount; i++) {
+        const rollingTimeStep = this.timeChain[i] - this.timeChain[i - 128];
+        minTimeStemp = Math.min(rollingTimeStep, minTimeStemp);
+      }
+    }
+  
+    // Prevent weird zoom ratios causing strange floating point math errors
+    minTimeStemp    = 10 ** (Math.round(Math.log10(minTimeStemp / 128)) | 0);
+    const chunkTime = minTimeStemp * 128;
+    this.metadata.chunkTime   = chunkTime;
+    this.metadata.defaultZoom = 512 / chunkTime;
+  
+    let chunkIndex = 0;
+    for (let i = 0; i < eventCount; i++) {
+      const time = this.timeChain[i];
+      while (time >= chunkTime * chunkIndex) {
+        this.timeChainChunkStart.push(i);
+        chunkIndex++;
+      }
+    }
+    this.timeChainChunkStart.push(eventCount);
+    this.timeOffset.push(totalSize);
+  
+    this.metadata.timeEnd = currentTimestamp + 1;
+    signalIdList.forEach((signalId) => {
+      const postState   = 'X';
+      const signalWidth = this.netlistElements.get(signalId)?.signalWidth || 1;
+      this.addTransitionData(signalId, [currentTimestamp, postState.repeat(signalWidth)]);
+      this.metadata.chunkCount = Math.ceil(this.metadata.timeEnd / this.metadata.chunkTime);
+    });
+  }
+
+  public createSignalWaveform(signalId: SignalId, width: number) {
+    // Check if the signal waveform already exists, and if not, create a new one
+    if (!this.netlistElements.has(signalId)) {
+      const waveform = new SignalWaveform(width, this.metadata.chunkCount);
+      this.netlistElements.set(signalId, waveform);
+    }
+  }
+
+  public setInitialState(signalId: SignalId, initialState: number | string = "x") {
+    const waveform = this.netlistElements.get(signalId);
+    if (waveform) {waveform.transitionData.push([0, initialState]);}
+  }
+
+  public addTransitionData(signalId: SignalId, transitionData: TransitionData) {
+    const waveform = this.netlistElements.get(signalId);
+    if (waveform) {waveform.addTransitionData(transitionData);}
+  }
+
+  public addTransitionDataBlock(signalId: SignalId, transitionData: TransitionData[]) {
+    const waveform = this.netlistElements.get(signalId);
+    if (waveform) {waveform.addTransitionDataBlock(transitionData);}
+  }
+
+  public addTransitionDataDeduped(signalId: SignalId, transitionData: TransitionData) {
+    const waveform = this.netlistElements.get(signalId);
+    if (waveform) {waveform.addTransitionDataDeduped(transitionData);}
+  }
+
+  public dispose() {
+    //console.log("dispose() - waveformTop");
+    this.netlistElements.clear();
+    this.metadata.timeEnd = 0;
+    this.metadata.fileName = "";
+    this.metadata.chunkCount = 0;
+  }
+}
 
 export class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocument {
   
@@ -1421,140 +1552,6 @@ export class NetlistItem extends vscode.TreeItem {
       ? vscode.TreeItemCheckboxState.Unchecked
       : vscode.TreeItemCheckboxState.Checked;
     this._onDidChangeCheckboxState.fire(this);
-  }
-}
-
-const BASE_CHUNK_TIME_WINDOW = 512;
-const TIME_INDEX   = 0;
-const VALUE_INDEX  = 1;
-
-type WaveformTopMetadata = {
-  fileName:    string;
-  fileSize:    number;
-  waveformsStartOffset: number;
-  waveformsLoaded: boolean;
-  moduleCount: number;
-  signalCount: number;
-  timeEnd:     number;
-  chunkTime:   number;
-  chunkCount:  number;
-  timeScale:   number;
-  defaultZoom: number;
-  timeUnit:    string;
-};
-
-export type NetlistIdRef = {
-  netlistItem: NetlistItem;
-  displayedItem: NetlistItem | undefined;
-  signalId: SignalId;
-};
-
-export type NetlistIdTable = Array<NetlistIdRef>;
-
-export type TransitionData = [number, number | string];
-export type SignalId  = string;
-export type NetlistId = number;
-
-export class WaveformTop {
-  public netlistElements: Map<SignalId, SignalWaveform>;
-  public timeChain:       number[] = [];
-  public timeOffset:      number[] = [];
-  public timeChainChunkStart: number[] = [];
-  public metadata:   WaveformTopMetadata = {
-    fileName:    "",
-    fileSize:    0,
-    waveformsStartOffset: 0,
-    waveformsLoaded: false,
-    moduleCount: 0,
-    signalCount: 0,
-    timeEnd:     0,
-    chunkTime:   BASE_CHUNK_TIME_WINDOW,
-    chunkCount:  0,
-    timeScale:   1,
-    defaultZoom: 1,
-    timeUnit:    "ns",
-  };
-
-  constructor() {
-    this.netlistElements = new Map();
-  }
-
-  public createChunks(totalSize: number, signalIdList: string[]) {
-    // Discern Chunk size
-    let minTimeStemp      = 9999999;
-    const eventCount = this.timeChain.length;
-    const currentTimestamp = this.timeChain[eventCount - 1];
-    console.log("Event count: " + eventCount);
-  
-    if (eventCount <= 128) {
-      minTimeStemp = this.timeChain[eventCount - 1];
-    } else {
-      for (let i = 128; i < eventCount; i++) {
-        const rollingTimeStep = this.timeChain[i] - this.timeChain[i - 128];
-        minTimeStemp = Math.min(rollingTimeStep, minTimeStemp);
-      }
-    }
-  
-    // Prevent weird zoom ratios causing strange floating point math errors
-    minTimeStemp    = 10 ** (Math.round(Math.log10(minTimeStemp / 128)) | 0);
-    const chunkTime = minTimeStemp * 128;
-    this.metadata.chunkTime   = chunkTime;
-    this.metadata.defaultZoom = 512 / chunkTime;
-  
-    let chunkIndex = 0;
-    for (let i = 0; i < eventCount; i++) {
-      const time = this.timeChain[i];
-      while (time >= chunkTime * chunkIndex) {
-        this.timeChainChunkStart.push(i);
-        chunkIndex++;
-      }
-    }
-    this.timeChainChunkStart.push(eventCount);
-    this.timeOffset.push(totalSize);
-  
-    this.metadata.timeEnd = currentTimestamp + 1;
-    signalIdList.forEach((signalId) => {
-      const postState   = 'X';
-      const signalWidth = this.netlistElements.get(signalId)?.signalWidth || 1;
-      this.addTransitionData(signalId, [currentTimestamp, postState.repeat(signalWidth)]);
-      this.metadata.chunkCount = Math.ceil(this.metadata.timeEnd / this.metadata.chunkTime);
-    });
-  }
-
-  public createSignalWaveform(signalId: SignalId, width: number) {
-    // Check if the signal waveform already exists, and if not, create a new one
-    if (!this.netlistElements.has(signalId)) {
-      const waveform = new SignalWaveform(width, this.metadata.chunkCount);
-      this.netlistElements.set(signalId, waveform);
-    }
-  }
-
-  public setInitialState(signalId: SignalId, initialState: number | string = "x") {
-    const waveform = this.netlistElements.get(signalId);
-    if (waveform) {waveform.transitionData.push([0, initialState]);}
-  }
-
-  public addTransitionData(signalId: SignalId, transitionData: TransitionData) {
-    const waveform = this.netlistElements.get(signalId);
-    if (waveform) {waveform.addTransitionData(transitionData);}
-  }
-
-  public addTransitionDataBlock(signalId: SignalId, transitionData: TransitionData[]) {
-    const waveform = this.netlistElements.get(signalId);
-    if (waveform) {waveform.addTransitionDataBlock(transitionData);}
-  }
-
-  public addTransitionDataDeduped(signalId: SignalId, transitionData: TransitionData) {
-    const waveform = this.netlistElements.get(signalId);
-    if (waveform) {waveform.addTransitionDataDeduped(transitionData);}
-  }
-
-  public dispose() {
-    //console.log("dispose() - waveformTop");
-    this.netlistElements.clear();
-    this.metadata.timeEnd = 0;
-    this.metadata.fileName = "";
-    this.metadata.chunkCount = 0;
   }
 }
 

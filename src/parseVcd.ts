@@ -480,7 +480,6 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
         waveformDataUncompressed = await decompressBlock(waveformData, vcBlock.wavesPackType, uncompressedLength);
       }
 
-
       const initialState = bitsArrayBuffer.subarray(bitsArrayOffset, bitsArrayOffset + signalWidth).toString('ascii');
       waveformDataSet.addTransitionDataDeduped(v.toString(), [vcBlock.startTime, initialState]);
       if (signalWidth === 1) {
@@ -489,7 +488,6 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
         waveforms = decodeWavesData(waveformDataUncompressed, uncompressedLength, vcBlock.timeTable, signalWidth);
       }
 
-      
       waveformDataSet.addTransitionDataBlock(v.toString(), waveforms);
       if (v < 10) {
         console.log(waveformData);
@@ -505,14 +503,12 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
   const signalIdList = new Array<string>(header.numVars);
   for (let i = 0 ; i < header.numVars; i++) {signalIdList[i] = i.toString();}
 
-
   console.log(waveformDataSet);
   waveformDataSet.createChunks(fileSize, signalIdList);
   waveformDataSet.metadata.waveformsLoaded = true;
   document.onDoneParsingWaveforms();
 
   console.log(waveformDataSet);
-
   console.log(header);
   console.log(heirarchy);
   console.log(geometryMetaData);
@@ -1154,7 +1150,6 @@ function decodeWavesDataBinary(bufferData: Buffer, length: number, timeTable: nu
 
   return result;
 }
-
 
 function decodeWavesData(bufferData: Buffer, length: number, timeTable: number[], signalWidth: number) {
   const result: TransitionData[] = [];

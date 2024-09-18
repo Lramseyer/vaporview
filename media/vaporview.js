@@ -777,6 +777,135 @@ updateContentArea = function(oldLeftOffset, cluster) {
 // Event handler helper functions
 // ----------------------------------------------------------------------------
 
+copyWaveDrom = function() {
+  console.log("copyWaveDrom");
+
+  // Maximum number of transitions to display
+  // Maybe I should make this a user setting in the future...
+  const MAX_TRANSITIONS = 32;
+
+  // Marker and alt marker need to be set
+  if (markerTime === null || altMarkerTime === null) {
+    vscode.window.showErrorMessage('Please use the marker and alt marker to set time window for waveform data.');
+    return;
+  }
+
+  const timeWindow   = [markerTime, altMarkerTime].sort((a, b) => a - b);
+  const chunkWindow  = [Math.floor(timeWindow[0] / chunkTime), Math.ceil(timeWindow[1] / chunkTime)];
+  let allTransitions = [];
+
+  // Populate the waveDrom names with the selected signals
+  const waveDromData = {};
+  displayedSignals.forEach((netlistId) => {
+    const netlistItem     = netlistData[netlistId];
+    const signalName      = netlistItem.modulePath + "." + netlistItem.signalName;
+    const signalId        = netlistItem.signalId;
+    const transitionData  = waveformData[signalId].transitionData;
+    const chunkStart      = waveformData[signalId].chunkStart;
+    const signalDataChunk = transitionData.slice(Math.max(0, chunkStart[chunkWindow[0]] - 1), chunkStart[chunkWindow[1]]);
+    let   initialState = "x";
+    const json         = {name: signalName, wave: ""};
+    const signalDataTrimmed = [];
+    if (netlistItem.signalWidth > 1) {json.data = [];}
+
+    signalDataChunk.forEach((transition) => {
+      if (transition[0] <= timeWindow[0]) {initialState = transition[1];}
+      if (transition[0] >= timeWindow[0] && transition[0] <= timeWindow[1]) {signalDataTrimmed.push(transition);}
+    });
+
+    waveDromData[netlistId] = {json: json, signalData: signalDataTrimmed, signalWidth: netlistItem.signalWidth, initialState: initialState};
+    const taggedTransitions = signalDataTrimmed.map(t => [t[0], t[1], netlistId]);
+    allTransitions = allTransitions.concat(taggedTransitions);
+  });
+
+  let currentTime = timeWindow[0];
+  let transitionCount = 0;
+
+  if (waveDromClock.netlistId === null) {
+
+    allTransitions = allTransitions.sort((a, b) => a[0] - b[0]);
+
+    for (let index = 0; index < allTransitions.length; index++) {
+      const time      = allTransitions[index][0];
+      const state     = allTransitions[index][1];
+      const netlistId = allTransitions[index][2];
+      if (currentTime >= timeWindow[1] || transitionCount >= MAX_TRANSITIONS) {break;}
+      if (time !== currentTime) {
+        currentTime = time;
+        transitionCount++;
+        displayedSignals.forEach((n) => {
+          const signal = waveDromData[n];
+          let numberFormat = netlistData[n].numberFormat;
+          if (!numberFormat) {numberFormat = 16;}
+          if (signal.initialState === null) {signal.json.wave += '.';}
+          else {
+            if (signal.signalWidth > 1) {
+              const is4State = valueIs4State(signal.initialState);
+              signal.json.wave += is4State ? "9" : "7";
+              signal.json.data.push(parseValue(signal.initialState, signal.signalWidth, is4State, numberFormat));
+            } else {
+              signal.json.wave += signal.initialState;
+            }
+          }
+          signal.initialState = null;
+        });
+      }
+      waveDromData[netlistId].initialState = state;
+    }
+  } else {
+    const clockEdges = waveDromData[waveDromClock.netlistId].signalData.filter((t) => t[1] === waveDromClock.edge);
+    const edge       = waveDromClock.edge === '1' ? "p" : "n";
+    let nextEdge = null;
+    for (let index = 0; index < clockEdges.length; index++) {
+      const currentTime = clockEdges[index][0];
+      if (index === clockEdges.length - 1) {nextEdge = timeWindow[1];}
+      else {nextEdge    = clockEdges[index + 1][0];}
+      if (currentTime >= timeWindow[1] || transitionCount >= MAX_TRANSITIONS) {break;}
+      displayedSignals.forEach((n) => {
+        const signal = waveDromData[n];
+        const signalData = signal.signalData;
+        let numberFormat = netlistData[n].numberFormat;
+          if (!numberFormat) {numberFormat = 16;}
+        if (n === waveDromClock.netlistId) {signal.json.wave += edge;}
+        else {
+          let transition = signalData.find((t) => t[0] >= currentTime && t[0] < nextEdge);
+          if (!transition && index === 0) {transition = [currentTime, signal.initialState];}
+          if (!transition && index > 0) {
+            signal.json.wave += '.';
+          } else {
+            if (signal.signalWidth > 1) {
+              const is4State = valueIs4State(transition[1]);
+              signal.json.wave += is4State ? "9" : "7";
+              signal.json.data.push(parseValue(transition[1], signal.signalWidth, is4State, numberFormat));
+            } else {
+              signal.json.wave += transition[1];
+            }
+          }
+          signal.initialState = undefined;
+        }
+      });
+      transitionCount++;
+    }
+  }
+
+  console.log(waveDromData);
+
+  // write the waveDrom JSON to the clipboard
+  let result = '{"signal": [\n';
+  displayedSignals.forEach((netlistId) => {
+    const signalData = waveDromData[netlistId].json;
+    result += '  ' + JSON.stringify(signalData) + ',\n';
+  });
+  result += ']}';
+ 
+  vscode.postMessage({
+    command: 'copyWaveDrom',
+    waveDromJson: result,
+    maxTransitionsFlag: transitionCount >= MAX_TRANSITIONS,
+    maxTransitions: MAX_TRANSITIONS
+  });
+};
+
 handleClusterChanged = function (startIndex, endIndex) {
   //console.log('deleting chunk cache outside of index ' + startIndex + ' to ' + endIndex + '');
   //console.log('chunk cache start index: ' + dataCache.startIndex + ' end index: ' + dataCache.endIndex + '');
@@ -1079,6 +1208,10 @@ goToNextTransition = function (direction, edge) {
     markerElement:  '',
     altMarkerElement: '',
   };
+  waveDromClock = {
+    netlistId: null,
+    edge: '1',
+  };
   domParser           = new DOMParser();
 
   // Initialize the webview when the document is ready
@@ -1244,7 +1377,7 @@ goToNextTransition = function (direction, edge) {
     const numberFormat = netlistData[netlistId].numberFormat;
     const modulePath   = netlistData[netlistId].modulePath;
     const signalName   = netlistData[netlistId].signalName;
-    return `data-vscode-context=${JSON.stringify({
+    const attribute    = `data-vscode-context=${JSON.stringify({
       webviewSection: "signal",
       modulePath: modulePath,
       signalName: signalName,
@@ -1252,7 +1385,8 @@ goToNextTransition = function (direction, edge) {
       preventDefaultContextMenuItems: true,
       netlistId: netlistId,
       numberFormat: numberFormat
-    })}`;
+    }).replace(/\s/g, '%x20')}`;
+    return attribute;
   };
 
   checkValidTimeString = function (inputText) {
@@ -2030,6 +2164,17 @@ goToNextTransition = function (direction, edge) {
       }
       case 'getContext': {
         sendWebviewContext('response');
+        break;
+      }
+      case 'copyWaveDrom': {
+        copyWaveDrom();
+        break;
+      }
+      case 'setWaveDromClock': {
+        waveDromClock = {
+          netlistId: message.netlistId,
+          edge:  message.edge,
+        };
         break;
       }
     }

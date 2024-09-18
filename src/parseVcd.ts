@@ -68,7 +68,7 @@ function lz4BLockDecode(input: Buffer, output: Buffer, sIdx : number | undefined
 	return j;
 }
 
-import {NetlistIdRef, NetlistIdTable, NetlistItem, NetlistTreeDataProvider, WaveformTop, VaporviewDocument, TransitionData} from './extension';
+import {NetlistIdRef, NetlistIdTable, NetlistItem, NetlistTreeDataProvider, VaporviewDocument, TransitionData} from './extension';
 import { endianness } from 'os';
 import { time } from 'console';
 import { buffer } from 'stream/consumers';
@@ -87,7 +87,7 @@ const intIcon   = new vscode.ThemeIcon('symbol-variable',  new vscode.ThemeColor
 const paramIcon = new vscode.ThemeIcon('settings',         new vscode.ThemeColor('charts.orange'));
 const realIcon  = new vscode.ThemeIcon('symbol-constant',  new vscode.ThemeColor('charts.purple'));
 
-export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: NetlistTreeDataProvider, waveformDataSet: WaveformTop, netlistIdTable: NetlistIdTable) {
+export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: NetlistTreeDataProvider, netlistIdTable: NetlistIdTable, document: VaporviewDocument) {
 
   const read = promisify(fs.read);
   // Define a data structure to store the netlist items
@@ -110,7 +110,7 @@ export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: Netli
 
   const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB
   const buffer     = Buffer.alloc(CHUNK_SIZE);
-  const metadata   = waveformDataSet.metadata;
+  const metadata   = document.metadata;
   const totalSize  = metadata.fileSize;
 
   fileOffset = 0;
@@ -158,7 +158,7 @@ export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: Netli
 
             currentScope.children.push(signalItem);
             netlistIdTable[netlistId] = {netlistItem: signalItem, displayedItem: undefined, signalId: signalID};
-            waveformDataSet.createSignalWaveform(signalID, signalSize);
+            document.createSignalWaveform(signalID, signalSize);
             currentSignal = signalName;
           }
         }
@@ -206,8 +206,8 @@ export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: Netli
       if (currentMode === 'timescale') {
         const timescaleMatch = cleanedLine.match(/(\d+)\s*(\w+)/);
         if (timescaleMatch) {
-          waveformDataSet.metadata.timeScale = parseInt(timescaleMatch[1]);
-          waveformDataSet.metadata.timeUnit  = timescaleMatch[2];
+          document.metadata.timeScale = parseInt(timescaleMatch[1]);
+          document.metadata.timeUnit  = timescaleMatch[2];
         }
       }
       byteOffset += line.length + 1;
@@ -230,7 +230,7 @@ export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: Netli
 
 }
 
-export async function parseVcdWaveforms(fd: number, waveformDataSet: WaveformTop, document: VaporviewDocument, progress: vscode.Progress<{ message?: string; increment?: number; }>) {
+export async function parseVcdWaveforms(fd: number, document: VaporviewDocument, progress: vscode.Progress<{ message?: string; increment?: number; }>) {
 
   console.log("Parsing VCD Waveforms");
   const read = promisify(fs.read);
@@ -243,7 +243,7 @@ export async function parseVcdWaveforms(fd: number, waveformDataSet: WaveformTop
 
   const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB
   const buffer     = Buffer.alloc(CHUNK_SIZE);
-  const metadata   = waveformDataSet.metadata;
+  const metadata   = document.metadata;
   const totalSize  = metadata.fileSize;
   const timeZeroOffset = metadata.waveformsStartOffset;
   const waveformsSize  = totalSize - timeZeroOffset;
@@ -300,9 +300,9 @@ export async function parseVcdWaveforms(fd: number, waveformDataSet: WaveformTop
 
           if (currentTimestamp !== 0) {
             initialState = signalValues.get(signalId) || "x";
-            waveformDataSet.addTransitionData(signalId, [currentTimestamp, signalValue]);
+            document.addTransitionData(signalId, [currentTimestamp, signalValue]);
           } else {
-            waveformDataSet.setInitialState(signalId, signalValue);
+            document.setInitialState(signalId, signalValue);
           }
           // Update the state of the signal in the map
           signalValues.set(signalId, signalValue);
@@ -316,9 +316,9 @@ export async function parseVcdWaveforms(fd: number, waveformDataSet: WaveformTop
 
           if (currentTimestamp !== 0) {
             initialState = signalValues.get(signalId) || "x";
-            waveformDataSet.addTransitionData(signalId, [currentTimestamp, signalValue]);
+            document.addTransitionData(signalId, [currentTimestamp, signalValue]);
           } else {
-            waveformDataSet.setInitialState(signalId, signalValue);
+            document.setInitialState(signalId, signalValue);
           }
           // Update the state of the signal in the map
           signalValues.set(signalId, signalValue);
@@ -328,8 +328,8 @@ export async function parseVcdWaveforms(fd: number, waveformDataSet: WaveformTop
         const timestampMatch = cleanedLine.match(/#(\d+)/);
         if (timestampMatch) {
           currentTimestamp = parseInt(timestampMatch[1]);
-          waveformDataSet.timeChain.push(currentTimestamp);
-          waveformDataSet.timeOffset.push(byteOffset);
+          document.timeChain.push(currentTimestamp);
+          document.timeOffset.push(byteOffset);
         }
       }
       byteOffset += line.length + 1;
@@ -338,7 +338,7 @@ export async function parseVcdWaveforms(fd: number, waveformDataSet: WaveformTop
 
   close(fd);
 
-  waveformDataSet.createChunks(totalSize, Array.from(signalValues.keys()));
+  document.createChunks(totalSize, Array.from(signalValues.keys()));
 
   //console.log("File Size: " + totalSize);
   //console.log("Event count: " + eventCount);
@@ -348,7 +348,7 @@ export async function parseVcdWaveforms(fd: number, waveformDataSet: WaveformTop
   //console.log(waveformDataSet.timeChain.slice(0, Math.min(1000, waveformDataSet.timeChain.length)));
 
   console.log("Waveforms parsed");
-  waveformDataSet.metadata.waveformsLoaded = true;
+  document.metadata.waveformsLoaded = true;
   document.onDoneParsingWaveforms();
 }
 
@@ -363,7 +363,7 @@ export async function parseVcdWaveforms(fd: number, waveformDataSet: WaveformTop
 *   Bits Array
 ***************************************************************************** */
 
-export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeDataProvider, waveformDataSet: WaveformTop, netlistIdTable: NetlistIdTable, document: VaporviewDocument) {
+export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeDataProvider, netlistIdTable: NetlistIdTable, document: VaporviewDocument) {
 
   console.log("Parsing FST Waveforms");
   const read = promisify(fs.read);
@@ -371,7 +371,7 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
 
   // Read the FST header
   const analyzeBuffer = Buffer.alloc(1024);
-  const fileSize      = waveformDataSet.metadata.fileSize;
+  const fileSize      = document.metadata.fileSize;
   let fileOffset      = 0;
   let blockType       = 0;
   let blockLength     = 0;
@@ -387,11 +387,11 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
   const timeUnitArray = ["fs", "ps", "ns", "us", "ms", "s", "ks", "Ms", "Gs", "Ts"];
   const unitIndex = Math.floor((header.timeScale + 15) / 3);
   if (unitIndex < 0 || unitIndex >= timeUnitArray.length) {
-    waveformDataSet.metadata.timeUnit  = "10 ^ " + header.timeScale.toString();
-    waveformDataSet.metadata.timeScale = 1;
+    document.metadata.timeUnit  = "10 ^ " + header.timeScale.toString();
+    document.metadata.timeScale = 1;
   } else {
-    waveformDataSet.metadata.timeUnit  = timeUnitArray[unitIndex];
-    waveformDataSet.metadata.timeScale = 10 ** ((header.timeScale + 129) % 3);
+    document.metadata.timeUnit  = timeUnitArray[unitIndex];
+    document.metadata.timeScale = 10 ** ((header.timeScale + 129) % 3);
   }
 
   // Parse all subsequent blocks. We don't go super in-depth with Value Change
@@ -407,7 +407,7 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
       valueChangeBlocks.push(await analyzeValueChangeBlock(fd, analyzeBuffer, blockType, fileOffset, blockLength));
     } else if (blockType === 4 || blockType === 6 || blockType === 7) {
       console.log("analyzing Hierarchy block");
-      heirarchy = await analyzeHierarchyBlock(fd, analyzeBuffer, blockType, fileOffset, blockLength, netlistIdTable, netlistTreeDataProvider, waveformDataSet);
+      heirarchy = await analyzeHierarchyBlock(fd, analyzeBuffer, blockType, fileOffset, blockLength, netlistIdTable, netlistTreeDataProvider, document);
     } else if (blockType === 3) {
       geometryMetaData = analyzeGeometryBlock(fd, analyzeBuffer, fileOffset, blockLength);
     } else if (blockType === 2) {
@@ -421,14 +421,14 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
   console.log("Geometry Block:");
   console.log(geometryBlock);
 
-  waveformDataSet.timeChain = [];
+  document.timeChain = [];
   // once we decode the netlist, we can analyze the Value Change blocks
   for (let i = 0; i < valueChangeBlocks.length; i++) {
     const vcBlock = valueChangeBlocks[i];
 
     // time Table
     vcBlock.timeTable = await decodeTimeTable(fd, vcBlock);
-    waveformDataSet.timeChain = waveformDataSet.timeChain.concat(vcBlock.timeTable);
+    document.timeChain = document.timeChain.concat(vcBlock.timeTable);
 
     // Position Table
     let posTable: any;
@@ -481,14 +481,14 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
       }
 
       const initialState = bitsArrayBuffer.subarray(bitsArrayOffset, bitsArrayOffset + signalWidth).toString('ascii');
-      waveformDataSet.addTransitionDataDeduped(v.toString(), [vcBlock.startTime, initialState]);
+      document.addTransitionDataDeduped(v.toString(), [vcBlock.startTime, initialState]);
       if (signalWidth === 1) {
         waveforms = decodeWavesDataBinary(waveformDataUncompressed, uncompressedLength, vcBlock.timeTable);
       } else {
         waveforms = decodeWavesData(waveformDataUncompressed, uncompressedLength, vcBlock.timeTable, signalWidth);
       }
 
-      waveformDataSet.addTransitionDataBlock(v.toString(), waveforms);
+      document.addTransitionDataBlock(v.toString(), waveforms);
       if (v < 10) {
         console.log(waveformData);
         console.log(waveformDataUncompressed);
@@ -503,12 +503,12 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
   const signalIdList = new Array<string>(header.numVars);
   for (let i = 0 ; i < header.numVars; i++) {signalIdList[i] = i.toString();}
 
-  console.log(waveformDataSet);
-  waveformDataSet.createChunks(fileSize, signalIdList);
-  waveformDataSet.metadata.waveformsLoaded = true;
+
+  document.createChunks(fileSize, signalIdList);
+  document.metadata.waveformsLoaded = true;
   document.onDoneParsingWaveforms();
 
-  console.log(waveformDataSet);
+  console.log(document);
   console.log(header);
   console.log(heirarchy);
   console.log(geometryMetaData);
@@ -673,7 +673,7 @@ async function decompressBlock(bufferData: Buffer, compressionType: string, deco
   return bufferData;
 }
 
-async function analyzeHierarchyBlock(fd: number, bufferData: Buffer, blockType: number, fileOffset: number, blockLength: number,  netlistIdTable: NetlistIdTable, netlistTreeDataProvider: NetlistTreeDataProvider, waveformDataSet: WaveformTop) {
+async function analyzeHierarchyBlock(fd: number, bufferData: Buffer, blockType: number, fileOffset: number, blockLength: number,  netlistIdTable: NetlistIdTable, netlistTreeDataProvider: NetlistTreeDataProvider, document: VaporviewDocument) {
 
   const netlistItems: NetlistItem[] = [];
   const moduleStack:  NetlistItem[] = [];
@@ -684,7 +684,7 @@ async function analyzeHierarchyBlock(fd: number, bufferData: Buffer, blockType: 
   let signalId      = 0;
   let signalCount   = 0;
   let moduleCount   = 0;
-  const metadata    = waveformDataSet.metadata;
+  const metadata    = document.metadata;
 
   const read = promisify(fs.read);
   const result = {
@@ -840,7 +840,7 @@ async function analyzeHierarchyBlock(fd: number, bufferData: Buffer, blockType: 
 
         currentScope.children.push(signalItem);
         netlistIdTable[netlistId] = {netlistItem: signalItem, displayedItem: undefined, signalId: signalID};
-        waveformDataSet.createSignalWaveform(signalID, signalSize);
+        document.createSignalWaveform(signalID, signalSize);
       }
     } else if (dataBuffer[pointer] === 255) {
       // Upscope

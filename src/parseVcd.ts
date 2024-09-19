@@ -225,8 +225,8 @@ export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: Netli
   console.log("Module count: " + moduleCount);
   console.log("Signal count: " + signalCount);
   await read(fd, buffer, 0, 256, timeZeroOffset);
-  console.log(buffer.toString('ascii', 0, 256));
-  console.log(netlistIdTable);
+  //console.log(buffer.toString('ascii', 0, 256));
+  //console.log(netlistIdTable);
 
 }
 
@@ -489,11 +489,11 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
       }
 
       document.addTransitionDataBlock(v.toString(), waveforms);
-      if (v < 10) {
-        console.log(waveformData);
-        console.log(waveformDataUncompressed);
-        console.log(waveforms);
-      }
+      //if (v < 10) {
+      //  console.log(waveformData);
+      //  console.log(waveformDataUncompressed);
+      //  console.log(waveforms);
+      //}
       } catch (e) {console.log(e);}
     }
   }
@@ -508,11 +508,11 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
   document.metadata.waveformsLoaded = true;
   document.onDoneParsingWaveforms();
 
-  console.log(document);
+  //console.log(document);
   console.log(header);
-  console.log(heirarchy);
+  //console.log(heirarchy);
   console.log(geometryMetaData);
-  console.log(valueChangeBlocks);
+  //console.log(valueChangeBlocks);
 
 }
 
@@ -711,11 +711,13 @@ async function analyzeHierarchyBlock(fd: number, bufferData: Buffer, blockType: 
 
   let dataBuffer = Buffer.alloc(result.uncompressedLength);
 
+  console.log(bufferData);
+
   console.log("Uncompressed length : " + result.uncompressedLength);
+  console.log("Compressed Once length : " + result.uncompressedOnceLength);
   console.log("Compressed length : " + result.compressedLength);
   console.log("compression type: " + result.compression);
-  console.log(bufferData);
-  console.log(heirarchyDataCompressed);
+  //console.log(heirarchyDataCompressed);
 
   if (result.compression === "gzip") {
 
@@ -856,7 +858,7 @@ async function analyzeHierarchyBlock(fd: number, bufferData: Buffer, blockType: 
     }
   }
 
-  console.log(netlist);
+  //console.log(netlist);
 
   metadata.moduleCount = moduleCount;
   metadata.signalCount = signalCount;
@@ -972,7 +974,7 @@ async function decodePositionTableAlias(fd: number, vcBlock: any, numVars: numbe
   await read(fd, bufferData, 0, vcBlock.positionLength, vcBlock.fileOffset + vcBlock.positionBlockOffset);
 
   console.log("position table Raw data:");
-  console.log(bufferData);
+  //console.log(bufferData);
   while (pointer < vcBlock.positionLength) {
     varInt = parseVarInt(bufferData, pointer);
     varIntValue = varInt.varint;
@@ -1036,7 +1038,7 @@ async function decodePositionTableAlias2(fd: number, vcBlock: any, numVars: numb
   await read(fd, bufferData, 0, vcBlock.positionLength, vcBlock.fileOffset + vcBlock.positionBlockOffset);
 
   console.log("position table Raw data:");
-  console.log(bufferData);
+  //console.log(bufferData);
   while (pointer < vcBlock.positionLength) {
     if ((bufferData[pointer] & 1) === 1) {
       const index = chainTable.length;
@@ -1069,8 +1071,8 @@ async function decodePositionTableAlias2(fd: number, vcBlock: any, numVars: numb
   }
 
   console.log("Chain Table:");
-  console.log(chainTable);
-  console.log(vcBlock.positionLength);
+  //console.log(chainTable);
+  //console.log(vcBlock.positionLength);
 
   // Need to add in the final chain table entry
   chainTable.push(vcBlock.wavesLength + 1);

@@ -2,7 +2,7 @@
 
 import * as vscode from 'vscode';
 import { Worker } from 'worker_threads';
-import { parseVcdNetlist, parseVcdWaveforms, parseFst } from './parseVcd';
+import { parseVcdNetlist, parseVcdWaveforms, parseFst, loadTransitionData} from './parseVcd';
 import * as fs from 'fs';
 import { promisify } from 'util';
 
@@ -23,8 +23,10 @@ type WaveformTopMetadata = {
   fileSize:    number;
   waveformsStartOffset: number;
   waveformsLoaded: boolean;
+  timeTableLoaded: boolean;
   moduleCount: number;
-  signalCount: number;
+  netlistIdCount: number;
+  signalIdCount: number;
   timeEnd:     number;
   chunkTime:   number;
   chunkCount:  number;
@@ -70,6 +72,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       delegate
     );
 
+    document.metadata.fileName = uri.fsPath;
     const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase();
     const stats    = fs.statSync(uri.fsPath);
     const fd       = await open(uri.fsPath, 'r');
@@ -130,8 +133,10 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     fileSize:    0,
     waveformsStartOffset: 0,
     waveformsLoaded: false,
-    moduleCount: 0,
-    signalCount: 0,
+    timeTableLoaded: false,
+    moduleCount:    0,
+    netlistIdCount: 0,
+    signalIdCount:  0,
     timeEnd:     0,
     chunkTime:   BASE_CHUNK_TIME_WINDOW,
     chunkCount:  0,
@@ -139,6 +144,10 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     defaultZoom: 1,
     timeUnit:    "ns",
   };
+
+  // FST structs
+  public vcBlocks:  any[] = [];
+  public geometryBlock: any = {};
 
   private constructor(
     uri: vscode.Uri,
@@ -168,7 +177,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     console.log("onWebviewReady");
     this.webviewPanel = webviewPanel;
     if (this._webviewInitialized) {return;}
-    if (!this.metadata.waveformsLoaded) {return;}
+    if (!this.metadata.timeTableLoaded) {return;}
     console.log("creating ruler");
     webviewPanel.webview.postMessage({
       command: 'create-ruler',
@@ -192,46 +201,36 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this._netlistIdTable[netlistId] = viewRef;
   }
 
-  public createChunks(totalSize: number, signalIdList: string[]) {
-    // Discern Chunk size
-    let minTimeStemp      = 9999999;
-    const eventCount = this.timeChain.length;
-    const currentTimestamp = this.timeChain[eventCount - 1];
-    console.log("Event count: " + eventCount);
-  
-    if (eventCount <= 128) {
-      minTimeStemp = this.timeChain[eventCount - 1];
-    } else {
-      for (let i = 128; i < eventCount; i++) {
-        const rollingTimeStep = this.timeChain[i] - this.timeChain[i - 128];
-        minTimeStemp = Math.min(rollingTimeStep, minTimeStemp);
-      }
-    }
-  
+  public setChunkSize(minTimeStemp: number) {
     // Prevent weird zoom ratios causing strange floating point math errors
-    minTimeStemp    = 10 ** (Math.round(Math.log10(minTimeStemp / 128)) | 0);
-    const chunkTime = minTimeStemp * 128;
+    const newMinTimeStemp     = 10 ** (Math.round(Math.log10(minTimeStemp / 128)) | 0);
+    const chunkTime           = newMinTimeStemp * 128;
     this.metadata.chunkTime   = chunkTime;
     this.metadata.defaultZoom = 512 / chunkTime;
-  
+  }
+
+  public createChunks(totalSize: number, signalIdList: string[]) {
+
+    const eventCount = this.timeChain.length;
     let chunkIndex = 0;
     for (let i = 0; i < eventCount; i++) {
       const time = this.timeChain[i];
-      while (time >= chunkTime * chunkIndex) {
+      while (time >= this.metadata.chunkTime * chunkIndex) {
         this.timeChainChunkStart.push(i);
         chunkIndex++;
       }
     }
     this.timeChainChunkStart.push(eventCount);
     this.timeOffset.push(totalSize);
-  
-    this.metadata.timeEnd = currentTimestamp + 1;
+
     signalIdList.forEach((signalId) => {
       const postState   = 'X';
       const signalWidth = this.netlistElements.get(signalId)?.signalWidth || 1;
-      this.addTransitionData(signalId, [currentTimestamp, postState.repeat(signalWidth)]);
-      this.metadata.chunkCount = Math.ceil(this.metadata.timeEnd / this.metadata.chunkTime);
+      this.addTransitionData(signalId, [this.metadata.timeEnd, postState.repeat(signalWidth)]);
     });
+    
+    this.metadata.chunkCount = Math.ceil(this.metadata.timeEnd / this.metadata.chunkTime);
+    this.metadata.timeTableLoaded = true;
   }
 
   public createSignalWaveform(signalId: SignalId, width: number) {
@@ -743,7 +742,6 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       }
 
       const signalId   = metadata.signalId;
-      const signalData = document.netlistElements.get(signalId);
       const netlistId  = metadata.netlistId;
 
       // If the item is a parent node, uncheck it
@@ -753,7 +751,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       }
 
       if (metadata.checkboxState === vscode.TreeItemCheckboxState.Checked) {
-        this.renderSignal(document, webviewPanel, signalId, netlistId, signalData);
+        this.renderSignal(document, webviewPanel, signalId, netlistId);
         this.displayedSignalsTreeDataProvider.addSignalToTreeData(metadata);
         document.setNetlistIdTable(netlistId, metadata);
       } else if (metadata.checkboxState === vscode.TreeItemCheckboxState.Unchecked) {
@@ -906,15 +904,14 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     if (!metadata) {return;}
 
     const signalId   = metadata.signalId;
-    const signalData = document.netlistElements.get(signalId);
 
     document.netlistTreeData.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Checked);
-    this.renderSignal(document, panel, signalId, netlistId, signalData);
+    this.renderSignal(document, panel, signalId, netlistId);
     document.displayedSignalsTreeData.addSignalToTreeData(metadata);
     document.setNetlistIdTable(netlistId, metadata);
   }
 
-  private renderSignal(document: VaporviewDocument, panel: vscode.WebviewPanel, signalId: SignalId, netlistId: NetlistId, signalData: SignalWaveform | undefined) {
+  private async renderSignal(document: VaporviewDocument, panel: vscode.WebviewPanel, signalId: SignalId, netlistId: NetlistId) {
     // Render the signal with the provided ID
     const netlistIdTable = document.netlistIdTable;
     if (!netlistIdTable) {return;}
@@ -924,6 +921,15 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     const name         = netlistItem.name;
     const modulePath   = netlistItem.modulePath;
     const numberFormat = netlistItem.numberFormat;
+
+    if (!document.metadata.waveformsLoaded) {
+      console.log('Waveforms not loaded... fetching transition data');
+      console.log("Netlist ID: " + netlistId);
+      console.log("Signal ID: " + signalId);
+      await loadTransitionData(parseInt(signalId), document);
+    }
+
+    const signalData   = document.netlistElements.get(signalId);
 
     panel.webview.postMessage({ 
       command: 'render-signal',
@@ -974,9 +980,8 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       const metadata   = element;
       const signalId   = metadata.signalId;
       const netlistId  = metadata.netlistId;
-      const signalData = document.netlistElements.get(signalId);
       this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Checked);
-      this.renderSignal(document, panel, signalId, netlistId, signalData);
+      this.renderSignal(document, panel, signalId, netlistId);
       this.displayedSignalsTreeDataProvider.addSignalToTreeData(metadata);
       document.setNetlistIdTable(netlistId, metadata);
     });

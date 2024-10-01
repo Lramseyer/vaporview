@@ -104,7 +104,7 @@ export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: Netli
   let byteOffset = 0;
   let lineNum    = 0;
   let moduleCount = 0;
-  let signalCount = 0;
+  let netlistIdCount = 0;
   let timeZeroOffset = 0;
   let nextNetlistId = 1;
 
@@ -131,7 +131,7 @@ export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: Netli
       const cleanedLine = line.trim();
 
       if (cleanedLine.startsWith('$var') && currentMode === 'scope') {
-        signalCount++;
+        netlistIdCount++;
         // Extract signal information (signal type and name)
         //const varMatch = cleanedLine.match(/\$var\s+(wire|reg|integer|parameter|real)\s+(1|[\d+:]+)\s+(\w+)\s+(\w+(\[\d+)?(:\d+)?\]?)\s\$end/);
         if (currentScope) {
@@ -216,14 +216,15 @@ export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: Netli
 
   metadata.waveformsStartOffset = timeZeroOffset;
   metadata.moduleCount          = moduleCount;
-  metadata.signalCount          = signalCount;
+  metadata.netlistIdCount       = netlistIdCount;
+  metadata.signalIdCount        = document.netlistElements.size;
 
   // Update the Netlist view with the parsed netlist data
   netlistTreeDataProvider.setTreeData(netlistItems);
 
   // debug
   console.log("Module count: " + moduleCount);
-  console.log("Signal count: " + signalCount);
+  console.log("Signal count: " + netlistIdCount);
   await read(fd, buffer, 0, 256, timeZeroOffset);
   //console.log(buffer.toString('ascii', 0, 256));
   //console.log(netlistIdTable);
@@ -338,11 +339,25 @@ export async function parseVcdWaveforms(fd: number, document: VaporviewDocument,
 
   close(fd);
 
+  document.metadata.timeEnd = currentTimestamp + 1;
+  let minTimeStemp = 9999999;
+  const eventCount = document.timeChain.length;
+  console.log("Event count: " + eventCount);
+  if (eventCount <= 128) {
+    minTimeStemp = document.timeChain[eventCount - 1];
+  } else {
+    for (let i = 128; i < eventCount; i++) {
+      const rollingTimeStep = document.timeChain[i] - document.timeChain[i - 128];
+      minTimeStemp = Math.min(rollingTimeStep, minTimeStemp);
+    }
+  }
+
+  document.setChunkSize(minTimeStemp);
   document.createChunks(totalSize, Array.from(signalValues.keys()));
 
   //console.log("File Size: " + totalSize);
   //console.log("Event count: " + eventCount);
-  //console.log("Chunk time: " + chunkTime);
+  console.log("Chunk time: " + document.metadata.chunkTime);
   //console.log("Minimum time step: " + minTimeStemp);
   //console.log(waveformDataSet.timeChainChunkStart.slice(0, Math.min(10, waveformDataSet.timeChainChunkStart.length)));
   //console.log(waveformDataSet.timeChain.slice(0, Math.min(1000, waveformDataSet.timeChain.length)));
@@ -356,17 +371,16 @@ export async function parseVcdWaveforms(fd: number, document: VaporviewDocument,
 * This is a WIP FST parser. It can currently identify and analyze all block
 * types, it can't parse all of the blocks yet. It can discern and populate the
 * netlist for certain compression techniques
-* 
+*
 * To DO:
 * Blackout Block
 * Value Change Block
-*   Bits Array
 ***************************************************************************** */
 
 export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeDataProvider, netlistIdTable: NetlistIdTable, document: VaporviewDocument) {
 
   console.log("Parsing FST Waveforms");
-  const read = promisify(fs.read);
+  const read  = promisify(fs.read);
   const close = promisify(fs.close);
 
   // Read the FST header
@@ -384,6 +398,7 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
   // Parse header block
   await read(fd, analyzeBuffer, 0, 1024, fileOffset);
   const header = parseFstHeader(analyzeBuffer);
+  document.metadata.signalIdCount = header.numVars;
   const timeUnitArray = ["fs", "ps", "ns", "us", "ms", "s", "ks", "Ms", "Gs", "Ts"];
   const unitIndex = Math.floor((header.timeScale + 15) / 3);
   if (unitIndex < 0 || unitIndex >= timeUnitArray.length) {
@@ -417,18 +432,33 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
     fileOffset += blockLength + 1;
   }
 
-  const geometryBlock: any = await readGeometryBlock(fd, geometryMetaData);
-  console.log("Geometry Block:");
-  console.log(geometryBlock);
+  document.geometryBlock = await readGeometryBlock(fd, geometryMetaData);
+  //console.log("Geometry Block:");
+  //console.log(geometryBlock);
 
-  document.timeChain = [];
+  document.metadata.timeEnd = valueChangeBlocks[valueChangeBlocks.length - 1].endTime + 1;
+  let minTimeStemp = 9999999;
+  let timeChainHistory: any[] = [];
+
   // once we decode the netlist, we can analyze the Value Change blocks
   for (let i = 0; i < valueChangeBlocks.length; i++) {
+
+    console.log("Analyzing Value Change Block " + i);
     const vcBlock = valueChangeBlocks[i];
 
     // time Table
-    vcBlock.timeTable = await decodeTimeTable(fd, vcBlock);
-    document.timeChain = document.timeChain.concat(vcBlock.timeTable);
+    vcBlock.timeTable  = await decodeTimeTable(fd, vcBlock);
+    const timeChain = timeChainHistory.concat(vcBlock.timeTable);
+    const eventCount = timeChain.length;
+    if (eventCount >= 128) {
+      for (let i = 127; i < eventCount; i++) {
+        const rollingTimeStep = timeChain[i] - timeChain[i - 128];
+        minTimeStemp = Math.min(rollingTimeStep, minTimeStemp);
+      }
+      timeChainHistory = timeChain.slice(eventCount - 128);
+    } else if (i === valueChangeBlocks.length - 1) {
+      minTimeStemp = timeChain[eventCount - 1];
+    }
 
     // Position Table
     let posTable: any;
@@ -457,13 +487,13 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
 
     await read(fd, waveformBuffer, 0, vcBlock.wavesLength, vcBlock.wavesBlockOffset + vcBlock.fileOffset);
     console.log(waveformBuffer);
-    
+
     for (let v = 0; v < vcBlock.wavesCount; v++) {
 
       const offset = vcBlock.waveformOffsets[v];
       const length = vcBlock.waveformLengths[v];
-      const signalWidth = geometryBlock.width[v];
-      const bitsArrayOffset = geometryBlock.byteOffset[v];
+      const signalWidth = document.geometryBlock.width[v];
+      const bitsArrayOffset = document.geometryBlock.byteOffset[v];
       const varIntData = parseVarInt(waveformBuffer, offset - 1);
       let uncompressedLength = varIntData.varint;
       const sliceStart = varIntData.pointer;
@@ -500,13 +530,23 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
 
   close(fd);
 
+  document.vcBlocks = valueChangeBlocks;
+
   const signalIdList = new Array<string>(header.numVars);
   for (let i = 0 ; i < header.numVars; i++) {signalIdList[i] = i.toString();}
+  signalIdList.forEach((signalId) => {
+    const postState   = 'X';
+    const signalWidth = document.netlistElements.get(signalId)?.signalWidth || 1;
+    document.addTransitionData(signalId, [document.metadata.timeEnd, postState.repeat(signalWidth)]);
+  });
 
-
-  document.createChunks(fileSize, signalIdList);
+  document.setChunkSize(minTimeStemp);
+  document.metadata.chunkCount      = Math.ceil(document.metadata.timeEnd / document.metadata.chunkTime);
+  document.metadata.timeTableLoaded = true;
   document.metadata.waveformsLoaded = true;
   document.onDoneParsingWaveforms();
+
+  console.log("chunkTime: " + document.metadata.chunkTime);
 
   //console.log(document);
   console.log(header);
@@ -514,6 +554,91 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
   console.log(geometryMetaData);
   //console.log(valueChangeBlocks);
 
+}
+
+export async function loadTransitionData(signalId: number, document: VaporviewDocument) {
+
+  const open = promisify(fs.open);
+  const read = promisify(fs.read);
+  const close = promisify(fs.close);
+  const fd = await open(document.metadata.fileName, 'r');
+  const transitionData = [];
+  const vcBlocks = document.vcBlocks;
+  const numVars = document.metadata.signalIdCount;
+
+  for (let i = 0; i < vcBlocks.length; i++) {
+
+    if (i > 1) {break;}
+
+    console.log("Analyzing Value Change Block " + i);
+    const vcBlock = vcBlocks[i];
+
+    // Position Table
+    let posTable: any;
+
+    if (vcBlock.aliasType === 1) {
+      posTable = await decodePositionTable(fd, vcBlock, numVars);
+    } else if (vcBlock.aliasType === 5) {
+      posTable = await decodePositionTableAlias(fd, vcBlock, numVars);
+    } else {
+      posTable = await decodePositionTableAlias2(fd, vcBlock, numVars);
+    }
+
+    // Bits Array
+    const bitsArrayCompressionType = (vcBlock.bitsUncompressedLength !== vcBlock.bitsCompressedLength) ? "zlib" : "none";
+    let bitsArrayBuffer = Buffer.alloc(vcBlock.bitsCompressedLength);
+    await read(fd, bitsArrayBuffer, 0, vcBlock.bitsCompressedLength, vcBlock.bitsBlockOffset + vcBlock.fileOffset);
+    bitsArrayBuffer = await decompressBlock(bitsArrayBuffer, bitsArrayCompressionType, vcBlock.bitsUncompressedLength);
+
+    const waveformBuffer = Buffer.alloc(vcBlock.wavesLength);
+
+    console.log("Waveforms compression type " + vcBlock.wavesPackType);
+    await read(fd, waveformBuffer, 0, vcBlock.wavesLength, vcBlock.wavesBlockOffset + vcBlock.fileOffset);
+    console.log(waveformBuffer);
+
+    const offset = posTable.waveformOffsets[signalId];
+    const length = posTable.waveformLengths[signalId];
+    const signalWidth = document.geometryBlock.width[signalId];
+    const bitsArrayOffset = document.geometryBlock.byteOffset[signalId];
+    const varIntData = parseVarInt(waveformBuffer, offset - 1);
+    let uncompressedLength = varIntData.varint;
+    const sliceStart = varIntData.pointer;
+    const waveformData = waveformBuffer.subarray(sliceStart, offset + length - 1);
+    let waveformDataUncompressed;
+    let waveforms: TransitionData[] = [];
+
+
+    console.log("Offset: " + offset);
+    console.log("Length: " + length);
+
+    try {
+
+    if (uncompressedLength === 0) {
+      uncompressedLength = waveformData.length;
+      waveformDataUncompressed = waveformData;
+    } else {
+      waveformDataUncompressed = await decompressBlock(waveformData, vcBlock.wavesPackType, uncompressedLength);
+    }
+
+    const initialState = bitsArrayBuffer.subarray(bitsArrayOffset, bitsArrayOffset + signalWidth).toString('ascii');
+    document.addTransitionDataDeduped(signalId.toString(), [vcBlock.startTime, initialState]);
+    if (signalWidth === 1) {
+      waveforms = decodeWavesDataBinary(waveformDataUncompressed, uncompressedLength, vcBlock.timeTable);
+    } else {
+      waveforms = decodeWavesData(waveformDataUncompressed, uncompressedLength, vcBlock.timeTable, signalWidth);
+    }
+
+    console.log(waveforms);
+
+    const postState   = 'X';
+    document.addTransitionDataBlock(signalId.toString(), waveforms);
+    document.addTransitionData(signalId.toString(), [document.metadata.timeEnd, postState.repeat(signalWidth)]);
+
+    } catch (e) {console.log(e);}
+
+  }
+
+  close(fd);
 }
 
 function parseFstHeader(bufferData: Buffer) {
@@ -681,9 +806,10 @@ async function analyzeHierarchyBlock(fd: number, bufferData: Buffer, blockType: 
   let currentScope:   NetlistItem | undefined;
   let modulePathString = "";
   let nextNetlistId = 1;
-  let signalId      = 0;
-  let signalCount   = 0;
+  let signalIdCount      = 0;
+  let netlistIdCount   = 0;
   let moduleCount   = 0;
+  let varIntData: {varint: number, pointer: number};
   const metadata    = document.metadata;
 
   const read = promisify(fs.read);
@@ -701,8 +827,11 @@ async function analyzeHierarchyBlock(fd: number, bufferData: Buffer, blockType: 
     result.compression = "lz4";
   } else if (blockType === 7) {
     result.compression = "lz4duo";
-    result.uncompressedOnceLength = Number(bufferData.readBigUInt64BE(17));
-    result.dataOffset = 25;
+    //result.uncompressedOnceLength = Number(bufferData.readBigUInt64BE(17));
+    //result.dataOffset = 25;
+    varIntData = parseVarInt(bufferData, result.dataOffset);
+    result.uncompressedOnceLength = varIntData.varint;
+    result.dataOffset = varIntData.pointer;
   }
 
   result.compressedLength = blockLength - result.dataOffset;
@@ -712,7 +841,6 @@ async function analyzeHierarchyBlock(fd: number, bufferData: Buffer, blockType: 
   let dataBuffer = Buffer.alloc(result.uncompressedLength);
 
   console.log(bufferData);
-
   console.log("Uncompressed length : " + result.uncompressedLength);
   console.log("Compressed Once length : " + result.uncompressedOnceLength);
   console.log("Compressed length : " + result.compressedLength);
@@ -729,7 +857,10 @@ async function analyzeHierarchyBlock(fd: number, bufferData: Buffer, blockType: 
     const intermediateBuffer = Buffer.alloc(result.uncompressedOnceLength);
     lz4BLockDecode(heirarchyDataCompressed, intermediateBuffer, undefined, undefined);
     lz4BLockDecode(intermediateBuffer, dataBuffer, undefined, undefined);
+    dataBuffer[result.uncompressedLength - 1] = 255;
   }
+
+  console.log(dataBuffer.length);
 
   const scopeTypeLow = ["VCD_MODULE", "VCD_TASK", "VCD_FUNCTION", "VCD_BEGIN",
     "VCD_FORK", "VCD_GENERATE", "VCD_STRUCT", "VCD_UNION", "VCD_CLASS",
@@ -821,11 +952,11 @@ async function analyzeHierarchyBlock(fd: number, bufferData: Buffer, blockType: 
 
       // Extract signal information (signal type and name)
       if (currentScope) {
-        signalCount++;
+        netlistIdCount++;
         const netlistId  = nextNetlistId++;
         // Yes, this is a terrible hack, but converting signalId to struct pointers
         // is not something we do many times over, so I'm allowing it for now
-        const signalID   = (structAlias === 0 ? signalId++ : structAlias - 1).toString();
+        const signalID   = (structAlias === 0 ? signalIdCount++ : structAlias - 1).toString();
 
         // Create a NetlistItem for the signal and add it to the current scope
         const signalItem = new NetlistItem(signalName, signalType, signalSize, signalID, netlistId, signalName, modulePathString, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked);
@@ -858,10 +989,12 @@ async function analyzeHierarchyBlock(fd: number, bufferData: Buffer, blockType: 
     }
   }
 
+  console.log("Done Parsing Hierarchy Block");
+
   //console.log(netlist);
 
   metadata.moduleCount = moduleCount;
-  metadata.signalCount = signalCount;
+  metadata.netlistIdCount = netlistIdCount;
 
   // Update the Netlist view with the parsed netlist data
   netlistTreeDataProvider.setTreeData(netlistItems);
@@ -1015,8 +1148,8 @@ async function decodePositionTableAlias(fd: number, vcBlock: any, numVars: numbe
     }
   }
 
-  console.log(chainTable);
-  console.log(chainTableLengths);
+  //console.log(chainTable);
+  //console.log(chainTableLengths);
 
   return {waveformOffsets: chainTable, waveformLengths: chainTableLengths};
 }
@@ -1089,12 +1222,10 @@ async function decodePositionTableAlias2(fd: number, vcBlock: any, numVars: numb
     }
   }
 
-  console.log(chainTable);
-  console.log(chainTableLengths);
+  //console.log(chainTable);
+  //console.log(chainTableLengths);
   return {waveformOffsets: chainTable, waveformLengths: chainTableLengths};
 }
-
-
 
 async function decodeTimeTable(fd: number, vcBlock: any) {
 
@@ -1129,6 +1260,10 @@ function decodeWavesDataBinary(bufferData: Buffer, length: number, timeTable: nu
   let pointer = 0;
   let varIntData;
   let varIntValue = 0;
+  let index = 0;
+  let previousTime = -Infinity;
+  let value = "";
+  let previousValue = "";
   const altStateTable = ["X", "Z", "H", "U", "W", "L", "-", "?"];
 
   while (pointer < length) {
@@ -1138,16 +1273,21 @@ function decodeWavesDataBinary(bufferData: Buffer, length: number, timeTable: nu
     pointer = varIntData.pointer;
     const is4State = (varIntValue & 1) === 1;
     if (is4State) {
-      const value = altStateTable[(varIntValue >> 1) & 0x7];
+      value = altStateTable[(varIntValue >> 1) & 0x7];
       timeTableIndex += (varIntValue >> 4);
-      const time = timeTable[timeTableIndex];
-      result.push([time, value]);
     } else {
-      const value = ((varIntValue >> 1) & 1).toString();
+      value = ((varIntValue >> 1) & 1).toString();
       timeTableIndex += (varIntValue >> 2);
-      const time = timeTable[timeTableIndex];
-      result.push([time, value]);
     }
+    const time = timeTable[timeTableIndex];
+    if (previousTime === time) {
+      result[index - 1][1] = value;
+    } else if (value !== previousValue) {
+      result.push([time, value]);
+      index++;
+    }
+    previousValue = value;
+    previousTime = time;
   }
 
   return result;
@@ -1159,6 +1299,11 @@ function decodeWavesData(bufferData: Buffer, length: number, timeTable: number[]
   let pointer = 0;
   let varIntData;
   let varIntValue = 0;
+  let index = 0;
+  let previousTime = -Infinity;
+  let value = "";
+  let previousValue = "";
+  let bitsLeft = 0;
   if (signalWidth === 0xFFFFFFFF) {signalWidth = 64;}
 
   while (pointer < length) {
@@ -1170,19 +1315,26 @@ function decodeWavesData(bufferData: Buffer, length: number, timeTable: number[]
     pointer    = varIntData.pointer;
 
     if (!is4State) {
-      let bitsLeft = signalWidth;
-      let value = "";
+      bitsLeft = signalWidth;
+      value = "";
       while (bitsLeft > 8) {
         value += bufferData[pointer++].toString(2).padStart(8, '0');
         bitsLeft -= 8;
       }
       value += bufferData[pointer++].toString(2).padStart(bitsLeft, '0');
-      result.push([time, value]);
     } else {
-      const value = String(bufferData.subarray(pointer, pointer + signalWidth));
+      value = String(bufferData.subarray(pointer, pointer + signalWidth));
       pointer += signalWidth;
-      result.push([time, value]);
     }
+
+    if (previousTime === time) {
+      result[index - 1][1] = value;
+    } else if (value !== previousValue) {
+      result.push([time, value]);
+      index++;
+    }
+    previousValue = value;
+    previousTime  = time;
   }
 
   return result;

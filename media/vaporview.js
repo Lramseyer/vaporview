@@ -779,7 +779,6 @@ updateContentArea = function(oldLeftOffset, cluster) {
 // ----------------------------------------------------------------------------
 
 copyWaveDrom = function() {
-  console.log("copyWaveDrom");
 
   // Maximum number of transitions to display
   // Maybe I should make this a user setting in the future...
@@ -1314,7 +1313,7 @@ goToNextTransition = function (direction, edge) {
     selectedSignal      = netlistId;
     selectedSignalIndex = displayedSignals.findIndex((signal) => {return signal === netlistId;});
     if (selectedSignalIndex === -1) {selectedSignalIndex = null;}
-  
+
     //setSeletedSignalOnStatusBar(netlistId);
     sendWebviewContext();
     renderLabelsPanels();
@@ -1837,7 +1836,7 @@ goToNextTransition = function (direction, edge) {
     // Get the signal id of the click
     let netlistId     = null;
     const waveChunkId = event.target.closest('.waveform-chunk');
-    if (waveChunkId) {netlistId = waveChunkId.id.split('--').slice(1).join('--');}
+    if (waveChunkId) {netlistId = parseInt(waveChunkId.id.split('--').slice(1).join('--'));}
     if (netlistId)    {
       if (button === 0) {
         handleSignalSelect(netlistId);
@@ -2054,7 +2053,7 @@ goToNextTransition = function (direction, edge) {
       case 'render-signal': {
         // Handle rendering a signal, e.g., render the signal based on message content
 
-        console.log(message);
+        //console.log(message);
 
         let signalId       = message.signalId;
         let netlistId      = message.netlistId;

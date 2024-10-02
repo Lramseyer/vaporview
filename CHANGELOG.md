@@ -1,5 +1,11 @@
 # Change Log
 
+# 1.1.0
+
+- Implemented fs.read() so that files of any size can be loaded. Maximum file size can be configured as a user setting
+- Show Netlist as soon as it is done being parsed, and progress bar for waveform data
+- Many under the hood updates
+
 ## 1.0.1
 
 - Improved performance of multi bit renderer

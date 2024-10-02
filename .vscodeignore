@@ -1,0 +1,8 @@
+# Exclude specific file types
+**/*.fst
+**/*.vcd
+**/*.vsix
+
+# Exclude source TypeScript files but not the compiled JavaScript files
+src/**/*.ts
+target/*

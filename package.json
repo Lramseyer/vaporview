@@ -244,6 +244,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
+    "bundle": "esbuild src/extension.ts --bundle --outdir=dist --platform=node --external:vscode",
     "build": "npm run compile && cargo build --target wasm32-unknown-unknown",
     "compile": "tsc -b",
     "watch": "tsc -b -w",

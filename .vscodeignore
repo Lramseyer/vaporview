@@ -6,3 +6,19 @@
 # Exclude source TypeScript files but not the compiled JavaScript files
 src/**/*.ts
 target/*
+!dist/**/*.js
+
+# Exclude node_modules except for necessary dependencies
+node_modules
+!node_modules/@vscode
+
+# Exclude test files
+**/*.test.ts
+**/*.spec.ts
+
+# Exclude other files
+.vscode
+.git
+.gitignore
+npm-debug.log
+yarn-error.log

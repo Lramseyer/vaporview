@@ -55,9 +55,6 @@
         "selector": [
           {
             "filenamePattern": "*.vcd"
-          },
-          {
-            "filenamePattern": "*.fst"
           }
         ]
       }
@@ -211,7 +208,19 @@
         "command": "vaporview.loadViewerSettings",
         "title": "Load Vaporview Settings"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "VaporView",
+      "properties": {
+        "vaporview.vcdMaxFileSize": {
+          "type": "number",
+          "default": 4096,
+          "description": "Maximum VCD file size in MB",
+          "minimum": 256,
+          "maximum": 65536
+        }
+      }
+    }
   },
   "dependencies": {
     "@types/lz4js": "^0.2.1",

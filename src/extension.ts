@@ -58,8 +58,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     const close = promisify(fs.close);
 
     // This should probably be a user setting
-    const MAX_FILESIZE_LOAD_SIGNALS = 1024 * 1024 * 1024 * 4; // 4 GB
-
     const netlistTreeDataProvider          = new NetlistTreeDataProvider();
     const displayedSignalsTreeDataProvider = new DisplayedSignalsViewProvider();
     const netlistIdTable                   = new Array<NetlistIdRef>(1);
@@ -90,7 +88,11 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       return Promise.resolve();
     });
 
-    if (stats.size < MAX_FILESIZE_LOAD_SIGNALS) {
+    const vcdMaxFileSizeDefault = 1024 * 4; // 4 GB
+    let vcdMaxFileSize: number | undefined = vscode.workspace.getConfiguration('vaporview').get('vcdMaxFileSize');
+    if (!vcdMaxFileSize) {vcdMaxFileSize = vcdMaxFileSizeDefault;}
+
+    if (stats.size < (vcdMaxFileSize * 1024 * 1024)) {
       vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
         title: "Parsing Waveforms",
@@ -599,6 +601,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
   ): Promise<void> {
 
     webviewPanel.onDidDispose(() => {
+      console.log("webview onDidDispose()");
       if (this.activeWebview === webviewPanel) {
         this.netlistTreeDataProvider.setTreeData([]);
         this.displayedSignalsTreeDataProvider.setTreeData([]);
@@ -685,7 +688,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     });
 
     webviewPanel.onDidChangeViewState(e => {
-      //console.log("onDidChangeViewState()");
+      console.log("webview onDidChangeViewState()");
       //console.log(vscode.window.activeTextEditor?.document);
       //console.log(e);
 
@@ -1530,7 +1533,6 @@ export async function activate(context: vscode.ExtensionContext) {
     if (e.netlistId) {
       viewerProvider.removeSignalFromDocument(e.netlistId);
 
-      console.log(e);
     }
   }));
 

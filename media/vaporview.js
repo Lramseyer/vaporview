@@ -249,6 +249,7 @@ polylinePathFromTransitionData = function (transitionData, initialState, polylin
   var initialValue       = initialState[1];
   var initialValue2state = initialValue;
   var initialTime        = Math.max(initialState[0], -10);
+  const minDrawWidth     = 1 / zoomRatio;
   var xzAccumulatedPath = "";
   if (valueIs4State(initialValue)) {
     xzAccumulatedPath = "-1,0 -1,1 ";

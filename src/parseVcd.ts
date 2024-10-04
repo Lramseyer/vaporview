@@ -368,13 +368,12 @@ export async function parseVcdWaveforms(fd: number, document: VaporviewDocument,
 }
 
 /* ****************************************************************************
-* This is a WIP FST parser. It can currently identify and analyze all block
-* types, it can't parse all of the blocks yet. It can discern and populate the
-* netlist for certain compression techniques
+* This is a WIP FST parser. There are still a couple of bugs. It sometimes gets
+* the signal ID incorrect, and it sometimes seems to load the incorrect signal
+* data.
 *
 * To DO:
 * Blackout Block
-* Value Change Block
 ***************************************************************************** */
 
 export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeDataProvider, netlistIdTable: NetlistIdTable, document: VaporviewDocument) {

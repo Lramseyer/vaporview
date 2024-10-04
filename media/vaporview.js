@@ -244,7 +244,7 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
   return result;
 };
 
-polylinePathFromTransitionData = function (transitionData, initialState, polylineAttributes) {
+polylinePathFromTransitionDataOld = function (transitionData, initialState, postState, polylineAttributes) {
   var xzPolylines        = [];
   var initialValue       = initialState[1];
   var initialValue2state = initialValue;
@@ -287,10 +287,123 @@ polylinePathFromTransitionData = function (transitionData, initialState, polylin
   }
 
   accumulatedPath += columnTime + "," + initialValue2state;
-  return `<polyline points="` + accumulatedPath + `" ${polylineAttributes}/>` + xzPolylines.join('');
+  let polyline = `<polyline points="` + accumulatedPath + `" ${polylineAttributes}/>`;
+  let shadedArea = `<polygon points="0,0 ${accumulatedPath} ${columnTime},0" stroke="none" fill="var(--vscode-debugTokenExpression-number)" fill-opacity="0.1"/>`;
+  return polyline + shadedArea + xzPolylines.join('');
 };
 
-binaryElementFromTransitionData = function (transitionData, initialState) {
+polylinePathFromTransitionData = function (transitionData, initialState, postState, polylineAttributes) {
+  var xzPolylines        = [];
+  var initialValue       = initialState[1];
+  var initialValue2state = initialValue;
+  var initialTime        = initialState[0];
+  var initialTimeOrStart = Math.max(initialState[0], -10);
+  const minDrawWidth     = 1 / zoomRatio;
+  var xzAccumulatedPath = "";
+
+  if (valueIs4State(initialValue)) {
+    xzAccumulatedPath = "-1,0 -1,1 ";
+    initialValue2state = 0;
+  }
+  var accumulatedPath    = ["-1," + initialValue2state];
+
+  let value2state    = 0;
+  // No Draw Code
+  let lastDrawTime   = -1;
+  let lastNoDrawTime = null;
+  let noDrawFlag     = false;
+  var noDrawPath     = [];
+  let lastDrawValue  = initialValue2state;
+  let lastnoDrawValue = null;
+
+  transitionData.forEach(([time, value]) => {
+    let xzPath = "";
+
+    if (time - initialTime < minDrawWidth) {
+      noDrawFlag     = true;
+      lastNoDrawTime = time;
+      lastnoDrawValue = value;
+    } else {
+
+      if (noDrawFlag) {
+        initialValue2state = initialValue;
+        if (valueIs4State(initialValue)) {initialValue2state = 0;}
+
+        noDrawPath.push(lastDrawTime + ",0 " + lastDrawTime + ",1 " + lastNoDrawTime + ",1 " + lastNoDrawTime + ",0 ");
+        accumulatedPath.push(lastDrawTime + "," + 0);
+        accumulatedPath.push(lastNoDrawTime + "," + 0);
+        //accumulatedPath.push(lastNoDrawTime + "," + lastDrawValue);
+        accumulatedPath.push(lastNoDrawTime + "," + initialValue2state);
+        noDrawFlag = false;
+      }
+
+      if (valueIs4State(initialValue)) {
+        xzPath = `${initialTimeOrStart},0 ${time},0 ${time},1 ${initialTimeOrStart},1`;
+        if (initialTimeOrStart >= 0) {
+          xzPath += ` ${initialTimeOrStart},0`;
+        }
+        xzPolylines.push(`<polyline points="${xzPath}" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+      }
+
+      value2state = value;
+      if (valueIs4State(value)) {value2state =  0;}
+
+      // Draw the current transition to the main path
+      accumulatedPath.push(time + "," + initialValue2state);
+      accumulatedPath.push(time + "," + value2state);
+
+      lastDrawValue      = value2state;
+      lastDrawTime       = time;
+      initialValue2state = value2state;
+    }
+
+    initialValue       = value;
+    initialTimeOrStart = time;
+    initialTime        = time;
+  });
+
+  initialValue2state = initialValue;
+  if (valueIs4State(initialValue)) {initialValue2state = 0;}
+
+  if (postState[0] - initialTime < minDrawWidth) {
+
+      noDrawPath.push(lastDrawTime + ",0 " + lastDrawTime + ",1 " + columnTime + ",1 " + columnTime + ",0 ");
+      accumulatedPath.push(lastDrawTime + ",0");
+      accumulatedPath.push(columnTime + ",0");
+      //accumulatedPath.push(columnTime + "," + lastDrawValue);
+  } else {
+
+    if (noDrawFlag) {
+
+      noDrawPath.push(lastDrawTime + ",0 " + lastDrawTime + ",1 " + lastNoDrawTime + ",1 " + lastNoDrawTime + ",0 ");
+      accumulatedPath.push(lastDrawTime + "," + 0);
+      accumulatedPath.push(lastNoDrawTime + "," + 0);
+      //accumulatedPath.push(lastNoDrawTime + "," + lastDrawValue);
+      accumulatedPath.push(lastNoDrawTime + "," + initialValue2state);
+    }
+
+    if (valueIs4State(initialValue))  {
+
+      if (initialTimeOrStart >= 0) {
+        xzPolylines.push(`<polyline points="${columnTime},1 ${initialTimeOrStart},1 ${initialTimeOrStart},0 ${columnTime},0" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+      } else {
+        xzPolylines.push(`<polyline points="${initialTimeOrStart},0 ${columnTime},0" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+        xzPolylines.push(`<polyline points="${initialTimeOrStart},1 ${columnTime},1" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+      }
+    }
+  }
+
+  accumulatedPath.push(columnTime + "," + initialValue2state);
+
+  let polylinePath = accumulatedPath.join(" ");
+  let polyline     = `<polyline points="` + polylinePath + `" ${polylineAttributes}/>`;
+  let noDraw       = `<polygon points="${noDrawPath}" stroke="none" fill="var(--vscode-debugTokenExpression-number)"/>`;
+  let shadedArea   = `<polygon points="0,0 ${polylinePath} ${columnTime},0" stroke="none" fill="var(--vscode-debugTokenExpression-number)" fill-opacity="0.1"/>`;
+  return polyline + shadedArea + noDraw + xzPolylines.join('');
+};
+
+
+binaryElementFromTransitionData = function (transitionData, initialState, postState) {
   const svgHeight  = 20;
   const waveHeight = 16;
   const waveOffset = waveHeight + (svgHeight - waveHeight) / 2;
@@ -299,7 +412,7 @@ binaryElementFromTransitionData = function (transitionData, initialState) {
   let result = '';
   result += `<svg height="${svgHeight}" width="${columnWidth}" viewbox="0 0 ${columnWidth} ${svgHeight}" class="binary-waveform-svg">`;
   result += `<g ${gAttributes}>`;
-  result += polylinePathFromTransitionData(transitionData, initialState, polylineAttributes);
+  result += polylinePathFromTransitionData(transitionData, initialState, postState, polylineAttributes);
   result += `</g></svg>`;
   return result;
 };
@@ -310,7 +423,7 @@ createWaveformSVG = function (transitionData, initialState, postState, width, ch
   if (netlistId === selectedSignal) {className += ' is-selected';}
   if (width === 1) {
     return `<div class="${className}" id="idx${chunkIndex}-${chunksInColumn}--${netlistId}" ${vscodeContext}>
-    ${binaryElementFromTransitionData(transitionData, initialState)}
+    ${binaryElementFromTransitionData(transitionData, initialState, postState)}
     </div>`;
   } else {
     const numberFormat  = netlistData[netlistId].numberFormat;

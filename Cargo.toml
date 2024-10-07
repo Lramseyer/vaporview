@@ -8,4 +8,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 wellen = "0.9.18"
-wit-bindgen = "0.21.0"
+wit-bindgen = "0.33.0"

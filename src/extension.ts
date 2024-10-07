@@ -54,12 +54,9 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     delegate: VaporviewDocumentDelegate,
   ): Promise<VaporviewDocument | PromiseLike<VaporviewDocument>> {
 
-    const open = promisify(fs.open);
+    const open  = promisify(fs.open);
     const close = promisify(fs.close);
-
-    // This should probably be a user setting
-    const MAX_FILESIZE_LOAD_SIGNALS = 1024 * 1024 * 1024 * 4; // 4 GB
-
+    const MAX_FILESIZE_LOAD_SIGNALS        = 1024 * 1024 * 1024 * 4; // 4 GB
     const netlistTreeDataProvider          = new NetlistTreeDataProvider();
     const displayedSignalsTreeDataProvider = new DisplayedSignalsViewProvider();
     const netlistIdTable                   = new Array<NetlistIdRef>(1);
@@ -72,11 +69,17 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       delegate
     );
 
+    await document.createWasmApi(wasmWorker);
+    
     document.metadata.fileName = uri.fsPath;
     const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase();
     const stats    = fs.statSync(uri.fsPath);
     const fd       = await open(uri.fsPath, 'r');
     document.metadata.fileSize = stats.size;
+    
+    //await document.wasmApi.calc(Types.Operation.Add({ left: 1, right: 2}));
+    console.log(fd);
+    await document.wasmApi.test(fd, BigInt(0));
 
     if (fileType === 'vcd') {
 
@@ -123,6 +126,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   private _netlistIdTable: NetlistIdRef[];
   private readonly _delegate: VaporviewDocumentDelegate;
   public _wasmWorker: Worker;
+  public wasmApi: any;
   public webviewPanel: vscode.WebviewPanel | undefined = undefined;
   private _webviewInitialized: boolean = false;
   public timeChain:       number[] = [];
@@ -145,6 +149,32 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     timeUnit:    "ns",
   };
 
+  public readonly service: filehandler.Imports.Promisified = {
+
+    log: (msg: string) => {
+      console.log(msg);
+    },
+
+    //fread: (fd: number, offset: bigint, length: number): Uint8Array => {
+    //  //const muyBuffer = Buffer.alloc(length);
+    //  //fs.readSync(fd, muyBuffer, 0, length, Number(offset));
+    //  //const result = new Uint8Array(muyBuffer);
+    //  //console.log(result);
+//
+    //  const result = new Uint8Array([1, 2, 3]);
+    //  console.log(result);
+    //  return result;
+    //}
+
+    fsread: (fd: number, offset: bigint, length: number): Uint8Array => {
+
+      const filebuffer = Buffer.alloc(length);
+      const bytesRead = fs.readSync(fd, filebuffer, 0, length, Number(offset));
+
+      return new Uint8Array(filebuffer);
+    }
+  };
+
   // FST structs
   public vcBlocks:  any[] = [];
   public geometryBlock: any = {};
@@ -155,7 +185,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     _displayedSignalsTreeDataProvider: DisplayedSignalsViewProvider,
     _netlistIdTable: NetlistIdRef[],
     _wasmWorker: Worker,
-    delegate: VaporviewDocumentDelegate
+    delegate: VaporviewDocumentDelegate,
   ) {
     super(() => this.dispose());
     this._uri = uri;
@@ -167,11 +197,17 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this.netlistElements = new Map();
   }
 
+  // The implementation of the log function that is called from WASM
+
   public get uri() { return this._uri; }
   public get netlistTreeData(): NetlistTreeDataProvider { return this._netlistTreeDataProvider; }
   public get displayedSignalsTreeData(): DisplayedSignalsViewProvider { return this._displayedSignalsTreeDataProvider; }
   public get netlistIdTable(): NetlistIdRef[] { return this._netlistIdTable; }
   public get webviewInitialized(): boolean { return this._webviewInitialized; }
+
+  public async createWasmApi(wasmWorker: Worker) {
+    this.wasmApi = await filehandler._.bind(this.service, wasmModule, wasmWorker);
+  }
 
   public onWebviewReady(webviewPanel: vscode.WebviewPanel) {
     console.log("onWebviewReady");
@@ -298,9 +334,9 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 
   public netlistViewSelectedSignals: NetlistItem[] = [];
   public displayedSignalsViewSelectedSignals: NetlistItem[] = [];
+  public log: vscode.OutputChannel;
 
-  public readonly service: filehandler.Imports.Promisified;
-
+  
   public webviewContext = {
     markerTime: null,
     altMarkerTime: null,
@@ -314,8 +350,8 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
   constructor(private readonly _context: vscode.ExtensionContext) {
 
     // The channel for printing the log.
-    const log = vscode.window.createOutputChannel('Vaporview Log', { log: true });
-    _context.subscriptions.push(log);
+    this.log = vscode.window.createOutputChannel('Vaporview Log', { log: true });
+    _context.subscriptions.push(this.log);
 
     // Create and register the Netlist and Displayed Signals view container
     this.netlistTreeDataProvider = new NetlistTreeDataProvider();
@@ -338,16 +374,6 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     this.deltaTimeStatusBarItem      = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     this.markerTimeStatusBarItem     = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
     this.selectedSignalStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
-
-
-
-    // The implementation of the log function that is called from WASM
-    this.service = {
-      log: (msg: string) => {
-        //_context.subscriptions.log.info(msg);
-        console.log(msg);
-      }
-    };
   }
 
   private getNameFromNetlistId(netlistId: NetlistId | null) {
@@ -482,11 +508,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     // Load the Wasm worker
     const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'out', 'worker.js').fsPath;
     const wasmWorker = new Worker(workerFile);
-    const api        = await filehandler._.bind(this.service, wasmModule, wasmWorker);
-
-    //await api.calc(Types.Operation.Add({ left: 1, right: 2}));
-
-    const document: VaporviewDocument = await VaporviewDocument.create(uri, openContext.backupId, wasmWorker, delegate);
+    const document   = await VaporviewDocument.create(uri, openContext.backupId, wasmWorker, delegate);
 
     this.netlistTreeDataProvider.setTreeData(document.netlistTreeData.getTreeData());
     this.displayedSignalsTreeDataProvider.setTreeData(document.displayedSignalsTreeData.getTreeData());

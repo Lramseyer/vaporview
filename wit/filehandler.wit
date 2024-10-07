@@ -14,12 +14,14 @@ interface types {
 		div(operands)
 	}
 
-
 }
 
 world filehandler {
 	use types.{ operation };
-	import log: func(msg: string);
 
-	export calc: func(o: operation) -> u32;
+	import log: func(msg: string);
+	import fsread: func(fd: u32, offset: u64, length: u32) -> list<u8>;
+
+	export test: func(fd: u32, offset: u64);
+	//export calc: func(o: operation) -> u32;
 }

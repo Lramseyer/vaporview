@@ -1,11 +1,54 @@
 // Use a procedural macro to generate bindings for the world we specified in
 // `host.wit`
 
-
 wit_bindgen::generate!({
 	// the name of the world in the `*.wit` input file
 	world: "filehandler",
 });
+
+use std::io::{self, Read, Seek, SeekFrom};
+
+// Not sure if these work yet...
+struct WasmFile {
+    fd: u32,
+    offset: u64,
+		size: u64,
+}
+
+impl WasmFile {
+	fn new(fd: u32) -> Self {
+			let size = getsize(fd);
+			WasmFile { fd, offset: 0, size }
+	}
+}
+
+impl Read for WasmFile {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let length = buf.len() as u32;
+        let data = fsread(self.fd, self.offset, length);
+        let bytes_read = data.len();
+        buf[..bytes_read].copy_from_slice(&data);
+        self.offset += bytes_read as u64;
+        Ok(bytes_read)
+    }
+}
+
+impl Seek for WasmFile {
+	fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
+			match pos {
+					SeekFrom::Start(offset) => {
+							self.offset = offset;
+					}
+					SeekFrom::End(offset) => {
+							self.offset = (self.size as i64 + offset) as u64;
+					}
+					SeekFrom::Current(offset) => {
+							self.offset = (self.offset as i64 + offset) as u64;
+					}
+			}
+			Ok(self.offset)
+	}
+}
 
 struct Filecontext;
 

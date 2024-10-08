@@ -440,18 +440,22 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
   let minTimeStemp = 9999999;
   let timeChainHistory: any[] = [];
 
+  let positionTablesTotalSize = 0;
+
   // once we decode the netlist, we can analyze the Value Change blocks
   for (let i = 0; i < valueChangeBlocks.length; i++) {
+
+    positionTablesTotalSize += valueChangeBlocks[i].positionLength;
 
     console.log("Analyzing Value Change Block " + i);
     const vcBlock = valueChangeBlocks[i];
 
     // time Table
     vcBlock.timeTable  = await decodeTimeTable(fd, vcBlock);
-    const timeChain = timeChainHistory.concat(vcBlock.timeTable);
-    const eventCount = timeChain.length;
+    const timeChain    = timeChainHistory.concat(vcBlock.timeTable);
+    const eventCount   = timeChain.length;
     if (eventCount >= 128) {
-      for (let i = 127; i < eventCount; i++) {
+      for (let i = 128; i < eventCount; i++) {
         const rollingTimeStep = timeChain[i] - timeChain[i - 128];
         minTimeStemp = Math.min(rollingTimeStep, minTimeStemp);
       }
@@ -460,73 +464,75 @@ export async function parseFst(fd: number, netlistTreeDataProvider: NetlistTreeD
       minTimeStemp = timeChain[eventCount - 1];
     }
 
-    // Position Table
-    let posTable: any;
-
-    if (vcBlock.aliasType === 1) {
-      posTable = await decodePositionTable(fd, vcBlock, header.numVars);
-    } else if (vcBlock.aliasType === 5) {
-      posTable = await decodePositionTableAlias(fd, vcBlock, header.numVars);
-    } else {
-      posTable = await decodePositionTableAlias2(fd, vcBlock, header.numVars);
-    }
-
-    vcBlock.waveformOffsets = posTable.waveformOffsets;
-    vcBlock.waveformLengths = posTable.waveformLengths;
-
-    // Bits Array
-    const bitsArrayCompressionType = (vcBlock.bitsUncompressedLength !== vcBlock.bitsCompressedLength) ? "zlib" : "none";
-    let bitsArrayBuffer = Buffer.alloc(vcBlock.bitsCompressedLength);
-    await read(fd, bitsArrayBuffer, 0, vcBlock.bitsCompressedLength, vcBlock.bitsBlockOffset + vcBlock.fileOffset);
-    bitsArrayBuffer = await decompressBlock(bitsArrayBuffer, bitsArrayCompressionType, vcBlock.bitsUncompressedLength);
-    console.log(bitsArrayBuffer.toString('ascii'));
-
-    const waveformBuffer = Buffer.alloc(vcBlock.wavesLength);
-
-    console.log("Waveforms compression type " + vcBlock.wavesPackType);
-
-    await read(fd, waveformBuffer, 0, vcBlock.wavesLength, vcBlock.wavesBlockOffset + vcBlock.fileOffset);
-    console.log(waveformBuffer);
-
-    for (let v = 0; v < vcBlock.wavesCount; v++) {
-
-      const offset = vcBlock.waveformOffsets[v];
-      const length = vcBlock.waveformLengths[v];
-      const signalWidth = document.geometryBlock.width[v];
-      const bitsArrayOffset = document.geometryBlock.byteOffset[v];
-      const varIntData = parseVarInt(waveformBuffer, offset - 1);
-      let uncompressedLength = varIntData.varint;
-      const sliceStart = varIntData.pointer;
-      const waveformData = waveformBuffer.subarray(sliceStart, offset + length - 1);
-      let waveformDataUncompressed;
-      let waveforms: TransitionData[] = [];
-
-      try {
-
-      if (uncompressedLength === 0) {
-        uncompressedLength = waveformData.length;
-        waveformDataUncompressed = waveformData;
-      } else {
-        waveformDataUncompressed = await decompressBlock(waveformData, vcBlock.wavesPackType, uncompressedLength);
-      }
-
-      const initialState = bitsArrayBuffer.subarray(bitsArrayOffset, bitsArrayOffset + signalWidth).toString('ascii');
-      document.addTransitionDataDeduped(v.toString(), [vcBlock.startTime, initialState]);
-      if (signalWidth === 1) {
-        waveforms = decodeWavesDataBinary(waveformDataUncompressed, uncompressedLength, vcBlock.timeTable);
-      } else {
-        waveforms = decodeWavesData(waveformDataUncompressed, uncompressedLength, vcBlock.timeTable, signalWidth);
-      }
-
-      document.addTransitionDataBlock(v.toString(), waveforms);
-      //if (v < 10) {
-      //  console.log(waveformData);
-      //  console.log(waveformDataUncompressed);
-      //  console.log(waveforms);
-      //}
-      } catch (e) {console.log(e);}
-    }
+//    // Position Table
+//    let posTable: any;
+//
+//    if (vcBlock.aliasType === 1) {
+//      posTable = await decodePositionTable(fd, vcBlock, header.numVars);
+//    } else if (vcBlock.aliasType === 5) {
+//      posTable = await decodePositionTableAlias(fd, vcBlock, header.numVars);
+//    } else {
+//      posTable = await decodePositionTableAlias2(fd, vcBlock, header.numVars);
+//    }
+//
+//    vcBlock.waveformOffsets = posTable.waveformOffsets;
+//    vcBlock.waveformLengths = posTable.waveformLengths;
+//
+//    // Bits Array
+//    const bitsArrayCompressionType = (vcBlock.bitsUncompressedLength !== vcBlock.bitsCompressedLength) ? "zlib" : "none";
+//    let bitsArrayBuffer = Buffer.alloc(vcBlock.bitsCompressedLength);
+//    await read(fd, bitsArrayBuffer, 0, vcBlock.bitsCompressedLength, vcBlock.bitsBlockOffset + vcBlock.fileOffset);
+//    bitsArrayBuffer = await decompressBlock(bitsArrayBuffer, bitsArrayCompressionType, vcBlock.bitsUncompressedLength);
+//    console.log(bitsArrayBuffer.toString('ascii'));
+//
+//    const waveformBuffer = Buffer.alloc(vcBlock.wavesLength);
+//
+//    console.log("Waveforms compression type " + vcBlock.wavesPackType);
+//
+//    await read(fd, waveformBuffer, 0, vcBlock.wavesLength, vcBlock.wavesBlockOffset + vcBlock.fileOffset);
+//    console.log(waveformBuffer);
+//
+//    for (let v = 0; v < vcBlock.wavesCount; v++) {
+//
+//      const offset = vcBlock.waveformOffsets[v];
+//      const length = vcBlock.waveformLengths[v];
+//      const signalWidth = document.geometryBlock.width[v];
+//      const bitsArrayOffset = document.geometryBlock.byteOffset[v];
+//      const varIntData = parseVarInt(waveformBuffer, offset - 1);
+//      let uncompressedLength = varIntData.varint;
+//      const sliceStart = varIntData.pointer;
+//      const waveformData = waveformBuffer.subarray(sliceStart, offset + length - 1);
+//      let waveformDataUncompressed;
+//      let waveforms: TransitionData[] = [];
+//
+//      try {
+//
+//      if (uncompressedLength === 0) {
+//        uncompressedLength = waveformData.length;
+//        waveformDataUncompressed = waveformData;
+//      } else {
+//        waveformDataUncompressed = await decompressBlock(waveformData, vcBlock.wavesPackType, uncompressedLength);
+//      }
+//
+//      const initialState = bitsArrayBuffer.subarray(bitsArrayOffset, bitsArrayOffset + signalWidth).toString('ascii');
+//      document.addTransitionDataDeduped(v.toString(), [vcBlock.startTime, initialState]);
+//      if (signalWidth === 1) {
+//        waveforms = decodeWavesDataBinary(waveformDataUncompressed, uncompressedLength, vcBlock.timeTable);
+//      } else {
+//        waveforms = decodeWavesData(waveformDataUncompressed, uncompressedLength, vcBlock.timeTable, signalWidth);
+//      }
+//
+//      document.addTransitionDataBlock(v.toString(), waveforms);
+//      //if (v < 10) {
+//      //  console.log(waveformData);
+//      //  console.log(waveformDataUncompressed);
+//      //  console.log(waveforms);
+//      //}
+//      } catch (e) {console.log(e);}
+//    }
   }
+
+  console.log("Position Tables Total Size: " + positionTablesTotalSize);
 
   close(fd);
 

@@ -1,26 +1,27 @@
 // wit/filehandler.wit
 package vscode:example;
 
-interface types {
-	record operands {
-		left: u32,
-		right: u32
-	}
-
-	variant operation {
-		add(operands),
-		sub(operands),
-		mul(operands),
-		div(operands)
-	}
-
-}
+//interface types {
+//	record operands {
+//		left: u32,
+//		right: u32
+//	}
+//
+//	variant operation {
+//		add(operands),
+//		sub(operands),
+//		mul(operands),
+//		div(operands)
+//	}
+//
+//}
 
 world filehandler {
-	use types.{ operation };
+	//use types.{ operation };
 
 	import log: func(msg: string);
 	import fsread: func(fd: u32, offset: u64, length: u32) -> list<u8>;
+	import getsize: func(fd: u32) -> u64;
 
 	export test: func(fd: u32, offset: u64);
 	//export calc: func(o: operation) -> u32;

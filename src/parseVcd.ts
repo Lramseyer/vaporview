@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as readline from 'readline';
 import { promisify, types } from 'util';
-import { byte } from '@vscode/wasm-component-model';
+//import { byte } from '@vscode/wasm-component-model';
 
 //import lz4js, { compress } from 'lz4js';
 //import lz4 from 'lz4';

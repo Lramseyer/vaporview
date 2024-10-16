@@ -236,7 +236,7 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "build": "npm run compile && cargo build --target wasm32-unknown-unknown",
-    "compile": "tsc -b",
+    "compile": "npm run generate:model && tsc -b",
     "watch": "tsc -b -w",
     "lint": "eslint ./src --ext .ts,.tsx",
     "generate:model": "wit2ts --outDir ./src ./wit",

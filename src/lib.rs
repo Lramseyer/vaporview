@@ -7,22 +7,29 @@ wit_bindgen::generate!({
 });
 
 use std::io::{self, Read, Seek, SeekFrom};
+use lazy_static::lazy_static;
+use std::sync::Mutex;
+
+lazy_static! {
+	static ref WASM_FILE_READER: Mutex<Option<WasmFileReader>> = Mutex::new(None);
+	static ref DUMMY_ITERATOR: Mutex<Option<i32>> = Mutex::new(None);
+}
 
 // Not sure if these work yet...
-struct WasmFile {
+struct WasmFileReader {
     fd: u32,
     offset: u64,
 		size: u64,
 }
 
-impl WasmFile {
+impl WasmFileReader {
 	fn new(fd: u32) -> Self {
 			let size = getsize(fd);
-			WasmFile { fd, offset: 0, size }
+			WasmFileReader { fd, offset: 0, size }
 	}
 }
 
-impl Read for WasmFile {
+impl Read for WasmFileReader {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let length = buf.len() as u32;
         let data = fsread(self.fd, self.offset, length);
@@ -33,7 +40,7 @@ impl Read for WasmFile {
     }
 }
 
-impl Seek for WasmFile {
+impl Seek for WasmFileReader {
 	fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
 			match pos {
 					SeekFrom::Start(offset) => {
@@ -65,6 +72,24 @@ impl Guest for Filecontext {
 	//	log(&format!("Finished calculation: {:?}", op));
 	//	result 
 	//}
+
+	fn createfilereader(fd: u32) {
+		let mut wasm_file_reader = WASM_FILE_READER.lock().unwrap();
+		*wasm_file_reader = Some(WasmFileReader::new(fd));
+	}
+
+	fn newiterator() {
+		let mut dummy_iterator = DUMMY_ITERATOR.lock().unwrap();
+		*dummy_iterator = Some(0);
+	}
+
+	fn incrementiterator() {
+		let mut dummy_iterator = DUMMY_ITERATOR.lock().unwrap();
+		if let Some(ref mut i) = *dummy_iterator {
+			*i += 1;
+		}
+		log(&format!("Incremented iterator: {:?}", *dummy_iterator));
+	}
 
 	fn test(fd: u32, offset: u64) {
 

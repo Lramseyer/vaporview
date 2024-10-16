@@ -18,9 +18,6 @@ While not necissarily a priority, I have a list of things that would greatly enh
 
 - Rewriting performance critical components (like the renderer) in Web Assembly
 - Supporting other file formats besides .vcd files
-- Support for large files with `fs.read()`
-
-You know what, if you can just get the build flow working so that I can use native node modules instead of the vscode version of `fs` _or_ get the [fsChunks API proposal](https://github.com/microsoft/vscode/blob/main/src/vscode-dts/vscode.proposed.fsChunks.d.ts) in place, that would be a huge help. I could honestly do the rest.
 
 ## Extension overview
 
@@ -59,6 +56,8 @@ This means that for VCD files, I have to parse the whole document to extract the
   - selectedSignalStatusBarItem: vscode.StatusBarItem
   - activeWebview: vscode.WebviewPanel
   - activeDocument: VaporviewDocument (extends vscode.Disposable implements vscode.CustomDocument)
+  - lastActiveWebview: vscode.WebviewPanel
+  - lastActiveDocument: VaporviewDocument
   - netlistViewSelectedSignals: NetlistItem[]
   - displayedSignalsViewSelectedSignals: NetlistItem[]
   - webviews: webviewCollection()
@@ -68,6 +67,11 @@ This means that for VCD files, I have to parse the whole document to extract the
 
 - VaporviewDocument extends vscode.Disposable implements vscode.CustomDocument
   - _uri: vscode.Uri
+  - _delegate: VaporviewDocumentDelegate
+  - _wasmWorker: Worker;
+  - wasmApi: _Promisify<_Required<filehandler.Exports>>
+  - webviewPanel: vscode.WebviewPanel
+  - _webviewInitialized: boolean
   - _netlistTreeDataProvider: NetlistTreeDataProvider
     - treeData: NetlistItem[] (extends vscode.TreeItem)
   - _displayedSignalsTreeDataProvider: DisplayedSignalsViewProvider
@@ -76,21 +80,19 @@ This means that for VCD files, I have to parse the whole document to extract the
     - netlistItem: NetlistItem
     - displayedItem: NetlistItem
     - signalId: string
-  - _delegate: VaporviewDocumentDelegate
-  - _documentData: WaveformTop
-    - metadata:   WaveformTopMetadata
-      - timeEnd: number
-      - filename: string
-      - chunkTime: number
-      - chunkCount: number
-      - timeScale: number
-      - defaultZoom: number
-      - timeUnit: string
-    - netlistElements: Map<SignalId, SignalWaveform>
-      - signalWidth: number
-      - chunkStart: number[]
-      - transitionData: TransitionData[]
-        - [time: number, value: number | string]
+  - metadata: WaveformTopMetadata
+    - timeEnd: number
+    - filename: string
+    - chunkTime: number
+    - chunkCount: number
+    - timeScale: number
+    - defaultZoom: number
+    - timeUnit: string
+  - netlistElements: Map<SignalId, SignalWaveform>
+    - signalWidth: number
+    - chunkStart: number[]
+    - transitionData: TransitionData[]
+      - [time: number, value: number | string]
 
 - NetlistItem (extends vscode.TreeItem)
   - label: string
@@ -105,15 +107,18 @@ This means that for VCD files, I have to parse the whole document to extract the
   - collapsibleState: vscode.TreeItemCollapsibleState
   - checkboxState: vscode.TreeItemCheckboxState
 
+- NetlistID: number
+- SignalId: number
+
 ## Parsing a VCD file
 
 When parsing a VCD file, the data is stored in a `WaveformTop` class (which stores the metadata and a `SignalWaveform` hash table,) and in a `NetlistTreeDataProvider` class, which maintains netlist topology. This might seem weird at first, but we really only need to know the netlist topology for the `TreeView`. But since multiple `TreeItem` elements can reference the same `SignalWaveform` data, they are stored as separate structures.
 
-We have to store a copy of each treeview for each document that's open so that if a user wants to open up multiple documents, we can repopulate the treeview according to its respective document. In the future, I plan to add support for larger files that can't necissarily be completely loaded into memory _whenever the vscode team decides to support fs.read()_. When this feature gets added, I will read the file in chunks, but I will stil need to load in the full netlist. But that doesn't consume a ton of memory, so it won't be a problem. Then this way, it can reference back to which signal data to load into memory when reading the file.
+We have to store a copy of each treeview for each document that's open so that if a user wants to open up multiple documents, we can repopulate the treeview according to its respective document. In the future, I plan to add support for larger files that can't necissarily be completely loaded into memory When this feature gets added, I will read the file in chunks, but I will stil need to load in the full netlist. But that doesn't consume a ton of memory, so it won't be a problem. Then this way, it can reference back to which signal data to load into memory when reading the file.
 
-To tie these structures together, I should probably explain what a `SignalId` and a `NetlistId` are. A SignalId is essentially a hash of the signal name and module path, and it refers back to the `NetlistItems` in the `NetlistTreeDataProvider` as well as the `SignalId` The `SignalId` is what's actually used in the .vcd file. I create the `netlistId` with a low budget hashing algorithm. Unfortunately, multiple `netlistId`'s can point to the same `signalId` so we need to have 2 sets of keys. I learned this the hard way, because I originally used just a `signalId`, and it caused some really weird and annoying bugs!
+To tie these structures together, I should probably explain what a `SignalId` and a `NetlistId` are. Since a waveform dump can contain variables that contain the same value change data as another signal, it's possible to have multiple elements in the netlist point to the same value change data. `NetlistId` points to an elenent in the netlist topology (and a `SignalId`) and `SignalId` points to the value change data. Originally, I made the `NetlistId` a string in a hash table that was a hash of the module path, but I realized that was pointless, and changed it to a number. I will be changing `SignalId` to a number soon, but VCD files use strings for `SignalId`. It's not too much work, but there's a bigger rewrite of the file parsing that's going on...
 
-Once the metadata and netlist are parsed, we start parsing the transition data. This is where things get a little weird. See, for ease of rendering, I made it such that everything is in chunks. This way, we don't actually have to render the entire waveform. Since the actual HTML components of a waveform consume a non-trivial amount of memory, we can dynamically render as we scroll. This isn't a big deal for smaller waveforms, but it is for larger waveforms. Maybe it's premature optimization, I don't know.
+Once the metadata and netlist are parsed, we start parsing the value change data. This is where things get a little weird. See, for ease of rendering, I made it such that everything is in chunks. This way, we don't actually have to render the entire waveform. Since the actual HTML components of a waveform consume a non-trivial amount of memory, we can dynamically render as we scroll. This isn't a big deal for smaller waveforms, but it is for larger waveforms. Maybe it's premature optimization, I don't know.
 
 The signal data has some metadata elements such as the `signalWidth`. But all of the `transitionData` is stored as a flat array of transitions. Each transition is essentially a time and a value. The value is stored as a binary string (this could be improved, but remember that 4 state logic exists, and signals can be arbitrarily wide.) Now you might cringe at the idea of a flat array for this, but before coming to me with your whizbang idea of how to re-implement this, first consider how javascript implements large arrays under the hood! To assist in all of this, we also have an array called `chunkStart`. This is a lookup table of the start index of each time chunk so that we can slice the array as necessary to get the initial state and transitions of a particular chunk.
 
@@ -123,7 +128,7 @@ There are 2 main classes that handle the lifecycle of a document: `VaporviewDocu
 
 # Webview
 
-As you might imagine, a waveform viewer requires a lot of custom UI elements that do not con standard with VScode. Hence the webview. When designing the webview, I had the following priorities in mind:
+As you might imagine, a waveform viewer requires a lot of custom UI elements that do not come standard with VScode. Hence the webview. When designing the webview, I had the following priorities in mind:
 
 1. It needs to work
 2. It needs to look nice
@@ -148,7 +153,7 @@ The `scrollArea` is where most of the complexity lies, and will have it's own se
 
 As alluded to earlier in the data structures overview, the waveforms are rendered in chunks. In fact the entire `scrollArea` is rendered in chunks. Since it didn't make sense to store all of the rendered (svg versions) of the waveform data in memory for all zoom levels, I used [clusterize.js](https://clusterize.js.org/). What this essentially does, is allow you to have a lot of rows in a scrollable element without the need for the DOM to track all of them (because otherwise you get a really laggy page) It does this by dynamically swapping rows in and out and inserting dummy spacer elements on the top and bottom. Since it was designed for rows, I modified it to use columns instead. It also assumes that all of the content is stored in memory, so I modified it to dynamically build the element as it is rendered. It also has a weird way of discerning which chunk needs to be rendered. So I modified that to fit my needs. Then I removed all of the code that did all of the unnecissary safety checks that I wouldn't be needing for my specific application. Since it shared a lot of state variables with the main vaporview.js file, I moved the code into the main file, merged state variables, and callback syntax to be cleaner and more concise.
 
-As I got further along, I realized that Chromium limits scrollable elements to 16,777,216 pixels, which is (conveniently enough) the maximum integer size of a 32 bit floating point number. This is a problem when you have a large waveform and you zoom in really far. Chromium literally clips the element. So instead of using a scrollable element and inserting left and right spacer elements, I created a fake scrollbar that looks and acts just like a real one, and I ditched the spacer elements and calculate the `left:` property of the `contentArea` to behave as if it's inside a scrollable area. It still swaps columns in and out, but instead of calculating and inserting the spacer elements, it sets the `contentArea.style.left` property.
+As I got further along, I realized that Chromium limits scrollable elements to 16,777,216 pixels, which is (conveniently enough) the maximum integer size of a 32 bit floating point number. This is a problem when you have a large waveform and you zoom in really far. Chromium literally clips the element. So instead of using a scrollable element and inserting left and right spacer elements, I created a fake scrollbar that looks and acts just like a real one, ditched the spacer elements and calculate the `left:` property of the `contentArea` to behave as if it's inside a scrollable area. It still swaps columns in and out, but instead of calculating and inserting the spacer elements, it sets the `contentArea.style.left` property.
 
 At this point, it's down to about 45 lines of code (from originally 330 lines) and it's hardly recognizable. But I do want to give a shout out to Denis Lukov (the author) for his work that ultimately made this project possible.
 
@@ -197,6 +202,8 @@ The 4 functions are used to draw bus elements
 - `busElement()`
 - `parseValue()`
 - `valueIs4State()`
+
+I should also point out that both the single bit and multi bit renderers have a way of discerning when there are too many transitions in a given area, and does a lazy draw. Chunk rendering times didn't improve as much as I would have expected, but it greatly improves performance when scrolling! It turns out Chromium's rendering algorithms don't like having to process that many lines. I can now zoom in and out freely on waveform dumps with hundreds of thousands of value changes and draw them all on screen, and have it feel smooth. Chunk render times aren't bad either.
 
 ### Markers and other annotation
 

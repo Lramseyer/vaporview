@@ -23,6 +23,9 @@ world filehandler {
 	import fsread: func(fd: u32, offset: u64, length: u32) -> list<u8>;
 	import getsize: func(fd: u32) -> u64;
 
+	export createfilereader: func(fd: u32);
+	export newiterator: func();
+	export incrementiterator: func();
 	export test: func(fd: u32, offset: u64);
 	//export calc: func(o: operation) -> u32;
 }

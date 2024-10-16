@@ -137,7 +137,7 @@ Supports all the features you would expect including signal placing, rearranging
 
 New for 1.1.0 - Added large VCD file support. Contents of VCD files are statically loaded into memory, so the file size limit is configurable (or will be upon release.) If a file is too large, netlist will still be loaded.
 
-## Beyond 1.0
+## Planned Features
 
 In no particular order of priority, here's a list of features that are on my radar. If you have any preferences as to which should be priorized, or a suggestion that is not on this list, leave a comment on the [github discussions](https://github.com/Lramseyer/VaporView/discussions)!
 

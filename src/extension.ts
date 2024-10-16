@@ -81,33 +81,37 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     console.log(fd);
     await document.wasmApi.test(fd, BigInt(0));
 
+    await document.wasmApi.newiterator();
+    await document.wasmApi.incrementiterator();
+    await document.wasmApi.incrementiterator();
+
     if (fileType === 'vcd') {
 
-    await vscode.window.withProgress({
-      location: vscode.ProgressLocation.Notification,
-      title: "Parsing Netlist",
-      cancellable: false
-    }, async () => {
-      // Parse the VCD data for this specific file
-      await parseVcdNetlist(fd, netlistTreeDataProvider, netlistIdTable, document);
-      return Promise.resolve();
-    });
-
-    if (stats.size < MAX_FILESIZE_LOAD_SIGNALS) {
-      vscode.window.withProgress({
+      await vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
-        title: "Parsing Waveforms",
+        title: "Parsing Netlist",
         cancellable: false
-      }, async (progress) => {
-        await parseVcdWaveforms(fd, document, progress);
+      }, async () => {
+        // Parse the VCD data for this specific file
+        await parseVcdNetlist(fd, netlistTreeDataProvider, netlistIdTable, document);
         return Promise.resolve();
       });
-    } else {
-      vscode.window.showWarningMessage(
-        'File too large to load waveforms. Please select signals to load.\
-        You can edit the max file size in the settings.');
-      close(fd);
-    }
+
+      if (stats.size < MAX_FILESIZE_LOAD_SIGNALS) {
+        vscode.window.withProgress({
+          location: vscode.ProgressLocation.Notification,
+          title: "Parsing Waveforms",
+          cancellable: false
+        }, async (progress) => {
+          await parseVcdWaveforms(fd, document, progress);
+          return Promise.resolve();
+        });
+      } else {
+        vscode.window.showWarningMessage(
+          'File too large to load waveforms. Please select signals to load.\
+          You can edit the max file size in the settings.');
+        close(fd);
+      }
 
     } else if (fileType === 'fst') {
       parseFst(fd, netlistTreeDataProvider, netlistIdTable, document);

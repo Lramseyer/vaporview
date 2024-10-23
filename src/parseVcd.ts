@@ -68,7 +68,7 @@ function lz4BLockDecode(input: Buffer, output: Buffer, sIdx : number | undefined
 	return j;
 }
 
-import {NetlistIdRef, NetlistIdTable, NetlistItem, NetlistTreeDataProvider, VaporviewDocument, TransitionData} from './extension';
+import {NetlistIdRef, NetlistIdTable, NetlistItem, NetlistTreeDataProvider, VaporviewDocument, TransitionData, createScope, createVar} from './extension';
 import { endianness } from 'os';
 import { time } from 'console';
 import { buffer } from 'stream/consumers';
@@ -87,8 +87,10 @@ const intIcon   = new vscode.ThemeIcon('symbol-variable',  new vscode.ThemeColor
 const paramIcon = new vscode.ThemeIcon('settings',         new vscode.ThemeColor('charts.orange'));
 const realIcon  = new vscode.ThemeIcon('symbol-constant',  new vscode.ThemeColor('charts.purple'));
 
-export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: NetlistTreeDataProvider, netlistIdTable: NetlistIdTable, document: VaporviewDocument) {
 
+export async function parseVcdNetlist(fd: number, netlistIdTable: NetlistIdTable, document: VaporviewDocument) {
+  
+  type NetlistMode = 'none' | 'scope' | 'timescale';
   const read = promisify(fs.read);
   // Define a data structure to store the netlist items
   const netlistItems: NetlistItem[] = [];
@@ -97,7 +99,7 @@ export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: Netli
   let modulePathString = "";
   let currentScope:   NetlistItem | undefined;
   let currentSignal = "";
-  let currentMode: string | undefined = undefined;
+  let currentMode: NetlistMode = 'none';
 
   let fileOffset = 0;
   let leftover   = '';
@@ -139,22 +141,11 @@ export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: Netli
           const signalNameWithField = varData[4];
           const signalName          = signalNameWithField.split('[')[0];
           if (signalName !== currentSignal) {
-            const signalType          = varData[1];
-            const signalSize          = parseInt(varData[2], 10);
-            const signalID            = varData[3];
-            const netlistId           = nextNetlistId++;
-
-            // Create a NetlistItem for the signal and add it to the current scope
-            const signalItem = new NetlistItem(signalNameWithField, signalType, signalSize, signalID, netlistId, signalName, modulePathString, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked);
-
-            // Assign an icon to the signal based on its type
-            if ((signalType === 'wire') || (signalType === 'reg')) {
-              if (signalSize > 1) {signalItem.iconPath = regIcon;}
-              else                {signalItem.iconPath = wireIcon;}
-            }
-            else if (signalType === 'integer')   {signalItem.iconPath = intIcon;}
-            else if (signalType === 'parameter') {signalItem.iconPath = paramIcon;}
-            else if (signalType === 'real')      {signalItem.iconPath = realIcon;}
+            const signalType = varData[1];
+            const signalSize = parseInt(varData[2], 10);
+            const signalID   = varData[3];
+            const netlistId  = nextNetlistId++;
+            const signalItem = createVar(signalNameWithField, signalType, modulePathString, netlistId, signalID, signalSize);
 
             currentScope.children.push(signalItem);
             netlistIdTable[netlistId] = {netlistItem: signalItem, displayedItem: undefined, signalId: signalID};
@@ -170,12 +161,7 @@ export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: Netli
         const scopeData = cleanedLine.split(/\s+/);
         const scopeType = scopeData[1];
         const scopeName = scopeData[2];
-        let icon        = defaultIcon;
-        if      (scopeType === 'module') {icon = moduleIcon;} 
-        else if (scopeType === 'function') {icon = funcIcon;}
-        const netlistId   = 0;
-        const newScope    = new NetlistItem(scopeName, 'module', 0, '', netlistId, '', modulePathString, [], vscode.TreeItemCollapsibleState.Collapsed);
-        newScope.iconPath = icon;
+        const newScope  = createScope(scopeName, scopeType, modulePathString, 0);
         modulePath.push(scopeName);
         modulePathString = modulePath.join(".");
         if (currentScope) {
@@ -197,7 +183,7 @@ export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: Netli
       } else if (cleanedLine.startsWith('$timescale')) {
         currentMode = 'timescale';
       } else if (cleanedLine.startsWith('$end')) {
-        currentMode = undefined;
+        currentMode = 'none';
       } else if (cleanedLine.startsWith('#') || cleanedLine.startsWith('$dumpvars')) {
         timeZeroOffset = byteOffset;
         fileOffset     = totalSize;
@@ -219,16 +205,14 @@ export async function parseVcdNetlist(fd: number, netlistTreeDataProvider: Netli
   metadata.netlistIdCount       = netlistIdCount;
   metadata.signalIdCount        = document.netlistElements.size;
 
-  // Update the Netlist view with the parsed netlist data
-  netlistTreeDataProvider.setTreeData(netlistItems);
-
   // debug
   console.log("Module count: " + moduleCount);
   console.log("Signal count: " + netlistIdCount);
-  await read(fd, buffer, 0, 256, timeZeroOffset);
+  //await read(fd, buffer, 0, 256, timeZeroOffset);
   //console.log(buffer.toString('ascii', 0, 256));
   //console.log(netlistIdTable);
 
+  return netlistItems;
 }
 
 export async function parseVcdWaveforms(fd: number, document: VaporviewDocument, progress: vscode.Progress<{ message?: string; increment?: number; }>) {
@@ -242,20 +226,20 @@ export async function parseVcdWaveforms(fd: number, document: VaporviewDocument,
   let initialState: number | string;
   const signalValues: Map<string, number | string> = new Map(); // Map to track signal values
 
-  const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB
-  const buffer     = Buffer.alloc(CHUNK_SIZE);
-  const metadata   = document.metadata;
-  const totalSize  = metadata.fileSize;
-  const timeZeroOffset = metadata.waveformsStartOffset;
-  const waveformsSize  = totalSize - timeZeroOffset;
+  const CHUNK_SIZE       = 4 * 1024 * 1024; // 4MB
+  const buffer           = Buffer.alloc(CHUNK_SIZE);
+  const metadata         = document.metadata;
+  const totalSize        = metadata.fileSize;
+  const timeZeroOffset   = metadata.waveformsStartOffset;
+  const waveformsSize    = totalSize - timeZeroOffset;
   const waveformsSizeStr = Math.round(waveformsSize / 1048576).toString() + " MB";
 
-  let fileOffset  = timeZeroOffset;
+  let fileOffset    = timeZeroOffset;
   let fileOffsetStr = "";
-  let byteOffset  = fileOffset;
-  let leftover    = '';
-  let lineNum     = 0;
-  let netProgress = 0;
+  let byteOffset    = fileOffset;
+  let leftover      = '';
+  let lineNum       = 0;
+  let netProgress   = 0;
 
   //console.log("Parsing VCD data. File contains " + lineCount + " lines.");
 

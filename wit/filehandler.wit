@@ -18,58 +18,33 @@ package vscode:example;
 
 interface types {
 
-  enum scopetype {
-    module,
-    task,
-    function,
-    begin,
-    fork,
-    generate,
-    struct,
-    union,
-    class,
-    interfac,
-    packag,
-    program,
-    vhdlarchitecture,
-    vhdlprocedure,
-    vhdlfunction,
-    vhdlrecord,
-    vhdlprocess,
-    vhdlblock,
-    vhdlforgenerate,
-    vhdlifgenerate,
-    vhdlgenerate,
-    vhdlpackage,
-    ghwgeneric,
-    vhdlarray,
-  }
-
   record scopeitem {
     name: string,
     id: string,
-    tpe: scopetype
+    tpe: string
   }
 }
 
 world filehandler {
 	//use types.{ operation };
-	use types.{scopetype, scopeitem };
+	use types.{scopeitem };
 
 	import log: func(msg: string);
 	import fsread: func(fd: u32, offset: u64, length: u32) -> list<u8>;
 	import getsize: func(fd: u32) -> u64;
-	import setscopetop: func(name: string, id: string, tpe: scopetype);
+	import setscopetop: func(name: string, id: string, tpe: string);
+  import setchunksize: func(chunksize: u64, timeend: u64);
 
 	export createfilereader: func(fd: u32);
 	export newiterator: func();
 	export incrementiterator: func();
 	export test: func(fd: u32, offset: u64);
 	export loadfst: func(size: u32, fd: u32);
-  //export readbody: func();
+  export readbody: func();
 
   // wit2ts seems to have issues returning lists of custom types
   // so we will convert to JSON string
   export getchildren: func(path: string) -> string;
+  export getsignaldata: func(signaid: u32) -> string;
 	//export calc: func(o: operation) -> u32;
 }

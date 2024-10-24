@@ -149,6 +149,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
 
       await document.wasmApi.loadfst(stats.size, fd);
       document.externalNetlist = true;
+      await document.wasmApi.readbody(fd);
 
       //parseFst(fd, netlistIdTable, document);
 
@@ -195,9 +196,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
 
   public readonly service: filehandler.Imports.Promisified = {
 
-    log: (msg: string) => {
-      console.log(msg);
-    },
+    log: (msg: string) => {console.log(msg);},
     fsread: (fd: number, offset: bigint, length: number): Uint8Array => {
 
       const filebuffer = Buffer.alloc(length);
@@ -209,7 +208,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       const stats = fs.fstatSync(fd);
       return BigInt(stats.size);
     },
-    setscopetop: (name: string, id: string, tpe: filehandler.Scopetype) => {
+    setscopetop: (name: string, id: string, tpe: string) => {
 
       console.log(name);
       console.log(id);
@@ -217,6 +216,14 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
 
       const scope = createScope(name, tpe, "", 0);
       this.treeData.push(scope);
+    },
+    setchunksize: (chunksize: bigint, timeend: bigint) => {
+      this.setChunkSize(Number(chunksize));
+      this.metadata.timeEnd = Number(timeend) + 1;
+      this.metadata.chunkCount = Math.ceil(this.metadata.timeEnd / this.metadata.chunkTime);
+      this.metadata.timeTableLoaded = true;
+      this.metadata.waveformsLoaded = false;
+      this.onDoneParsingWaveforms();
     }
   };
 
@@ -302,6 +309,12 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     
     this.metadata.chunkCount = Math.ceil(this.metadata.timeEnd / this.metadata.chunkTime);
     this.metadata.timeTableLoaded = true;
+  }
+
+  public sendTransitionDataToWebview(signalId: SignalId) {
+    this.webviewPanel?.webview.postMessage({
+
+    });
   }
 
   public createSignalWaveform(signalId: SignalId, width: number) {
@@ -720,6 +733,10 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
           this.updateStatusBarItems(document);
           break;
         }
+        case 'fetchTransitionData': {
+          document.sendTransitionDataToWebview(e.signalId);
+          break;
+        }
         case 'copyWaveDrom': {
           if (e.maxTransitionsFlag) {
             vscode.window.showWarningMessage('The number of transitions exceeds the maximum limit of ' + e.maxTransitions);
@@ -792,6 +809,8 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     // Subscribe to the checkbox state change event
     this.netlistView.onDidChangeCheckboxState((changedItem) => {
 
+      console.log('onDidChangeCheckboxState()');
+
       //console.log(this.netlistView);
       const metadata = changedItem.items[0][0];
 
@@ -805,6 +824,8 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       const signalId   = metadata.signalId;
       const netlistId  = metadata.netlistId;
 
+      console.log(metadata);
+
       // If the item is a parent node, uncheck it
       if (metadata.collapsibleState !== vscode.TreeItemCollapsibleState.None) {
         this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Unchecked);
@@ -812,7 +833,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       }
 
       if (metadata.checkboxState === vscode.TreeItemCheckboxState.Checked) {
-        this.renderSignal(document, webviewPanel, signalId, netlistId);
+        this.renderSignal(document, webviewPanel, metadata);
         this.displayedSignalsTreeDataProvider.addSignalToTreeData(metadata);
         document.setNetlistIdTable(netlistId, metadata);
       } else if (metadata.checkboxState === vscode.TreeItemCheckboxState.Unchecked) {
@@ -967,39 +988,40 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     const signalId   = metadata.signalId;
 
     this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Checked);
-    this.renderSignal(document, panel, signalId, netlistId);
+    this.renderSignal(document, panel, metadata);
     this.displayedSignalsTreeDataProvider.addSignalToTreeData(metadata);
     document.setNetlistIdTable(netlistId, metadata);
   }
 
-  private async renderSignal(document: VaporviewDocument, panel: vscode.WebviewPanel, signalId: SignalId, netlistId: NetlistId) {
+  private async renderSignal(document: VaporviewDocument, panel: vscode.WebviewPanel, metadata: NetlistItem) {
     // Render the signal with the provided ID
-    const netlistIdTable = document.netlistIdTable;
-    if (!netlistIdTable) {return;}
-    const netlistItem   = netlistIdTable[netlistId]?.netlistItem;
-    if (!netlistItem) {return;}
 
-    const name         = netlistItem.name;
-    const modulePath   = netlistItem.modulePath;
-    const numberFormat = netlistItem.numberFormat;
+    console.log('renderSignal()');
+
+    const signalId = metadata.signalId;
+    let signalData;
 
     if (!document.metadata.waveformsLoaded) {
       console.log('Waveforms not loaded... fetching transition data');
-      console.log("Netlist ID: " + netlistId);
+      //console.log("Netlist ID: " + netlistId);
       console.log("Signal ID: " + signalId);
-      await loadTransitionData(parseInt(signalId), document);
+      //await loadTransitionData(parseInt(signalId), document);
+      const signalDataString = await document.wasmApi.getsignaldata(parseInt(signalId));
+      signalData = JSON.parse(signalDataString);
+    } else {
+      signalData = document.netlistElements.get(signalId)?.transitionData;
+      console.log(signalData);
     }
 
-    const signalData   = document.netlistElements.get(signalId);
-
     panel.webview.postMessage({ 
-      command: 'render-signal',
-      netlistId: netlistId,
-      signalId: signalId,
-      waveformData: signalData,
-      signalName: name,
-      modulePath: modulePath,
-      numberFormat: numberFormat
+      command: 'render-var',
+      netlistId:  metadata.netlistId,
+      signalId:   metadata.signalId,
+      transitionData: signalData,
+      signalWidth: metadata.width,
+      signalName: metadata.name,
+      modulePath: metadata.modulePath,
+      numberFormat: metadata.numberFormat
    });
   }
 
@@ -1042,7 +1064,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       const signalId   = metadata.signalId;
       const netlistId  = metadata.netlistId;
       this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Checked);
-      this.renderSignal(document, panel, signalId, netlistId);
+      this.renderSignal(document, panel, metadata);
       this.displayedSignalsTreeDataProvider.addSignalToTreeData(metadata);
       document.setNetlistIdTable(netlistId, metadata);
     });
@@ -1362,7 +1384,7 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
         result.push(createScope(child.name, child.type, modulePath, child.id));
       });
       childItems.vars.forEach((child: any) => {
-        result.push(createVar(child.name, child.type, modulePath, child.id, child.id, child.width));
+        result.push(createVar(child.name, child.type, modulePath, child.netlistId, child.signalId, child.width));
       });
 
       element.children = result;

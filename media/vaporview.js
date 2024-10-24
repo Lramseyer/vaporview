@@ -1273,6 +1273,7 @@ goToNextTransition = function (direction, edge) {
   maxZoomRatio        = 64;
   chunksInColumn      = 1;
   columnTime          = chunkTime * chunksInColumn;
+  timeStop            = 0;
 
   // Clusterize variables
   updatePending       = false;
@@ -2154,6 +2155,7 @@ goToNextTransition = function (direction, edge) {
         maxZoomRatio      = zoomRatio * 64;
         chunkWidth        = chunkTime * zoomRatio;
         chunkCount        = Math.ceil(waveformDataSet.timeEnd / waveformDataSet.chunkTime);
+        timeStop          = waveformDataSet.timeEnd;
         dataCache.columns = new Array(chunkCount);
 
         updatePending = true;
@@ -2163,20 +2165,41 @@ goToNextTransition = function (direction, edge) {
 
         break;
       }
-      case 'render-signal': {
+      case 'render-var': {
         // Handle rendering a signal, e.g., render the signal based on message content
 
         //console.log(message);
 
         let signalId       = message.signalId;
         let netlistId      = message.netlistId;
-        let _waveformData   = message.waveformData;
-        let transitionData = _waveformData.transitionData;
         let numberFormat   = message.numberFormat;
-
+        let signalWidth    = message.signalWidth;
         displayedSignals.push(netlistId);
-        waveformData[signalId] = _waveformData;
-        waveformData[signalId].textWidth  = getValueTextWidth(_waveformData.signalWidth, numberFormat);
+
+        netlistData[netlistId] = {
+          signalId:     signalId,
+          signalWidth:  message.signalWidth,
+          signalName:   message.signalName,
+          modulePath:   message.modulePath,
+          numberFormat: message.numberFormat,
+        };
+        netlistData[netlistId].vscodeContext = setSignalContextAttribute(netlistId);
+
+
+        let transitionData = message.transitionData;
+        let nullValue = "X".repeat(signalWidth);
+
+        if (transitionData[0][0] !== 0) {
+          transitionData.unshift([0, nullValue]);
+        }
+        if (transitionData[transitionData.length - 1][0] !== timeStop) {
+          transitionData.push([timeStop, nullValue]);
+        }
+        waveformData[signalId] = {
+          transitionData: transitionData,
+          signalWidth:    message.signalWidth,
+          textWidth:      getValueTextWidth(message.signalWidth, numberFormat),
+        };
 
         // Create ChunkStart array
         waveformData[signalId].chunkStart = new Array(chunkCount).fill(transitionData.length);
@@ -2188,16 +2211,6 @@ goToNextTransition = function (direction, edge) {
           }
         }
         waveformData[signalId].chunkStart[0] = 1;
-
-        netlistData[netlistId] = {
-          signalId:     signalId,
-          signalWidth:  _waveformData.signalWidth,
-          signalName:   message.signalName,
-          modulePath:   message.modulePath,
-          numberFormat: message.numberFormat,
-        };
-
-        netlistData[netlistId].vscodeContext = setSignalContextAttribute(netlistId);
 
         updateWaveformInCache([message.netlistId]);
         renderLabelsPanels();

@@ -2165,7 +2165,7 @@ goToNextTransition = function (direction, edge) {
 
         break;
       }
-      case 'render-var': {
+      case 'add-variable': {
         // Handle rendering a signal, e.g., render the signal based on message content
 
         //console.log(message);
@@ -2184,7 +2184,6 @@ goToNextTransition = function (direction, edge) {
           numberFormat: message.numberFormat,
         };
         netlistData[netlistId].vscodeContext = setSignalContextAttribute(netlistId);
-
 
         let transitionData = message.transitionData;
         let nullValue = "X".repeat(signalWidth);
@@ -2219,6 +2218,12 @@ goToNextTransition = function (direction, edge) {
         updateContentArea(leftOffset, getBlockNum());
         contentArea.style.height = (40 + (28 * displayedSignals.length)) + "px";
         handleSignalSelect(netlistId);
+
+        break;
+      }
+      case 'update-waveform': {
+        let signalId = message.signalId;
+        
 
         break;
       }

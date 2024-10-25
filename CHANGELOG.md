@@ -1,5 +1,20 @@
 # Change Log
 
+# Next release (Version TBD)
+
+- Removed checkboxes for scope \[module\] items in netlist viewer to reduce confusion
+- File parsing uses the [wellen](https://github.com/ekiwi/wellen/tree/new-api) library compiled to wasm. Benefits include:
+  - FST and GHW file support
+  - Improves file parsing speed
+  - Improves memory efficiency (over storing everything in JS objects)
+
+# 1.1.0
+
+- Implemented fs.read() so that files of any size can be loaded. Maximum file size can be configured as a user setting
+- Show Netlist as soon as it is done being parsed, and progress bar for waveform data
+- Improve Performance of single bit renderer (which should finally remove all slowdowns when zoomed out on large waveforms)
+- Many under the hood updates
+
 ## 1.0.1
 
 - Improved performance of multi bit renderer
@@ -8,7 +23,7 @@
 
 # 1.0.0
 
-- Small documentation updatesin preparation for marketplace release
+- Small documentation updates in preparation for marketplace release
 - Commented out debug statements
 
 ## 0.9.8

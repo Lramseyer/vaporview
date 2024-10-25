@@ -323,9 +323,9 @@ export async function parseVcdWaveforms(fd: number, document: VaporviewDocument,
 
   close(fd);
 
-  document.metadata.timeEnd = currentTimestamp + 1;
   let minTimeStemp = 9999999;
   const eventCount = document.timeChain.length;
+  document.metadata.timeEnd = currentTimestamp + Math.ceil(currentTimestamp / eventCount);
   console.log("Event count: " + eventCount);
   if (eventCount <= 128) {
     minTimeStemp = document.timeChain[eventCount - 1];

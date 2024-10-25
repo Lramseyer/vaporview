@@ -24,7 +24,7 @@
     "vscode": "^1.89.0"
   },
   "main": "./out/extension",
-  "browser": "./dist/web/extension",
+  "browser": "./out/extension",
   "activationEvents": [],
   "contributes": {
     "viewsContainers": {

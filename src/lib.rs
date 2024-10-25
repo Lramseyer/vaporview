@@ -179,7 +179,9 @@ impl Guest for Filecontext {
     let time_table = global_time_table.as_ref().unwrap();
     let mut min_timestamp = 9999999;
     let event_count = time_table.len();
-    let time_end = time_table[time_table.len() - 1];
+    let time_table_length = time_table.len(); 
+    let time_end = time_table[time_table_length - 1];
+    let time_end_extend = time_end + (time_end as f32 / time_table_length as f32).ceil() as u64;
     log(&format!("Event count: {:?}", event_count));
     if event_count <= 128 {
       min_timestamp = time_table[event_count - 1];
@@ -191,11 +193,13 @@ impl Guest for Filecontext {
     }
     log(&format!("Setting chunk size to: {:?}", min_timestamp));
 
-    setchunksize(min_timestamp, time_end);
+    setchunksize(min_timestamp, time_end_extend);
   }
 
   // returns a JSON string of the children of the given path
-  fn getchildren(path: String) -> String {
+  // Since WASM is limited to 64K memory, we need to limit the return size
+  // and allow the function to be called multiple times to get all the data
+  fn getchildren(path: String, startindex: u32) -> String {
     log(&format!("Getting scopes for path: {:?}", path));
 
     let global_hierarchy = _hierarchy.lock().unwrap();
@@ -211,35 +215,61 @@ impl Guest for Filecontext {
       None => {log(&format!("No scopes found")); return "{\"scopes\": [], \"vars\": []}".to_string();}
     }
 
-    let child_scopes = parent_scope.scopes(&hierarchy);
+    let max_return_length = 65000;
+    let mut result = String::from("{\"scopes\": [");
+    let mut index = 0;
+    let mut return_length = result.len() as u32;
     let mut child_scopes_string: Vec<String> = Vec::new();
+    let mut items_returned = 0;
+    let child_scopes = parent_scope.scopes(&hierarchy);
+    let mut total_scopes = 0;
+
     for s in child_scopes {
+      total_scopes += 1;
+      if (index < startindex) || (return_length > max_return_length) {index+=1; continue;}
+      index+=1;
+
       let scope = hierarchy.get(s);
       let name = scope.name(&hierarchy).to_string();
       let id = format!("{:?}", s);
       let tpe = format!("{:?}", scope.scope_type());
-      let scope_string = format!("{{\"name\": {:?}, \"id\": {:?}, \"type\": {:?}}}", name, id, tpe);
+      let scope_string = format!("{{\"name\": {:?},\"id\": {:?},\"type\": {:?}}}", name, id, tpe);
+      
+      items_returned += 1;
+      return_length += (scope_string.len() as u32) + 1;
       child_scopes_string.push(scope_string);
     }
 
+    result.push_str(&child_scopes_string.join(","));
+    result.push_str("], \"vars\": [");
+
     let child_vars = parent_scope.vars(&hierarchy);
     let mut child_vars_string: Vec<String> = Vec::new();
+    let mut total_vars = 0;
+
     for v in child_vars {
+      total_vars += 1;
+      if (index < startindex) || (return_length > max_return_length) {index+=1; continue;}
+      index+=1;
+
       let var = hierarchy.get(v);
       let name = var.name(&hierarchy).to_string();
       let id = format!("{:?}", v);
       let tpe = format!("{:?}", var.var_type());
       let width = var.length().unwrap_or(0);
       let signal_ref = var.signal_ref().index();
-      let var_string = format!("{{\"name\": {:?}, \"netlistId\": {:?}, \"signalId\": {:?}, \"type\": {:?}, \"width\": {:?}}}", name, id, signal_ref, tpe, width);
+      let var_string = format!("{{\"name\": {:?},\"netlistId\": {:?},\"signalId\": {:?},\"type\": {:?},\"width\": {:?}}}", name, id, signal_ref, tpe, width);
+      
+      items_returned += 1;
+      return_length += (var_string.len() as u32) + 1;
       child_vars_string.push(var_string);
     }
 
-    let mut result = String::from("{\"scopes\": [");
-    result.push_str(&child_scopes_string.join(","));
-    result.push_str("], \"vars\": [");
+    let total_items = total_scopes + total_vars;
+    let remaining_items = total_items - (items_returned + startindex);
+
     result.push_str(&child_vars_string.join(","));
-    result.push_str("]}");
+    result.push_str(format!("],\"totalReturned\": {:?},\"remainingItems\": {:?}}}", items_returned, remaining_items).as_str());
     result
   }
 
@@ -295,7 +325,7 @@ impl Guest for Filecontext {
     log(&format!("Signal Data Orgainzed!"));
 
     // set last character to "]" to close the array
-    if (result.len() > 1) {result.pop();}
+    if result.len() > 1 {result.pop();}
     result.push_str("]");
     if result.len() > 65000 {
       log(&format!("Signal Data Too Large : {:?}", result.len()));

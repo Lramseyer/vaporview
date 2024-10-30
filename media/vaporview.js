@@ -302,14 +302,14 @@ polylinePathFromTransitionData = function (transitionData, initialState, postSta
   var xzAccumulatedPath = "";
 
   if (valueIs4State(initialValue)) {
-    xzAccumulatedPath = "-1,0 -1,1 ";
+    xzAccumulatedPath = "0,0 0,1 ";
     initialValue2state = 0;
   }
-  var accumulatedPath    = ["-1," + initialValue2state];
+  var accumulatedPath    = ["0," + initialValue2state];
 
   let value2state    = 0;
   // No Draw Code
-  let lastDrawTime   = -1;
+  let lastDrawTime   = 0;
   let lastNoDrawTime = null;
   let noDrawFlag     = false;
   var noDrawPath     = [];
@@ -437,6 +437,12 @@ renderWaveformChunk = function (netlistId, chunkStartIndex) {
   var result         = {};
   const signalId     = netlistData[netlistId].signalId;
   const data         = waveformData[signalId];
+
+  if (!data) {
+    const vscodeContext = netlistData[netlistId].vscodeContext;
+    return {html: `<div class="waveform-chunk" id="idx${chunkStartIndex}-${chunksInColumn}--${netlistId}" ${vscodeContext}></div>`};
+  }
+
   const timeStart    = chunkStartIndex * chunkTime;
   const timeEnd      = timeStart + columnTime;
   const width        = data.signalWidth;
@@ -1053,17 +1059,21 @@ getNearestTransitionIndex = function (signalId, time) {
 
 getValueAtTime = function (signalId, time) {
 
-  let result            = [];
-  const data            = waveformData[signalId].transitionData;
+  let result = [];
+  const data = waveformData[signalId];
+
+  if (!data) {return result;}
+
+  const transitionData  = data.transitionData;
   const transitionIndex = getNearestTransitionIndex(signalId, time);
 
   if (transitionIndex === -1) {return result;}
   if (transitionIndex > 0) {
-    result.push(data[transitionIndex - 1][1]);
+    result.push(transitionData[transitionIndex - 1][1]);
   }
 
-  if (data[transitionIndex][0] === time) {
-    result.push(data[transitionIndex][1]);
+  if (transitionData[transitionIndex][0] === time) {
+    result.push(transitionData[transitionIndex][1]);
   }
 
   return result;
@@ -1313,6 +1323,7 @@ goToNextTransition = function (direction, edge) {
   displayedSignals    = [];
   waveformData        = {};
   netlistData         = {};
+  waveformDataTemp    = {};
   dataCache           = {
     startIndex:     0,
     endIndex:       0,
@@ -1382,11 +1393,14 @@ goToNextTransition = function (direction, edge) {
     displayedSignals.forEach((netlistId, index) => {
       const signalId     = netlistData[netlistId].signalId;
       const numberFormat = netlistData[netlistId].numberFormat;
+      const signalWidth  = netlistData[netlistId].signalWidth;
       let data           = waveformData[signalId];
-      data.textWidth     = getValueTextWidth(data.signalWidth, numberFormat);
       const isSelected   = (index === selectedSignalIndex);
       labelsList.push(createLabel(netlistId, isSelected));
       transitions.push(createValueDisplayElement(netlistId, dataCache.valueAtMarker[signalId], isSelected));
+      if (data) {
+        data.textWidth   = getValueTextWidth(signalWidth, numberFormat);
+      }
     });
     labels.innerHTML            = labelsList.join('');
     transitionDisplay.innerHTML = transitions.join('');
@@ -2185,7 +2199,46 @@ goToNextTransition = function (direction, edge) {
         };
         netlistData[netlistId].vscodeContext = setSignalContextAttribute(netlistId);
 
+        if (waveformData[signalId]) {
+
+          console.log('signal already exists');
+
+          updateWaveformInCache([message.netlistId]);
+          renderLabelsPanels();
+
+          updatePending  = true;
+          updateContentArea(leftOffset, getBlockNum());
+          contentArea.style.height = (40 + (28 * displayedSignals.length)) + "px";
+          handleSignalSelect(netlistId);
+        } else if (waveformDataTemp[signalId]) {
+          console.log('signal data is being fetched');
+        } else {
+
+          waveformDataTemp[signalId] = {
+            netlistId: netlistId,
+            totalChunks: 0
+          };
+
+          console.log('signal data not found, fetching data');
+
+          vscode.postMessage({
+            command: 'fetchTransitionData',
+            signalId: signalId,
+            netlistId: netlistId,
+          });
+
+          updateWaveformInCache([netlistId]);
+          renderLabelsPanels();
+        }
+
+        break;
+      }
+      case 'update-waveform': {
+        let signalId = message.signalId;
+        let netlistId = message.netlistId;
         let transitionData = message.transitionData;
+        let signalWidth = netlistData[netlistId].signalWidth;
+        let numberFormat = netlistData[netlistId].numberFormat;
         let nullValue = "X".repeat(signalWidth);
 
         if (transitionData[0][0] !== 0) {
@@ -2196,8 +2249,67 @@ goToNextTransition = function (direction, edge) {
         }
         waveformData[signalId] = {
           transitionData: transitionData,
-          signalWidth:    message.signalWidth,
-          textWidth:      getValueTextWidth(message.signalWidth, numberFormat),
+          signalWidth:    signalWidth,
+          textWidth:      getValueTextWidth(signalWidth, numberFormat),
+        };
+
+        // Create ChunkStart array
+        waveformData[signalId].chunkStart = new Array(chunkCount).fill(transitionData.length);
+        let chunkIndex = 0;
+        for (let i = 0; i < transitionData.length; i++) {
+          while (transitionData[i][0] >= chunkTime * chunkIndex) {
+            waveformData[signalId].chunkStart[chunkIndex] = i;
+            chunkIndex++;
+          }
+        }
+        waveformData[signalId].chunkStart[0] = 1;
+        waveformDataTemp[signalId] = undefined;
+
+        updateWaveformInCache([netlistId]);
+        renderLabelsPanels();
+
+        updatePending  = true;
+        updateContentArea(leftOffset, getBlockNum());
+        contentArea.style.height = (40 + (28 * displayedSignals.length)) + "px";
+        handleSignalSelect(netlistId);
+
+        break;
+      }
+      case 'update-waveform-chunk': {
+
+        let signalId = message.signalId;
+        if (waveformDataTemp[signalId].totalChunks === 0) {
+          waveformDataTemp[signalId].totalChunks = message.totalChunks;
+          waveformDataTemp[signalId].chunkLoaded = new Array(message.totalChunks).fill(false);
+          waveformDataTemp[signalId].chunkData   = new Array(message.totalChunks).fill("");
+        }
+
+        waveformDataTemp[signalId].chunkData[message.chunkNum]   = message.transitionDataChunk;
+        waveformDataTemp[signalId].chunkLoaded[message.chunkNum] = true;
+        allChunksLoaded = waveformDataTemp[signalId].chunkLoaded.every((chunk) => {return chunk;});
+
+        if (!allChunksLoaded) {break;}
+
+        console.log('all chunks loaded');
+
+        let transitionData = JSON.parse(waveformDataTemp[signalId].chunkData.join(""));
+
+        let netlistId = waveformDataTemp[signalId].netlistId;
+        if (!netlistId) {console.log('netlistId not found for signalId ' + signalId); break;}
+        let signalWidth = netlistData[netlistId].signalWidth;
+        let numberFormat = netlistData[netlistId].numberFormat;
+        let nullValue = "X".repeat(signalWidth);
+
+        if (transitionData[0][0] !== 0) {
+          transitionData.unshift([0, nullValue]);
+        }
+        if (transitionData[transitionData.length - 1][0] !== timeStop) {
+          transitionData.push([timeStop, nullValue]);
+        }
+        waveformData[signalId] = {
+          transitionData: transitionData,
+          signalWidth:    signalWidth,
+          textWidth:      getValueTextWidth(signalWidth, numberFormat),
         };
 
         // Create ChunkStart array
@@ -2211,19 +2323,15 @@ goToNextTransition = function (direction, edge) {
         }
         waveformData[signalId].chunkStart[0] = 1;
 
-        updateWaveformInCache([message.netlistId]);
+        waveformDataTemp[signalId] = undefined;
+
+        updateWaveformInCache([netlistId]);
         renderLabelsPanels();
 
         updatePending  = true;
         updateContentArea(leftOffset, getBlockNum());
         contentArea.style.height = (40 + (28 * displayedSignals.length)) + "px";
         handleSignalSelect(netlistId);
-
-        break;
-      }
-      case 'update-waveform': {
-        let signalId = message.signalId;
-        
 
         break;
       }
@@ -2253,7 +2361,7 @@ goToNextTransition = function (direction, edge) {
           }
         }
 
-      break;
+        break;
       }
       case 'setNumberFormat': {
 

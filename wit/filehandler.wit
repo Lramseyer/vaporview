@@ -34,6 +34,7 @@ world filehandler {
 	import getsize: func(fd: u32) -> u64;
 	import setscopetop: func(name: string, id: string, tpe: string);
   import setchunksize: func(chunksize: u64, timeend: u64);
+	import sendtransitiondatachunk: func(signalid: u32, totalchunks: u32, chunknum: u32, data: string);
 
 	export createfilereader: func(fd: u32);
 	export newiterator: func();
@@ -45,6 +46,6 @@ world filehandler {
   // wit2ts seems to have issues returning lists of custom types
   // so we will convert to JSON string
   export getchildren: func(path: string, startindex: u32) -> string;
-  export getsignaldata: func(signaid: u32) -> string;
+  export getsignaldata: func(signaid: u32);
 	//export calc: func(o: operation) -> u32;
 }

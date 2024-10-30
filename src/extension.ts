@@ -11,7 +11,7 @@ import { filehandler } from './filehandler';
 
 const wasmDebug = 'debug';
 const wasmRelease = 'release';
-const wasmBuild = wasmDebug;
+const wasmBuild = wasmRelease;
 
 interface VaporviewDocumentDelegate {
   getViewerContext(): Promise<Uint8Array>;
@@ -112,14 +112,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     const fd       = await open(uri.fsPath, 'r');
     document.metadata.fileName = uri.fsPath;
     document.metadata.fileSize = stats.size;
-
-    // Wasm test functions
-    //await document.wasmApi.calc(Types.Operation.Add({ left: 1, right: 2}));
-    console.log(fd);
-    await document.wasmApi.test(fd, BigInt(0));
-    await document.wasmApi.newiterator();
-    await document.wasmApi.incrementiterator();
-    await document.wasmApi.incrementiterator();
 
     if (fileType === 'vcd') {
 
@@ -227,6 +219,16 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       this.metadata.timeTableLoaded = true;
       this.metadata.waveformsLoaded = false;
       this.onDoneParsingWaveforms();
+    },
+    sendtransitiondatachunk: (signalid: number, totalchunks: number, chunknum: number, transitionData: string) => {
+
+      this.webviewPanel?.webview.postMessage({
+        command: 'update-waveform-chunk',
+        signalId: signalid,
+        transitionDataChunk: transitionData,
+        totalChunks: totalchunks,
+        chunkNum: chunknum
+      });
     }
   };
 
@@ -314,10 +316,51 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this.metadata.timeTableLoaded = true;
   }
 
-  public sendTransitionDataToWebview(signalId: SignalId) {
-    this.webviewPanel?.webview.postMessage({
+  public async sendTransitionDataToWebviewOld(signalId: SignalId, netlistId: NetlistId) {
 
+    let signalData;
+
+    if (!this.metadata.waveformsLoaded) {
+      console.log('Waveforms not loaded... fetching transition data');
+      //console.log("Netlist ID: " + netlistId);
+      console.log("Signal ID: " + signalId);
+      //await loadTransitionData(parseInt(signalId), document);
+      const signalDataString = await this.wasmApi.getsignaldata(parseInt(signalId));
+      signalData = JSON.parse(signalDataString);
+    } else {
+      signalData = this.netlistElements.get(signalId)?.transitionData;
+    }
+
+    this.webviewPanel?.webview.postMessage({
+      command: 'update-waveform',
+      signalId: signalId,
+      netlistId: netlistId,
+      transitionData: signalData
     });
+  }
+
+  public async sendTransitionDataToWebview(signalId: SignalId, netlistId: NetlistId) {
+
+    let signalData;
+
+    if (!this.metadata.waveformsLoaded) {
+      console.log('Waveforms not loaded... fetching transition data');
+      //console.log("Netlist ID: " + netlistId);
+      console.log("Signal ID: " + signalId);
+      //await loadTransitionData(parseInt(signalId), document);
+      await this.wasmApi.getsignaldata(parseInt(signalId));
+    } else {
+      signalData = this.netlistElements.get(signalId)?.transitionData;
+
+      this.webviewPanel?.webview.postMessage({
+        command: 'update-waveform',
+        signalId: signalId,
+        netlistId: netlistId,
+        transitionData: signalData
+      });
+    }
+
+
   }
 
   public createSignalWaveform(signalId: SignalId, width: number) {
@@ -737,7 +780,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
           break;
         }
         case 'fetchTransitionData': {
-          document.sendTransitionDataToWebview(e.signalId);
+          document.sendTransitionDataToWebview(e.signalId, e.netlistId);
           break;
         }
         case 'copyWaveDrom': {
@@ -1001,26 +1044,10 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 
     console.log('renderSignal()');
 
-    const signalId = metadata.signalId;
-    let signalData;
-
-    if (!document.metadata.waveformsLoaded) {
-      console.log('Waveforms not loaded... fetching transition data');
-      //console.log("Netlist ID: " + netlistId);
-      console.log("Signal ID: " + signalId);
-      //await loadTransitionData(parseInt(signalId), document);
-      const signalDataString = await document.wasmApi.getsignaldata(parseInt(signalId));
-      signalData = JSON.parse(signalDataString);
-    } else {
-      signalData = document.netlistElements.get(signalId)?.transitionData;
-      console.log(signalData);
-    }
-
     panel.webview.postMessage({ 
       command: 'add-variable',
       netlistId:  metadata.netlistId,
       signalId:   metadata.signalId,
-      transitionData: signalData,
       signalWidth: metadata.width,
       signalName: metadata.name,
       modulePath: metadata.modulePath,

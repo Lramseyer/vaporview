@@ -273,7 +273,7 @@ impl Guest for Filecontext {
     result
   }
 
-  fn getsignaldata(signalid: u32) -> String {
+  fn getsignaldata(signalid: u32) {
     log(&format!("Getting signal data for signal: {:?}", signalid));
     let mut result = String::new();
     result.push_str("[");
@@ -295,7 +295,9 @@ impl Guest for Filecontext {
       None => {
         log(&format!("Signal not found"));
         result.push_str("]");
-        return result;}
+        sendtransitiondatachunk(signalid, 1, 0, result.as_str());
+        return;
+      }
     }
 
     let signal_loaded = signal_source.load_signals(&[signal_ref], hierarchy, false);
@@ -327,16 +329,19 @@ impl Guest for Filecontext {
     // set last character to "]" to close the array
     if result.len() > 1 {result.pop();}
     result.push_str("]");
-    if result.len() > 65000 {
-      log(&format!("Signal Data Too Large : {:?}", result.len()));
-      // get the first 65000 characters, but length is not knon at compile time
-      let mut result_short = String::from(&result[..65000]);
-      log(&result_short);
 
-    } else {
-      log(&result);
+    // Send the data in chunks
+    let max_return_length = 65000;
+    let result_length = result.len();
+    let chunk_count = (result_length as f32 / max_return_length as f32).ceil() as u32;
+    for i in 0..chunk_count {
+      let start = i * max_return_length;
+      let end = std::cmp::min((i + 1) * max_return_length, result_length as u32);
+      let chunk = &result[start as usize..end as usize];
+      //log(&format!("Sending chunk: {:?} for {:?}", i, signalid));
+      sendtransitiondatachunk(signalid, chunk_count, i as u32, chunk);
     }
-    result
+
   }
 
 

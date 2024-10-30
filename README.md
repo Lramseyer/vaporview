@@ -137,12 +137,18 @@ Supports all the features you would expect including signal placing, rearranging
 
 New for 1.1.0 - Added large VCD file support. Contents of VCD files are statically loaded into memory, so the file size limit is configurable (or will be upon release.) If a file is too large, netlist will still be loaded.
 
+## 1.2.0 - Upcoming Release
+
+- Removed checkboxes for scope \[module\] items in netlist viewer to reduce confusion
+- File parsing uses the [wellen](https://github.com/ekiwi/wellen/tree/new-api) library compiled to wasm. Benefits include:
+  - FST and GHW file support
+  - Improves file parsing speed
+  - Improves memory efficiency (over storing everything in JS objects)
+
 ## Planned Features
 
 In no particular order of priority, here's a list of features that are on my radar. If you have any preferences as to which should be priorized, or a suggestion that is not on this list, leave a comment on the [github discussions](https://github.com/Lramseyer/VaporView/discussions)!
 
-- Rewrite compute intensive components in Web Assembly for smoother performance (namely file parsing)
-- Other filetype support - FST, GHW, etc.
 - Datatypes
   - Float 8 - 64, signed integers
   - Add support for custom Enums and named values. Including callback functions for those daring enough!

@@ -8,7 +8,7 @@
     "color": "#202020",
     "theme": "dark"
   },
-  "version": "1.1.0",
+  "version": "1.1.9",
   "repository": "https://github.com/lramseyer/vaporview",
   "categories": [
     "Debuggers",

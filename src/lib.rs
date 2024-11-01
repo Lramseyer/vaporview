@@ -15,7 +15,6 @@ use wellen::LoadOptions;
 
 lazy_static! {
   static ref WASM_FILE_READER: Mutex<Option<WasmFileReader>> = Mutex::new(None);
-  static ref DUMMY_ITERATOR: Mutex<Option<i32>> = Mutex::new(None);
 
   static ref _file_format : Mutex<Option<FileFormat>> = Mutex::new(None);
   static ref _hierarchy: Mutex<Option<Hierarchy>> = Mutex::new(None);
@@ -67,19 +66,6 @@ impl Guest for Filecontext {
   fn createfilereader(fd: u32) {
     let mut wasm_file_reader = WASM_FILE_READER.lock().unwrap();
     *wasm_file_reader = Some(WasmFileReader::new(fd));
-  }
-
-  fn newiterator() {
-    let mut dummy_iterator = DUMMY_ITERATOR.lock().unwrap();
-    *dummy_iterator = Some(0);
-  }
-
-  fn incrementiterator() {
-    let mut dummy_iterator = DUMMY_ITERATOR.lock().unwrap();
-    if let Some(ref mut i) = *dummy_iterator {
-      *i += 1;
-    }
-    log(&format!("Incremented iterator: {:?}", *dummy_iterator));
   }
 
   fn test(fd: u32, offset: u64) {
@@ -146,7 +132,7 @@ impl Guest for Filecontext {
       let name = scope.name(&hierarchy).to_string();
       let tpe = format!("{:?}", scope.scope_type());
 
-      setscopetop(&name, &format!("{:?}", s), &tpe);
+      setscopetop(&name, s.index() as u32, &tpe);
     }
 
     for v in hierarchy.vars() {
@@ -199,21 +185,19 @@ impl Guest for Filecontext {
   // returns a JSON string of the children of the given path
   // Since WASM is limited to 64K memory, we need to limit the return size
   // and allow the function to be called multiple times to get all the data
-  fn getchildren(path: String, startindex: u32) -> String {
-    log(&format!("Getting scopes for path: {:?}", path));
+  fn getchildren(id: u32, startindex: u32) -> String {
 
     let global_hierarchy = _hierarchy.lock().unwrap();
     let hierarchy = global_hierarchy.as_ref().unwrap();
 
-    // break up path by the "." delimiter
-    let path_items: Vec<&str> = path.split('.').collect();
-    let parent  = hierarchy.lookup_scope(&path_items);
     let parent_scope;
-
+    let parent = ScopeRef::from_index(id as usize);
     match parent {
       Some(parent_ref) => {parent_scope = hierarchy.get(parent_ref);},
       None => {log(&format!("No scopes found")); return "{\"scopes\": [], \"vars\": []}".to_string();}
     }
+
+    //log(&format!("Parent Scope: {:?}", parent));
 
     let max_return_length = 65000;
     let mut result = String::from("{\"scopes\": [");
@@ -231,7 +215,7 @@ impl Guest for Filecontext {
 
       let scope = hierarchy.get(s);
       let name = scope.name(&hierarchy).to_string();
-      let id = format!("{:?}", s);
+      let id = s.index();
       let tpe = format!("{:?}", scope.scope_type());
       let scope_string = format!("{{\"name\": {:?},\"id\": {:?},\"type\": {:?}}}", name, id, tpe);
       
@@ -254,7 +238,7 @@ impl Guest for Filecontext {
 
       let var = hierarchy.get(v);
       let name = var.name(&hierarchy).to_string();
-      let id = format!("{:?}", v);
+      let id = v.index();
       let tpe = format!("{:?}", var.var_type());
       let width = var.length().unwrap_or(0);
       let signal_ref = var.signal_ref().index();

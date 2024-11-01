@@ -1126,6 +1126,7 @@ sendDisplayedSignals = function () {
 };
 
 sendWebviewContext = function (responseType) {
+
   vscode.postMessage({
     command: 'contextUpdate',
     markerTime: markerTime,
@@ -1172,7 +1173,7 @@ handleMarkerSet = function (time, markerType) {
 
   // first find the chunk with the marker
   chunkIndex   = Math.floor(time / chunkTime);
-  
+
   // create new marker
   if (chunkIndex >= dataCache.startIndex && chunkIndex < dataCache.endIndex + chunksInColumn) {
     const clusterIndex = Math.floor((chunkIndex - dataCache.startIndex) / chunksInColumn);
@@ -1965,7 +1966,7 @@ goToNextTransition = function (direction, edge) {
     let netlistId     = null;
     const waveChunkId = event.target.closest('.waveform-chunk');
     if (waveChunkId) {netlistId = parseInt(waveChunkId.id.split('--').slice(1).join('--'));}
-    if (netlistId)    {
+    if (netlistId !== undefined) {
       if (button === 0) {
         handleSignalSelect(netlistId);
       }
@@ -2276,6 +2277,7 @@ goToNextTransition = function (direction, edge) {
         break;
       }
       case 'update-waveform-chunk': {
+        // Newer command used for fetching transition data in chunks
 
         let signalId = message.signalId;
         if (waveformDataTemp[signalId].totalChunks === 0) {
@@ -2295,7 +2297,7 @@ goToNextTransition = function (direction, edge) {
         let transitionData = JSON.parse(waveformDataTemp[signalId].chunkData.join(""));
 
         let netlistId = waveformDataTemp[signalId].netlistId;
-        if (!netlistId) {console.log('netlistId not found for signalId ' + signalId); break;}
+        if (netlistId ===  undefined) {console.log('netlistId not found for signalId ' + signalId); break;}
         let signalWidth = netlistData[netlistId].signalWidth;
         let numberFormat = netlistData[netlistId].numberFormat;
         let nullValue = "X".repeat(signalWidth);

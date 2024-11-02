@@ -1,6 +1,6 @@
 # VaporView
 
-VaporView is an open source VCD waveform viewer extension for Visual Studio Code designed for FPGA/RTL developers.
+VaporView is an open source waveform viewer extension for Visual Studio Code
 
 ![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/overview.png?raw=true)
 
@@ -8,7 +8,9 @@ VaporView is an open source VCD waveform viewer extension for Visual Studio Code
 
 ## Waveform Viewer
 
-VaporView automatically opens .vcd files in the waveform viewer. In the viewer, you can:
+Supports VCD and FST waveform dump formats
+
+VaporView automatically opens the waveform files in a viewer, where you can:
 - Add, remove, and rearrange signals
 - Pan and zoom in on the view
 - Place and move markers
@@ -142,8 +144,7 @@ New for 1.1.0 - Added large VCD file support. Contents of VCD files are statical
 - Removed checkboxes for scope \[module\] items in netlist viewer to reduce confusion
 - File parsing uses the [wellen](https://github.com/ekiwi/wellen/tree/new-api) library compiled to wasm. Benefits include:
   - FST and GHW file support
-  - Improves file parsing speed
-  - Improves memory efficiency (over storing everything in JS objects)
+  - Improves file parsing speed and memory efficiency (over storing everything in JS objects)
 
 ## Planned Features
 
@@ -174,5 +175,7 @@ This is and always will be open source. It's free to use for personal and profes
 This extension was written by one person, with a full time job that doesn't involve anything to do with writing javascript or typescript. If you would like to see a feature added or functionality changed, or better yet, if you would like to help contribute please visit the [github repository](https://github.com/Lramseyer/VaporView) and discuss there!
 
 # Acknowledgements
+
+This project uses the [wellen](https://github.com/ekiwi/wellen/tree/new-api) library compiled to WASM for file parsing and back-end data management.
 
 Thanks to my coworkers for their encouragement, feature requests, bug reports, and contribution of VCD files that made this project possible!

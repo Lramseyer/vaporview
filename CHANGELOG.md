@@ -2,11 +2,11 @@
 
 # Next release (Version TBD)
 
-- Removed checkboxes for scope \[module\] items in netlist viewer to reduce confusion
 - File parsing uses the [wellen](https://github.com/ekiwi/wellen/tree/new-api) library compiled to wasm. Benefits include:
   - FST and GHW file support
-  - Improves file parsing speed
-  - Improves memory efficiency (over storing everything in JS objects)
+  - Improves file parsing speed and memory efficiency (over storing everything in JS objects)
+- Removed checkboxes for scope \[module\] items in netlist viewer to reduce confusion
+- Variables loaded into viewer show up before waveform data is loaded as a better visual acknowledgement to user action
 
 # 1.1.0
 

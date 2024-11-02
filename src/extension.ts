@@ -17,15 +17,10 @@ interface VaporviewDocumentDelegate {
 }
 
 let wasmModule: WebAssembly.Module;
-const BASE_CHUNK_TIME_WINDOW = 512;
-const TIME_INDEX   = 0;
-const VALUE_INDEX  = 1;
-
 type WaveformTopMetadata = {
   fileName:    string;
   fileSize:    number;
   fd:          number;
-  waveformsStartOffset: number;
   timeTableLoaded: boolean;
   moduleCount: number;
   netlistIdCount: number;
@@ -38,7 +33,7 @@ type WaveformTopMetadata = {
   timeUnit:    string;
 };
 
-export type NetlistIdTable = Map<NetlistId, NetlistIdRef>;
+export type NetlistIdTable = NetlistIdRef[];
 export type TransitionData = [number, number | string];
 export type SignalId  = number;
 export type NetlistId = number;
@@ -70,7 +65,7 @@ export function createScope(name: string, type: string, path: string, netlistId:
   return module;
 }
 
-export function createVar(name: string, type: string, path: string, netlistId: NetlistId, signalId: SignalId, width: number) {
+export function createVar(name: string, type: string, path: string, netlistId: NetlistId, signalId: SignalId, width: number, msb: number, lsb: number) {
   const variable = new NetlistItem(name, type, width, signalId, netlistId, name, path, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked);
   const typename = type.toLocaleLowerCase();
   if ((typename === 'wire') || (typename === 'reg')) {
@@ -104,9 +99,15 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     document.metadata.fileName = uri.fsPath;
     document.metadata.fileSize = stats.size;
 
-    await document.wasmApi.loadfst(stats.size, document.metadata.fd);
-    document.wasmApi.readbody(document.metadata.fd);
+    await vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: "Parsing Netlist",
+      cancellable: false
+    }, async () => {
+      await document.wasmApi.loadfst(stats.size, document.metadata.fd);
+    });
 
+    document._readBody();
     return document;
   }
 
@@ -115,7 +116,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   // Hierarchy
   public treeData:         NetlistItem[] = [];
   public displayedSignals: NetlistItem[] = [];
-  private _netlistIdTable: NetlistIdTable = new Map();
+  private _netlistIdTable: NetlistIdTable = [];
   // Wasm
   private readonly _delegate: VaporviewDocumentDelegate;
   public _wasmWorker: Worker;
@@ -127,13 +128,12 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     fileName:    "",
     fileSize:    0,
     fd:          0,
-    waveformsStartOffset: 0,
     timeTableLoaded: false,
     moduleCount:    0,
     netlistIdCount: 0,
     signalIdCount:  0,
     timeEnd:     0,
-    chunkTime:   BASE_CHUNK_TIME_WINDOW,
+    chunkTime:   128,
     chunkCount:  0,
     timeScale:   1,
     defaultZoom: 1,
@@ -167,12 +167,16 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     },
     setscopetop: (name: string, id: number, tpe: string) => {
 
-      console.log(name);
-      console.log(id);
-      console.log(tpe);
-
       const scope = createScope(name, tpe, "", id);
       this.treeData.push(scope);
+      this._netlistIdTable[id] = {netlistItem: scope, displayedItem: undefined, signalId: 0};
+    },
+    setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
+      this.metadata.moduleCount = scopecount;
+      this.metadata.netlistIdCount = varcount;
+      this.metadata.timeScale = timescale;
+      this.metadata.timeUnit = timeunit;
+      this._netlistIdTable = new Array(varcount);
     },
     setchunksize: (chunksize: bigint, timeend: bigint) => {
       this.setChunkSize(Number(chunksize));
@@ -192,7 +196,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       });
     }
   };
-
   // The implementation of the log function that is called from WASM
 
   public get uri() { return this._uri; }
@@ -201,6 +204,16 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
 
   public async createWasmApi(wasmWorker: Worker) {
     this.wasmApi = await filehandler._.bind(this.service, wasmModule, wasmWorker);
+  }
+
+  private _readBody() {
+    vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: "Parsing Waveforms",
+      cancellable: false
+    }, async (progress) => {
+      await this.wasmApi.readbody();
+    });
   }
 
   public onWebviewReady(webviewPanel: vscode.WebviewPanel) {
@@ -226,10 +239,10 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   public setNetlistIdTable(netlistId: NetlistId, displayedSignalViewRef: NetlistItem | undefined) {
-    const viewRef = this._netlistIdTable.get(netlistId);
+    const viewRef = this._netlistIdTable[netlistId];
     if (viewRef === undefined) {return;}
     viewRef.displayedItem = displayedSignalViewRef;
-    this._netlistIdTable.set(netlistId, viewRef);
+    this._netlistIdTable[netlistId] = viewRef;
   }
 
   public setChunkSize(minTimeStemp: number) {
@@ -324,7 +337,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 
   private getNameFromNetlistId(netlistId: NetlistId | null) {
     if (!netlistId) {return null;}
-    const netlistData  = this.activeDocument?.netlistIdTable.get(netlistId)?.netlistItem;
+    const netlistData  = this.activeDocument?.netlistIdTable[netlistId]?.netlistItem;
     const modulePath   = netlistData?.modulePath;
     const signalName   = netlistData?.name;
     const numberFormat = netlistData?.numberFormat;
@@ -552,9 +565,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     }
 
     if (w.selectedSignal !== null) {
-      const signalName = document.netlistIdTable.get(w.selectedSignal)?.netlistItem.name;
-      console.log(w.selectedSignal);
-      console.log(document.netlistIdTable.get(w.selectedSignal));
+      const signalName = document.netlistIdTable[w.selectedSignal]?.netlistItem.name;
       this.selectedSignalStatusBarItem.text = 'Selected signal: ' + signalName;
       this.selectedSignalStatusBarItem.show();
     } else {
@@ -630,9 +641,6 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
           break;
         }
         case 'fetchTransitionData': {
-          //document.sendTransitionDataToWebview(e.signalId, e.netlistId);
-          console.log('Waveforms not loaded... fetching transition data');
-          console.log("Signal ID: " + e.signalId);
           document.wasmApi.getsignaldata(e.signalId);
           break;
         }
@@ -722,8 +730,6 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 
       const signalId   = metadata.signalId;
       const netlistId  = metadata.netlistId;
-
-      console.log(metadata);
 
       // If the item is a parent node, uncheck it
       if (metadata.collapsibleState !== vscode.TreeItemCollapsibleState.None) {
@@ -823,7 +829,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 
     this.removeSignalFromWebview(panel, netlistId);
 
-    const metadataELements = document.netlistIdTable.get(netlistId);
+    const metadataELements = document.netlistIdTable[netlistId];
     if (metadataELements) {
       const netlistItem = metadataELements.netlistItem;
       this.netlistTreeDataProvider.setCheckboxState(netlistItem, vscode.TreeItemCheckboxState.Unchecked);
@@ -881,7 +887,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       document = this.lastActiveDocument;
     }
 
-    const metadata = document.netlistIdTable.get(netlistId)?.netlistItem;
+    const metadata = document.netlistIdTable[netlistId]?.netlistItem;
     if (!metadata) {return;}
 
     const signalId   = metadata.signalId;
@@ -984,7 +990,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     const panel    = this.activeWebview;
     const document = this.activeDocument;
 
-    const netlistRef = document.netlistIdTable.get(id);
+    const netlistRef = document.netlistIdTable[id];
     if (netlistRef) {
       netlistRef.netlistItem.numberFormat = format;
     }
@@ -1204,6 +1210,7 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
   private _onDidChangeTreeData: vscode.EventEmitter<NetlistItem | undefined> = new vscode.EventEmitter<NetlistItem | undefined>();
   readonly onDidChangeTreeData: vscode.Event<NetlistItem | undefined> = this._onDidChangeTreeData.event;
   private wasmApi: any = undefined;
+  private netlistIdTable: NetlistIdTable = [];
 
   public setCheckboxState(netlistItem: NetlistItem, checkboxState: vscode.TreeItemCheckboxState) {
     netlistItem.checkboxState = checkboxState;
@@ -1213,6 +1220,7 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
   public loadDocument(document: VaporviewDocument) {
     this.setTreeData(document.treeData);
     this.wasmApi = document.wasmApi;
+    this.netlistIdTable = document.netlistIdTable;
   }
 
   // Method to set the tree data
@@ -1221,17 +1229,27 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
     this._onDidChangeTreeData.fire(undefined); // Trigger a refresh of the Netlist view
   }
 
-  public hide() {this.setTreeData([]);}
+  public hide() {
+    this.setTreeData([]);
+    this.wasmApi = undefined;
+    this.netlistIdTable = [];
+  }
 
   public getTreeData(): NetlistItem[] {return this.treeData;}
   getTreeItem(element:  NetlistItem): vscode.TreeItem {return element;}
   getChildren(element?: NetlistItem): Thenable<NetlistItem[]> {
-    if (element) {return this.getChildrenExternal(element);} // Return the children of the selected element
-    else         {return Promise.resolve(this.treeData);} // Return the top-level netlist items
+    return this.getChildrenExternal(element);
   }
 
-  async getChildrenExternal(element: NetlistItem): Promise<NetlistItem[]> {
+  private bitRangeString(msb: number, lsb: number): string {
+    if (msb < 0 || lsb < 0) {return "";}
+    if (msb === lsb) {return "[" + msb + "]";}
+    return "[" + msb + ":" + lsb + "]";
+  }
 
+  async getChildrenExternal(element: NetlistItem | undefined): Promise<NetlistItem[]> {
+
+    if (!element) {return Promise.resolve(this.treeData);} // Return the top-level netlist items
     if (!this.wasmApi) {return Promise.resolve([]);}
     if (element.children.length > 0) {return Promise.resolve(element.children);}
 
@@ -1242,14 +1260,15 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
     let startIndex     = 0;
     const result: NetlistItem[] = [];
 
-    console.log(element);
-    let callLimit = 16;
+    //console.log(element);
+    let callLimit = 255;
+    const varTable: any = {};
     while (itemsRemaining > 0) {
-      console.log("calling getscopes for " + modulePath + " with start index " + startIndex);
+      //console.log("calling getscopes for " + modulePath + " with start index " + startIndex);
       const children = await this.wasmApi.getchildren(element.netlistId, startIndex);
       const childItems = JSON.parse(children);
       //console.log(children);
-      console.log(childItems);
+      //console.log(childItems);
       itemsRemaining = childItems.remainingItems;
       startIndex    += childItems.totalReturned;
 
@@ -1257,12 +1276,40 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
         result.push(createScope(child.name, child.type, modulePath, child.id));
       });
       childItems.vars.forEach((child: any) => {
-        result.push(createVar(child.name, child.type, modulePath, child.netlistId, child.signalId, child.width));
+        // Need to handle the case where we get a variable with the same name but
+        // different bit ranges.
+        const field = this.bitRangeString(child.msb, child.lsb);
+        const name = child.name + " " + field;
+        const varItem = createVar(name, child.type, modulePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb);
+        if (varTable[child.name] === undefined) {
+          varTable[child.name] = [varItem];
+        } else {
+          varTable[child.name].push(varItem);
+        }
+        this.netlistIdTable[child.netlistId] = {netlistItem: varItem, displayedItem: undefined, signalId: child.signalId};
       });
 
       callLimit--;
       if (callLimit <= 0) {break;}
     }
+
+    for (const [key, value] of Object.entries(varTable)) {
+      if ((value as NetlistItem[]).length === 1) {
+        result.push((value as NetlistItem[])[0]);
+      } else {
+        const varList = value as NetlistItem[];
+        const bitList: NetlistItem[] = [];
+        const busList: NetlistItem[] = [];
+        varList.forEach((varItem) => {
+          if (varItem.width === 1) {bitList.push(varItem);}
+          else {busList.push(varItem);}
+        });
+        busList.forEach((busItem) => {
+          result.push(busItem);
+        });
+      }
+    }
+
     element.children = result;
     return Promise.resolve(element.children);
   }
@@ -1494,10 +1541,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Add or remove signal commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeSignal', (e) => {
-    if (e.netlistId) {
+    if (e.netlistId !== undefined) {
       viewerProvider.removeSignalFromDocument(e.netlistId);
-
-      console.log(e);
     }
   }));
 

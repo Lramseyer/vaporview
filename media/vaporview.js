@@ -2182,7 +2182,6 @@ goToNextTransition = function (direction, edge) {
       }
       case 'add-variable': {
         // Handle rendering a signal, e.g., render the signal based on message content
-
         //console.log(message);
 
         let signalId       = message.signalId;
@@ -2202,8 +2201,7 @@ goToNextTransition = function (direction, edge) {
 
         if (waveformData[signalId]) {
 
-          console.log('signal already exists');
-
+          // console.log('signal already exists');
           updateWaveformInCache([message.netlistId]);
           renderLabelsPanels();
 
@@ -2220,8 +2218,7 @@ goToNextTransition = function (direction, edge) {
             totalChunks: 0
           };
 
-          console.log('signal data not found, fetching data');
-
+          //console.log('signal data not found, fetching data');
           vscode.postMessage({
             command: 'fetchTransitionData',
             signalId: signalId,
@@ -2231,48 +2228,6 @@ goToNextTransition = function (direction, edge) {
           updateWaveformInCache([netlistId]);
           renderLabelsPanels();
         }
-
-        break;
-      }
-      case 'update-waveform': {
-        let signalId = message.signalId;
-        let netlistId = message.netlistId;
-        let transitionData = message.transitionData;
-        let signalWidth = netlistData[netlistId].signalWidth;
-        let numberFormat = netlistData[netlistId].numberFormat;
-        let nullValue = "X".repeat(signalWidth);
-
-        if (transitionData[0][0] !== 0) {
-          transitionData.unshift([0, nullValue]);
-        }
-        if (transitionData[transitionData.length - 1][0] !== timeStop) {
-          transitionData.push([timeStop, nullValue]);
-        }
-        waveformData[signalId] = {
-          transitionData: transitionData,
-          signalWidth:    signalWidth,
-          textWidth:      getValueTextWidth(signalWidth, numberFormat),
-        };
-
-        // Create ChunkStart array
-        waveformData[signalId].chunkStart = new Array(chunkCount).fill(transitionData.length);
-        let chunkIndex = 0;
-        for (let i = 0; i < transitionData.length; i++) {
-          while (transitionData[i][0] >= chunkTime * chunkIndex) {
-            waveformData[signalId].chunkStart[chunkIndex] = i;
-            chunkIndex++;
-          }
-        }
-        waveformData[signalId].chunkStart[0] = 1;
-        waveformDataTemp[signalId] = undefined;
-
-        updateWaveformInCache([netlistId]);
-        renderLabelsPanels();
-
-        updatePending  = true;
-        updateContentArea(leftOffset, getBlockNum());
-        contentArea.style.height = (40 + (28 * displayedSignals.length)) + "px";
-        handleSignalSelect(netlistId);
 
         break;
       }
@@ -2386,31 +2341,6 @@ goToNextTransition = function (direction, edge) {
 
         break;
       }
-      case 'setMarker': {
-        //console.log('setting marker');
-        // Handle setting the marker, e.g., update the marker position
-        handleMarkerSet(message.time, 0);
-        break;
-      }
-      case 'setSelectedSignal': {
-        // Handle setting the selected signal, e.g., update the selected signal
-        handleSignalSelect(message.netlistId);
-        break;
-      }
-      case 'getSelectionContext': {
-
-        sendWebviewContext('response');
-        //vscode.postMessage({type: 'context', context: displaySignalContext});
-        break;
-      }
-      case 'getContext': {
-        sendWebviewContext('response');
-        break;
-      }
-      case 'copyWaveDrom': {
-        copyWaveDrom();
-        break;
-      }
       case 'setWaveDromClock': {
         waveDromClock = {
           netlistId: message.netlistId,
@@ -2418,6 +2348,17 @@ goToNextTransition = function (direction, edge) {
         };
         break;
       }
+      case 'getSelectionContext': {
+        sendWebviewContext('response');
+        //vscode.postMessage({type: 'context', context: displaySignalContext});
+        break;
+      }
+      // Handle setting the marker, e.g., update the marker position
+      case 'setMarker': {handleMarkerSet(message.time, 0); break; }
+      // Handle setting the selected signal, e.g., update the selected signal
+      case 'setSelectedSignal': {handleSignalSelect(message.netlistId); break; }
+      case 'getContext': {sendWebviewContext('response'); break;}
+      case 'copyWaveDrom': {copyWaveDrom(); break;}
     }
   });
 

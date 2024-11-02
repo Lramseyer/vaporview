@@ -9,7 +9,7 @@ wit_bindgen::generate!({
 use std::io::{self, Read, Seek, SeekFrom};
 use lazy_static::lazy_static;
 use std::sync::Mutex;
-use wellen::{simple, FileFormat, GetItem, Hierarchy, HierarchyItem, ScopeRef, ScopeType, VarRef, SignalRef, SignalSource, TimeTable};
+use wellen::{simple, FileFormat, GetItem, Hierarchy, HierarchyItem, ScopeRef, ScopeType, VarRef, SignalRef, SignalSource, TimeTable, TimescaleUnit};
 use wellen::viewers::{HeaderResult, read_header_from_bytes, read_body, ReadBodyContinuation};
 use wellen::LoadOptions;
 
@@ -125,6 +125,30 @@ impl Guest for Filecontext {
     }
 
     let hierarchy = global_hierarchy.as_ref().unwrap();
+
+    // count the number of scopes and vars
+    let scope_count = hierarchy.iter_scopes().count() as u32;
+    let var_count = hierarchy.iter_vars().count() as u32;
+    let time_scale_data = hierarchy.timescale();
+    let time_unit = match time_scale_data {
+      Some(scale) => {
+        match scale.unit {
+          TimescaleUnit::FemtoSeconds => "fs".to_string(),
+          TimescaleUnit::PicoSeconds => "ps".to_string(),
+          TimescaleUnit::NanoSeconds => "ns".to_string(),
+          TimescaleUnit::MicroSeconds => "us".to_string(),
+          TimescaleUnit::MilliSeconds => "ms".to_string(),
+          TimescaleUnit::Seconds => "s".to_string(),
+          TimescaleUnit::Unknown => "s".to_string()
+        }
+      },
+      None => "s".to_string(),
+    };
+    let time_scale = match time_scale_data {
+      Some(scale) => scale.factor,
+      None => 1,
+    } as u32;
+    setmetadata(scope_count, var_count, time_scale, time_unit.as_str());
 
     for s in hierarchy.scopes() {
       let scope = hierarchy.get(s);
@@ -242,7 +266,14 @@ impl Guest for Filecontext {
       let tpe = format!("{:?}", var.var_type());
       let width = var.length().unwrap_or(0);
       let signal_ref = var.signal_ref().index();
-      let var_string = format!("{{\"name\": {:?},\"netlistId\": {:?},\"signalId\": {:?},\"type\": {:?},\"width\": {:?}}}", name, id, signal_ref, tpe, width);
+      let mut msb: i32 = -1;
+      let mut lsb: i32 = -1;
+      let bits = var.index();
+      match bits {
+        Some(b) => {msb = b.msb() as i32; lsb = b.lsb() as i32;},
+        None => {}
+      }
+      let var_string = format!("{{\"name\": {:?},\"netlistId\": {:?},\"signalId\": {:?},\"type\": {:?},\"width\": {:?}, \"msb\": {:?}, \"lsb\": {:?}}}", name, id, signal_ref, tpe, width, msb, lsb);
       
       items_returned += 1;
       return_length += (var_string.len() as u32) + 1;
@@ -327,8 +358,6 @@ impl Guest for Filecontext {
     }
 
   }
-
-
 }
 
 

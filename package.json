@@ -16,8 +16,10 @@
     "Other"
   ],
   "keywords": [
-    "VCD",
     "Waveform",
+    "VCD",
+    "FST",
+    "Logic Simulation",
     "Logic Analyzer"
   ],
   "engines": {

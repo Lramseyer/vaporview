@@ -65,8 +65,15 @@ export function createScope(name: string, type: string, path: string, netlistId:
   return module;
 }
 
+function bitRangeString(msb: number, lsb: number): string {
+  if (msb < 0 || lsb < 0) {return "";}
+  if (msb === lsb) {return " [" + msb + "]";}
+  return " [" + msb + ":" + lsb + "]";
+}
+
 export function createVar(name: string, type: string, path: string, netlistId: NetlistId, signalId: SignalId, width: number, msb: number, lsb: number) {
-  const variable = new NetlistItem(name, type, width, signalId, netlistId, name, path, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked);
+  const field = bitRangeString(msb, lsb);
+  const variable = new NetlistItem(name + field, type, width, signalId, netlistId, name, path, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked);
   const typename = type.toLocaleLowerCase();
   if ((typename === 'wire') || (typename === 'reg')) {
     if (width > 1) {variable.iconPath = regIcon;}
@@ -253,9 +260,74 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this.metadata.defaultZoom = 512 / chunkTime;
   }
 
-  public findTreeItem(modulePath: string): NetlistItem | undefined {
+  public async findTreeItem(modulePath: string): Promise<NetlistItem | undefined> {
     const module = this.treeData.find((element) => element.label === modulePath.split('.')[0]);
-    return module?.findChild(modulePath.split('.').slice(1).join('.'));
+    return await module?.findChild(modulePath.split('.').slice(1).join('.'), this);
+  }
+
+  async getChildrenExternal(element: NetlistItem | undefined) {
+
+    if (!element) {return Promise.resolve(this.treeData);} // Return the top-level netlist items
+    if (!this.wasmApi) {return Promise.resolve([]);}
+    if (element.children.length > 0) {return Promise.resolve(element.children);}
+
+    let modulePath = "";
+    if (element.modulePath !== "") {modulePath += element.modulePath + ".";}
+    modulePath += element.name;
+    let itemsRemaining = Infinity;
+    let startIndex     = 0;
+    const result: NetlistItem[] = [];
+
+    //console.log(element);
+    let callLimit = 255;
+    const varTable: any = {};
+    while (itemsRemaining > 0) {
+      //console.log("calling getscopes for " + modulePath + " with start index " + startIndex);
+      const children = await this.wasmApi.getchildren(element.netlistId, startIndex);
+      const childItems = JSON.parse(children);
+      //console.log(children);
+      //console.log(childItems);
+      itemsRemaining = childItems.remainingItems;
+      startIndex    += childItems.totalReturned;
+
+      childItems.scopes.forEach((child: any) => {
+        result.push(createScope(child.name, child.type, modulePath, child.id));
+      });
+      childItems.vars.forEach((child: any) => {
+        // Need to handle the case where we get a variable with the same name but
+        // different bit ranges.
+        const varItem = createVar(child.name, child.type, modulePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb);
+        if (varTable[child.name] === undefined) {
+          varTable[child.name] = [varItem];
+        } else {
+          varTable[child.name].push(varItem);
+        }
+        this.netlistIdTable[child.netlistId] = {netlistItem: varItem, displayedItem: undefined, signalId: child.signalId};
+      });
+
+      callLimit--;
+      if (callLimit <= 0) {break;}
+    }
+
+    for (const [key, value] of Object.entries(varTable)) {
+      if ((value as NetlistItem[]).length === 1) {
+        result.push((value as NetlistItem[])[0]);
+      } else {
+        const varList = value as NetlistItem[];
+        const bitList: NetlistItem[] = [];
+        const busList: NetlistItem[] = [];
+        varList.forEach((varItem) => {
+          if (varItem.width === 1) {bitList.push(varItem);}
+          else {busList.push(varItem);}
+        });
+        busList.forEach((busItem) => {
+          result.push(busItem);
+        });
+      }
+    }
+
+    element.children = result;
+    return Promise.resolve(element.children);
   }
 
   //private readonly _onDidDispose = this._register(new vscode.EventEmitter<void>());
@@ -418,10 +490,10 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     const foundSignals: any[] = [];
 
     if (fileData.displayedSignals) {
-      fileData.displayedSignals.forEach((signalInfo: any) => {
-        const signal       = signalInfo.name;
+      for (const signalInfo of fileData.displayedSignals) {
+        const signal = signalInfo.name;
         const numberFormat = signalInfo.numberFormat;
-        const metaData     = this.lastActiveDocument?.findTreeItem(signal);
+        const metaData = await this.activeDocument.findTreeItem(signal);
         if (metaData) {
           foundSignals.push({
             netlistId: metaData.netlistId,
@@ -430,7 +502,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
         } else {
           missingSignals.push(signal);
         }
-      });
+      }
     }
 
     console.log(missingSignals);
@@ -841,11 +913,11 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     }
   }
 
-  public addSignalByNameToDocument(signalName: string) {
-    const metadata = this.lastActiveDocument?.findTreeItem(signalName);
+  public async addSignalByNameToDocument(signalName: string) {
+    const metadata = await this.lastActiveDocument?.findTreeItem(signalName);
   
     if (!metadata) {
-      //console.log('Signal not found');
+      console.log('Signal not found ' + signalName);
       return;
     }
 
@@ -1209,8 +1281,7 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
   private treeData: NetlistItem[] = [];
   private _onDidChangeTreeData: vscode.EventEmitter<NetlistItem | undefined> = new vscode.EventEmitter<NetlistItem | undefined>();
   readonly onDidChangeTreeData: vscode.Event<NetlistItem | undefined> = this._onDidChangeTreeData.event;
-  private wasmApi: any = undefined;
-  private netlistIdTable: NetlistIdTable = [];
+  private document: VaporviewDocument | undefined;
 
   public setCheckboxState(netlistItem: NetlistItem, checkboxState: vscode.TreeItemCheckboxState) {
     netlistItem.checkboxState = checkboxState;
@@ -1219,8 +1290,7 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
 
   public loadDocument(document: VaporviewDocument) {
     this.setTreeData(document.treeData);
-    this.wasmApi = document.wasmApi;
-    this.netlistIdTable = document.netlistIdTable;
+    this.document = document;
   }
 
   // Method to set the tree data
@@ -1231,87 +1301,13 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
 
   public hide() {
     this.setTreeData([]);
-    this.wasmApi = undefined;
-    this.netlistIdTable = [];
+    this.document = undefined;
   }
 
   public getTreeData(): NetlistItem[] {return this.treeData;}
   getTreeItem(element:  NetlistItem): vscode.TreeItem {return element;}
   getChildren(element?: NetlistItem): Thenable<NetlistItem[]> {
-    return this.getChildrenExternal(element);
-  }
-
-  private bitRangeString(msb: number, lsb: number): string {
-    if (msb < 0 || lsb < 0) {return "";}
-    if (msb === lsb) {return "[" + msb + "]";}
-    return "[" + msb + ":" + lsb + "]";
-  }
-
-  async getChildrenExternal(element: NetlistItem | undefined): Promise<NetlistItem[]> {
-
-    if (!element) {return Promise.resolve(this.treeData);} // Return the top-level netlist items
-    if (!this.wasmApi) {return Promise.resolve([]);}
-    if (element.children.length > 0) {return Promise.resolve(element.children);}
-
-    let modulePath = "";
-    if (element.modulePath !== "") {modulePath += element.modulePath + ".";}
-    modulePath += element.name;
-    let itemsRemaining = Infinity;
-    let startIndex     = 0;
-    const result: NetlistItem[] = [];
-
-    //console.log(element);
-    let callLimit = 255;
-    const varTable: any = {};
-    while (itemsRemaining > 0) {
-      //console.log("calling getscopes for " + modulePath + " with start index " + startIndex);
-      const children = await this.wasmApi.getchildren(element.netlistId, startIndex);
-      const childItems = JSON.parse(children);
-      //console.log(children);
-      //console.log(childItems);
-      itemsRemaining = childItems.remainingItems;
-      startIndex    += childItems.totalReturned;
-
-      childItems.scopes.forEach((child: any) => {
-        result.push(createScope(child.name, child.type, modulePath, child.id));
-      });
-      childItems.vars.forEach((child: any) => {
-        // Need to handle the case where we get a variable with the same name but
-        // different bit ranges.
-        const field = this.bitRangeString(child.msb, child.lsb);
-        const name = child.name + " " + field;
-        const varItem = createVar(name, child.type, modulePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb);
-        if (varTable[child.name] === undefined) {
-          varTable[child.name] = [varItem];
-        } else {
-          varTable[child.name].push(varItem);
-        }
-        this.netlistIdTable[child.netlistId] = {netlistItem: varItem, displayedItem: undefined, signalId: child.signalId};
-      });
-
-      callLimit--;
-      if (callLimit <= 0) {break;}
-    }
-
-    for (const [key, value] of Object.entries(varTable)) {
-      if ((value as NetlistItem[]).length === 1) {
-        result.push((value as NetlistItem[])[0]);
-      } else {
-        const varList = value as NetlistItem[];
-        const bitList: NetlistItem[] = [];
-        const busList: NetlistItem[] = [];
-        varList.forEach((varItem) => {
-          if (varItem.width === 1) {bitList.push(varItem);}
-          else {busList.push(varItem);}
-        });
-        busList.forEach((busItem) => {
-          result.push(busItem);
-        });
-      }
-    }
-
-    element.children = result;
-    return Promise.resolve(element.children);
+    return this.document?.getChildrenExternal(element) ?? Promise.resolve([]);
   }
 
   refresh(): void {
@@ -1393,16 +1389,20 @@ export class NetlistItem extends vscode.TreeItem {
     }
   }
 
-  findChild(label: string): NetlistItem | undefined {
+  async findChild(label: string, document: VaporviewDocument): Promise<NetlistItem | undefined> {
 
     if (label === '') {return this;}
 
     const subModules    = label.split(".");
     const currentModule = subModules.shift();
-    const childItem     = this.children.find((child) => child.label === currentModule);
+    if (this.children.length === 0) {
+      await document.getChildrenExternal(this);
+    }
+
+    const childItem     = this.children.find((child) => child.name === currentModule);
 
     if (childItem) {
-      return childItem.findChild(subModules.join("."));
+      return await childItem.findChild(subModules.join("."), document);
     } else {
       return undefined;
     }

@@ -10,7 +10,7 @@ import { filehandler } from './filehandler';
 
 const wasmDebug = 'debug';
 const wasmRelease = 'release';
-const wasmBuild = wasmRelease;
+const wasmBuild = wasmDebug;
 
 interface VaporviewDocumentDelegate {
   getViewerContext(): Promise<Uint8Array>;
@@ -105,13 +105,20 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     document.metadata.fd       = await open(uri.fsPath, 'r');
     document.metadata.fileName = uri.fsPath;
     document.metadata.fileSize = stats.size;
+    const fstMaxStaticLoadSize = vscode.workspace.getConfiguration('vaporview').get('fstMaxStaticLoadSize');
+    const maxStaticSize        = Number(fstMaxStaticLoadSize) * 1048576;
+
+    let loadStatic = true;
+    if (fileType === 'fst' && stats.size > maxStaticSize) {
+      loadStatic = false;
+    }
 
     await vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification,
       title: "Parsing Netlist",
       cancellable: false
     }, async () => {
-      await document.wasmApi.loadfst(stats.size, document.metadata.fd);
+      await document.wasmApi.loadfile(BigInt(stats.size), document.metadata.fd, loadStatic);
     });
 
     document._readBody();
@@ -242,7 +249,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     if (this.webviewPanel) {
       this.onWebviewReady(this.webviewPanel);
     }
-    this.close(this.metadata.fd);
+    //this.close(this.metadata.fd);
   }
 
   public setNetlistIdTable(netlistId: NetlistId, displayedSignalViewRef: NetlistItem | undefined) {
@@ -552,10 +559,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     return timeValue.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + ' ' + timeUnit;
   };
 
-  // Copies the waveform data between the markers as a WaveDrom JSON object
-  // This function is a bit cursed, but it works for now
   copyWaveDrom() {
-    //vscode.window.showErrorMessage('Temporarily unavailable');
     this.activeWebview?.webview.postMessage({command: 'copyWaveDrom'});
   }
 

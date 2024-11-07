@@ -37,9 +37,7 @@ world filehandler {
   import setchunksize: func(chunksize: u64, timeend: u64);
 	import sendtransitiondatachunk: func(signalid: u32, totalchunks: u32, chunknum: u32, data: string);
 
-	export createfilereader: func(fd: u32);
-	export test: func(fd: u32, offset: u64);
-	export loadfst: func(size: u32, fd: u32);
+	export loadfile: func(size: u64, fd: u32, loadstatic: bool);
   export readbody: func();
 
   // wit2ts seems to have issues returning lists of custom types

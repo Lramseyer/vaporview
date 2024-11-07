@@ -17,11 +17,10 @@ Since me and my gang of AI ghost writers have (up to this point) have been the s
 While not necissarily a priority, I have a list of things that would greatly enhance the usability of this extension, but they're kind of difficult (for me at least) and I might need some help with these:
 
 - Rewriting performance critical components (like the renderer) in Web Assembly
-- Supporting other file formats besides .vcd files
 
 ## Extension overview
 
-There are 2 main parts to this extesnion: The VScode Extension (src/web/extension.ts) and the webview component (media/extension.js) They communicate via a messaging interface: `webview.postMessage()` and `vscode.postMessage()` on the extension and webview side respectively. This is mainly used for setting up the webview, and for adding and removing signals from the viewer. It's important to note that when a signal is rendered in the webview, the extension only sends over the waveform data for that signal that is being rendered. This is important for my future plans in supporting larger waveform files. If we only load into memory what is actually in the viewer, we're not going to run into memory issues.
+There are 2 main parts to this extesnion: The VScode Extension (src/web/extension.ts) and the webview component (media/extension.js) They communicate via a messaging interface: `webview.postMessage()` and `vscode.postMessage()` on the extension and webview side respectively. This is mainly used for setting up the webview, and for adding and removing signals from the viewer. It's important to note that when a signal is rendered in the webview, the extension only sends over the waveform data for that signal that is being rendered. This is important for larger waveform files. If we only load into memory what is actually in the viewer, we're not going to run into memory issues.
 
 ## The extension
 
@@ -37,10 +36,6 @@ The extension uses several VScode API elements, which can be read up on in the [
 # Data Structures
 
 The data structures of this extension really are the key to making it work as well as it does. So I have outlined a summary of the prominent data structures in this extension, and I will also go over why they're laid out the way they are.
-
-I'll state the obvious first, and say that VCD is good for really only one thing; and that is being easy enough to understand at first glance, so that fools like myself can take a look at it and think "I could write a waveform viewer. How hard can it be?" Everything else, it's pretty terrible at. It's not memory efficient since it's plaintext, and it's not easily searchable or easily queryable. At the end of the day, a waveform dump is a sparsely populated data set. It is written in time, but accessed on a per signal basis.
-
-This means that for VCD files, I have to parse the whole document to extract the waveform data. I take a very naiive approach to parsing VCD files, and there is definitely some obvious room for improvement here if anyone wants to give it a shot. I wouldn't call it a low hanging fruit, but it's not like you're rewriting LLVM either.
 
 ## Extension data tree
 
@@ -88,11 +83,6 @@ This means that for VCD files, I have to parse the whole document to extract the
     - timeScale: number
     - defaultZoom: number
     - timeUnit: string
-  - netlistElements: Map<SignalId, SignalWaveform>
-    - signalWidth: number
-    - chunkStart: number[]
-    - transitionData: TransitionData[]
-      - [time: number, value: number | string]
 
 - NetlistItem (extends vscode.TreeItem)
   - label: string

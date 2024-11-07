@@ -64,6 +64,19 @@
         ]
       }
     ],
+    "configuration": {
+      "title": "VaporView",
+      "properties": {
+        "vaporview.fstMaxStaticLoadSize": {
+          "type": "number",
+          "default": 256,
+          "minimum": 0,
+          "maximum": 65536,
+          "scope": "application",
+          "description": "Maximum file size to load FST files into memory. This is faster, but consumes more memory. Set to 0 to disable."
+        }
+      }
+    },
     "submenus": [
       {
         "id": "vaporview.waveDrom",

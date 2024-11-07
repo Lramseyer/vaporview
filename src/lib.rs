@@ -6,124 +6,183 @@ wit_bindgen::generate!({
   world: "filehandler",
 });
 
-use std::io::{self, Read, Seek, SeekFrom};
+use std::io::{self, BufReader, Cursor, Read, Seek, SeekFrom};
 use lazy_static::lazy_static;
 use std::sync::Mutex;
-use wellen::{simple, FileFormat, GetItem, Hierarchy, HierarchyItem, ScopeRef, ScopeType, VarRef, SignalRef, SignalSource, TimeTable, TimescaleUnit};
-use wellen::viewers::{HeaderResult, read_header_from_bytes, read_body, ReadBodyContinuation};
+use wellen::{FileFormat, GetItem, Hierarchy, ScopeRef, SignalRef, SignalSource, TimeTable, TimescaleUnit, WellenError};
+use wellen::viewers::{read_body, read_header, ReadBodyContinuation, HeaderResult};
 use wellen::LoadOptions;
+use std::sync::Arc;
+
+enum ReadBodyEnum {
+  Static(ReadBodyContinuation<Cursor<Vec<u8>>>),
+  Dynamic(ReadBodyContinuation<BufReader<WasmFileReader>>),
+  None,
+}
+
+enum HeaderResultType {
+  Static(HeaderResult<Cursor<Vec<u8>>>),
+  Dynamic(HeaderResult<BufReader<WasmFileReader>>),
+  Err(WellenError),
+}
 
 lazy_static! {
-  static ref WASM_FILE_READER: Mutex<Option<WasmFileReader>> = Mutex::new(None);
+  static ref _file: Mutex<Option<WasmFileReader>> = Mutex::new(None);
 
   static ref _file_format : Mutex<Option<FileFormat>> = Mutex::new(None);
   static ref _hierarchy: Mutex<Option<Hierarchy>> = Mutex::new(None);
-  static ref _body: Mutex<Option<ReadBodyContinuation>> = Mutex::new(None);
+  static ref _body: Mutex<ReadBodyEnum> = Mutex::new(ReadBodyEnum::None);
   static ref _time_table: Mutex<Option<TimeTable>> = Mutex::new(None);
   static ref _signal_source: Mutex<Option<SignalSource>> = Mutex::new(None);
+
 }
 
-// Not sure if these work yet...
 struct WasmFileReader {
   fd: u32,
-  offset: u64,
-  size: u64,
+  file_size: u64,
+  cursor: u64,
+  read_callback: Arc<dyn Fn(u32, u64, u32) -> Vec<u8> + Send + Sync>,
 }
 
 impl WasmFileReader {
-  fn new(fd: u32) -> Self {
-    let size = getsize(fd);
-    WasmFileReader { fd, offset: 0, size }
+  fn new(fd: u32, file_size: u64) -> Self {
+    //let file_size = getsize(fd);
+    let read_callback = Arc::new(|fd, cursor, size| {fsread(fd, cursor, size)});
+    let reader = WasmFileReader { fd, file_size, cursor: 0, read_callback };
+    reader
   }
 }
 
 impl Read for WasmFileReader {
   fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-    let length = buf.len() as u32;
-    let data = fsread(self.fd, self.offset, length);
-    let bytes_read = data.len();
-    buf[..bytes_read].copy_from_slice(&data);
-    self.offset += bytes_read as u64;
+    log(&format!("Reading data from offset: {:?}, size: {:?}", self.cursor, buf.len()));
+
+    let mut bytes_read = 0;
+    let read_size = std::cmp::min(buf.len() as u32, self.file_size as u32 - self.cursor as u32) as usize;
+    while bytes_read < read_size {
+      let chunk_size = std::cmp::min(read_size - bytes_read, 32768);
+      let data = (self.read_callback)(self.fd, self.cursor, chunk_size as u32);
+      buf[bytes_read..bytes_read + chunk_size].copy_from_slice(&data);
+      self.cursor += chunk_size as u64;
+      bytes_read += chunk_size;
+    }
     Ok(bytes_read)
   }
 }
 
 impl Seek for WasmFileReader {
   fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
+    log(&format!("Seeking to: {:?}", pos));
+    let new_cursor;
     match pos {
-      SeekFrom::Start(offset) => {self.offset = offset;}
-      SeekFrom::End(offset) => {self.offset = (self.size as i64 + offset) as u64;}
-      SeekFrom::Current(offset) => {self.offset = (self.offset as i64 + offset) as u64;}
+      SeekFrom::Start(offset) => { new_cursor = offset; }
+      SeekFrom::End(offset) => { new_cursor = (self.file_size as i64 + offset) as u64; }
+      SeekFrom::Current(offset) => { new_cursor = (self.cursor as i64 + offset) as u64; }
     }
-    Ok(self.offset)
+    if (new_cursor as i64) < 0 {
+      log(&format!("Invalid seek to negative position: {:?}", new_cursor));
+      self.cursor = 0;
+      return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid seek to negative position"));
+    }
+    self.cursor = std::cmp::min(new_cursor, self.file_size);
+    Ok(self.cursor)
+  }
+
+  fn rewind(&mut self) -> io::Result<()> {
+    log(&format!("Rewinding file"));
+    self.cursor = 0;
+    Ok(())
+  }
+
+  fn stream_position(&mut self) -> io::Result<u64> {Ok(self.cursor)}
+
+  fn seek_relative(&mut self, offset: i64) -> io::Result<()> {
+    log(&format!("Seeking relative: {:?}", offset));
+    let new_cursor = (self.cursor as i64 + offset) as i64;
+    if new_cursor < 0 {
+      log(&format!("Invalid seek to negative position: {:?}", new_cursor));
+      self.cursor = 0;
+      return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid seek to negative position"));
+    }
+    self.cursor = std::cmp::min(new_cursor, self.file_size as i64) as u64;
+    Ok(())
   }
 }
+
+unsafe impl Send for WasmFileReader {}
+unsafe impl Sync for WasmFileReader {}
 
 struct Filecontext;
 
 impl Guest for Filecontext {
 
-  fn createfilereader(fd: u32) {
-    let mut wasm_file_reader = WASM_FILE_READER.lock().unwrap();
-    *wasm_file_reader = Some(WasmFileReader::new(fd));
-  }
-
-  fn test(fd: u32, offset: u64) {
-
-    log(&format!("Reading 4k at offset: {:?}", offset));
-    log(&format!("File descriptor: {:?}", fd));
-
-    let rdata = fsread(fd, offset, 128);
-
-    // For example, convert to a string if it's text data
-    let data_str = String::from_utf8_lossy(&rdata);
-    log(&format!("Read data as string: {:?}", data_str));
-  }
-
-  fn loadfst(size: u32, fd: u32) {
+  fn loadfile(size: u64, fd: u32, loadstatic: bool) {
 
     log(&format!("Loading FST from bytes: {:?}", size));
+    //let loadstatic = false;
 
-    // create a new vector of the file size to hold the file data
-    let mut file = vec![0; size as usize];
+    let options = LoadOptions {
+      multi_thread: false, // WASM is currently single-threaded
+      remove_scopes_with_empty_name: false,
+    };
 
-    // read the file data in 32K chunks into the vector
-    let mut offset = 0;
-    let chunk_size = 32768;
-    while offset < size as usize {
-      let read_size = std::cmp::min(chunk_size, size as usize - offset);
-      let chunk = fsread(fd, offset as u64, read_size as u32);
-      let chunk_len = chunk.len();
-      file[offset..offset + chunk_len].copy_from_slice(&chunk);
-      offset += chunk_len;
+    let header_result: HeaderResultType;
+
+    // Load a file statically into memory
+    if loadstatic {
+      // create a new vector of the file size to hold the file data
+      let mut file = vec![0; size as usize];
+      // read the file data in 32K chunks into the vector
+      let mut offset = 0;
+      let chunk_size = 32768;
+      while offset < size as usize {
+        let read_size = std::cmp::min(chunk_size, size as usize - offset);
+        let chunk = fsread(fd, offset as u64, read_size as u32);
+        let chunk_len = chunk.len();
+        file[offset..offset + chunk_len].copy_from_slice(&chunk);
+        offset += chunk_len;
+      }
+      let file_reader = Cursor::new(file);
+      let result = read_header(file_reader, &options);
+      header_result = match result {
+        Ok(header) => HeaderResultType::Static(header),
+        Err(e) => HeaderResultType::Err(e),
+      };
+    } else {
+      let file_reader = BufReader::new(WasmFileReader::new(fd, size));
+      let result = read_header(file_reader, &options);
+      header_result = match result {
+        Ok(header) => HeaderResultType::Dynamic(header),
+        Err(e) => HeaderResultType::Err(e),
+      };
     }
 
     log(&format!("Done reading file data"));
 
-    let options = LoadOptions {
-      multi_thread: true, // WASM is currently single-threaded
-      remove_scopes_with_empty_name: false,
-    };
     //let mut contents = file_contents.lock().unwrap();
     let mut global_hierarchy = _hierarchy.lock().unwrap();
     let mut global_body = _body.lock().unwrap();
     let mut global_file_format = _file_format.lock().unwrap();
 
-    // Use wellen to read the FST file
-    let result = read_header_from_bytes(file, &options);
-
-    match result {
-      Ok(header) => {
-        //*contents = Some(header);
+    match header_result {
+      HeaderResultType::Dynamic(header) => {
         *global_hierarchy = Some(header.hierarchy);
-        *global_body = Some(header.body);
         *global_file_format = Some(header.file_format);
-
-        log(&format!("Successfully loaded FST"));
+        *global_body = ReadBodyEnum::Dynamic(header.body);
       },
-      Err(e) => {log(&format!("Error loading FST: {:?}", e)); return;}
+      HeaderResultType::Static(header) => {
+        *global_hierarchy = Some(header.hierarchy);
+        *global_file_format = Some(header.file_format);
+        *global_body = ReadBodyEnum::Static(header.body);
+      },
+      HeaderResultType::Err(e) => {
+        log(&format!("Error reading header: {:?}", e));
+        return;
+      }
     }
 
+    log(&format!("Done loading FST"));
+    
     let hierarchy = global_hierarchy.as_ref().unwrap();
 
     // count the number of scopes and vars
@@ -166,14 +225,28 @@ impl Guest for Filecontext {
   }
 
   fn readbody() {
+
+    log(&format!("Reading body..."));
+
     let global_hierarchy = _hierarchy.lock().unwrap();
     let hierarchy = global_hierarchy.as_ref().unwrap();
     let mut global_body = _body.lock().unwrap();
-    let body = global_body.take().unwrap(); // Take ownership of the body
     let mut global_time_table = _time_table.lock().unwrap();
     let mut global_signal_source = _signal_source.lock().unwrap();
-    
-    let body_result = read_body(body, hierarchy, None);
+    let body = std::mem::replace(&mut *global_body, ReadBodyEnum::None);
+    let body_result;
+
+    body_result = match body {
+      ReadBodyEnum::Dynamic(body) => {
+        read_body(body, hierarchy, None)
+      },
+      ReadBodyEnum::Static(body) => {
+        read_body(body, hierarchy, None)
+      },
+      ReadBodyEnum::None => {
+        Err(WellenError::FailedToLoad(FileFormat::Unknown, "No body found".to_string()))
+      }
+    };
 
     match body_result {
       Ok(result) => {
@@ -359,7 +432,6 @@ impl Guest for Filecontext {
 
   }
 }
-
 
 // Export the Filecontext to the extension code.
 export!(Filecontext);

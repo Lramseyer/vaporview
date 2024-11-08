@@ -153,6 +153,7 @@ In no particular order of priority, here's a list of features that are on my rad
 - Datatypes
   - Float 8 - 64, signed integers
   - Add support for custom Enums and named values. Including callback functions for those daring enough!
+  - Reals
 - Improve renderer to better render non-2 state
 - Add support to highlight all transitions of a signal
 - Add support for custom colors - waiting for the VScode API to allow access to semantic token colors - [Github issue](https://github.com/microsoft/vscode/issues/32813)

@@ -632,7 +632,8 @@ handleZoom = function (amount, zoomOrigin, screenPosition) {
   updatePending    = true;
   zoomRatio        = newZoomRatio;
   chunkWidth       = chunkTime * zoomRatio;
-  maxScrollLeft    = Math.round(Math.max((chunkCount * chunkWidth) - viewerWidth, 0));
+  //maxScrollLeft    = Math.round(Math.max((chunkCount * chunkWidth) - viewerWidth, 0));
+  maxScrollLeft    = Math.round(Math.max((timeStop * zoomRatio) - viewerWidth + 10, 0));
   pseudoScrollLeft = Math.max(Math.min((zoomOrigin * zoomRatio) - screenPosition, maxScrollLeft), 0);
   for (i = dataCache.startIndex; i < dataCache.endIndex; i+=chunksInColumn) {
     dataCache.columns[i] = undefined;
@@ -1985,7 +1986,8 @@ goToNextTransition = function (direction, edge) {
   }
 
   updateScrollbarResize = function () {
-    scrollbarWidth        = Math.max(Math.round((viewerWidth ** 2) / (chunkCount * chunkWidth)), 17);
+    scrollbarWidth        = Math.max(Math.round((viewerWidth ** 2) / (timeStop * zoomRatio)), 17);
+    //scrollbarWidth        = Math.max(Math.round((viewerWidth ** 2) / (chunkCount * chunkWidth)), 17);
     maxScrollbarPosition  = Math.max(viewerWidth - scrollbarWidth, 0);
     updateScrollBarPosition();
     scrollbar.style.width = scrollbarWidth + 'px';
@@ -2000,7 +2002,8 @@ goToNextTransition = function (direction, edge) {
   updateViewportWidth = function() {
     viewerWidth     = scrollArea.getBoundingClientRect().width;
     halfViewerWidth = viewerWidth / 2;
-    maxScrollLeft   = Math.round(Math.max((chunkCount * chunkWidth) - viewerWidth, 0));
+    maxScrollLeft   = Math.round(Math.max((timeStop * zoomRatio) - viewerWidth + 10, 0));
+    //maxScrollLeft   = Math.round(Math.max((chunkCount * chunkWidth) - viewerWidth, 0));
     updateScrollbarResize();
   };
 

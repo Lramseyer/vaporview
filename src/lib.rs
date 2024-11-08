@@ -27,14 +27,13 @@ enum HeaderResultType {
 }
 
 lazy_static! {
-  static ref _file: Mutex<Option<WasmFileReader>> = Mutex::new(None);
+  //static ref _file: Mutex<Option<WasmFileReader>> = Mutex::new(None);
 
-  static ref _file_format : Mutex<Option<FileFormat>> = Mutex::new(None);
+  static ref _file_format : Mutex<FileFormat> = Mutex::new(FileFormat::Unknown);
   static ref _hierarchy: Mutex<Option<Hierarchy>> = Mutex::new(None);
   static ref _body: Mutex<ReadBodyEnum> = Mutex::new(ReadBodyEnum::None);
   static ref _time_table: Mutex<Option<TimeTable>> = Mutex::new(None);
   static ref _signal_source: Mutex<Option<SignalSource>> = Mutex::new(None);
-
 }
 
 struct WasmFileReader {
@@ -67,6 +66,18 @@ impl Read for WasmFileReader {
       bytes_read += chunk_size;
     }
     Ok(bytes_read)
+  }
+
+  fn read_exact(&mut self, buf: &mut [u8]) -> io::Result<()> {
+    log(&format!("Reading exact data from offset: {:?}, size: {:?}", self.cursor, buf.len()));
+    let bytes_read = self.read(buf);
+    match bytes_read {
+      Ok(size) => {
+        if size == buf.len() {Ok(())}
+        else {Err(io::Error::new(io::ErrorKind::UnexpectedEof, "Failed to read all bytes"))}
+      },
+      Err(e) => Err(e),
+    }
   }
 }
 
@@ -109,9 +120,6 @@ impl Seek for WasmFileReader {
   }
 }
 
-unsafe impl Send for WasmFileReader {}
-unsafe impl Sync for WasmFileReader {}
-
 struct Filecontext;
 
 impl Guest for Filecontext {
@@ -127,21 +135,12 @@ impl Guest for Filecontext {
     };
 
     let header_result: HeaderResultType;
+    let mut reader = WasmFileReader::new(fd, size);
 
-    // Load a file statically into memory
     if loadstatic {
-      // create a new vector of the file size to hold the file data
+      // Load a file statically into memory
       let mut file = vec![0; size as usize];
-      // read the file data in 32K chunks into the vector
-      let mut offset = 0;
-      let chunk_size = 32768;
-      while offset < size as usize {
-        let read_size = std::cmp::min(chunk_size, size as usize - offset);
-        let chunk = fsread(fd, offset as u64, read_size as u32);
-        let chunk_len = chunk.len();
-        file[offset..offset + chunk_len].copy_from_slice(&chunk);
-        offset += chunk_len;
-      }
+      reader.read(&mut file).unwrap();
       let file_reader = Cursor::new(file);
       let result = read_header(file_reader, &options);
       header_result = match result {
@@ -149,7 +148,7 @@ impl Guest for Filecontext {
         Err(e) => HeaderResultType::Err(e),
       };
     } else {
-      let file_reader = BufReader::new(WasmFileReader::new(fd, size));
+      let file_reader = BufReader::new(reader);
       let result = read_header(file_reader, &options);
       header_result = match result {
         Ok(header) => HeaderResultType::Dynamic(header),
@@ -167,12 +166,12 @@ impl Guest for Filecontext {
     match header_result {
       HeaderResultType::Dynamic(header) => {
         *global_hierarchy = Some(header.hierarchy);
-        *global_file_format = Some(header.file_format);
+        *global_file_format = header.file_format;
         *global_body = ReadBodyEnum::Dynamic(header.body);
       },
       HeaderResultType::Static(header) => {
         *global_hierarchy = Some(header.hierarchy);
-        *global_file_format = Some(header.file_format);
+        *global_file_format = header.file_format;
         *global_body = ReadBodyEnum::Static(header.body);
       },
       HeaderResultType::Err(e) => {
@@ -182,7 +181,7 @@ impl Guest for Filecontext {
     }
 
     log(&format!("Done loading FST"));
-    
+
     let hierarchy = global_hierarchy.as_ref().unwrap();
 
     // count the number of scopes and vars
@@ -248,6 +247,8 @@ impl Guest for Filecontext {
       }
     };
 
+    log(&format!("Done reading body"));
+
     match body_result {
       Ok(result) => {
         *global_time_table = Some(result.time_table);
@@ -277,6 +278,9 @@ impl Guest for Filecontext {
     log(&format!("Setting chunk size to: {:?}", min_timestamp));
 
     setchunksize(min_timestamp, time_end_extend);
+
+    // unload _body
+    *global_body = ReadBodyEnum::None;
   }
 
   // returns a JSON string of the children of the given path
@@ -428,6 +432,19 @@ impl Guest for Filecontext {
       let chunk = &result[start as usize..end as usize];
       //log(&format!("Sending chunk: {:?} for {:?}", i, signalid));
       sendtransitiondatachunk(signalid, chunk_count, i as u32, chunk);
+    }
+
+    fn _unload() {
+      let mut global_signal_source = _signal_source.lock().unwrap();
+      let mut global_time_table = _time_table.lock().unwrap();
+      let mut global_body = _body.lock().unwrap();
+      let mut global_hierarchy = _hierarchy.lock().unwrap();
+      let mut global_file_format = _file_format.lock().unwrap();
+      *global_signal_source = None;
+      *global_time_table = None;
+      *global_body = ReadBodyEnum::None;
+      *global_hierarchy = None;
+      *global_file_format = FileFormat::Unknown;
     }
 
   }

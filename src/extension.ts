@@ -112,6 +112,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     if (fileType === 'fst' && stats.size > maxStaticSize) {
       loadStatic = false;
     }
+    loadStatic = true;
 
     await vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification,

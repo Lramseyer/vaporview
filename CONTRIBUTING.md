@@ -6,7 +6,7 @@ I should also mention if it's not obvious; I come from a hardware background. We
 
 ## Low hanging fruit
 
-Since me and my gang of AI ghost writers have (up to this point) have been the sole contributors to this project, you might imagine that it's a lot of work to make this code useful _and_ nicely organized _and_ well documented _and_ have hice asthaetics _and_ juggle all of my other priorities of life like Skiing and Rock Climbing. So I have compiled a list of things that you could easily get started on to contribute to this project.
+Since me and my gang of AI ghost writers have (up to this point) have been the biggest contributors to this project, you might imagine that it's a lot of work to make this code useful _and_ nicely organized _and_ well documented _and_ have hice asthaetics _and_ juggle all of my other priorities of life like Skiing and Rock Climbing. So I have compiled a list of things that you could easily get started on to contribute to this project.
 
 - Improving the look of the assets, like the icons or the logo
 - Organizing the code by breaking it up into multiple files or improve naming conventions
@@ -20,7 +20,16 @@ While not necissarily a priority, I have a list of things that would greatly enh
 
 ## Extension overview
 
-There are 2 main parts to this extesnion: The VScode Extension (src/web/extension.ts) and the webview component (media/extension.js) They communicate via a messaging interface: `webview.postMessage()` and `vscode.postMessage()` on the extension and webview side respectively. This is mainly used for setting up the webview, and for adding and removing signals from the viewer. It's important to note that when a signal is rendered in the webview, the extension only sends over the waveform data for that signal that is being rendered. This is important for larger waveform files. If we only load into memory what is actually in the viewer, we're not going to run into memory issues.
+There are 3 main parts to this extesnion: The VScode Extension (src/web/extension.ts,) The WASM file parser, and the webview component (media/extension.js.) The Extension and wevbiew communicate via a messaging interface: `webview.postMessage()` and `vscode.postMessage()` on the extension and webview side respectively. This is mainly used for setting up the webview, and for adding and removing signals from the viewer. It's important to note that when a signal is rendered in the webview, the extension only sends over the waveform data for that signal that is being rendered. This is important for larger waveform files. If we only load into memory what is actually in the viewer, we're not going to run into memory issues.
+
+## A few notes about WebAssembly
+
+There were a lot of things about WASM that I learned the hard way, and I wanted to write them down so that you don't have to suffer like I did.
+1. WASM is very limited in capabilities. You can't open files (that aren't compiled with the WASM code) or access other system resources that you would expect to access with HTML5. This is for obvious security reasons. Thankfully, WASM supports callbacks, so all you need to do is tie the callbacks to the HTML5 resources you need. Be careful though...
+2. You are limited to 64K of shared memory for all function calls. Keep this in mind when transferring data ...like file IO, or querying data. You will need to mind this limitation, and figure out how to pass data in chunks. Be mindful of how you format the data the data because...
+3. wit_bindgen still has bugs, some of them are documented, some are yet to be discovered. I had issues with passing lists of complex types. I found a bug write up on it, and they claimed it was fixed, but it was still broken for me. Thankfully, there are workarounds.
+
+While WASM has it's quirks, it's extremely fast and memory efficient. Just make sure that when you compile it, be sure to include the "--release" tag. Otherwise, it will be slower than Javascript, and you are going to wonder why you spent all of that time banging your head against the wall!
 
 ## The extension
 
@@ -41,6 +50,7 @@ The data structures of this extension really are the key to making it work as we
 
 - WaveformViewerProvider (implements vscode.CustomReadonlyEditorProvider<VaporviewDocument>)
   - netlistTreeDataProvider: NetlistTreeDataProvider (implements vscode.TreeDataProvider<NetlistItem>)
+    - document: VaporviewDocument (reference)
     - treeData: NetlistItem[] (extends vscode.TreeItem)
   - netlistView: vscode.TreeView<NetlistItem>
   - displayedSignalsTreeDataProvider: DisplayedSignalsViewProvider (implements vscode.TreeDataProvider<NetlistItem>)
@@ -67,17 +77,21 @@ The data structures of this extension really are the key to making it work as we
   - wasmApi: _Promisify<_Required<filehandler.Exports>>
   - webviewPanel: vscode.WebviewPanel
   - _webviewInitialized: boolean
-  - _netlistTreeDataProvider: NetlistTreeDataProvider
-    - treeData: NetlistItem[] (extends vscode.TreeItem)
-  - _displayedSignalsTreeDataProvider: DisplayedSignalsViewProvider
-    - treeData: NetlistItem[] (extends vscode.TreeItem)
-  - _netlistTable: Map<NetlistId, NetlistlIdRef>
+  - treeData: NetlistItem[] (extends vscode.TreeItem)
+  - displayedSignals: NetlistItem[] (extends vscode.TreeItem)
+  - _netlistTable: NetlistlIdRef[]
     - netlistItem: NetlistItem
-    - displayedItem: NetlistItem
+    - displayedItem: NetlistItem | undefined
     - signalId: string
   - metadata: WaveformTopMetadata
+    - fileName: string
+    - fileSize: number
+    - fd: number
+    - timeTableLoaded: boolean
+    - moduleCount: number
+    - netlistIdCount: number
+    - signalIdCount: number
     - timeEnd: number
-    - filename: string
     - chunkTime: number
     - chunkCount: number
     - timeScale: number
@@ -85,6 +99,7 @@ The data structures of this extension really are the key to making it work as we
     - timeUnit: string
 
 - NetlistItem (extends vscode.TreeItem)
+  - numberFormat
   - label: string
   - type: string
   - width: number
@@ -96,25 +111,38 @@ The data structures of this extension really are the key to making it work as we
     - ...
   - collapsibleState: vscode.TreeItemCollapsibleState
   - checkboxState: vscode.TreeItemCheckboxState
+  - contextValue: string
 
 - NetlistID: number
 - SignalId: number
 
-## Parsing a VCD file
+## Parsing a file
 
-When parsing a VCD file, the data is stored in a `WaveformTop` class (which stores the metadata and a `SignalWaveform` hash table,) and in a `NetlistTreeDataProvider` class, which maintains netlist topology. This might seem weird at first, but we really only need to know the netlist topology for the `TreeView`. But since multiple `TreeItem` elements can reference the same `SignalWaveform` data, they are stored as separate structures.
+When The user opens a document, we spawn a worker that interfaces with a WebAssembly module. This is written in Rust, and handles all of the interfacing with the file. It uses the  [wellen](https://github.com/ekiwi/wellen/tree/new-api) library, as that provides a common interface for all of the file types it supports. Also, a huge thanks to the author, as he has gone the extra mile to support the integration work and making things work for vaporview.
 
-We have to store a copy of each treeview for each document that's open so that if a user wants to open up multiple documents, we can repopulate the treeview according to its respective document. In the future, I plan to add support for larger files that can't necissarily be completely loaded into memory When this feature gets added, I will read the file in chunks, but I will stil need to load in the full netlist. But that doesn't consume a ton of memory, so it won't be a problem. Then this way, it can reference back to which signal data to load into memory when reading the file.
+Previously, VCD parsing was done in Typescript, and it was slower and consumed much more memory. It took me a lot of time to get the WASM environment set up and working, but it was well worth the effort!
 
-To tie these structures together, I should probably explain what a `SignalId` and a `NetlistId` are. Since a waveform dump can contain variables that contain the same value change data as another signal, it's possible to have multiple elements in the netlist point to the same value change data. `NetlistId` points to an elenent in the netlist topology (and a `SignalId`) and `SignalId` points to the value change data. Originally, I made the `NetlistId` a string in a hash table that was a hash of the module path, but I realized that was pointless, and changed it to a number. I will be changing `SignalId` to a number soon, but VCD files use strings for `SignalId`. It's not too much work, but there's a bigger rewrite of the file parsing that's going on...
+Both the netlist information and the value change data is stored in the WASM memory, but thankfully, WASM supports callbacks.
 
-Once the metadata and netlist are parsed, we start parsing the value change data. This is where things get a little weird. See, for ease of rendering, I made it such that everything is in chunks. This way, we don't actually have to render the entire waveform. Since the actual HTML components of a waveform consume a non-trivial amount of memory, we can dynamically render as we scroll. This isn't a big deal for smaller waveforms, but it is for larger waveforms. Maybe it's premature optimization, I don't know.
+I should point out that due to the nature of FST and VCD files, they are accessed very differently. For VCD files, you essentially need to load the entire file to get any meaningful data out of it. Thankfully, wellen reorganizes and compresses VCD data. FST files are block stored, so it's possible to only load in the netlist, and dynamically load any variables that users want to display. For small files, I simply load the entire file into memory, and that threshold can be set as a user setting.
 
-The signal data has some metadata elements such as the `signalWidth`. But all of the `transitionData` is stored as a flat array of transitions. Each transition is essentially a time and a value. The value is stored as a binary string (this could be improved, but remember that 4 state logic exists, and signals can be arbitrarily wide.) Now you might cringe at the idea of a flat array for this, but before coming to me with your whizbang idea of how to re-implement this, first consider how javascript implements large arrays under the hood! To assist in all of this, we also have an array called `chunkStart`. This is a lookup table of the start index of each time chunk so that we can slice the array as necessary to get the initial state and transitions of a particular chunk.
+For both filetypes, the WASM code parses the netlist, and then issues a callback `setscopetop()` to create the top level scopes in the document's treeData[] element. More on that later...
+
+Once the netlist has been parsed, the value change data gets parsed. For FST files, it is much faster, since it doesn't technically load much of anything. But for VCD files, that's where it serializes and compresses the value change data.
 
 ## Document handlers
 
 There are 2 main classes that handle the lifecycle of a document: `VaporviewDocument` and `WaveformViewerProvider`. These handle setting up and communicating with the webview, figuring out which document is in focus, and setting up and populating the view containers according to which viewer is in focus. This is important, because we don't want a signal being rendered in the wrong webview!
+
+We have to store a copy of each treeview for each document that's open so that if a user wants to open up multiple documents, we can repopulate the treeview according to its respective document. We don't actually store a complete copy of the netlist in the treeData. At least not when the file is first loaded. I mentioned earlier that only the top level scopes are loaded. When a user expands a scope in the Netlist Treeview, a vscode.TreeDataProvider calls a function called `getChildren()` and the default implementation is to return element.children[].
+
+My implementation is to call `getChildrenExternal()`, which calls a WASM function `getchildren()`, which returns all child scopes and child vars. They are then added to the children element, where they are cached for next time around. While it is possible to load the entire netlist, for very large waveform dumps that contain millions of elements, this is faster and more memory efficient. I should also point out that this function may take multiple iterations, because WASM has a 64K limit on data that can be passed in and out. Also, I seemed to run into some bugs with wit_bindgen, where it doesn't like to pass lists of complex types, so everything is converted to a JSON string (for now.) In every scope and variable we load, we also load the scopeRef/varRef and signalRef so that if we need to query data like child elements or value change data, it's easy to do. Note that on the WASM side, they're referred to as scopeRef, varRef, and signalRef, whereas on the Typescript side, they're referred to as netlistId, and signalId. NetlistId can either be a scopeId or VariableId depending on the type.
+
+When a user decides to display a signal, the extension does a `webview.postMessage()` for the `add-variable` command. The viewer then checks to see if it has value change data for that specific signalId. If it does not, it still displays the signal with a blank waveform (to acknowledge user action,) and then the webview sends a `vscode.postMessage()` for the `fetchTransitionData` command, which calls the WASM `getsignaldata()` function. The WASM code then sends the value change data to the webview.
+
+I should preface this next part by acknowledging that there is probably a better way to do things (like send ing the data compressed.) The WASM serializes the data, converts it to a string, and breaks it up into chunks tha fit through the 64K window. Now this may sound cursed, but remember that at the end of the day the `postMessage()` routines do a `JSON.stringify()` and `JSON.parse()` under the hood. I'm just making it easier for the middle man. But since we're limited to 64K, this is sent via a series of callbacks to `sendtransitiondatachunk()`, which then calls `webview.postMessage()` with a `update-waveform-chunk` command. In this command, it contains the total number of chunks, the chunk number, and the chunk data. When the viewer processes an `update-waveform-chunk` command, it checks to see if all of the chunks are loaded If they are, it parses the data and displays the waveform data.
+
+The signal data has some metadata elements such as the `signalWidth`. But all of the `transitionData` is stored as a flat array of transitions. Each transition is essentially a time and a value. The value is stored as a binary string (this could be improved, but remember that 4 state logic exists, and signals can be arbitrarily wide.) Now you might cringe at the idea of a flat array for this, but before coming to me with your whizbang idea of how to re-implement this, first consider how javascript implements large arrays under the hood! To assist in all of this, we also have an array called `chunkStart`. This is a lookup table of the start index of each time chunk so that we can slice the array as necessary to get the initial state and transitions of a particular chunk.
 
 # Webview
 
@@ -302,3 +330,6 @@ Here are some of the important structures for the viewer:
 ### Event handlers to handle clicking on a waveform label to select a signal
 - #waveform-labels: click
 - #transition-display: click
+
+
+

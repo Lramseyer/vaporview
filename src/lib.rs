@@ -54,7 +54,7 @@ impl WasmFileReader {
 
 impl Read for WasmFileReader {
   fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-    log(&format!("Reading data from offset: {:?}, size: {:?}", self.cursor, buf.len()));
+    //log(&format!("Reading data from offset: {:?}, size: {:?}", self.cursor, buf.len()));
 
     let mut bytes_read = 0;
     let read_size = std::cmp::min(buf.len() as u32, self.file_size as u32 - self.cursor as u32) as usize;
@@ -69,7 +69,7 @@ impl Read for WasmFileReader {
   }
 
   fn read_exact(&mut self, buf: &mut [u8]) -> io::Result<()> {
-    log(&format!("Reading exact data from offset: {:?}, size: {:?}", self.cursor, buf.len()));
+    //log(&format!("Reading exact data from offset: {:?}, size: {:?}", self.cursor, buf.len()));
     let bytes_read = self.read(buf);
     match bytes_read {
       Ok(size) => {
@@ -83,7 +83,7 @@ impl Read for WasmFileReader {
 
 impl Seek for WasmFileReader {
   fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
-    log(&format!("Seeking to: {:?}", pos));
+    //log(&format!("Seeking to: {:?}", pos));
     let new_cursor;
     match pos {
       SeekFrom::Start(offset) => { new_cursor = offset; }
@@ -100,7 +100,7 @@ impl Seek for WasmFileReader {
   }
 
   fn rewind(&mut self) -> io::Result<()> {
-    log(&format!("Rewinding file"));
+    //log(&format!("Rewinding file"));
     self.cursor = 0;
     Ok(())
   }
@@ -108,7 +108,7 @@ impl Seek for WasmFileReader {
   fn stream_position(&mut self) -> io::Result<u64> {Ok(self.cursor)}
 
   fn seek_relative(&mut self, offset: i64) -> io::Result<()> {
-    log(&format!("Seeking relative: {:?}", offset));
+    //log(&format!("Seeking relative: {:?}", offset));
     let new_cursor = (self.cursor as i64 + offset) as i64;
     if new_cursor < 0 {
       log(&format!("Invalid seek to negative position: {:?}", new_cursor));
@@ -126,7 +126,7 @@ impl Guest for Filecontext {
 
   fn loadfile(size: u64, fd: u32, loadstatic: bool) {
 
-    log(&format!("Loading FST from bytes: {:?}", size));
+    //log(&format!("Loading file from bytes: {:?}", size));
     //let loadstatic = false;
 
     let options = LoadOptions {
@@ -156,7 +156,7 @@ impl Guest for Filecontext {
       };
     }
 
-    log(&format!("Done reading file data"));
+    //log(&format!("Done reading file data"));
 
     //let mut contents = file_contents.lock().unwrap();
     let mut global_hierarchy = _hierarchy.lock().unwrap();
@@ -180,7 +180,7 @@ impl Guest for Filecontext {
       }
     }
 
-    log(&format!("Done loading FST"));
+    //log(&format!("Done loading File"));
 
     let hierarchy = global_hierarchy.as_ref().unwrap();
 
@@ -225,7 +225,7 @@ impl Guest for Filecontext {
 
   fn readbody() {
 
-    log(&format!("Reading body..."));
+    //log(&format!("Reading body..."));
 
     let global_hierarchy = _hierarchy.lock().unwrap();
     let hierarchy = global_hierarchy.as_ref().unwrap();
@@ -266,7 +266,7 @@ impl Guest for Filecontext {
     let time_table_length = time_table.len(); 
     let time_end = time_table[time_table_length - 1];
     let time_end_extend = time_end + (time_end as f32 / time_table_length as f32).ceil() as u64;
-    log(&format!("Event count: {:?}", event_count));
+    //log(&format!("Event count: {:?}", event_count));
     if event_count <= 128 {
       min_timestamp = time_table[event_count - 1];
     } else {
@@ -275,7 +275,7 @@ impl Guest for Filecontext {
         min_timestamp = std::cmp::min(rolling_time_step, min_timestamp);
       }
     }
-    log(&format!("Setting chunk size to: {:?}", min_timestamp));
+    //log(&format!("Setting chunk size to: {:?}", min_timestamp));
 
     setchunksize(min_timestamp, time_end_extend);
 
@@ -366,7 +366,7 @@ impl Guest for Filecontext {
   }
 
   fn getsignaldata(signalid: u32) {
-    log(&format!("Getting signal data for signal: {:?}", signalid));
+    //log(&format!("Getting signal data for signal: {:?}", signalid));
     let mut result = String::new();
     result.push_str("[");
 
@@ -395,12 +395,12 @@ impl Guest for Filecontext {
     let signal_loaded = signal_source.load_signals(&[signal_ref], hierarchy, false);
     let signal = &signal_loaded[0].1;
 
-    log(&format!("Loaded Signal! "));
+    //log(&format!("Loaded Signal! "));
 
     let transitions = signal.iter_changes();
     let time_index = signal.time_indices();
 
-    log(&format!("Total Time Indices: {:?}", time_index.len()));
+    //log(&format!("Total Time Indices: {:?}", time_index.len()));
     let mut i: usize = 0;
     for (_, value) in transitions {
       match value.to_bit_string() {
@@ -416,7 +416,7 @@ impl Guest for Filecontext {
       }
     }
 
-    log(&format!("Signal Data Orgainzed!"));
+    //log(&format!("Signal Data Orgainzed!"));
 
     // set last character to "]" to close the array
     if result.len() > 1 {result.pop();}

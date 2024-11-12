@@ -8,6 +8,7 @@
 - Removed checkboxes for scope \[module\] items in netlist viewer to reduce confusion
 - Variables loaded into viewer show up before waveform data is loaded as a better visual acknowledgement to user action
 - Scroll Position now limited to end of trace rather than the end of the last chunk
+- Save/Load viewer settings has been added as context menu item for easier access
 
 # 1.1.0
 

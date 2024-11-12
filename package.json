@@ -92,23 +92,38 @@
       "view/item/context": [
         {
           "command": "vaporview.addSelected",
-          "when": "viewItem == 'netlistItem' && view == 'netlistContainer'"
+          "when": "viewItem == 'netlistVar' && view == 'netlistContainer'",
+          "group": "0_default"
         },
         {
           "command": "vaporview.removeSelectedNetlist",
-          "when": "viewItem == 'netlistItem' && view == 'netlistContainer'"
+          "when": "viewItem == 'netlistVar' && view == 'netlistContainer'",
+          "group": "0_default"
         },
         {
           "command": "vaporview.removeSelectedDisplayedSignals",
-          "when": "viewItem == 'netlistItem' && view == 'displaylistContainer'"
+          "when": "viewItem == 'netlistVar' && view == 'displaylistContainer'",
+          "group": "0_default"
         },
         {
           "command": "vaporview.addAllInModule",
-          "when": "viewItem == 'netlistModule'"
+          "when": "viewItem == 'netlistScope'",
+          "group": "0_default"
         },
         {
           "command": "vaporview.removeAllInModule",
-          "when": "viewItem == 'netlistModule'"
+          "when": "viewItem == 'netlistScope'",
+          "group": "0_default"
+        },
+        {
+          "command": "vaporview.saveViewerSettings",
+          "when": "view == 'netlistContainer' || view == 'displaylistContainer'",
+          "group": "1_saveLoad"
+        },
+        {
+          "command": "vaporview.loadViewerSettings",
+          "when": "view == 'netlistContainer' || view == 'displaylistContainer'",
+          "group": "1_saveLoad"
         }
       ],
       "webview/context": [
@@ -118,14 +133,27 @@
           "group": "0_default"
         },
         {
+          "command": "vaporview.showInNetlistView",
+          "when": "webviewSection == 'signal' && 1 == 2",
+          "group": "0_default"
+        },
+        {
           "submenu": "vaporview.valueFormat",
           "when": "webviewSection == 'signal'",
           "group": "0_default"
         },
         {
+          "command": "vaporview.saveViewerSettings",
+          "group": "1_saveLoad"
+        },
+        {
+          "command": "vaporview.loadViewerSettings",
+          "group": "1_saveLoad"
+        },
+        {
           "submenu": "vaporview.waveDrom",
           "when": "webviewSection == 'signal'",
-          "group": "1_waveDrom"
+          "group": "2_waveDrom"
         }
       ],
       "vaporview.valueFormat": [
@@ -185,6 +213,10 @@
       {
         "command": "vaporview.removeSignal",
         "title": "Remove Signal"
+      },
+      {
+        "command": "vaporview.showInNetlistView",
+        "title": "Show in Netlist View"
       },
       {
         "command": "vaporview.displayAsBinary",

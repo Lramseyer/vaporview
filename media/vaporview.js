@@ -1008,7 +1008,7 @@ copyWaveDrom = function() {
     }
   }
 
-  console.log(waveDromData);
+  //console.log(waveDromData);
 
   // write the waveDrom JSON to the clipboard
   let result = '{"signal": [\n';
@@ -1140,6 +1140,8 @@ sendWebviewContext = function (responseType) {
 };
 
 handleMarkerSet = function (time, markerType) {
+
+  if (time > timeStop) {return;}
 
   let   oldMarkerTime = markerType === 0 ? markerTime         : altMarkerTime;
   let   chunkIndex    = markerType === 0 ? markerChunkIndex   : altMarkerChunkIndex;
@@ -1961,21 +1963,24 @@ goToNextTransition = function (direction, edge) {
     // Get the time position of the click
     const time     = getTimeFromClick(event);
     let snapToTime = time;
-    let signalId   = null;
 
     // Get the signal id of the click
     let netlistId     = null;
     const waveChunkId = event.target.closest('.waveform-chunk');
     if (waveChunkId) {netlistId = parseInt(waveChunkId.id.split('--').slice(1).join('--'));}
-    if (netlistId !== undefined) {
+    if (netlistId !== undefined && netlistId !== null) {
+
       if (button === 0) {
         handleSignalSelect(netlistId);
       }
 
-      signalId = netlistData[netlistId].signalId;
+      const signalId = netlistData[netlistId].signalId;
 
       // Snap to the nearest transition if the click is close enough
       const nearestTransition = getNearestTransition(signalId, time);
+
+      if (nearestTransition === null) {return;}
+
       const nearestTime       = nearestTransition[0];
       const pixelDistance     = Math.abs(nearestTime - time) * zoomRatio;
 
@@ -2064,6 +2069,7 @@ goToNextTransition = function (direction, edge) {
   }
 
   function handleMouseUp(event) {
+    //console.log('mouseup event type: ' + mouseupEventType);
     if (mouseupEventType === 'rearrange') {
       dragEnd(event);
     } else if (mouseupEventType === 'resize') {
@@ -2079,9 +2085,9 @@ goToNextTransition = function (direction, edge) {
       highlightListenerSet = false;
       highlightZoom();
     } else if (mouseupEventType === 'markerSet') {
+      scrollArea.removeEventListener('mousemove', drawHighlightZoom, false);
       clearTimeout(highlightDebounce);
       handleScrollAreaClick(highlightStartEvent, 0);
-      scrollArea.removeEventListener('mousemove', drawHighlightZoom, false);
       highlightListenerSet = false;
       if (highlightElement) {
         highlightElement.remove();
@@ -2250,7 +2256,7 @@ goToNextTransition = function (direction, edge) {
 
         if (!allChunksLoaded) {break;}
 
-        console.log('all chunks loaded');
+        //console.log('all chunks loaded');
 
         let transitionData = JSON.parse(waveformDataTemp[signalId].chunkData.join(""));
 

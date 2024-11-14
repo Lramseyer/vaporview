@@ -39,6 +39,7 @@ world filehandler {
 
 	export loadfile: func(size: u64, fd: u32, loadstatic: bool);
   export readbody: func();
+  export unload: func();
 
   // wit2ts seems to have issues returning lists of custom types
   // so we will convert to JSON string

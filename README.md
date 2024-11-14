@@ -16,6 +16,8 @@ VaporView automatically opens the waveform files in a viewer, where you can:
 - Place and move markers
 - Search for values witin a waveform dump
 
+For use of other waveform dump formats such as LXT, VZT, GTKwave offers conversion tools. Proprietery formats such as WLF, VPD, and FSDB can also be used, but require you to compile GTKwave. See the [GTKwave Manual](https://gtkwave.sourceforge.net/gtkwave.pdf) for details - page 16, and 69 for an overview.
+
 ## Terminal Links
 
 VaporView associates timestamps and netlist paths as links in the terminal. These links are activated by **Ctrl + Clicking** on the link. Timespamp links will place the marker at the designated timestamp and move the viewer to that marker (if necessary) whereas netlist path links will add the designated signal into the viewer. The following formats are recognized by VaporView:
@@ -53,7 +55,7 @@ The scroll wheel (or touchpad scroll) is used to pan in time or scroll up or dow
 
 ### Mouse Scrolling
 
-Scrolling behaves as you would expect except for when scrolling the actual waveforms (where it scrolls sideways by default.) To scroll up or down, either hold Shift and scroll, or move your marker over to the signal name labels on the left and scroll normally.
+Scroll wheel scrolls sideways by default. To scroll up or down, either hold Shift and scroll, or hover the cursor over to the signal name labels on the left and scroll normally.
 
 ### Touchpad Scrolling
 
@@ -101,7 +103,7 @@ Finding a particular transition or a value in a waveform is done in relation to 
 
 ## Saving and loading opened signals
 
-VaporView allows you to save and load your signal list. To do this, hit **Ctrl + Shift + P** and Type **">Save Vaproview Settings"** or **">Load Vaproview Settings"** and press **Enter** to slect the command. A dialog box will pop up prompting which file you would like to save/load settings from.
+VaporView allows you to save and load your signal list. This can be done either by right clicking anywhere in the viewer or netlist and selecting **"Save Vaproview Settings"** or **"Load Vaproview Settings"**. You can also access the command directly by pressing **Ctrl + Shift + P** and Type **">Save Vaproview Settings"** or **">Load Vaproview Settings"** and press **Enter** to slect the command. A dialog box will pop up prompting which file you would like to save/load settings from.
 
 **Note:** The settings will only load for the active viewer tab that is in focus, and will look up signals by name. If the module paths have changed, it may not load in the signals properly. The settings files however are plaintext (JSON) and can be edited if need be.
 
@@ -133,18 +135,15 @@ This extension was designed on Vscode version 1.83
 
 # Development Roadmap
 
-## 1.1.0 - Latest Release
-
-Supports all the features you would expect including signal placing, rearranging, marker handling, saving/loading viewer settings, and exporting selection to WaveDrom!
-
-New for 1.1.0 - Added large VCD file support. Contents of VCD files are statically loaded into memory, so the file size limit is configurable (or will be upon release.) If a file is too large, netlist will still be loaded.
-
-## 1.2.0 - Upcoming Release
+## 1.2.0 - Latest Release
 
 - Removed checkboxes for scope \[module\] items in netlist viewer to reduce confusion
 - File parsing uses the [wellen](https://github.com/ekiwi/wellen/tree/new-api) library compiled to wasm. Benefits include:
   - FST and GHW file support
   - Improves file parsing speed and memory efficiency (over storing everything in JS objects)
+- Variables loaded into viewer show up before waveform data is loaded as a better visual acknowledgement to user action
+- Scroll Position now limited to end of trace rather than the end of the last chunk
+- Save/Load viewer settings has been added as context menu item for easier access
 
 ## Planned Features
 

@@ -434,19 +434,19 @@ impl Guest for Filecontext {
       sendtransitiondatachunk(signalid, chunk_count, i as u32, chunk);
     }
 
-    fn _unload() {
-      let mut global_signal_source = _signal_source.lock().unwrap();
-      let mut global_time_table = _time_table.lock().unwrap();
-      let mut global_body = _body.lock().unwrap();
-      let mut global_hierarchy = _hierarchy.lock().unwrap();
-      let mut global_file_format = _file_format.lock().unwrap();
-      *global_signal_source = None;
-      *global_time_table = None;
-      *global_body = ReadBodyEnum::None;
-      *global_hierarchy = None;
-      *global_file_format = FileFormat::Unknown;
-    }
+  }
 
+  fn unload() {
+    let mut global_signal_source = _signal_source.lock().unwrap();
+    let mut global_time_table = _time_table.lock().unwrap();
+    let mut global_body = _body.lock().unwrap();
+    let mut global_hierarchy = _hierarchy.lock().unwrap();
+    let mut global_file_format = _file_format.lock().unwrap();
+    *global_signal_source = None;
+    *global_time_table = None;
+    *global_body = ReadBodyEnum::None;
+    *global_hierarchy = None;
+    *global_file_format = FileFormat::Unknown;
   }
 }
 

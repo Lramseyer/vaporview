@@ -14,11 +14,11 @@ const wasmBuild = wasmRelease;
 
 interface VaporviewDocumentDelegate {
   getViewerContext(): Promise<Uint8Array>;
+  updateViews(uri: vscode.Uri): void;
 }
 
 let wasmModule: WebAssembly.Module;
 type WaveformTopMetadata = {
-  fileName:    string;
   fileSize:    number;
   fd:          number;
   timeTableLoaded: boolean;
@@ -86,53 +86,12 @@ export function createVar(name: string, type: string, path: string, netlistId: N
   return variable;
 }
 
+// #region VaporviewDocument
 export class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocument {
 
-  static async create(
-    uri: vscode.Uri,
-    backupId: string | undefined,
-    wasmWorker: Worker,
-    delegate: VaporviewDocumentDelegate,
-  ): Promise<VaporviewDocument | PromiseLike<VaporviewDocument>> {
-
-    const open  = promisify(fs.open);
-    const MAX_FILESIZE_LOAD_SIGNALS = 1024 * 1024 * 1024 * 4; // 4 GB
-    const document = new VaporviewDocument(uri, wasmWorker, delegate);
-
-    await document.createWasmApi(wasmWorker);
-    const stats    = fs.statSync(uri.fsPath);
-    const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase();
-    document.metadata.fd       = await open(uri.fsPath, 'r');
-    document.metadata.fileName = uri.fsPath;
-    document.metadata.fileSize = stats.size;
-    const fstMaxStaticLoadSize = vscode.workspace.getConfiguration('vaporview').get('fstMaxStaticLoadSize');
-    const maxStaticSize        = Number(fstMaxStaticLoadSize) * 1048576;
-
-    let loadStatic = true;
-    if (fileType === 'fst' && stats.size > maxStaticSize) {
-      loadStatic = false;
-    }
-    //loadStatic = true;
-
-    if (loadStatic === false) {
-      vscode.window.showInformationMessage(
-        uri.fsPath + ' is larger than the max static load size of ' + fstMaxStaticLoadSize +
-        ' MB. File will be loaded dynamically. You can configure the max load size in your extension settings.');
-    }
-
-    await vscode.window.withProgress({
-      location: vscode.ProgressLocation.Notification,
-      title: "Parsing Netlist",
-      cancellable: false
-    }, async () => {
-      await document.wasmApi.loadfile(BigInt(stats.size), document.metadata.fd, loadStatic);
-    });
-
-    document._readBody();
-    return document;
-  }
-
+  private open  = promisify(fs.open);
   private close = promisify(fs.close);
+
   private readonly _uri: vscode.Uri;
   // Hierarchy
   public treeData:         NetlistItem[] = [];
@@ -146,7 +105,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public webviewPanel: vscode.WebviewPanel | undefined = undefined;
   private _webviewInitialized: boolean = false;
   public metadata:   WaveformTopMetadata = {
-    fileName:    "",
     fileSize:    0,
     fd:          0,
     timeTableLoaded: false,
@@ -161,6 +119,19 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     timeUnit:    "ns",
   };
 
+  static async create(
+    uri: vscode.Uri,
+    backupId: string | undefined,
+    wasmWorker: Worker,
+    delegate: VaporviewDocumentDelegate,
+  ): Promise<VaporviewDocument | PromiseLike<VaporviewDocument>> {
+
+    const document = new VaporviewDocument(uri, wasmWorker, delegate);
+    await document.createWasmApi();
+    document.load();
+    return document;
+  }
+
   private constructor(
     uri: vscode.Uri,
     _wasmWorker: Worker,
@@ -170,6 +141,38 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this._uri = uri;
     this._wasmWorker = _wasmWorker;
     this._delegate = delegate;
+  }
+
+  private async load() {
+    const stats    = fs.statSync(this.uri.fsPath);
+    const fileType = this.uri.fsPath.split('.').pop()?.toLocaleLowerCase();
+    this.metadata.fd       = await this.open(this.uri.fsPath, 'r');
+    this.metadata.fileSize = stats.size;
+    const fstMaxStaticLoadSize = vscode.workspace.getConfiguration('vaporview').get('fstMaxStaticLoadSize');
+    const maxStaticSize        = Number(fstMaxStaticLoadSize) * 1048576;
+
+    let loadStatic = true;
+    if (fileType === 'fst' && stats.size > maxStaticSize) {
+      loadStatic = false;
+    }
+    //loadStatic = true;
+
+    if (loadStatic === false) {
+      vscode.window.showInformationMessage(
+        this.uri.fsPath + ' is larger than the max static load size of ' + fstMaxStaticLoadSize +
+        ' MB. File will be loaded dynamically. You can configure the max load size in your extension settings.');
+    }
+
+    await vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: "Parsing Netlist",
+      cancellable: false
+    }, async () => {
+      await this.wasmApi.loadfile(BigInt(stats.size), this.metadata.fd, loadStatic);
+    });
+
+    this._delegate.updateViews(this.uri);
+    await this._readBody();
   }
 
   public readonly service: filehandler.Imports.Promisified = {
@@ -223,8 +226,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public get netlistIdTable(): NetlistIdTable { return this._netlistIdTable; }
   public get webviewInitialized(): boolean { return this._webviewInitialized; }
 
-  public async createWasmApi(wasmWorker: Worker) {
-    this.wasmApi = await filehandler._.bind(this.service, wasmModule, wasmWorker);
+  public async createWasmApi() {
+    this.wasmApi = await filehandler._.bind(this.service, wasmModule, this._wasmWorker);
   }
 
   private _readBody() {
@@ -238,7 +241,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   public onWebviewReady(webviewPanel: vscode.WebviewPanel) {
-    //console.log("Webview Ready");
+    console.log("Webview Ready");
     this.webviewPanel = webviewPanel;
     if (this._webviewInitialized) {return;}
     if (!this.metadata.timeTableLoaded) {return;}
@@ -252,7 +255,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   public onDoneParsingWaveforms() {
-    //console.log("onDoneParsingWaveforms");
+    console.log("onDoneParsingWaveforms");
     if (this.webviewPanel) {
       this.onWebviewReady(this.webviewPanel);
     }
@@ -358,6 +361,24 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     return Promise.resolve(element.children);
   }
 
+  public async unload() {
+    console.log("Reloading document");
+    this.treeData         = [];
+    this.displayedSignals = [];
+    this._netlistIdTable  = [];
+    this.close(this.metadata.fd);
+    await this.wasmApi.unload();
+    this.metadata.timeTableLoaded = false;
+    this.webviewPanel?.webview.postMessage({command: 'unload'});
+    this._webviewInitialized = false;
+  }
+
+  public async reload() {
+
+    await this.unload();
+    await this.load();
+  }
+
   //private readonly _onDidDispose = this._register(new vscode.EventEmitter<void>());
   /**
    * Fired when the document is disposed of.
@@ -369,11 +390,13 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
    * This happens when all editors for it have been closed.
    */
   dispose(): void {
+    this.unload();
+    this._delegate.updateViews(this.uri);
     //this._onDidDispose.fire();
-    //this.netlistElements = [];
   }
 }
 
+// #region WaveformViewerProvider
 class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<VaporviewDocument> {
 
   private static newViewerId = 1;
@@ -451,13 +474,9 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     };
   }
 
-  public saveSettings() {
-    if (!this.activeDocument) {
-      vscode.window.showErrorMessage('No viewer is active. Please select the viewer you wish to save settings.');
-      return;
-    }
-
-    const saveData = {
+  public getSettings() {
+    if (!this.activeDocument) {return;}
+    return {
       extensionVersion: vscode.extensions.getExtension('Lramseyer.vaporview')?.packageJSON.version,
       fileName: this.activeDocument.uri.fsPath,
       markerTime: this.webviewContext.markerTime,
@@ -467,7 +486,15 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
       scrollLeft: this.webviewContext.scrollLeft,
       displayedSignals: this.webviewContext.displayedSignals.map((n: NetlistId) => {return this.getNameFromNetlistId(n);}),
     };
+  }
 
+  public saveSettingsToFile() {
+    if (!this.activeDocument) {
+      vscode.window.showErrorMessage('No viewer is active. Please select the viewer you wish to save settings.');
+      return;
+    }
+
+    const saveData       = this.getSettings();
     const saveDataString = JSON.stringify(saveData, null, 2);
 
     vscode.window.showSaveDialog({
@@ -480,7 +507,12 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     });
   }
 
-  public async loadSettings() {
+  public async loadSettingsFromFile() {
+
+    if (!this.activeDocument) {
+      vscode.window.showErrorMessage('No viewer is active. Please select the viewer you wish to load settings.');
+      return;
+    }
 
     //let version  = vscode.extensions.getExtension('Lramseyer.vaporview')?.packageJSON.version;
     // show open file diaglog
@@ -508,21 +540,21 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     });
 
     if (!fileData) {return;}
-
-    if (!this.activeDocument) {
-      vscode.window.showErrorMessage('No viewer is active. Please select the viewer you wish to load settings.');
-      return;
-    }
-
     if (fileData.fileName && fileData.fileName !== this.activeDocument.uri.fsPath) {
       vscode.window.showWarningMessage('The settings file may not match the active viewer');
     }
 
+    this.applySettings(fileData);
+  }
+
+  public async applySettings(settings: any) {
     const missingSignals: string[] = [];
     const foundSignals: any[] = [];
 
-    if (fileData.displayedSignals) {
-      for (const signalInfo of fileData.displayedSignals) {
+    if (!this.activeDocument) {return;}
+
+    if (settings.displayedSignals) {
+      for (const signalInfo of settings.displayedSignals) {
         const signal = signalInfo.name;
         const numberFormat = signalInfo.numberFormat;
         const metaData = await this.activeDocument.findTreeItem(signal, signalInfo.msb, signalInfo.lsb);
@@ -565,6 +597,11 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
         const panel    = webviewsForDocument[0];
         const response = await this.postMessageWithResponse<number[]>(panel, 'getContext', {});
         return new Uint8Array(response);
+      },
+      updateViews: (uri: vscode.Uri) => {
+        if (this.activeDocument?.uri !== uri) {return;}
+        this.netlistTreeDataProvider.loadDocument(document);
+        this.displayedSignalsTreeDataProvider.setTreeData(document.displayedSignals);
       }
     };
 
@@ -577,6 +614,15 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
     this.displayedSignalsTreeDataProvider.setTreeData(document.displayedSignals);
 
     return document;
+  }
+
+  async reloadFile() {
+    if (!this.activeDocument) {return;}
+    const settings = this.getSettings();
+    this.netlistTreeDataProvider.hide();
+    this.displayedSignalsTreeDataProvider.hide();
+    await this.activeDocument.reload();
+    this.applySettings(settings);
   }
 
   formatTime = function(time: number, timeScale: number, timeUnit: string) {
@@ -831,6 +877,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
 
       //console.log('onDidChangeCheckboxState()');
 
+      //console.log(changedItem);
       //console.log(this.netlistView);
       const metadata = changedItem.items[0][0];
 
@@ -1304,6 +1351,7 @@ class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<Vapo
   }
 }
 
+// #region WebviewCollection
 /**
  * Tracks all webviews.
  */
@@ -1344,6 +1392,7 @@ class WebviewCollection {
   }
 }
 
+// #region NetlistTreeDataProvider
 export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistItem> {
 
   private treeData: NetlistItem[] = [];
@@ -1445,6 +1494,7 @@ interface TreeCheckboxChangeEvent<T> {
   checked: boolean;
 }
 
+// #region NetlistItem
 export class NetlistItem extends vscode.TreeItem {
   private _onDidChangeCheckboxState: vscode.EventEmitter<vscode.TreeItem | undefined | null> = new vscode.EventEmitter<vscode.TreeItem | undefined | null>();
   onDidChangeCheckboxState: vscode.Event<vscode.TreeItem | undefined | null> = this._onDidChangeCheckboxState.event;
@@ -1517,6 +1567,7 @@ export class NetlistItem extends vscode.TreeItem {
   }
 }
 
+// #region activate()
 export async function activate(context: vscode.ExtensionContext) {
 
   //console.log('Loading WASM worker');
@@ -1709,11 +1760,15 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.saveViewerSettings', (e) => {
-    viewerProvider.saveSettings();
+    viewerProvider.saveSettingsToFile();
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.loadViewerSettings', (e) => {
-    viewerProvider.loadSettings();
+    viewerProvider.loadSettingsFromFile();
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.reloadFile', (e) => {
+    viewerProvider.reloadFile();
   }));
 }
 

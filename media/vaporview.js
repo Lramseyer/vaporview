@@ -1307,7 +1307,6 @@ goToNextTransition = function (direction, edge) {
   // Search handler variables
   searchState         = 0;
   searchInFocus       = false;
-  parsedSearchValue   = null;
 
   // Data formatting variables
   bitChunkWidth       = 4;
@@ -2169,8 +2168,8 @@ goToNextTransition = function (direction, edge) {
 
     switch (message.command) {
       case 'create-ruler': {
-        vscode.postMessage({ command: 'creating ruler from the js file' });
-        //console.log("creating ruler");
+        //vscode.postMessage({ command: 'creating ruler from the js file' });
+        console.log("creating ruler");
         waveformDataSet   = message.waveformDataSet;
         document.title    = waveformDataSet.filename;
         chunkTime         = waveformDataSet.chunkTime;
@@ -2186,6 +2185,76 @@ goToNextTransition = function (direction, edge) {
         updateViewportWidth();
         getChunksWidth();
         updateContentArea(leftOffset, getBlockNum());
+
+        break;
+      }
+      case 'unload': {
+        console.log('unloading');
+
+        // Scroll handler variables
+        //pseudoScrollLeft    = 0;
+        //contentLeft         = 0;
+        //leftOffset          = 0;
+        //viewerWidth         = 0;
+        //halfViewerWidth     = 0;
+        //maxScrollLeft       = 0;
+        //maxScrollbarPosition = 0;
+        //scrollbarWidth      = 17;
+        //scrollbarPosition   = 0;
+        //touchpadScrolling   = false;
+        //touchpadScrollCount = 0;
+
+        // Zoom level variables
+        //timeScale           = 1;
+        chunkCount          = 0;
+        //chunkTime           = 512;
+        //chunkWidth          = 512;
+        //zoomRatio           = 1;
+        //maxZoomRatio        = 64;
+        chunksInColumn      = 1;
+        columnTime          = chunkTime * chunksInColumn;
+        timeStop            = 0;
+        // Clusterize variables
+        updatePending       = true;
+        columnsInCluster    = 4;
+        scrollEventPending  = false;
+        currentCluster      = [0, 0];
+        columnWidth         = chunksInColumn  * chunkWidth;
+        // Marker and signal selection variables
+        selectedSignal      = null;
+        selectedSignalIndex = null;
+        markerTime          = null;
+        markerChunkIndex    = undefined;
+        altMarkerTime       = null;
+        altMarkerChunkIndex = undefined;
+        // Search handler variables
+        searchInFocus       = false;
+        parsedSearchValue   = null;
+        // Data formatting variables
+        bitChunkWidth       = 4;
+        labelsList          = [];
+        // Data variables
+        contentData         = [];
+        displayedSignals    = [];
+        waveformData        = {};
+        netlistData         = {};
+        waveformDataTemp    = {};
+        dataCache           = {
+          startIndex:     0,
+          endIndex:       0,
+          columns:        [],
+          valueAtMarker:  {},
+          updatesPending: 0,
+          markerElement:  '',
+          altMarkerElement: '',
+        };
+        waveDromClock = {netlistId: null,};
+
+        contentArea.style.height = '0px';
+        updateContentArea(0, [0, 0]);
+        handleZoom(1, 0, 0);
+        renderLabelsPanels();
+        vscode.postMessage({type: 'ready'});
 
         break;
       }

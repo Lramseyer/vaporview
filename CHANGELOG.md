@@ -1,14 +1,16 @@
 # Change Log
 
-# Next release 1.2.0
+# 1.2.0
 
 - File parsing uses the [wellen](https://github.com/ekiwi/wellen/tree/new-api) library compiled to wasm. Benefits include:
   - FST and GHW file support
-  - Improves file parsing speed and memory efficiency (over storing everything in JS objects)
+  - Improved file parsing speed and memory efficiency (over storing everything in JS objects)
 - Removed checkboxes for scope \[module\] items in netlist viewer to reduce confusion
 - Variables loaded into viewer show up before waveform data is loaded as a better visual acknowledgement to user action
 - Scroll Position now limited to end of trace rather than the end of the last chunk
 - Save/Load viewer settings has been added as context menu item for easier access
+- Fixed issues with netlists loading into the wrong view on load
+- Added (Beta) File reloading
 
 # 1.1.0
 

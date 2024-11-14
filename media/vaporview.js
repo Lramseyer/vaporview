@@ -2169,7 +2169,7 @@ goToNextTransition = function (direction, edge) {
     switch (message.command) {
       case 'create-ruler': {
         //vscode.postMessage({ command: 'creating ruler from the js file' });
-        console.log("creating ruler");
+        //console.log("creating ruler");
         waveformDataSet   = message.waveformDataSet;
         document.title    = waveformDataSet.filename;
         chunkTime         = waveformDataSet.chunkTime;
@@ -2189,7 +2189,7 @@ goToNextTransition = function (direction, edge) {
         break;
       }
       case 'unload': {
-        console.log('unloading');
+        //console.log('unloading');
 
         // Scroll handler variables
         //pseudoScrollLeft    = 0;

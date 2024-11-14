@@ -391,6 +391,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
    */
   dispose(): void {
     this.unload();
+    this._wasmWorker.terminate();
     this._delegate.updateViews(this.uri);
     //this._onDidDispose.fire();
   }

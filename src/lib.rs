@@ -210,7 +210,7 @@ impl Guest for Filecontext {
 
     for s in hierarchy.scopes() {
       let scope = hierarchy.get(s);
-      log(&format!("ID: {:?} Scope: {:?}", s, scope));
+      //log(&format!("ID: {:?} Scope: {:?}", s, scope));
       let name = scope.name(&hierarchy).to_string();
       let tpe = format!("{:?}", scope.scope_type());
 
@@ -219,7 +219,7 @@ impl Guest for Filecontext {
 
     for v in hierarchy.vars() {
       let variable = hierarchy.get(v);
-      log(&format!("Item: {:?}", variable));
+      //log(&format!("Item: {:?}", variable));
     }
   }
 
@@ -247,7 +247,7 @@ impl Guest for Filecontext {
       }
     };
 
-    log(&format!("Done reading body"));
+    //log(&format!("Done reading body"));
 
     match body_result {
       Ok(result) => {

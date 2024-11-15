@@ -2,7 +2,7 @@
   "name": "vaporview",
   "publisher": "lramseyer",
   "displayName": "VaporView",
-  "description": "VCD Waveform Viewer for VS code",
+  "description": "Digital Waveform Viewer for VS code",
   "icon": "media/icon.png",
   "galleryBanner": {
     "color": "#202020",
@@ -17,10 +17,13 @@
   ],
   "keywords": [
     "Waveform",
+    "Wave",
+    "Viewer",
     "VCD",
     "FST",
     "Logic Simulation",
-    "Logic Analyzer"
+    "Logic Analyzer",
+    "GTKwave"
   ],
   "engines": {
     "vscode": "^1.89.0"

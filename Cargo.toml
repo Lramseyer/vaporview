@@ -8,5 +8,5 @@ crate-type = ["cdylib"]
 
 [dependencies]
 lazy_static = "1.5.0"
-wellen = "0.13.0"
+wellen = "0.13.1"
 wit-bindgen = "0.34.0"

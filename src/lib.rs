@@ -124,10 +124,9 @@ struct Filecontext;
 
 impl Guest for Filecontext {
 
-  fn loadfile(size: u64, fd: u32, loadstatic: bool) {
+  fn loadfile(size: u64, fd: u32, loadstatic: bool, buffersize: u32) {
 
     //log(&format!("Loading file from bytes: {:?}", size));
-    //let loadstatic = false;
 
     let options = LoadOptions {
       multi_thread: false, // WASM is currently single-threaded
@@ -148,7 +147,8 @@ impl Guest for Filecontext {
         Err(e) => HeaderResultType::Err(e),
       };
     } else {
-      let file_reader = BufReader::new(reader);
+      //let file_reader = BufReader::new(reader);
+      let file_reader = BufReader::with_capacity(buffersize as usize, reader);
       let result = read_header(file_reader, &options);
       header_result = match result {
         Ok(header) => HeaderResultType::Dynamic(header),
@@ -219,7 +219,7 @@ impl Guest for Filecontext {
 
     for v in hierarchy.vars() {
       let variable = hierarchy.get(v);
-      //log(&format!("Item: {:?}", variable));
+      log(&format!("Item: {:?}", variable));
     }
   }
 

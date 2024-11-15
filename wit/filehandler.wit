@@ -37,7 +37,7 @@ world filehandler {
   import setchunksize: func(chunksize: u64, timeend: u64);
 	import sendtransitiondatachunk: func(signalid: u32, totalchunks: u32, chunknum: u32, data: string);
 
-	export loadfile: func(size: u64, fd: u32, loadstatic: bool);
+	export loadfile: func(size: u64, fd: u32, loadstatic: bool, buffersize: u32);
   export readbody: func();
   export unload: func();
 

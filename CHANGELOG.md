@@ -1,5 +1,11 @@
 # Change Log
 
+## Next Release (Version TBD)
+
+- Fixed keybindings for Mac OS users
+- Added Home and End to go to the beginning and end of a waveform dump
+- Fixed 'webview is disposed' errors
+
 # 1.2.0
 
 - File parsing uses the [wellen](https://github.com/ekiwi/wellen/tree/new-api) library compiled to wasm. Benefits include:

@@ -2,16 +2,142 @@
 <html>
 <head>
   <title>VaporView - Waveform Viewer</title>
-  <!-- Include CSS and JavaScript files here -->
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="${webAssets.codiconsUri}"/>
+  <link rel="stylesheet" href="${webAssets.cssFileUri}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="${webAssets.diamondUri}" rel="diamond.svg" type="image/svg+xml">
+  <link href="${webAssets.svgIconsUri}" rel="icons.svg" type="image/svg+xml">
 </head>
-<body>
-  <!-- Create the container for your waveform display -->
-  <div id="waveform-container">
-    <!-- This is where the waveform will be displayed -->
-    <p>Hello World</p>
+<body data-vscode-context='{"preventDefaultContextMenuItems":true}'>
+  <div id="vaporview-top">
+    <div id="control-bar">
+      <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+        <defs>
+          <symbol id="binary-edge" viewBox="0 0 16 16">
+            <path d="M 2 14 L 2 14 L 8 14 L 8 3 C 8 1 8 1 10 1 L 14 1 L 14 2 L 9 2 L 9 13 C 9 15 9 15 7 15 L 2 15 L 2 14"/>
+          </symbol>
+          <symbol id="bus-edge" viewBox="0 0 16 16">
+            <path d="M 2 1 L 6 1 L 8 6 L 10 1 L 14 1 L 14 2 L 10.663 2 L 8.562 7.5 L 10.663 14 L 14 14 L 14 15 L 10 15 L 8 9 L 6 15 L 2 15 L 2 14 L 5.337 14 L 7.437 7.5 L 5.337 2 L 2 2 L 2 1"/>
+          </symbol>
+          <symbol id="arrow" viewBox="0 0 16 16">
+            <path d="M 1 7 L 1 8 L 6 8 L 4 10 L 4.707 10.707 L 7.914 7.5 L 4.707 4.293 L 4 5 L 6 7 L 6 7 L 1 7"/>
+          </symbol>
+          <symbol id="back-arrow" viewBox="0 0 16 16">
+            <use href="#arrow" transform="scale(-1, 1) translate(-16, 0)"/>
+          </symbol>
+          <symbol id="next-posedge" viewBox="0 0 16 16">
+            <use href="#arrow"/>
+            <use href="#binary-edge" transform="translate(3, 0)"/>
+          </symbol>
+          <symbol id="next-negedge" viewBox="0 0 16 16">
+            <use href="#arrow"/>
+            <use href="#binary-edge" transform="translate(3, 16) scale(1, -1)"/>
+          </symbol>
+          <symbol id="next-edge" viewBox="0 0 16 16">
+            <use href="#arrow"/>
+            <use href="#bus-edge" transform="translate(3, 0)"/>
+          </symbol>
+          <symbol id="previous-posedge" viewBox="0 0 16 16">
+            <use href="#back-arrow"/>
+            <use href="#binary-edge" transform="translate(-3, 0)"/>
+          </symbol>
+          <symbol id="previous-negedge" viewBox="0 0 16 16">
+            <use href="#back-arrow"/>
+            <use href="#binary-edge" transform="translate(-3, 16) scale(1, -1)"/>
+          </symbol>
+          <symbol id="previous-edge" viewBox="0 0 16 16">
+            <use href="#back-arrow"/>
+            <use href="#bus-edge" transform="translate(-3, 0)"/>
+          </symbol>
+          <symbol id="time-equals" viewBox="0 0 16 16">
+            <text x="8" y="8" class="icon-text">t=</text>
+          </symbol>
+          <symbol id="search-hex" viewBox="0 0 16 16">
+            <text x="8" y="8" class="icon-text">hex</text>
+          </symbol>
+          <symbol id="search-binary" viewBox="0 0 16 16">
+            <text x="8" y="8" class="icon-text">bin</text>
+          </symbol>
+          <symbol id="search-decimal" viewBox="0 0 16 16">
+            <text x="8" y="8" class="icon-text">dec</text>
+          </symbol>
+          <symbol id="search-enum" viewBox="0 0 16 16">
+            <text x="8" y="8" class="icon-text">Abc</text>
+          </symbol>
+          <symbol id="touchpad" viewBox="0 0 16 16">
+            <path d="M 1 2 L 1 10 C 1 11 2 11 2 11 L 3 11 L 3 10 L 2 10 L 2 2 L 14 2 L 14 10 L 12 10 L 12 11 L 14 11 C 14 11 15 11 15 10 L 15 2 C 15 2 15 1 14 1 L 2 1 C 1 1 1 2 1 2 M 4 14 L 5 14 L 5 11 C 5 10 5 9 6 9 C 7 9 7 10 7 11 L 7 14 L 8 14 L 8 9 C 8 8 8 7 9 7 C 10 7 10 8 10 9 L 10 14 L 11 14 L 11 9 C 11 7 10.5 6 9 6 C 7.5 6 7 7 7 8 L 7 8.5 C 6.917 8.261 6.671 8.006 6 8 C 4.5 8 4 9 4 11 L 4 14"/>
+          </symbol>
+        </defs>
+      </svg>
+      <div class="control-bar-group">
+        <div class="control-bar-button" title="Zoom Out (Ctrl + scroll down)" id="zoom-out-button">
+          <div class='codicon codicon-zoom-out' style="font-size:20px"></div>
+        </div>
+        <div class="control-bar-button" title="Zoom In (Ctrl + scroll up)" id="zoom-in-button">
+          <div class='codicon codicon-zoom-in' style="font-size:20px"></div>
+        </div>
+      </div>
+      <div class="control-bar-group">
+        <div class="control-bar-button" title="Go To Previous Negative Edge Transition" id="previous-negedge-button">
+          <svg class="custom-icon" viewBox="0 0 16 16"><use href="#previous-negedge"/></svg>
+        </div>
+        <div class="control-bar-button" title="Go To Previous Positive Edge Transition" id="previous-posedge-button">
+          <svg class="custom-icon" viewBox="0 0 16 16"><use href="#previous-posedge"/></svg>
+        </div>
+        <div class="control-bar-button" title="Go To Previous Transition (Ctrl + &#8678;)" id="previous-edge-button">
+          <svg class="custom-icon" viewBox="0 0 16 16"><use href="#previous-edge"/></svg>
+        </div>
+        <div class="control-bar-button" title="Go To Next Transition (Ctrl + &#8680;)" id="next-edge-button">
+          <svg class="custom-icon" viewBox="0 0 16 16"><use href="#next-edge"/></svg>
+        </div>
+        <div class="control-bar-button" title="Go To Next Positive Edge Transition" id="next-posedge-button">
+          <svg class="custom-icon" viewBox="0 0 16 16"><use href="#next-posedge"/></svg>
+        </div>
+        <div class="control-bar-button" title="Go To Next Negative Edge Transition" id="next-negedge-button">
+          <svg class="custom-icon" viewBox="0 0 16 16"><use href="#next-negedge"/></svg>
+        </div>
+      </div>
+      <div class="control-bar-group">
+        <div id="search-container">
+          <textarea id="search-bar" class="search-input" autocorrect="off" autocapitalize="off" spellcheck="false" wrap="off" aria-label="Find" placeholder="Search" title="Find"></textarea>
+          <div class="search-button selected-button" title="Go to Time specified" id="time-equals-button">
+            <svg class="custom-icon" viewBox="0 0 16 16"><use href="#time-equals"/></svg>
+          </div>
+          <div class="search-button" title="Search by hex value" id="value-equals-button">
+            <svg class="custom-icon" viewBox="0 0 16 16"><use id="value-icon-reference" href="#search-hex"/></svg>
+          </div>
+        </div>
+        <div class="control-bar-button" title="Previous" id="previous-button">
+          <div class='codicon codicon-arrow-left' style="font-size:20px"></div>
+        </div>
+        <div class="control-bar-button" title="Next" id="next-button">
+          <div class='codicon codicon-arrow-right' style="font-size:20px"></div>
+        </div>
+      </div>
+      <div class="control-bar-group">
+        <div class="format-button" title="Enable Touchpad Scrolling" id="touchpad-scroll-button">
+          <svg class="custom-icon" viewBox="0 0 16 16"><use href="#touchpad"/></svg>
+        </div>
+      </div>
+    </div>
+    <div id="viewer-container">
+      <div id="resize-1" class="resize-bar"></div>
+      <div id="resize-2" class="resize-bar"></div>
+    </div>
+    <div id="waveform-labels-container" class="labels-container">
+      <div id="waveform-labels-spacer" class="ruler-spacer"> </div>
+      <div id="waveform-labels"> </div>
+    </div>
+    <div id="transition-display-container" class="labels-container">
+      <div class="ruler-spacer"></div>
+      <div id="transition-display"></div>
+    </div>
+    <div id="scrollArea">
+      <div id="contentArea" tabindex="0"></div>
+    </div>
+    <div id="scrollbarContainer"><div id="scrollbar"></div></div>
   </div>
-  <!-- Include your JavaScript file here -->
-  <script src="vaporview.js"></script>
+  <script src="${webAssets.jsFileUri}"></script>
 </body>
 </html>

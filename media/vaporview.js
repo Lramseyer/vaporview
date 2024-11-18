@@ -1809,11 +1809,15 @@ goToNextTransition = function (direction, edge) {
 
     event.preventDefault();
 
+    console.log(event);
+
     if (!touchpadScrolling) {event.preventDefault();}
     const deltaY = event.deltaY;
+    const deltaX = event.deltaX;
     if (event.shiftKey && !touchpadScrolling) {
+      console.log('shift key');
       event.stopPropagation();
-      scrollArea.scrollTop      += deltaY;
+      scrollArea.scrollTop      += deltaY || deltaX;
       labelsScroll.scrollTop     = scrollArea.scrollTop;
       transitionScroll.scrollTop = scrollArea.scrollTop;
     } else if (event.ctrlKey) {
@@ -1849,6 +1853,7 @@ goToNextTransition = function (direction, edge) {
 
   // move handler to handle moving the marker or selected signal with the arrow keys
   window.addEventListener('keydown', (event) => {
+
     if (searchInFocus) {return;} 
     else {event.preventDefault();}
 
@@ -1860,12 +1865,15 @@ goToNextTransition = function (direction, edge) {
 
     // left and right arrow keys move the marker
     // ctrl + left and right arrow keys move the marker to the next transition
+
     if ((event.key === 'ArrowRight') && (markerTime !== null)) {
-      if (event.ctrlKey)  {goToNextTransition(1);}
-      else                {handleMarkerSet(markerTime + 1, 0);}
+      if (event.ctrlKey || event.altKey) {goToNextTransition(1);}
+      else if (event.metaKey) {handleMarkerSet(timeStop, 0);}
+      else                 {handleMarkerSet(markerTime + 1, 0);}
     } else if ((event.key === 'ArrowLeft') && (markerTime !== null)) {
-      if (event.ctrlKey)  {goToNextTransition(-1);}
-      else                {handleMarkerSet(markerTime - 1, 0);}
+      if (event.ctrlKey || event.altKey)  {goToNextTransition(-1);}
+      else if (event.metaKey) {handleMarkerSet(0, 0);}
+      else                 {handleMarkerSet(markerTime - 1, 0);}
 
     // up and down arrow keys move the selected signal
     // alt + up and down arrow keys reorder the selected signal up and down
@@ -1878,6 +1886,10 @@ goToNextTransition = function (direction, edge) {
       if (event.altKey)  {reorderSignals(selectedSignalIndex, newIndex);}
       else               {handleSignalSelect(displayedSignals[newIndex]);}
     }
+
+    // handle Home and End keys to move to the start and end of the waveform
+    else if (event.key === 'Home') {handleMarkerSet(0, 0);}
+    else if (event.key === 'End')  {handleMarkerSet(timeStop, 0);}
 
     // "N" and Shoft + "N" go to the next transition
     else if (event.key === 'n') {goToNextTransition(1);}

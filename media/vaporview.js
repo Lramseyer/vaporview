@@ -1815,13 +1815,12 @@ goToNextTransition = function (direction, edge) {
 
     event.preventDefault();
 
-    console.log(event);
+    //console.log(event);
 
     if (!touchpadScrolling) {event.preventDefault();}
     const deltaY = event.deltaY;
     const deltaX = event.deltaX;
     if (event.shiftKey && !touchpadScrolling) {
-      console.log('shift key');
       event.stopPropagation();
       scrollArea.scrollTop      += deltaY || deltaX;
       labelsScroll.scrollTop     = scrollArea.scrollTop;
@@ -2317,8 +2316,6 @@ goToNextTransition = function (direction, edge) {
             };
           }
         });
-
-        console.log(displayedSignals);
 
         updateWaveformInCache(netlistIdList);
         renderLabelsPanels();

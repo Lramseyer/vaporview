@@ -5,6 +5,7 @@
 - Fixed keybindings for Mac OS users
 - Added Home and End to go to the beginning and end of a waveform dump
 - Fixed 'webview is disposed' errors
+- Improved performance when loading many variables in FST dumps
 
 # 1.2.0
 

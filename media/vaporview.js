@@ -54,6 +54,10 @@ valueIs4State = function (value) {
   else {return false;}
 };
 
+valueIs9State = function (value) {
+  if (value.match(/[UuXxZzWwLlHh-]/)) {return true;}
+};
+
 htmlSafe = function (string) {
   return string.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 };
@@ -2282,10 +2286,10 @@ goToNextTransition = function (direction, edge) {
 
         netlistData[netlistId] = {
           signalId:     signalId,
-          signalWidth:  message.signalWidth,
+          signalWidth:  signalWidth,
           signalName:   message.signalName,
           modulePath:   message.modulePath,
-          numberFormat: message.numberFormat,
+          numberFormat: numberFormat,
         };
         netlistData[netlistId].vscodeContext = setSignalContextAttribute(netlistId);
 

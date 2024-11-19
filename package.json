@@ -22,8 +22,7 @@
     "VCD",
     "FST",
     "Logic Simulation",
-    "Logic Analyzer",
-    "GTKwave"
+    "Logic Analyzer"
   ],
   "engines": {
     "vscode": "^1.89.0"

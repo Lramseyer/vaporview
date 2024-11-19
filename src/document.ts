@@ -72,8 +72,8 @@ export function createVar(name: string, type: string, path: string, netlistId: N
 
   return variable;
 }
-  
-  // #region VaporviewDocument
+
+// #region VaporviewDocument
 export class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocument {
 
   private open  = promisify(fs.open);
@@ -105,6 +105,15 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     timeScale:   1,
     defaultZoom: 1,
     timeUnit:    "ns",
+  };
+  public webviewContext = {
+    markerTime: null,
+    altMarkerTime: null,
+    selectedSignal: null,
+    displayedSignals: [],
+    zoomRatio: 1,
+    scrollLeft: 0,
+    numberFormat: 16,
   };
 
   static async create(
@@ -265,10 +274,73 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this.metadata.defaultZoom = 512 / chunkTime;
   }
 
+  public getSettings() {
+    return {
+      extensionVersion: vscode.extensions.getExtension('Lramseyer.vaporview')?.packageJSON.version,
+      fileName: this.uri.fsPath,
+      markerTime: this.webviewContext.markerTime,
+      altMarkerTime: this.webviewContext.altMarkerTime,
+      selectedSignal: this.getNameFromNetlistId(this.webviewContext.selectedSignal),
+      zoomRatio: this.webviewContext.zoomRatio,
+      scrollLeft: this.webviewContext.scrollLeft,
+      displayedSignals: this.webviewContext.displayedSignals.map((n: NetlistId) => {return this.getNameFromNetlistId(n);}),
+    };
+  }
+
+  public formatTime(time: number) {
+    const timeValue = time * this.metadata.timeScale;
+    return timeValue.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + ' ' + this.metadata.timeUnit;
+  }
+
   public async findTreeItem(modulePath: string, msb: number | undefined, lsb: number | undefined): Promise<NetlistItem | null> {
     const module = this.treeData.find((element) => element.label === modulePath.split('.')[0]);
     if (!module) {return null;}
     return await module.findChild(modulePath.split('.').slice(1).join('.'), this, msb, lsb);
+  }
+
+  public getNameFromNetlistId(netlistId: NetlistId | null) {
+    if (netlistId === null) {return null;}
+    const netlistData  = this.netlistIdTable[netlistId]?.netlistItem;
+    const modulePath   = netlistData?.modulePath;
+    const signalName   = netlistData?.name;
+    const numberFormat = netlistData?.numberFormat;
+    const msb          = netlistData?.msb;
+    const lsb          = netlistData?.lsb;
+    return {
+      name: modulePath + '.' + signalName,
+      numberFormat: numberFormat,
+      msb: msb,
+      lsb: lsb,
+    };
+  }
+
+  public async renderSignal(netlistId: NetlistId) {
+    // Render the signal with the provided ID
+
+    //console.log('renderSignal()');
+    const metadata  = this.netlistIdTable[netlistId]?.netlistItem;
+    if (!this.webviewPanel) {return;}
+    if (!metadata) {return;}
+
+    this.webviewPanel.webview.postMessage({ 
+      command: 'add-variable',
+      netlistId:  metadata.netlistId,
+      signalId:   metadata.signalId,
+      signalWidth: metadata.width,
+      signalName: metadata.name,
+      modulePath: metadata.modulePath,
+      numberFormat: metadata.numberFormat
+   });
+  }
+
+  public removeSignalFromWebview(netlistId: NetlistId) {
+    // Render the signal with the provided ID
+    if (!this.webviewPanel) {return;}
+
+    this.webviewPanel.webview.postMessage({ 
+      command: 'remove-signal',
+      netlistId: netlistId
+   });
   }
 
   async getChildrenExternal(element: NetlistItem | undefined) {

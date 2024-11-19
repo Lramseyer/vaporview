@@ -57,7 +57,7 @@ export namespace filehandler {
 		 * so we will convert to JSON string
 		 */
 		getchildren: (id: u32, startindex: u32) => string;
-		getsignaldata: (signaid: u32) => void;
+		getsignaldata: (signalidlist: Uint32Array) => void;
 	};
 	export namespace Exports {
 		export type Promisified = $wcm.$exports.Promisify<Exports>;
@@ -133,7 +133,7 @@ export namespace filehandler.$ {
 			['startindex', $wcm.u32],
 		], $wcm.wstring);
 		export const getsignaldata = new $wcm.FunctionType<filehandler.Exports['getsignaldata']>('getsignaldata',[
-			['signaid', $wcm.u32],
+			['signalidlist', new $wcm.Uint32ArrayType()],
 		], undefined);
 	}
 }
@@ -189,7 +189,7 @@ export namespace filehandler._ {
 		'readbody': () => void;
 		'unload': () => void;
 		'getchildren': (id: i32, startindex: i32, result: ptr<string>) => void;
-		'getsignaldata': (signaid: i32) => void;
+		'getsignaldata': (signalidlist_ptr: i32, signalidlist_len: i32) => void;
 	};
 	export function bind(service: filehandler.Imports, code: $wcm.Code, context?: $wcm.ComponentModelContext): Promise<filehandler.Exports>;
 	export function bind(service: filehandler.Imports.Promisified, code: $wcm.Code, port: $wcm.RAL.ConnectionPort, context?: $wcm.ComponentModelContext): Promise<filehandler.Exports.Promisified>;

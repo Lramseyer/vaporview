@@ -314,23 +314,30 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     };
   }
 
-  public async renderSignal(netlistId: NetlistId) {
+  public async renderSignals(netlistIdList: NetlistId[]) {
     // Render the signal with the provided ID
+    //console.log('renderSignals()');
 
-    //console.log('renderSignal()');
-    const metadata  = this.netlistIdTable[netlistId]?.netlistItem;
+    const signalList: any = [];
     if (!this.webviewPanel) {return;}
-    if (!metadata) {return;}
 
-    this.webviewPanel.webview.postMessage({ 
+    netlistIdList.forEach((netlistId) => {
+      const metadata  = this.netlistIdTable[netlistId]?.netlistItem;
+      if (!metadata) {return;}
+
+      signalList.push({
+        netlistId:  metadata.netlistId,
+        signalId:   metadata.signalId,
+        signalWidth: metadata.width,
+        signalName: metadata.name,
+        modulePath: metadata.modulePath,
+        numberFormat: metadata.numberFormat
+     });
+    });
+    this.webviewPanel.webview.postMessage({
       command: 'add-variable',
-      netlistId:  metadata.netlistId,
-      signalId:   metadata.signalId,
-      signalWidth: metadata.width,
-      signalName: metadata.name,
-      modulePath: metadata.modulePath,
-      numberFormat: metadata.numberFormat
-   });
+      signalList: signalList
+    });
   }
 
   public removeSignalFromWebview(netlistId: NetlistId) {

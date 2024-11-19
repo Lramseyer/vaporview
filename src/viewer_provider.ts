@@ -178,7 +178,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
           break;
         }
         case 'fetchTransitionData': {
-          document.wasmApi.getsignaldata(e.signalId);
+          document.wasmApi.getsignaldata(e.signalIdList);
           break;
         }
         case 'copyWaveDrom': {
@@ -340,14 +340,21 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     console.log(missingSignals);
 
+    const netlistIdList: NetlistId[] = [];
     foundSignals.forEach((signalInfo: any) => {
       const netlistId    = signalInfo.netlistId;
       const numberFormat = signalInfo.numberFormat;
+      const metadata     = document.netlistIdTable[netlistId]?.netlistItem;
+      if (!metadata) {return;}
       if (!document.webviewContext.displayedSignals.includes(netlistId as never)) {
-        this.addSignalToDocument(netlistId, false);
+        netlistIdList.push(netlistId);
+        this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Checked);
+        const displayedItem = this.displayedSignalsTreeDataProvider.addSignalToTreeData(metadata);
+        document.setNetlistIdTable(netlistId, displayedItem);
       }
       this.setValueFormat(netlistId, numberFormat);
     });
+    document.renderSignals(netlistIdList);
   }
 
   async reloadFile() {
@@ -501,7 +508,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (!metadata) {return;}
 
     this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Checked);
-    document.renderSignal(netlistId);
+    document.renderSignals([netlistId]);
     const displayedItem = this.displayedSignalsTreeDataProvider.addSignalToTreeData(metadata);
     document.setNetlistIdTable(netlistId, displayedItem);
   }
@@ -549,16 +556,18 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.active) {return;}
 
-    const document    = this.activeDocument;
+    const document = this.activeDocument;
+    const netlistIdList: NetlistId[] = [];
 
     netlistElements.forEach((element) => {
       const metadata   = element;
       const netlistId  = metadata.netlistId;
       this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Checked);
-      document.renderSignal(netlistId);
       const displayedItem = this.displayedSignalsTreeDataProvider.addSignalToTreeData(metadata);
       document.setNetlistIdTable(netlistId, displayedItem);
+      netlistIdList.push(netlistId);
     });
+    document.renderSignals(netlistIdList);
   }
 
   public filterAddSignalsInNetlist(netlistElements: NetlistItem[]) {
@@ -696,7 +705,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
 
     if (metadata.checkboxState === vscode.TreeItemCheckboxState.Checked) {
-      document.renderSignal(netlistId);
+      document.renderSignals([netlistId]);
       const displayedItem = this.displayedSignalsTreeDataProvider.addSignalToTreeData(metadata);
       document.setNetlistIdTable(netlistId, displayedItem);
     } else if (metadata.checkboxState === vscode.TreeItemCheckboxState.Unchecked) {

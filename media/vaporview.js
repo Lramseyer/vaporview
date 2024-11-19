@@ -589,10 +589,12 @@ updateWaveformInCache = function (netlistIdList) {
     const signalId = netlistData[netlistId].signalId;
     for (var i = dataCache.startIndex; i < dataCache.endIndex; i+=chunksInColumn) {
       dataCache.columns[i].waveformChunk[netlistId] = renderWaveformChunk(netlistId, i);
-      parseHtmlInChunk(i);
     }
     dataCache.valueAtMarker[signalId] = getValueAtTime(signalId, markerTime);
   });
+  for (var i = dataCache.startIndex; i < dataCache.endIndex; i+=chunksInColumn) {
+    parseHtmlInChunk(i);
+  }
 };
 
 // Event handler helper functions
@@ -2278,50 +2280,60 @@ goToNextTransition = function (direction, edge) {
         // Handle rendering a signal, e.g., render the signal based on message content
         //console.log(message);
 
-        let signalId       = message.signalId;
-        let netlistId      = message.netlistId;
-        let numberFormat   = message.numberFormat;
-        let signalWidth    = message.signalWidth;
-        displayedSignals.push(netlistId);
+        const signalList    = message.signalList;
+        const signalIdList  = [];
+        const netlistIdList = [];
+        let updateFlag      = false;
+        let selectedSignal  = null;
 
-        netlistData[netlistId] = {
-          signalId:     signalId,
-          signalWidth:  signalWidth,
-          signalName:   message.signalName,
-          modulePath:   message.modulePath,
-          numberFormat: numberFormat,
-        };
-        netlistData[netlistId].vscodeContext = setSignalContextAttribute(netlistId);
+        signalList.forEach((signal) => {
 
-        if (waveformData[signalId]) {
+          let netlistId      = signal.netlistId;
+          let signalId       = signal.signalId;
+          let numberFormat   = signal.numberFormat;
+          let signalWidth    = signal.signalWidth;
+          displayedSignals.push(netlistId);
 
-          // console.log('signal already exists');
-          updateWaveformInCache([message.netlistId]);
-          renderLabelsPanels();
+          netlistData[netlistId] = {
+            signalId:     signalId,
+            signalWidth:  signalWidth,
+            signalName:   signal.signalName,
+            modulePath:   signal.modulePath,
+            numberFormat: numberFormat,
+          };
+          netlistData[netlistId].vscodeContext = setSignalContextAttribute(netlistId);
+          netlistIdList.push(netlistId);
 
+          if (waveformData[signalId]) {
+            selectedSignal  = netlistId;
+            updateFlag = true;
+          } else if (waveformDataTemp[signalId]) {
+            console.log('signal data is being fetched');
+          } else {
+            signalIdList.push(signalId);
+            waveformDataTemp[signalId] = {
+              netlistId: netlistId,
+              totalChunks: 0
+            };
+          }
+        });
+
+        console.log(displayedSignals);
+
+        updateWaveformInCache(netlistIdList);
+        renderLabelsPanels();
+
+        if (updateFlag) {
           updatePending  = true;
           updateContentArea(leftOffset, getBlockNum());
           contentArea.style.height = (40 + (28 * displayedSignals.length)) + "px";
-          handleSignalSelect(netlistId);
-        } else if (waveformDataTemp[signalId]) {
-          console.log('signal data is being fetched');
-        } else {
-
-          waveformDataTemp[signalId] = {
-            netlistId: netlistId,
-            totalChunks: 0
-          };
-
-          //console.log('signal data not found, fetching data');
-          vscode.postMessage({
-            command: 'fetchTransitionData',
-            signalId: signalId,
-            netlistId: netlistId,
-          });
-
-          updateWaveformInCache([netlistId]);
-          renderLabelsPanels();
+          handleSignalSelect(selectedSignal);
         }
+
+        vscode.postMessage({
+          command: 'fetchTransitionData',
+          signalIdList: signalIdList,
+        });
 
         break;
       }
@@ -2418,6 +2430,8 @@ goToNextTransition = function (direction, edge) {
 
         numberFormat = message.numberFormat;
         netlistId    = message.netlistId;
+
+        if (netlistData[netlistId] === undefined) {break;}
 
         netlistData[netlistId].numberFormat  = numberFormat;
         netlistData[netlistId].vscodeContext = setSignalContextAttribute(netlistId);

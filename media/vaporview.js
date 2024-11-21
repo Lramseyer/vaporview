@@ -2468,7 +2468,7 @@ goToNextTransition = function (direction, edge) {
   });
 
   // Send a message back to the extension to signal that the webview is ready
-  vscode.postMessage({type: 'ready'});
+  vscode.postMessage({command: 'ready'});
 
   });
 })();

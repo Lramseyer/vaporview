@@ -16,7 +16,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
   private static newViewerId = 1;
   private static readonly viewType = 'vaporview.waveformViewer';
-  private readonly wasmModule: WebAssembly.Module;
   private readonly webviews = new WebviewCollection();
   private activeWebview: vscode.WebviewPanel | undefined;
   private activeDocument: VaporviewDocument | undefined;
@@ -35,9 +34,10 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   public displayedSignalsViewSelectedSignals: NetlistItem[] = [];
   public log: vscode.OutputChannel;
 
-  constructor(private readonly _context: vscode.ExtensionContext, wasmModule: WebAssembly.Module) {
-
-    this.wasmModule = wasmModule;
+  constructor(
+    private readonly _context: vscode.ExtensionContext, 
+    private readonly wasmModule: WebAssembly.Module
+  ) {
 
     // The channel for printing the log.
     this.log = vscode.window.createOutputChannel('Vaporview Log', { log: true });
@@ -60,13 +60,13 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     });
     this._context.subscriptions.push(this.displayedSignalsView);
 
-    // Create a status bar item for marker time and
+    // Create a status bar item for marker time, delta time, and selected signal
     this.deltaTimeStatusBarItem      = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     this.markerTimeStatusBarItem     = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
     this.selectedSignalStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
 
-    // Subscribe to the expand/collapse events - For some reason we need to do
-    // this because the collapsible state is not preserved when the tree view is refreshed
+    // Subscribe to the View events. We need to subscribe to expand and collapse events
+    // because the collapsible state would not otherwise be preserved when the tree view is refreshed
     this.netlistView.onDidExpandElement(this.handleNetlistExpandElement);
     this.netlistView.onDidCollapseElement(this.handleNetlistCollapseElement);
     this.netlistView.onDidChangeSelection(this.handleNetlistViewSelectionChanged, this, this._context.subscriptions);
@@ -75,7 +75,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.displayedSignalsView.onDidChangeCheckboxState(this.handleDisplayedViewSelectionChanged, this, this._context.subscriptions);
   }
 
-  //#region CustomEditorProvider
   async openCustomDocument(
     uri: vscode.Uri,
     openContext: { backupId?: string },
@@ -116,19 +115,41 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     _token: vscode.CancellationToken
   ): Promise<void> {
 
+    // Add a message handler for the webview
+    webviewPanel.webview.onDidReceiveMessage(e => {
+
+      switch (e.command) {
+        case 'setTime':             {this.updateStatusBarItems(document, e); break;}
+        case 'setSelectedSignal':   {this.updateStatusBarItems(document, e); break;}
+        case 'contextUpdate' :      {this.updateStatusBarItems(document, e); break;}
+        case 'fetchTransitionData': {document.wasmApi.getsignaldata(e.signalIdList); break;}
+        case 'copyWaveDrom':        {this.copyWaveDromToClipboard(e.waveDromJson, e.maxTransitions, e.maxTransitionsFlag); break;}
+        case 'close-webview':       {webviewPanel.dispose(); break;}
+        case 'ready':               {document.onWebviewReady(webviewPanel); break;}
+      }
+
+      if (e.type === 'response')    {this.onMessage(e);}
+    }, this, this._context.subscriptions);
+
+    // Handle switching tabb events
+    webviewPanel.onDidChangeViewState(e => {
+
+      this.netlistViewSelectedSignals = [];
+      this.displayedSignalsViewSelectedSignals = [];
+
+      if (e.webviewPanel.active) {
+        this.onDidChangeViewStateActive(document, webviewPanel);
+        webviewPanel.webview.postMessage({command: 'getSelectionContext'});
+      } else if (!e.webviewPanel.active && e.webviewPanel === this.activeWebview) {
+        this.onDidChangeViewStateInactive();
+      }
+    }, this, this._context.subscriptions);
+
+    // Handle closing of the webview panel/document
     webviewPanel.onDidDispose(() => {
+
       if (this.activeWebview === webviewPanel) {
-        this.netlistTreeDataProvider.setTreeData([]);
-        this.displayedSignalsTreeDataProvider.setTreeData([]);
-        document.webviewContext = {
-          markerTime: null,
-          altMarkerTime: null,
-          selectedSignal: null,
-          displayedSignals: [],
-          zoomRatio: 1,
-          scrollLeft: 0,
-          numberFormat: 16,
-        };
+        this.onDidChangeViewStateInactive();
       }
       if (this.lastActiveWebview === webviewPanel) {
         this.lastActiveWebview = undefined;
@@ -136,113 +157,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       }
     }, this, this._context.subscriptions);
 
-    // Wait for the webview to be properly ready before we init
-    webviewPanel.webview.onDidReceiveMessage(e => {
-      //console.log(e);
-      //console.log(document.uri);
-
-      if (e.type === 'ready') {
-        if (document.uri.scheme === 'untitled') {
-          //console.log("untitled scheme");
-        }
-        document.onWebviewReady(webviewPanel);
-      }
-      switch (e.command) {
-        case 'init': {
-          // Webview is initialized, send the 'init' message
-          break;
-        }
-        case 'setTime': {
-          document.webviewContext.markerTime    = e.markerTime;
-          document.webviewContext.altMarkerTime = e.altMarkerTime;
-
-          this.updateStatusBarItems(document);
-          break;
-        }
-        case 'setSelectedSignal': {
-          document.webviewContext.selectedSignal = e.netlistId;
-          this.updateStatusBarItems(document);
-          break;
-        }
-        case 'contextUpdate' : {
-
-          document.webviewContext.markerTime       = e.markerTime;
-          document.webviewContext.altMarkerTime    = e.altMarkerTime;
-          document.webviewContext.selectedSignal   = e.selectedSignal;
-          document.webviewContext.displayedSignals = e.displayedSignals;
-          document.webviewContext.zoomRatio        = e.zoomRatio;
-          document.webviewContext.scrollLeft       = e.scrollLeft;
-          document.webviewContext.numberFormat     = e.numberFormat;
-
-          this.updateStatusBarItems(document);
-          break;
-        }
-        case 'fetchTransitionData': {
-          document.wasmApi.getsignaldata(e.signalIdList);
-          break;
-        }
-        case 'copyWaveDrom': {
-          if (e.maxTransitionsFlag) {
-            vscode.window.showWarningMessage('The number of transitions exceeds the maximum limit of ' + e.maxTransitions);
-          }
-          vscode.env.clipboard.writeText(e.waveDromJson);
-          vscode.window.showInformationMessage('WaveDrom JSON copied to clipboard.');
-          break;
-        }
-        case 'close-webview' : {
-          //console.log("close-webview");
-          // Close the webview
-          webviewPanel.dispose();
-          break;
-        }
-      }
-      //this.onMessage(document, e);
-      switch (e.type) {
-        case 'response': {
-          const callback = this._callbacks.get(e.requestId);
-          callback?.(e.body);
-          return;
-        }
-      }
-    }, this, this._context.subscriptions);
-
-    webviewPanel.onDidChangeViewState(e => {
-      //console.log("onDidChangeViewState()");
-      //console.log(vscode.window.activeTextEditor?.document);
-      //console.log(e);
-
-      this.netlistViewSelectedSignals = [];
-      this.displayedSignalsViewSelectedSignals = [];
-
-      if (e.webviewPanel.active) {
-        this.activeWebview  = webviewPanel;
-        this.activeDocument = document;
-        this.lastActiveWebview = webviewPanel;
-        this.lastActiveDocument = document;
-        this.netlistTreeDataProvider.loadDocument(document);
-        this.displayedSignalsTreeDataProvider.setTreeData(this.activeDocument.displayedSignals);
-        webviewPanel.webview.postMessage({command: 'getSelectionContext'});
-        this.deltaTimeStatusBarItem.show();
-        this.markerTimeStatusBarItem.show();
-        this.selectedSignalStatusBarItem.show();
-      } else if (!e.webviewPanel.active && e.webviewPanel === this.activeWebview) {
-        this.activeWebview  = undefined;
-        this.activeDocument = undefined;
-        this.netlistTreeDataProvider.hide();
-        this.displayedSignalsTreeDataProvider.hide();
-        this.deltaTimeStatusBarItem.hide();
-        this.markerTimeStatusBarItem.hide();
-        this.selectedSignalStatusBarItem.hide();
-      }
-    }, this, this._context.subscriptions);
-
-    //console.log("resolveCustomEditor()");
     // Add the webview to our internal set of active webviews
     this.webviews.add(document.uri, webviewPanel);
-    this.activeWebview  = webviewPanel;
-    this.activeDocument = document;
-    this.lastActiveWebview = webviewPanel;
-    this.lastActiveDocument = document;
 
     // Setup initial content for the webview
     webviewPanel.webview.options = {
@@ -250,10 +166,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     };
     webviewPanel.webview.html = this.getHtmlContent(webviewPanel.webview);
 
-    this.netlistTreeDataProvider.loadDocument(document);
-    this.displayedSignalsTreeDataProvider.setTreeData(this.activeDocument.displayedSignals);
+    this.onDidChangeViewStateActive(document, webviewPanel);
   }
-
 
   public saveSettingsToFile() {
     if (!this.activeDocument) {
@@ -316,45 +230,26 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   }
 
   public async applySettings(settings: any) {
-    const missingSignals: string[] = [];
-    const foundSignals: any[] = [];
 
+    if (!settings.displayedSignals) {return;}
     if (!this.activeDocument) {return;}
     const document = this.activeDocument;
+    const missingSignals: string[] = [];
+    const foundSignals: NetlistItem[] = [];
 
-    if (settings.displayedSignals) {
-      for (const signalInfo of settings.displayedSignals) {
-        const signal = signalInfo.name;
-        const numberFormat = signalInfo.numberFormat;
-        const metaData = await document.findTreeItem(signal, signalInfo.msb, signalInfo.lsb);
-        if (metaData !== null) {
-          foundSignals.push({
-            netlistId: metaData.netlistId,
-            numberFormat: numberFormat,
-          });
-        } else {
-          missingSignals.push(signal);
-        }
+    for (const signalInfo of settings.displayedSignals) {
+      const signal   = signalInfo.name;
+      const metaData = await document.findTreeItem(signal, signalInfo.msb, signalInfo.lsb);
+      if (metaData !== null) {
+        metaData.numberFormat = signalInfo.numberFormat;
+        foundSignals.push(metaData);
+      } else {
+        missingSignals.push(signal);
       }
     }
 
     console.log(missingSignals);
-
-    const netlistIdList: NetlistId[] = [];
-    foundSignals.forEach((signalInfo: any) => {
-      const netlistId    = signalInfo.netlistId;
-      const numberFormat = signalInfo.numberFormat;
-      const metadata     = document.netlistIdTable[netlistId]?.netlistItem;
-      if (!metadata) {return;}
-      if (!document.webviewContext.displayedSignals.includes(netlistId as never)) {
-        netlistIdList.push(netlistId);
-        this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Checked);
-        const displayedItem = this.displayedSignalsTreeDataProvider.addSignalToTreeData(metadata);
-        document.setNetlistIdTable(netlistId, displayedItem);
-      }
-      this.setValueFormat(netlistId, numberFormat);
-    });
-    document.renderSignals(netlistIdList);
+    this.filterAddSignalsInNetlist(foundSignals, true);
   }
 
   async reloadFile() {
@@ -369,6 +264,14 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
   copyWaveDrom() {
     this.activeWebview?.webview.postMessage({command: 'copyWaveDrom'});
+  }
+
+  copyWaveDromToClipboard(waveDromJson: string, maxTransitions: number, maxTransitionsFlag: boolean) {
+    if (maxTransitionsFlag) {
+      vscode.window.showWarningMessage('The number of transitions exceeds the maximum limit of ' + maxTransitions);
+    }
+    vscode.env.clipboard.writeText(waveDromJson);
+    vscode.window.showInformationMessage('WaveDrom JSON copied to clipboard.');
   }
 
   setWaveDromClock(edge: string, netlistId: NetlistId | null) {
@@ -395,13 +298,11 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
   setMarkerAtTimeWithUnits(time: number, unit: string) {
 
-    if (!this.lastActiveDocument) {
-      //console.log('No active document');
-      return;
-    }
-
-    const timeScale   = this.lastActiveDocument.metadata.timeScale;
-    const timeUnit    = this.scaleFromUnits(this.lastActiveDocument.metadata.timeUnit);
+    if (!this.lastActiveDocument) {return;}
+  
+    const metadata  = this.lastActiveDocument.metadata;
+    const timeScale = metadata.timeScale;
+    const timeUnit  = this.scaleFromUnits(metadata.timeUnit);
 
     if (!timeScale || !timeUnit) {return;}
 
@@ -424,13 +325,20 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.lastActiveWebview.webview.postMessage({command: 'setMarker', time: time});
   }
 
-  updateStatusBarItems(document: VaporviewDocument) {
+  updateStatusBarItems(document: VaporviewDocument, event: any) {
     //this.deltaTimeStatusBarItem.hide();
     //this.markerTimeStatusBarItem.hide();
     //this.selectedSignalStatusBarItem.hide();
-    const w = document.webviewContext;
 
     if (!document) {return;}
+    const w = document.webviewContext;
+    w.markerTime       = event.markerTime       || w.markerTime;
+    w.altMarkerTime    = event.altMarkerTime    || w.altMarkerTime;
+    w.selectedSignal   = event.selectedSignal   || w.selectedSignal;
+    w.displayedSignals = event.displayedSignals || w.displayedSignals;
+    w.zoomRatio        = event.zoomRatio        || w.zoomRatio;
+    w.scrollLeft       = event.scrollLeft       || w.scrollLeft;
+    w.numberFormat     = event.numberFormat     || w.numberFormat;
 
     if (w.markerTime !== null) {
       this.markerTimeStatusBarItem.text = 'time: ' + document.formatTime(w.markerTime);
@@ -460,6 +368,25 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
   }
 
+  onDidChangeViewStateActive(document: VaporviewDocument, webviewPanel: vscode.WebviewPanel) {
+    this.activeWebview  = webviewPanel;
+    this.activeDocument = document;
+    this.lastActiveWebview  = webviewPanel;
+    this.lastActiveDocument = document;
+    this.netlistTreeDataProvider.loadDocument(document);
+    this.displayedSignalsTreeDataProvider.setTreeData(this.activeDocument.displayedSignals);
+  }
+
+  onDidChangeViewStateInactive() {
+    this.activeWebview  = undefined;
+    this.activeDocument = undefined;
+    this.netlistTreeDataProvider.hide();
+    this.displayedSignalsTreeDataProvider.hide();
+    this.deltaTimeStatusBarItem.hide();
+    this.markerTimeStatusBarItem.hide();
+    this.selectedSignalStatusBarItem.hide();
+  }
+
   showInNetlistView(netlistId: NetlistId) {
     if (!this.activeDocument) {return;}
     const NetlistIdRef = this.activeDocument.netlistIdTable[netlistId];
@@ -477,81 +404,14 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     return p;
   }
 
-  //private onMessage(document: VaporviewDocument, message: any) {
-  //  switch (message.type) {
-  //    case 'response':
-  //      {
-  //        const callback = this._callbacks.get(message.requestId);
-  //        callback?.(message.body);
-  //        return;
-  //      }
-  //  }
-  //}
+  private onMessage(message: any) {
+    const callback = this._callbacks.get(message.requestId);
+    callback?.(message.body);
+  }
 
   // Add or remove signals from the waveform viewer
-  private addSignalToDocument(netlistId: NetlistId, addToLastActive: boolean) {
 
-    let document: VaporviewDocument;
-
-    if (!addToLastActive) {
-      if (!this.activeWebview) {return;}
-      if (!this.activeDocument) {return;}
-      if (!this.activeWebview.active) {return;}
-      document = this.activeDocument;
-    } else {
-      if (!this.lastActiveWebview) {return;}
-      if (!this.lastActiveDocument) {return;}
-      document = this.lastActiveDocument;
-    }
-
-    const metadata = document.netlistIdTable[netlistId]?.netlistItem;
-    if (!metadata) {return;}
-
-    this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Checked);
-    document.renderSignals([netlistId]);
-    const displayedItem = this.displayedSignalsTreeDataProvider.addSignalToTreeData(metadata);
-    document.setNetlistIdTable(netlistId, displayedItem);
-  }
-
-  public async addSignalByNameToDocument(signalName: string) {
-    if (!this.lastActiveDocument) {return;}
-    const document = this.lastActiveDocument;
-
-    // get msb and lsb from signal name
-    const regex  = /\[(\d+:)?(\d+)\]$/;
-    const field  = signalName.match(regex);
-    const lookup = signalName.replace(regex, '');
-    const msb   = field ? parseInt(field[1], 10) : undefined;
-    const lsb   = field ? parseInt(field[2], 10) : msb;
-
-    //console.log('lookup: ' + lookup + ' msb: ' + msb + ' lsb: ' + lsb);
-
-    const metadata = await document.findTreeItem(lookup, msb, lsb);
-
-    if (metadata === null) {
-      console.log('Signal not found ' + signalName);
-      return;
-    }
-
-    //console.log('found signal ' + signalName);
-
-    const netlistId   = metadata.netlistId;
-    const isDisplayed = document.webviewContext.displayedSignals.includes(netlistId as never);
-    if (isDisplayed) {
-      //console.log('Signal already displayed');
-      if (this.lastActiveWebview) {
-        this.lastActiveWebview.webview.postMessage({
-          command: 'setSelectedSignal',
-          netlistId: netlistId
-        });
-      }
-    } else {
-      //console.log('Adding signal to document');
-      this.addSignalToDocument(metadata.netlistId, true);
-    }
-  }
-
-  private renerSignalList(netlistElements: NetlistItem[]) {
+  private addSignalsToDocument(netlistElements: NetlistItem[]) {
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.active) {return;}
@@ -570,7 +430,36 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     document.renderSignals(netlistIdList);
   }
 
-  public filterAddSignalsInNetlist(netlistElements: NetlistItem[]) {
+  public async addSignalByNameToDocument(signalName: string) {
+    if (!this.lastActiveDocument) {return;}
+    const document = this.lastActiveDocument;
+
+    // get msb and lsb from signal name
+    const regex  = /\[(\d+:)?(\d+)\]$/;
+    const field  = signalName.match(regex);
+    const lookup = signalName.replace(regex, '');
+    const msb   = field ? parseInt(field[1], 10) : undefined;
+    const lsb   = field ? parseInt(field[2], 10) : msb;
+
+    //console.log('lookup: ' + lookup + ' msb: ' + msb + ' lsb: ' + lsb);
+    const metadata = await document.findTreeItem(lookup, msb, lsb);
+
+    if (metadata === null) {
+      console.log('Signal not found ' + signalName);
+      return;
+    }
+
+    //console.log('found signal ' + signalName);
+    const netlistId   = metadata.netlistId;
+    const isDisplayed = document.webviewContext.displayedSignals.includes(netlistId as never);
+    if (isDisplayed) {
+      document.revealSignalInWebview(netlistId);
+    } else {
+      this.addSignalsToDocument([metadata]);
+    }
+  }
+
+  public filterAddSignalsInNetlist(netlistElements: NetlistItem[], noWarning: boolean = false) {
 
     const elementList = netlistElements.filter((element) => {
       return element.checkboxState === vscode.TreeItemCheckboxState.Unchecked && 
@@ -578,15 +467,15 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
              element.type !== 'Real';
     });
 
-    if (elementList.length > 10) {
+    if ((elementList.length > 10) && !noWarning) {
       // show warning message
       vscode.window.showWarningMessage('You are about to add a large number of signals to the waveform viewer. This may cause performance issues. Do you want to continue?', 'Yes', 'No').then((response) => {
         if (response === 'Yes') {
-          this.renerSignalList(elementList);
+          this.addSignalsToDocument(elementList);
         } 
       });
     } else {
-      this.renerSignalList(elementList);
+      this.addSignalsToDocument(elementList);
     }
   }
 
@@ -670,7 +559,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     return htmlContent;
   }
 
-  // Event handlers
+  // View Container Event handlers
 
   private handleNetlistCheckboxChange = (e: vscode.TreeCheckboxChangeEvent<NetlistItem>) => {
 
@@ -685,9 +574,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Unchecked);
       return;
     }
-
-    const document  = this.activeDocument;
-    const netlistId = metadata.netlistId;
 
     // If the item is a parent node, uncheck it
     if (metadata.contextValue == "netlistScope") {
@@ -705,35 +591,21 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
 
     if (metadata.checkboxState === vscode.TreeItemCheckboxState.Checked) {
-      document.renderSignals([netlistId]);
-      const displayedItem = this.displayedSignalsTreeDataProvider.addSignalToTreeData(metadata);
-      document.setNetlistIdTable(netlistId, displayedItem);
+      this.addSignalsToDocument([metadata]);
     } else if (metadata.checkboxState === vscode.TreeItemCheckboxState.Unchecked) {
-      const displayedItem = document.netlistIdTable[netlistId]?.displayedItem;
-      if (!displayedItem) {return;}
-      document.removeSignalFromWebview(netlistId);
-      this.displayedSignalsTreeDataProvider.removeSignalFromTreeData(displayedItem);
-      document.setNetlistIdTable(netlistId, undefined);
+      this.removeSignalFromDocument(metadata.netlistId);
     }
   };
 
   private handleDisplayedViewSelectionChanged = (e: vscode.TreeCheckboxChangeEvent<NetlistItem>) => {
+
+    const metadata = e.items[0][0];
+
     if (!this.activeWebview?.active) {return;}
     if (!this.activeDocument?.webviewInitialized) {return;}
-  
-    const document   = this.activeDocument;
-    const metadata   = e.items[0][0];
-    const netlistId  = metadata.netlistId;
-    const viewRef    = this.activeDocument.netlistIdTable[netlistId];
+    if (metadata.checkboxState !== vscode.TreeItemCheckboxState.Unchecked) {return;}
 
-    if (!viewRef) {return;}
-
-    if (metadata.checkboxState === vscode.TreeItemCheckboxState.Unchecked) {
-      this.netlistTreeDataProvider.setCheckboxState(viewRef.netlistItem, vscode.TreeItemCheckboxState.Unchecked);
-      this.displayedSignalsTreeDataProvider.removeSignalFromTreeData(metadata);
-      document.removeSignalFromWebview(netlistId);
-      this.activeDocument.setNetlistIdTable(netlistId, undefined);
-    }
+    this.removeSignalFromDocument(metadata.netlistId);
   };
 
   // onDidChangeSelection() event returns readonly elements

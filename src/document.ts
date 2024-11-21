@@ -340,8 +340,17 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     });
   }
 
-  public removeSignalFromWebview(netlistId: NetlistId) {
+  public revealSignalInWebview(netlistId: NetlistId) {
     // Render the signal with the provided ID
+    if (!this.webviewPanel) {return;}
+
+    this.webviewPanel.webview.postMessage({ 
+      command: 'setSelectedSignal',
+      netlistId: netlistId
+    });
+  }
+
+  public removeSignalFromWebview(netlistId: NetlistId) {
     if (!this.webviewPanel) {return;}
 
     this.webviewPanel.webview.postMessage({ 

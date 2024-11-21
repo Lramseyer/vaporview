@@ -1,7 +1,7 @@
 // Description: This file contains the extension logic for the VaporView extension
 import * as vscode from 'vscode';
 
-import { TerminalLinkProvider } from './terminal_links';
+import { TimestampLinkProvider, NetlistLinkProvider } from './terminal_links';
 import { WaveformViewerProvider } from './viewer_provider';
 
 const wasmDebug   = 'debug';
@@ -30,7 +30,10 @@ export async function activate(context: vscode.ExtensionContext) {
       supportsMultipleEditorsPerDocument: false,
     });
 
-  vscode.window.registerTerminalLinkProvider(new TerminalLinkProvider(viewerProvider));
+  vscode.window.registerTerminalLinkProvider(new TimestampLinkProvider(viewerProvider));
+
+  // I need to move this to the document provider class...
+  vscode.window.registerTerminalLinkProvider(new NetlistLinkProvider(viewerProvider));
 
   // I want to get semantic tokens for the current theme
   // The API is not available yet, so I'm just going to log the theme
@@ -49,12 +52,12 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.addSelected', (e) => {
-    viewerProvider.filterAddSignalsInNetlist(viewerProvider.netlistViewSelectedSignals);
+    viewerProvider.filterAddSignalsInNetlist(viewerProvider.netlistViewSelectedSignals, false);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.addAllInModule', (e) => {
     if (e.collapsibleState === vscode.TreeItemCollapsibleState.None) {return;}
-    viewerProvider.filterAddSignalsInNetlist(e.children);
+    viewerProvider.filterAddSignalsInNetlist(e.children, false);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeSelectedNetlist', (e) => {

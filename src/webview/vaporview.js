@@ -159,7 +159,7 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
         moveCursor = false;
       }
 
-      is4State     = valueIs4State(value);
+      is4State     = valueIs9State(value);
       xPosition    = (elementWidth / 2) + time;
       yPosition    =  elementWidth * 2;
       if (is4State) {
@@ -210,7 +210,7 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
     }
 
     xPosition    = (elementWidth / 2) + time;
-    is4State     = valueIs4State(value);
+    is4State     = valueIs9State(value);
     if (is4State) {
       xzValues.push(`<polyline fill="var(--vscode-debugTokenExpression-error)" points="${time},0 ${xPosition},${elementWidth * 2} ${postState[0]},0 ${xPosition},-${elementWidth * 2}"/>`);
     } else {
@@ -248,54 +248,6 @@ busElementsfromTransitionData = function (transitionData, initialState, postStat
   return result;
 };
 
-polylinePathFromTransitionDataOld = function (transitionData, initialState, postState, polylineAttributes) {
-  var xzPolylines        = [];
-  var initialValue       = initialState[1];
-  var initialValue2state = initialValue;
-  var initialTime        = Math.max(initialState[0], -10);
-  const minDrawWidth     = 1 / zoomRatio;
-  var xzAccumulatedPath = "";
-  if (valueIs4State(initialValue)) {
-    xzAccumulatedPath = "-1,0 -1,1 ";
-    initialValue2state = 0;
-  }
-  var accumulatedPath    = "-1," + initialValue2state + " ";
-
-  transitionData.forEach(([time, value]) => {
-    if (valueIs4State(initialValue)) {
-      xzPolylines.push(`<polyline points="${initialTime},0 ${time},0" stroke="var(--vscode-debugTokenExpression-error)"/>`);
-      xzPolylines.push(`<polyline points="${initialTime},1 ${time},1" stroke="var(--vscode-debugTokenExpression-error)"/>`);
-      xzPolylines.push(`<polyline points="${time},0 ${time},1" stroke="var(--vscode-debugTokenExpression-error)"/>`);
-      if (initialTime >= 0) {
-        xzPolylines.push(`<polyline points="${initialTime},0 ${initialTime},1" stroke="var(--vscode-debugTokenExpression-error)"/>`);
-      }
-      initialValue2state = 0;
-    }
-
-    accumulatedPath += time + "," + initialValue2state + " ";
-
-    if (valueIs4State(value)) {accumulatedPath += time + "," + 0 + " ";}
-    else                      {accumulatedPath += time + "," + value + " ";}
-
-    initialTime        = time;
-    initialValue       = value;
-    initialValue2state = value;
-  });
-  if (valueIs4State(initialValue))  {
-    xzPolylines.push(`<polyline points="${initialTime},0 ${columnTime},0" stroke="var(--vscode-debugTokenExpression-error)"/>`);
-    xzPolylines.push(`<polyline points="${initialTime},1 ${columnTime},1" stroke="var(--vscode-debugTokenExpression-error)"/>`);
-    if (initialTime >= 0) {
-      xzPolylines.push(`<polyline points="${initialTime},0 ${initialTime},1" stroke="var(--vscode-debugTokenExpression-error)"/>`);
-    }
-    initialValue2state = 0;
-  }
-
-  accumulatedPath += columnTime + "," + initialValue2state;
-  let polyline = `<polyline points="` + accumulatedPath + `" ${polylineAttributes}/>`;
-  let shadedArea = `<polygon points="0,0 ${accumulatedPath} ${columnTime},0" stroke="none" fill="var(--vscode-debugTokenExpression-number)" fill-opacity="0.1"/>`;
-  return polyline + shadedArea + xzPolylines.join('');
-};
-
 polylinePathFromTransitionData = function (transitionData, initialState, postState, polylineAttributes) {
   var xzPolylines        = [];
   var initialValue       = initialState[1];
@@ -305,7 +257,7 @@ polylinePathFromTransitionData = function (transitionData, initialState, postSta
   const minDrawWidth     = 1 / zoomRatio;
   var xzAccumulatedPath = "";
 
-  if (valueIs4State(initialValue)) {
+  if (valueIs9State(initialValue)) {
     xzAccumulatedPath = "0,0 0,1 ";
     initialValue2state = 0;
   }
@@ -331,7 +283,7 @@ polylinePathFromTransitionData = function (transitionData, initialState, postSta
 
       if (noDrawFlag) {
         initialValue2state = initialValue;
-        if (valueIs4State(initialValue)) {initialValue2state = 0;}
+        if (valueIs9State(initialValue)) {initialValue2state = 0;}
 
         noDrawPath.push(lastDrawTime + ",0 " + lastDrawTime + ",1 " + lastNoDrawTime + ",1 " + lastNoDrawTime + ",0 ");
         accumulatedPath.push(lastDrawTime + "," + 0);
@@ -341,7 +293,7 @@ polylinePathFromTransitionData = function (transitionData, initialState, postSta
         noDrawFlag = false;
       }
 
-      if (valueIs4State(initialValue)) {
+      if (valueIs9State(initialValue)) {
         xzPath = `${initialTimeOrStart},0 ${time},0 ${time},1 ${initialTimeOrStart},1`;
         if (initialTimeOrStart >= 0) {
           xzPath += ` ${initialTimeOrStart},0`;
@@ -350,7 +302,7 @@ polylinePathFromTransitionData = function (transitionData, initialState, postSta
       }
 
       value2state = value;
-      if (valueIs4State(value)) {value2state =  0;}
+      if (valueIs9State(value)) {value2state =  0;}
 
       // Draw the current transition to the main path
       accumulatedPath.push(time + "," + initialValue2state);
@@ -367,7 +319,7 @@ polylinePathFromTransitionData = function (transitionData, initialState, postSta
   });
 
   initialValue2state = initialValue;
-  if (valueIs4State(initialValue)) {initialValue2state = 0;}
+  if (valueIs9State(initialValue)) {initialValue2state = 0;}
 
   if (postState[0] - initialTime < minDrawWidth) {
 
@@ -386,7 +338,7 @@ polylinePathFromTransitionData = function (transitionData, initialState, postSta
       accumulatedPath.push(lastNoDrawTime + "," + initialValue2state);
     }
 
-    if (valueIs4State(initialValue))  {
+    if (valueIs9State(initialValue))  {
 
       if (initialTimeOrStart >= 0) {
         xzPolylines.push(`<polyline points="${columnTime},1 ${initialTimeOrStart},1 ${initialTimeOrStart},0 ${columnTime},0" stroke="var(--vscode-debugTokenExpression-error)"/>`);
@@ -555,7 +507,7 @@ createValueDisplayElement = function (netlistId, value, isSelected) {
   const width         = netlistData[netlistId].signalWidth;
   const numberFormat  = netlistData[netlistId].numberFormat;
   const pElement      = value.map(v => {
-    const is4State     = valueIs4State(v);
+    const is4State     = valueIs9State(v);
     const color        = is4State ? 'style="color:var(--vscode-debugTokenExpression-error)"' : '';
     const displayValue = parseValue(v, width, is4State, numberFormat);
     return `<p ${color}>${displayValue}</p>`;
@@ -966,7 +918,7 @@ copyWaveDrom = function() {
           if (signal.initialState === null) {signal.json.wave += '.';}
           else {
             if (signal.signalWidth > 1) {
-              const is4State = valueIs4State(signal.initialState);
+              const is4State = valueIs9State(signal.initialState);
               signal.json.wave += is4State ? "9" : "7";
               signal.json.data.push(parseValue(signal.initialState, signal.signalWidth, is4State, numberFormat));
             } else {
@@ -1000,7 +952,7 @@ copyWaveDrom = function() {
             signal.json.wave += '.';
           } else {
             if (signal.signalWidth > 1) {
-              const is4State = valueIs4State(transition[1]);
+              const is4State = valueIs9State(transition[1]);
               signal.json.wave += is4State ? "9" : "7";
               signal.json.data.push(parseValue(transition[1], signal.signalWidth, is4State, numberFormat));
             } else {

@@ -544,10 +544,10 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   private getHtmlContent(webview: vscode.Webview): string {
 
     const extensionUri = this._context.extensionUri;
-    const htmlFile     = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'body.html'));
-    const svgIconsUri  = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'icons.svg'));
-    const jsFileUri    = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'vaporview.js'));
-    const cssFileUri   = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'style.css'));
+    const htmlFile     = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'src', 'webview', 'body.html'));
+    const svgIconsUri  = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'src', 'webview', 'icons.svg'));
+    const jsFileUri    = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'src', 'webview', 'vaporview.js'));
+    const cssFileUri   = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'src', 'webview', 'style.css'));
     const codiconsUri  = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.css'));
     let htmlContent    = fs.readFileSync(htmlFile.fsPath, 'utf8');
 

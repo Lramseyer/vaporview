@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "rootDir": "./src",
+        "rootDir": "./src/extension_core",
         "skipLibCheck": true,
         "lib": [
             "es2022",

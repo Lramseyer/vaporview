@@ -2,6 +2,9 @@
 (function () {
   const vscode = acquireVsCodeApi();
 
+// Initialize the webview when the document is ready
+document.addEventListener('DOMContentLoaded', () => {
+
 // ----------------------------------------------------------------------------
 // Rendering Herlper functions
 // ----------------------------------------------------------------------------
@@ -1219,6 +1222,621 @@ goToNextTransition = function (direction, edge) {
   handleMarkerSet(data.transitionData[timeIndex][0], 0);
 };
 
+renderLabelsPanels = function () {
+  labelsList  = [];
+  let transitions = [];
+  displayedSignals.forEach((netlistId, index) => {
+    const signalId     = netlistData[netlistId].signalId;
+    const numberFormat = netlistData[netlistId].numberFormat;
+    const signalWidth  = netlistData[netlistId].signalWidth;
+    let data           = waveformData[signalId];
+    const isSelected   = (index === selectedSignalIndex);
+    labelsList.push(createLabel(netlistId, isSelected));
+    transitions.push(createValueDisplayElement(netlistId, dataCache.valueAtMarker[signalId], isSelected));
+    if (data) {
+      data.textWidth   = getValueTextWidth(signalWidth, numberFormat);
+    }
+  });
+  labels.innerHTML            = labelsList.join('');
+  transitionDisplay.innerHTML = transitions.join('');
+};
+
+setButtonState = function (buttonId, state) {
+  if (state === 0) {
+    buttonId.classList.remove('selected-button');
+    buttonId.classList.add('disabled-button');
+  } else if (state === 1) {
+    buttonId.classList.remove('disabled-button');
+    buttonId.classList.remove('selected-button');
+  } else if (state === 2) {
+    buttonId.classList.remove('disabled-button');
+    buttonId.classList.add('selected-button');
+  }
+};
+
+handleSignalSelect = function (netlistId) {
+
+  let element;
+  let index;
+
+  for (var i = dataCache.startIndex; i < dataCache.endIndex; i+=chunksInColumn) {
+    element = document.getElementById('idx' + i + '-' + chunksInColumn + '--' + selectedSignal);
+    if (element) {
+      element.classList.remove('is-selected');
+      dataCache.columns[i].waveformChunk[selectedSignal].html = element.outerHTML;
+    }
+
+    element = document.getElementById('idx' + i + '-' + chunksInColumn + '--' + netlistId);
+    if (element) {
+      element.classList.add('is-selected');
+      dataCache.columns[i].waveformChunk[netlistId].html = element.outerHTML;
+    }
+  }
+
+  selectedSignal      = netlistId;
+  selectedSignalIndex = displayedSignals.findIndex((signal) => {return signal === netlistId;});
+  if (selectedSignalIndex === -1) {selectedSignalIndex = null;}
+
+  //setSeletedSignalOnStatusBar(netlistId);
+  sendWebviewContext();
+  renderLabelsPanels();
+
+  if (netlistId === null) {return;}
+
+  const numberFormat = netlistData[netlistId].numberFormat;
+
+  updateButtonsForSelectedWaveform(netlistData[netlistId].signalWidth);
+
+  if (numberFormat === 2)  {valueIconRef.setAttribute('href', '#search-binary');}
+  if (numberFormat === 10) {valueIconRef.setAttribute('href', '#search-decimal');}
+  if (numberFormat === 16) {valueIconRef.setAttribute('href', '#search-hex');}
+};
+
+handleTouchScroll = function () {
+  touchpadScrolling = !touchpadScrolling;
+  setButtonState(touchScroll, touchpadScrolling ? 2 : 1);
+};
+
+setBinaryEdgeButtons = function (selectable) {
+  setButtonState(prevNegedge, selectable);
+  setButtonState(prevPosedge, selectable);
+  setButtonState(nextNegedge, selectable);
+  setButtonState(nextPosedge, selectable);
+};
+
+setBusEdgeButtons = function (selectable) {
+  setButtonState(prevEdge, selectable);
+  setButtonState(nextEdge, selectable);
+};
+
+updateButtonsForSelectedWaveform = function (width) {
+  if (width === null) {
+    setBinaryEdgeButtons(0);
+    setBusEdgeButtons(0);
+  } else if (width === 1) {
+    setBinaryEdgeButtons(1);
+    setBusEdgeButtons(1);
+  } else {
+    setBinaryEdgeButtons(0);
+    setBusEdgeButtons(1);
+  }
+};
+
+handleSearchButtonSelect = function (button) {
+  handleSearchBarInFocus(true);
+  searchState = button;
+  if (searchState === 0) {
+    setButtonState(timeEquals, 2);
+    setButtonState(valueEquals, 1);
+  } else if (searchState === 1) {
+    setButtonState(timeEquals, 1);
+    setButtonState(valueEquals, 2);
+  }
+  handleSearchBarEntry({key: 'none'});
+};
+
+setSignalContextAttribute = function (netlistId) {
+  const width        = netlistData[netlistId].signalWidth;
+  const numberFormat = netlistData[netlistId].numberFormat;
+  const modulePath   = netlistData[netlistId].modulePath;
+  const signalName   = netlistData[netlistId].signalName;
+  const attribute    = `data-vscode-context=${JSON.stringify({
+    webviewSection: "signal",
+    modulePath: modulePath,
+    signalName: signalName,
+    width: width,
+    preventDefaultContextMenuItems: true,
+    netlistId: netlistId,
+    numberFormat: numberFormat
+  }).replace(/\s/g, '%x20')}`;
+  return attribute;
+};
+
+checkValidTimeString = function (inputText) {
+  if (inputText.match(/^[0-9]+$/)) {
+    parsedSearchValue = inputText.replace(/,/g, '');
+    return true;
+  }
+  else {return false;}
+};
+
+checkValidBinaryString = function (inputText) {
+  if (inputText.match(/^b?[01xzXZdD_]+$/)) {
+    parsedSearchValue = inputText.replace(/_/g, '').replace(/[dD]/g, '.');
+    return true;
+  } 
+  else {return false;}
+};
+
+checkValidHexString = function (inputText) {
+  if (inputText.match(/^(0x)?[0-9a-fA-FxzXZ_]+$/)) {
+    parsedSearchValue = inputText.replace(/_/g, '').replace(/^0x/i, '');
+    parsedSearchValue = parsedSearchValue.split('').map((c) => {
+      if (c.match(/[xXzZ]/)) {return '....';}
+      return parseInt(c, 16).toString(2).padStart(4, '0');
+    }).join('');
+    return true;
+  }
+  else {return false;}
+};
+
+checkValidDecimalString = function (inputText) {
+  if (inputText.match(/^[0-9xzXZ_,]+$/)) {
+    parsedSearchValue = inputText.replace(/,/g, '');
+    parsedSearchValue = parsedSearchValue.split('_').map((n) => {
+      if (n === '') {return '';}
+      if (n.match(/[xXzZ]/)) {return '.{32}';}
+      return parseInt(n, 10).toString(2).padStart(32, '0');
+    }).join('');
+    return true;
+  }
+  else {return false;}
+};
+
+handleSearchBarKeyDown = function (event) {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    handleSearchGoTo(1);
+    return;
+  }
+};
+
+handleSearchBarEntry = function (event) {
+  const inputText  = searchBar.value;
+  let inputValid   = true;
+  let numberFormat = 16;
+  if (selectedSignal) {
+    numberFormat = netlistData[selectedSignal].numberFormat;
+  }
+
+  // check to see that the input is valid
+  if (searchState === 0) {         inputValid = checkValidTimeString(inputText);
+  } else if (searchState === 1) {
+    if      (numberFormat === 2)  {inputValid = checkValidBinaryString(inputText);}
+    else if (numberFormat === 16) {inputValid = checkValidHexString(inputText);} 
+    else if (numberFormat === 10) {inputValid = checkValidDecimalString(inputText);}
+  }
+
+  // Update UI accordingly
+  if (inputValid || inputText === '') {
+    searchContainer.classList.remove('is-invalid');
+  } else {
+    searchContainer.classList.add('is-invalid');
+  }
+
+  if (inputValid && inputText !== '') {
+    setButtonState(previousButton, searchState);
+    setButtonState(nextButton, 1);
+  } else {
+    setButtonState(previousButton, 0);
+    setButtonState(nextButton, 0);
+  }
+};
+
+handleSearchGoTo = function (direction) {
+  if (selectedSignal === null) {return;}
+  if (parsedSearchValue === null) {return;}
+
+  const signalId = netlistData[selectedSignal].signalId;
+
+  if (searchState === 0 && direction === 1) {
+    handleMarkerSet(parseInt(parsedSearchValue), 0);
+  } else {
+    const signalWidth      = waveformData[signalId].signalWidth;
+    let trimmedSearchValue = parsedSearchValue;
+    if (parsedSearchValue.length > signalWidth) {trimmedSearchValue = parsedSearchValue.slice(-1 * signalWidth);}
+    let searchRegex = new RegExp(trimmedSearchValue, 'ig');
+    const data      = waveformData[signalId];
+    const timeIndex = data.transitionData.findIndex(([t, v]) => {return t >= markerTime;});
+    let indexOffset = 0;
+
+    if (direction === -1) {indexOffset = -1;}
+    else if (markerTime === data.transitionData[timeIndex][0]) {indexOffset = 1;}
+
+    for (var i = timeIndex + indexOffset; i >= 0; i+=direction) {
+      if (data.transitionData[i][1].match(searchRegex)) {
+        handleMarkerSet(data.transitionData[i][0], 0);
+        break;
+      }
+    }
+  }
+};
+
+handleSearchBarInFocus = function (isFocused) {
+  searchInFocus = isFocused;
+  if (isFocused) {
+    if (document.activeElement !== searchBar) {
+      searchBar.focus();
+    }
+    if (searchContainer.classList.contains('is-focused')) {return;}
+    searchContainer.classList.add('is-focused');
+  } else {
+    searchContainer.classList.remove('is-focused');
+  }
+};
+
+function clicklabel (event, containerElement) {
+  const labelsList   = Array.from(containerElement.querySelectorAll('.waveform-label'));
+  const clickedLabel = event.target.closest('.waveform-label');
+  const itemIndex    = labelsList.indexOf(clickedLabel);
+  handleSignalSelect(displayedSignals[itemIndex]);
+}
+
+// Event handler helper functions
+function arrayMove(array, fromIndex, toIndex) {
+  var element = array[fromIndex];
+  array.splice(fromIndex, 1);
+  array.splice(toIndex, 0, element);
+}
+
+function reorderSignals(oldIndex, newIndex) {
+
+  if (draggableItem) {
+    draggableItem.style   = null;
+    draggableItem.classList.remove('is-draggable');
+    draggableItem.classList.add('is-idle');
+  } else {
+    labelsList = Array.from(labels.querySelectorAll('.waveform-label'));
+  }
+
+  updatePending = true;
+  arrayMove(displayedSignals, oldIndex, newIndex);
+  arrayMove(labelsList,       oldIndex, newIndex);
+  handleSignalSelect(displayedSignals[newIndex]);
+  renderLabelsPanels();
+  for (var i = dataCache.startIndex; i < dataCache.endIndex; i+=chunksInColumn) {
+    const waveformColumn = document.getElementById('waveform-column-' + i + '-' + chunksInColumn);
+    const children       = Array.from(waveformColumn.children);
+    arrayMove(children, oldIndex, newIndex);
+    waveformColumn.replaceChildren(...children);
+  }
+  updateContentArea(leftOffset, getBlockNum());
+}
+
+function updateIdleItemsStateAndPosition() {
+  const draggableItemRect = draggableItem.getBoundingClientRect();
+  const draggableItemY    = draggableItemRect.top + draggableItemRect.height / 2;
+
+  let closestItemAbove      = null;
+  let closestItemBelow      = null;
+  let closestDistanceAbove  = Infinity;
+  let closestDistanceBelow  = Infinity;
+
+  idleItems.forEach((item) => {
+    item.style.border = 'none';
+    const itemRect = item.getBoundingClientRect();
+    const itemY = itemRect.top + itemRect.height / 2;
+    if (draggableItemY >= itemY) {
+      const distance = draggableItemY - itemY;
+      if (distance < closestDistanceAbove) {
+        closestDistanceAbove = distance;
+        closestItemAbove     = item;
+      }
+    } else if (draggableItemY < itemY) {
+      const distance = itemY - draggableItemY;
+      if (distance < closestDistanceBelow) {
+        closestDistanceBelow = distance;
+        closestItemBelow     = item;
+      }
+    }
+  });
+
+  let closestItemAboveIndex = Math.max(labelsList.indexOf(closestItemAbove), 0);
+  let closestItemBelowIndex = labelsList.indexOf(closestItemBelow);
+  if (closestItemBelowIndex === -1) {closestItemBelowIndex = labelsList.length - 1;}
+
+  if (closestItemBelow !== null) {
+    closestItemBelow.style.borderTop    = '2px dotted var(--vscode-editorCursor-foreground)';
+    closestItemBelow.style.borderBottom = '2px dotted transparent';
+  } else if (closestItemAbove !== null) {
+    closestItemAbove.style.borderTop    = '2px dotted transparent';
+    closestItemAbove.style.borderBottom = '2px dotted var(--vscode-editorCursor-foreground)';
+  }
+
+  if (draggableItemIndex < closestItemAboveIndex) {
+    draggableItemNewIndex = closestItemAboveIndex;
+  } else if (draggableItemIndex > closestItemBelowIndex) {
+    draggableItemNewIndex = closestItemBelowIndex;
+  } else {
+    draggableItemNewIndex = draggableItemIndex;
+  }
+}
+
+function dragStart(event) {
+  event.preventDefault();
+  labelsList = Array.from(labels.querySelectorAll('.waveform-label'));
+
+  if (event.target.classList.contains('codicon-grabber')) {
+    draggableItem = event.target.closest('.waveform-label');
+  }
+
+  if (!draggableItem) {return;}
+
+  pointerStartX = event.clientX;
+  pointerStartY = event.clientY;
+
+  draggableItem.classList.remove('is-idle');
+  draggableItem.classList.remove('is-selected');
+  draggableItem.classList.add('is-draggable');
+
+  document.addEventListener('mousemove', dragMove);
+
+  mouseupEventType      = 'rearrange';
+  draggableItemIndex    = labelsList.indexOf(draggableItem);
+  draggableItemNewIndex = draggableItemIndex;
+  idleItems             = labelsList.filter((item) => {return item.classList.contains('is-idle');});
+}
+
+function dragMove(event) {
+  if (!draggableItem) {return;}
+
+  const pointerOffsetX = event.clientX - pointerStartX;
+  const pointerOffsetY = event.clientY - pointerStartY;
+
+  draggableItem.style.transform = `translate(${pointerOffsetX}px, ${pointerOffsetY}px)`;
+
+  updateIdleItemsStateAndPosition();
+}
+
+function dragEnd(event) {
+  event.preventDefault();
+  if (!draggableItem) {return;}
+
+  idleItems.forEach((item) => {item.style = null;});
+  document.removeEventListener('mousemove', dragMove);
+
+  reorderSignals(draggableItemIndex, draggableItemNewIndex);
+
+  labelsList            = [];
+  idleItems             = [];
+  draggableItemIndex    = null;
+  draggableItemNewIndex = null;
+  pointerStartX         = null;
+  pointerStartY         = null;
+  draggableItem         = null;
+}
+
+function syncVerticalScroll(scrollLevel) {
+  if (updatePending) {return;}
+  updatePending              = true;
+  labelsScroll.scrollTop     = scrollLevel;
+  transitionScroll.scrollTop = scrollLevel;
+  scrollArea.scrollTop       = scrollLevel;
+  updatePending              = false;
+}
+
+function getTimeFromClick(event) {
+  const bounds      = contentArea.getBoundingClientRect();
+  const pixelLeft   = Math.round(event.pageX - bounds.left);
+  return Math.round(pixelLeft / zoomRatio) + (chunkTime * dataCache.startIndex);
+}
+
+function drawHighlightZoom(event) {
+
+  highlightEndEvent = event;
+  const width       = Math.abs(highlightEndEvent.pageX - highlightStartEvent.pageX);
+  const left        = Math.min(highlightStartEvent.pageX, highlightEndEvent.pageX);
+  const elementLeft = left - scrollArea.getBoundingClientRect().left;
+  const style       = `left: ${elementLeft}px; width: ${width}px; height: ${contentArea.style.height};`;
+
+  if (width > 5) {mouseupEventType = 'highlightZoom';}
+
+  if (!highlightElement) {
+    highlightElement = domParser.parseFromString(`<div id="highlight-zoom" style="${style}"></div>`, 'text/html').body.firstChild;
+    scrollArea.appendChild(highlightElement);
+  } else {
+    highlightElement.style.width = width + 'px';
+    highlightElement.style.left  = elementLeft + 'px';
+  }
+
+  if (!highlightDebounce) {
+    highlightDebounce = setTimeout(() => {
+      mouseupEventType  = 'highlightZoom';
+    }, 300);
+  }
+}
+
+function highlightZoom() {
+  const timeStart = getTimeFromClick(highlightStartEvent);
+  const timeEnd   = getTimeFromClick(highlightEndEvent);
+  const time      = Math.round((timeStart + timeEnd) / 2);
+  const width     = Math.abs(highlightStartEvent.pageX - highlightEndEvent.pageX);
+  const amount    = Math.ceil(Math.log2(width / viewerWidth));
+
+  if (highlightElement) {
+    highlightElement.remove();
+    highlightElement = null;
+  }
+
+  handleZoom(amount, time, halfViewerWidth);
+}
+
+function handleScrollAreaMouseDown(event) {
+  if (event.button === 1) {
+    handleScrollAreaClick(event, 1);
+  } else if (event.button === 0) {
+    highlightStartEvent = event;
+    mouseupEventType    = 'markerSet';
+
+    if (!highlightListenerSet) {
+      scrollArea.addEventListener('mousemove', drawHighlightZoom, false);
+      highlightListenerSet = true;
+    }
+
+  }
+}
+
+function handleScrollAreaClick(event, eventButton) {
+
+  button = eventButton;
+
+  if (eventButton === 1) {event.preventDefault();}
+  if (eventButton === 2) {return;}
+  if (eventButton === 0 && event.altKey) {button = 1;}
+
+  const snapToDistance = 3.5;
+
+  // Get the time position of the click
+  const time     = getTimeFromClick(event);
+  let snapToTime = time;
+
+  // Get the signal id of the click
+  let netlistId     = null;
+  const waveChunkId = event.target.closest('.waveform-chunk');
+  if (waveChunkId) {netlistId = parseInt(waveChunkId.id.split('--').slice(1).join('--'));}
+  if (netlistId !== undefined && netlistId !== null) {
+
+    if (button === 0) {
+      handleSignalSelect(netlistId);
+    }
+
+    const signalId = netlistData[netlistId].signalId;
+
+    // Snap to the nearest transition if the click is close enough
+    const nearestTransition = getNearestTransition(signalId, time);
+
+    if (nearestTransition === null) {return;}
+
+    const nearestTime       = nearestTransition[0];
+    const pixelDistance     = Math.abs(nearestTime - time) * zoomRatio;
+
+    if (pixelDistance < snapToDistance) {snapToTime = nearestTime;}
+  }
+
+  handleMarkerSet(snapToTime, button);
+}
+
+updateScrollbarResize = function () {
+  scrollbarWidth        = Math.max(Math.round((viewerWidth ** 2) / (timeStop * zoomRatio)), 17);
+  //scrollbarWidth        = Math.max(Math.round((viewerWidth ** 2) / (chunkCount * chunkWidth)), 17);
+  maxScrollbarPosition  = Math.max(viewerWidth - scrollbarWidth, 0);
+  updateScrollBarPosition();
+  scrollbar.style.width = scrollbarWidth + 'px';
+};
+
+updateScrollBarPosition = function () {
+  scrollbarPosition       = Math.round((pseudoScrollLeft / maxScrollLeft) * maxScrollbarPosition);
+  scrollbar.style.display = maxScrollLeft === 0 ? 'none' : 'block';
+  scrollbar.style.left    = scrollbarPosition + 'px';
+};
+
+updateViewportWidth = function() {
+  viewerWidth     = scrollArea.getBoundingClientRect().width;
+  halfViewerWidth = viewerWidth / 2;
+  maxScrollLeft   = Math.round(Math.max((timeStop * zoomRatio) - viewerWidth + 10, 0));
+  //maxScrollLeft   = Math.round(Math.max((chunkCount * chunkWidth) - viewerWidth, 0));
+  updateScrollbarResize();
+};
+
+function handleScrollbarMove(e) {
+  if (!scrollbarMoved) {
+    scrollbarMoved = e.clientX !== startX;
+    if (!scrollbarMoved) {return;}
+  }
+  const newPosition   = Math.min(Math.max(0, e.clientX - startX + scrollbarPosition), maxScrollbarPosition);
+  startX              = e.clientX;
+  const newScrollLeft = Math.round((newPosition / maxScrollbarPosition) * maxScrollLeft);
+  handleScrollEvent(newScrollLeft);
+  
+}
+
+function handleScrollbarDrag(event) {
+  event.preventDefault();
+  scrollbarMoved = false;
+  startX = event.clientX;
+  scrollbar.classList.add('is-dragging');
+
+  document.addEventListener('mousemove', handleScrollbarMove, false);
+  mouseupEventType = 'scroll';
+}
+
+
+// resize handler to handle resizing
+function resize(e) {
+  const gridTemplateColumns = webview.style.gridTemplateColumns;
+  const column1 = parseInt(gridTemplateColumns.split(' ')[0]);
+  const column2 = parseInt(gridTemplateColumns.split(' ')[1]);
+
+  if (resizeIndex === 1) {
+    webview.style.gridTemplateColumns = `${e.x}px ${column2}px auto`;
+    resize1.style.left = `${e.x}px`;
+    resize2.style.left = `${e.x + column2}px`;
+  } else if (resizeIndex === 2) {
+    const newWidth    = Math.max(10, e.x - column1);
+    const newPosition = Math.max(10 + column1, e.x);
+    webview.style.gridTemplateColumns = `${column1}px ${newWidth}px auto`;
+    resize2.style.left = `${newPosition}px`;
+  }
+}
+
+function handleResizeMousedown(event, element, index) {
+  resizeIndex   = index;
+  resizeElement = element;
+  event.preventDefault();
+  resizeElement.classList.add('is-resizing');
+  document.addEventListener("mousemove", resize, false);
+  mouseupEventType = 'resize';
+}
+
+
+function handleResizeViewer() {
+  clearTimeout(resizeDebounce);
+  resizeDebounce = setTimeout(updateViewportWidth, 100);
+}
+
+function handleMouseUp(event) {
+  //console.log('mouseup event type: ' + mouseupEventType);
+  if (mouseupEventType === 'rearrange') {
+    dragEnd(event);
+  } else if (mouseupEventType === 'resize') {
+    resizeElement.classList.remove('is-resizing');
+    document.removeEventListener("mousemove", resize, false);
+    handleResizeViewer();
+  } else if (mouseupEventType === 'scroll') {
+    scrollbar.classList.remove('is-dragging');
+    document.removeEventListener('mousemove', handleScrollbarMove, false);
+    scrollbarMoved = false;
+  } else if (mouseupEventType === 'highlightZoom') {
+    scrollArea.removeEventListener('mousemove', drawHighlightZoom, false);
+    highlightListenerSet = false;
+    highlightZoom();
+  } else if (mouseupEventType === 'markerSet') {
+    scrollArea.removeEventListener('mousemove', drawHighlightZoom, false);
+    clearTimeout(highlightDebounce);
+    handleScrollAreaClick(highlightStartEvent, 0);
+    highlightListenerSet = false;
+    if (highlightElement) {
+      highlightElement.remove();
+      highlightElement = null;
+    }
+  }
+  mouseupEventType = null;
+}
+
+function resetTouchpadScrollCount() {
+  touchpadScrollCount = 0;
+}
+
   // UI preferences
   rulerNumberSpacing = 100;
   rulerTickSpacing   = 10;
@@ -1279,6 +1897,12 @@ goToNextTransition = function (direction, edge) {
   pointerStartY         = null;
   resizeIndex           = null;
 
+  resizeDebounce       = 0;
+  highlightElement     = null;
+  highlightDebounce    = null;
+  highlightListenerSet = false;
+  mouseupEventType     = null;
+
   // Data variables
   contentData         = [];
   displayedSignals    = [];
@@ -1299,9 +1923,6 @@ goToNextTransition = function (direction, edge) {
     edge: '1',
   };
   domParser           = new DOMParser();
-
-  // Initialize the webview when the document is ready
-  document.addEventListener('DOMContentLoaded', () => {
 
   // Assuming you have a reference to the webview element
   const webview           = document.getElementById('vaporview-top');
@@ -1348,419 +1969,12 @@ goToNextTransition = function (direction, edge) {
   const resize2       = document.getElementById("resize-2");
   webview.style.gridTemplateColumns = `150px 50px auto`;
 
-  renderLabelsPanels = function () {
-    let labelsList  = [];
-    let transitions = [];
-    displayedSignals.forEach((netlistId, index) => {
-      const signalId     = netlistData[netlistId].signalId;
-      const numberFormat = netlistData[netlistId].numberFormat;
-      const signalWidth  = netlistData[netlistId].signalWidth;
-      let data           = waveformData[signalId];
-      const isSelected   = (index === selectedSignalIndex);
-      labelsList.push(createLabel(netlistId, isSelected));
-      transitions.push(createValueDisplayElement(netlistId, dataCache.valueAtMarker[signalId], isSelected));
-      if (data) {
-        data.textWidth   = getValueTextWidth(signalWidth, numberFormat);
-      }
-    });
-    labels.innerHTML            = labelsList.join('');
-    transitionDisplay.innerHTML = transitions.join('');
-  };
-
-  setButtonState = function (buttonId, state) {
-    if (state === 0) {
-      buttonId.classList.remove('selected-button');
-      buttonId.classList.add('disabled-button');
-    } else if (state === 1) {
-      buttonId.classList.remove('disabled-button');
-      buttonId.classList.remove('selected-button');
-    } else if (state === 2) {
-      buttonId.classList.remove('disabled-button');
-      buttonId.classList.add('selected-button');
-    }
-  };
-
-  handleSignalSelect = function (netlistId) {
-
-    let element;
-    let index;
-  
-    for (var i = dataCache.startIndex; i < dataCache.endIndex; i+=chunksInColumn) {
-      element = document.getElementById('idx' + i + '-' + chunksInColumn + '--' + selectedSignal);
-      if (element) {
-        element.classList.remove('is-selected');
-        dataCache.columns[i].waveformChunk[selectedSignal].html = element.outerHTML;
-      }
-  
-      element = document.getElementById('idx' + i + '-' + chunksInColumn + '--' + netlistId);
-      if (element) {
-        element.classList.add('is-selected');
-        dataCache.columns[i].waveformChunk[netlistId].html = element.outerHTML;
-      }
-    }
-  
-    selectedSignal      = netlistId;
-    selectedSignalIndex = displayedSignals.findIndex((signal) => {return signal === netlistId;});
-    if (selectedSignalIndex === -1) {selectedSignalIndex = null;}
-
-    //setSeletedSignalOnStatusBar(netlistId);
-    sendWebviewContext();
-    renderLabelsPanels();
-  
-    if (netlistId === null) {return;}
-  
-    const numberFormat = netlistData[netlistId].numberFormat;
-  
-    updateButtonsForSelectedWaveform(netlistData[netlistId].signalWidth);
-  
-    if (numberFormat === 2)  {valueIconRef.setAttribute('href', '#search-binary');}
-    if (numberFormat === 10) {valueIconRef.setAttribute('href', '#search-decimal');}
-    if (numberFormat === 16) {valueIconRef.setAttribute('href', '#search-hex');}
-  };
-
-  handleTouchScroll = function () {
-    touchpadScrolling = !touchpadScrolling;
-    setButtonState(touchScroll, touchpadScrolling ? 2 : 1);
-  };
-
-  setBinaryEdgeButtons = function (selectable) {
-    setButtonState(prevNegedge, selectable);
-    setButtonState(prevPosedge, selectable);
-    setButtonState(nextNegedge, selectable);
-    setButtonState(nextPosedge, selectable);
-  };
-
-  setBusEdgeButtons = function (selectable) {
-    setButtonState(prevEdge, selectable);
-    setButtonState(nextEdge, selectable);
-  };
-
-  updateButtonsForSelectedWaveform = function (width) {
-    if (width === null) {
-      setBinaryEdgeButtons(0);
-      setBusEdgeButtons(0);
-    } else if (width === 1) {
-      setBinaryEdgeButtons(1);
-      setBusEdgeButtons(1);
-    } else {
-      setBinaryEdgeButtons(0);
-      setBusEdgeButtons(1);
-    }
-  };
-
-  handleSearchButtonSelect = function (button) {
-    handleSearchBarInFocus(true);
-    searchState = button;
-    if (searchState === 0) {
-      setButtonState(timeEquals, 2);
-      setButtonState(valueEquals, 1);
-    } else if (searchState === 1) {
-      setButtonState(timeEquals, 1);
-      setButtonState(valueEquals, 2);
-    }
-    handleSearchBarEntry({key: 'none'});
-  };
-
-  setSignalContextAttribute = function (netlistId) {
-    const width        = netlistData[netlistId].signalWidth;
-    const numberFormat = netlistData[netlistId].numberFormat;
-    const modulePath   = netlistData[netlistId].modulePath;
-    const signalName   = netlistData[netlistId].signalName;
-    const attribute    = `data-vscode-context=${JSON.stringify({
-      webviewSection: "signal",
-      modulePath: modulePath,
-      signalName: signalName,
-      width: width,
-      preventDefaultContextMenuItems: true,
-      netlistId: netlistId,
-      numberFormat: numberFormat
-    }).replace(/\s/g, '%x20')}`;
-    return attribute;
-  };
-
-  checkValidTimeString = function (inputText) {
-    if (inputText.match(/^[0-9]+$/)) {
-      parsedSearchValue = inputText.replace(/,/g, '');
-      return true;
-    }
-    else {return false;}
-  };
-
-  checkValidBinaryString = function (inputText) {
-    if (inputText.match(/^b?[01xzXZdD_]+$/)) {
-      parsedSearchValue = inputText.replace(/_/g, '').replace(/[dD]/g, '.');
-      return true;
-    } 
-    else {return false;}
-  };
-
-  checkValidHexString = function (inputText) {
-    if (inputText.match(/^(0x)?[0-9a-fA-FxzXZ_]+$/)) {
-      parsedSearchValue = inputText.replace(/_/g, '').replace(/^0x/i, '');
-      parsedSearchValue = parsedSearchValue.split('').map((c) => {
-        if (c.match(/[xXzZ]/)) {return '....';}
-        return parseInt(c, 16).toString(2).padStart(4, '0');
-      }).join('');
-      return true;
-    }
-    else {return false;}
-  };
-
-  checkValidDecimalString = function (inputText) {
-    if (inputText.match(/^[0-9xzXZ_,]+$/)) {
-      parsedSearchValue = inputText.replace(/,/g, '');
-      parsedSearchValue = parsedSearchValue.split('_').map((n) => {
-        if (n === '') {return '';}
-        if (n.match(/[xXzZ]/)) {return '.{32}';}
-        return parseInt(n, 10).toString(2).padStart(32, '0');
-      }).join('');
-      return true;
-    }
-    else {return false;}
-  };
-
-  handleSearchBarKeyDown = function (event) {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      handleSearchGoTo(1);
-      return;
-    }
-  };
-
-  handleSearchBarEntry = function (event) {
-    const inputText  = searchBar.value;
-    let inputValid   = true;
-    let numberFormat = 16;
-    if (selectedSignal) {
-      numberFormat = netlistData[selectedSignal].numberFormat;
-    }
-
-    // check to see that the input is valid
-    if (searchState === 0) {         inputValid = checkValidTimeString(inputText);
-    } else if (searchState === 1) {
-      if      (numberFormat === 2)  {inputValid = checkValidBinaryString(inputText);}
-      else if (numberFormat === 16) {inputValid = checkValidHexString(inputText);} 
-      else if (numberFormat === 10) {inputValid = checkValidDecimalString(inputText);}
-    }
-
-    // Update UI accordingly
-    if (inputValid || inputText === '') {
-      searchContainer.classList.remove('is-invalid');
-    } else {
-      searchContainer.classList.add('is-invalid');
-    }
-
-    if (inputValid && inputText !== '') {
-      setButtonState(previousButton, searchState);
-      setButtonState(nextButton, 1);
-    } else {
-      setButtonState(previousButton, 0);
-      setButtonState(nextButton, 0);
-    }
-  };
-
-  handleSearchGoTo = function (direction) {
-    if (selectedSignal === null) {return;}
-    if (parsedSearchValue === null) {return;}
-
-    const signalId = netlistData[selectedSignal].signalId;
-
-    if (searchState === 0 && direction === 1) {
-      handleMarkerSet(parseInt(parsedSearchValue), 0);
-    } else {
-      const signalWidth      = waveformData[signalId].signalWidth;
-      let trimmedSearchValue = parsedSearchValue;
-      if (parsedSearchValue.length > signalWidth) {trimmedSearchValue = parsedSearchValue.slice(-1 * signalWidth);}
-      let searchRegex = new RegExp(trimmedSearchValue, 'ig');
-      const data      = waveformData[signalId];
-      const timeIndex = data.transitionData.findIndex(([t, v]) => {return t >= markerTime;});
-      let indexOffset = 0;
-
-      if (direction === -1) {indexOffset = -1;}
-      else if (markerTime === data.transitionData[timeIndex][0]) {indexOffset = 1;}
-
-      for (var i = timeIndex + indexOffset; i >= 0; i+=direction) {
-        if (data.transitionData[i][1].match(searchRegex)) {
-          handleMarkerSet(data.transitionData[i][0], 0);
-          break;
-        }
-      }
-    }
-  };
-
-  handleSearchBarInFocus = function (isFocused) {
-    searchInFocus = isFocused;
-    if (isFocused) {
-      if (document.activeElement !== searchBar) {
-        searchBar.focus();
-      }
-      if (searchContainer.classList.contains('is-focused')) {return;}
-      searchContainer.classList.add('is-focused');
-    } else {
-      searchContainer.classList.remove('is-focused');
-    }
-  };
-
-  function clicklabel (event, containerElement) {
-    const labelsList   = Array.from(containerElement.querySelectorAll('.waveform-label'));
-    const clickedLabel = event.target.closest('.waveform-label');
-    const itemIndex    = labelsList.indexOf(clickedLabel);
-    handleSignalSelect(displayedSignals[itemIndex]);
-  }
-
-  // Event handler helper functions
-  function arrayMove(array, fromIndex, toIndex) {
-    var element = array[fromIndex];
-    array.splice(fromIndex, 1);
-    array.splice(toIndex, 0, element);
-  }
-
-  function reorderSignals(oldIndex, newIndex) {
-
-    if (draggableItem) {
-      draggableItem.style   = null;
-      draggableItem.classList.remove('is-draggable');
-      draggableItem.classList.add('is-idle');
-    } else {
-      labelsList = Array.from(labels.querySelectorAll('.waveform-label'));
-    }
-
-    updatePending = true;
-    arrayMove(displayedSignals, oldIndex, newIndex);
-    arrayMove(labelsList,       oldIndex, newIndex);
-    handleSignalSelect(displayedSignals[newIndex]);
-    renderLabelsPanels();
-    for (var i = dataCache.startIndex; i < dataCache.endIndex; i+=chunksInColumn) {
-      const waveformColumn = document.getElementById('waveform-column-' + i + '-' + chunksInColumn);
-      const children       = Array.from(waveformColumn.children);
-      arrayMove(children, oldIndex, newIndex);
-      waveformColumn.replaceChildren(...children);
-    }
-    updateContentArea(leftOffset, getBlockNum());
-  }
-
-  function updateIdleItemsStateAndPosition() {
-    const draggableItemRect = draggableItem.getBoundingClientRect();
-    const draggableItemY    = draggableItemRect.top + draggableItemRect.height / 2;
-
-    let closestItemAbove      = null;
-    let closestItemBelow      = null;
-    let closestDistanceAbove  = Infinity;
-    let closestDistanceBelow  = Infinity;
-
-    idleItems.forEach((item) => {
-      item.style.border = 'none';
-      const itemRect = item.getBoundingClientRect();
-      const itemY = itemRect.top + itemRect.height / 2;
-      if (draggableItemY >= itemY) {
-        const distance = draggableItemY - itemY;
-        if (distance < closestDistanceAbove) {
-          closestDistanceAbove = distance;
-          closestItemAbove     = item;
-        }
-      } else if (draggableItemY < itemY) {
-        const distance = itemY - draggableItemY;
-        if (distance < closestDistanceBelow) {
-          closestDistanceBelow = distance;
-          closestItemBelow     = item;
-        }
-      }
-    });
-
-    let closestItemAboveIndex = Math.max(labelsList.indexOf(closestItemAbove), 0);
-    let closestItemBelowIndex = labelsList.indexOf(closestItemBelow);
-    if (closestItemBelowIndex === -1) {closestItemBelowIndex = labelsList.length - 1;}
-
-    if (closestItemBelow !== null) {
-      closestItemBelow.style.borderTop    = '2px dotted var(--vscode-editorCursor-foreground)';
-      closestItemBelow.style.borderBottom = '2px dotted transparent';
-    } else if (closestItemAbove !== null) {
-      closestItemAbove.style.borderTop    = '2px dotted transparent';
-      closestItemAbove.style.borderBottom = '2px dotted var(--vscode-editorCursor-foreground)';
-    }
-
-    if (draggableItemIndex < closestItemAboveIndex) {
-      draggableItemNewIndex = closestItemAboveIndex;
-    } else if (draggableItemIndex > closestItemBelowIndex) {
-      draggableItemNewIndex = closestItemBelowIndex;
-    } else {
-      draggableItemNewIndex = draggableItemIndex;
-    }
-  }
-
-  function dragStart(event) {
-    event.preventDefault();
-    labelsList = Array.from(labels.querySelectorAll('.waveform-label'));
-
-    if (event.target.classList.contains('codicon-grabber')) {
-      draggableItem = event.target.closest('.waveform-label');
-    }
-
-    if (!draggableItem) {return;}
-
-    pointerStartX = event.clientX;
-    pointerStartY = event.clientY;
-
-    draggableItem.classList.remove('is-idle');
-    draggableItem.classList.remove('is-selected');
-    draggableItem.classList.add('is-draggable');
-
-    document.addEventListener('mousemove', dragMove);
-
-    mouseupEventType      = 'rearrange';
-    draggableItemIndex    = labelsList.indexOf(draggableItem);
-    draggableItemNewIndex = draggableItemIndex;
-    idleItems             = labelsList.filter((item) => {return item.classList.contains('is-idle');});
-  }
-
-  function dragMove(event) {
-    if (!draggableItem) {return;}
-
-    const pointerOffsetX = event.clientX - pointerStartX;
-    const pointerOffsetY = event.clientY - pointerStartY;
-
-    draggableItem.style.transform = `translate(${pointerOffsetX}px, ${pointerOffsetY}px)`;
-
-    updateIdleItemsStateAndPosition();
-  }
-
-  function dragEnd(event) {
-    event.preventDefault();
-    if (!draggableItem) {return;}
-
-    idleItems.forEach((item) => {item.style = null;});
-    document.removeEventListener('mousemove', dragMove);
-
-    reorderSignals(draggableItemIndex, draggableItemNewIndex);
-
-    labelsList            = [];
-    idleItems             = [];
-    draggableItemIndex    = null;
-    draggableItemNewIndex = null;
-    pointerStartX         = null;
-    pointerStartY         = null;
-    draggableItem         = null;
-  }
-
-  function syncVerticalScroll(scrollLevel) {
-    if (updatePending) {return;}
-    updatePending              = true;
-    labelsScroll.scrollTop     = scrollLevel;
-    transitionScroll.scrollTop = scrollLevel;
-    scrollArea.scrollTop       = scrollLevel;
-    updatePending              = false;
-  }
-
   labelsScroll.addEventListener(    'scroll', (e) => {syncVerticalScroll(labelsScroll.scrollTop);});
   transitionScroll.addEventListener('scroll', (e) => {syncVerticalScroll(transitionScroll.scrollTop);});
   scrollArea.addEventListener(      'scroll', (e) => {
     syncVerticalScroll(scrollArea.scrollTop);
     //handleScrollEvent();
   });
-
-  function resetTouchpadScrollCount() {
-    touchpadScrollCount = 0;
-  }
 
   // scroll handler to handle zooming and scrolling
   scrollArea.addEventListener('wheel', (event) => { 
@@ -1853,219 +2067,6 @@ goToNextTransition = function (direction, edge) {
     else if (event.key === 'N') {goToNextTransition(-1);}
 
   });
-
-  function getTimeFromClick(event) {
-    const bounds      = contentArea.getBoundingClientRect();
-    const pixelLeft   = Math.round(event.pageX - bounds.left);
-    return Math.round(pixelLeft / zoomRatio) + (chunkTime * dataCache.startIndex);
-  }
-
-  highlightElement    = null;
-  function drawHighlightZoom(event) {
-
-    highlightEndEvent = event;
-    const width       = Math.abs(highlightEndEvent.pageX - highlightStartEvent.pageX);
-    const left        = Math.min(highlightStartEvent.pageX, highlightEndEvent.pageX);
-    const elementLeft = left - scrollArea.getBoundingClientRect().left;
-    const style       = `left: ${elementLeft}px; width: ${width}px; height: ${contentArea.style.height};`;
-
-    if (width > 5) {mouseupEventType = 'highlightZoom';}
-
-    if (!highlightElement) {
-      highlightElement = domParser.parseFromString(`<div id="highlight-zoom" style="${style}"></div>`, 'text/html').body.firstChild;
-      scrollArea.appendChild(highlightElement);
-    } else {
-      highlightElement.style.width = width + 'px';
-      highlightElement.style.left  = elementLeft + 'px';
-    }
-
-    if (!highlightDebounce) {
-      highlightDebounce = setTimeout(() => {
-        mouseupEventType  = 'highlightZoom';
-      }, 300);
-    }
-  }
-
-  function highlightZoom() {
-    const timeStart = getTimeFromClick(highlightStartEvent);
-    const timeEnd   = getTimeFromClick(highlightEndEvent);
-    const time      = Math.round((timeStart + timeEnd) / 2);
-    const width     = Math.abs(highlightStartEvent.pageX - highlightEndEvent.pageX);
-    const amount    = Math.ceil(Math.log2(width / viewerWidth));
-
-    if (highlightElement) {
-      highlightElement.remove();
-      highlightElement = null;
-    }
-
-    handleZoom(amount, time, halfViewerWidth);
-  }
-
-  highlightDebounce    = null;
-  highlightListenerSet = false;
-  function handleScrollAreaMouseDown(event) {
-    if (event.button === 1) {
-      handleScrollAreaClick(event, 1);
-    } else if (event.button === 0) {
-      highlightStartEvent = event;
-      mouseupEventType    = 'markerSet';
-
-      if (!highlightListenerSet) {
-        scrollArea.addEventListener('mousemove', drawHighlightZoom, false);
-        highlightListenerSet = true;
-      }
-
-    }
-  }
-
-  function handleScrollAreaClick(event, eventButton) {
-
-    button = eventButton;
-  
-    if (eventButton === 1) {event.preventDefault();}
-    if (eventButton === 2) {return;}
-    if (eventButton === 0 && event.altKey) {button = 1;}
-
-    const snapToDistance = 3.5;
-
-    // Get the time position of the click
-    const time     = getTimeFromClick(event);
-    let snapToTime = time;
-
-    // Get the signal id of the click
-    let netlistId     = null;
-    const waveChunkId = event.target.closest('.waveform-chunk');
-    if (waveChunkId) {netlistId = parseInt(waveChunkId.id.split('--').slice(1).join('--'));}
-    if (netlistId !== undefined && netlistId !== null) {
-
-      if (button === 0) {
-        handleSignalSelect(netlistId);
-      }
-
-      const signalId = netlistData[netlistId].signalId;
-
-      // Snap to the nearest transition if the click is close enough
-      const nearestTransition = getNearestTransition(signalId, time);
-
-      if (nearestTransition === null) {return;}
-
-      const nearestTime       = nearestTransition[0];
-      const pixelDistance     = Math.abs(nearestTime - time) * zoomRatio;
-
-      if (pixelDistance < snapToDistance) {snapToTime = nearestTime;}
-    }
-
-    handleMarkerSet(snapToTime, button);
-  }
-
-  updateScrollbarResize = function () {
-    scrollbarWidth        = Math.max(Math.round((viewerWidth ** 2) / (timeStop * zoomRatio)), 17);
-    //scrollbarWidth        = Math.max(Math.round((viewerWidth ** 2) / (chunkCount * chunkWidth)), 17);
-    maxScrollbarPosition  = Math.max(viewerWidth - scrollbarWidth, 0);
-    updateScrollBarPosition();
-    scrollbar.style.width = scrollbarWidth + 'px';
-  };
-
-  updateScrollBarPosition = function () {
-    scrollbarPosition       = Math.round((pseudoScrollLeft / maxScrollLeft) * maxScrollbarPosition);
-    scrollbar.style.display = maxScrollLeft === 0 ? 'none' : 'block';
-    scrollbar.style.left    = scrollbarPosition + 'px';
-  };
-
-  updateViewportWidth = function() {
-    viewerWidth     = scrollArea.getBoundingClientRect().width;
-    halfViewerWidth = viewerWidth / 2;
-    maxScrollLeft   = Math.round(Math.max((timeStop * zoomRatio) - viewerWidth + 10, 0));
-    //maxScrollLeft   = Math.round(Math.max((chunkCount * chunkWidth) - viewerWidth, 0));
-    updateScrollbarResize();
-  };
-
-  function handleScrollbarMove(e) {
-    if (!scrollbarMoved) {
-      scrollbarMoved = e.clientX !== startX;
-      if (!scrollbarMoved) {return;}
-    }
-    const newPosition   = Math.min(Math.max(0, e.clientX - startX + scrollbarPosition), maxScrollbarPosition);
-    startX              = e.clientX;
-    const newScrollLeft = Math.round((newPosition / maxScrollbarPosition) * maxScrollLeft);
-    handleScrollEvent(newScrollLeft);
-    
-  }
-
-  function handleScrollbarDrag(event) {
-    event.preventDefault();
-    scrollbarMoved = false;
-    startX = event.clientX;
-    scrollbar.classList.add('is-dragging');
-
-    document.addEventListener('mousemove', handleScrollbarMove, false);
-    mouseupEventType = 'scroll';
-  }
-
-
-  // resize handler to handle resizing
-  function resize(e) {
-    const gridTemplateColumns = webview.style.gridTemplateColumns;
-    const column1 = parseInt(gridTemplateColumns.split(' ')[0]);
-    const column2 = parseInt(gridTemplateColumns.split(' ')[1]);
-
-    if (resizeIndex === 1) {
-      webview.style.gridTemplateColumns = `${e.x}px ${column2}px auto`;
-      resize1.style.left = `${e.x}px`;
-      resize2.style.left = `${e.x + column2}px`;
-    } else if (resizeIndex === 2) {
-      const newWidth    = Math.max(10, e.x - column1);
-      const newPosition = Math.max(10 + column1, e.x);
-      webview.style.gridTemplateColumns = `${column1}px ${newWidth}px auto`;
-      resize2.style.left = `${newPosition}px`;
-    }
-  }
-
-  function handleResizeMousedown(event, element, index) {
-    resizeIndex   = index;
-    resizeElement = element;
-    event.preventDefault();
-    resizeElement.classList.add('is-resizing');
-    document.addEventListener("mousemove", resize, false);
-    mouseupEventType = 'resize';
-  }
-
-  resizeDebounce = 0;
-  function handleResizeViewer() {
-    clearTimeout(resizeDebounce);
-    resizeDebounce = setTimeout(updateViewportWidth, 100);
-  }
-
-  function handleMouseUp(event) {
-    //console.log('mouseup event type: ' + mouseupEventType);
-    if (mouseupEventType === 'rearrange') {
-      dragEnd(event);
-    } else if (mouseupEventType === 'resize') {
-      resizeElement.classList.remove('is-resizing');
-      document.removeEventListener("mousemove", resize, false);
-      handleResizeViewer();
-    } else if (mouseupEventType === 'scroll') {
-      scrollbar.classList.remove('is-dragging');
-      document.removeEventListener('mousemove', handleScrollbarMove, false);
-      scrollbarMoved = false;
-    } else if (mouseupEventType === 'highlightZoom') {
-      scrollArea.removeEventListener('mousemove', drawHighlightZoom, false);
-      highlightListenerSet = false;
-      highlightZoom();
-    } else if (mouseupEventType === 'markerSet') {
-      scrollArea.removeEventListener('mousemove', drawHighlightZoom, false);
-      clearTimeout(highlightDebounce);
-      handleScrollAreaClick(highlightStartEvent, 0);
-      highlightListenerSet = false;
-      if (highlightElement) {
-        highlightElement.remove();
-        highlightElement = null;
-      }
-    }
-    mouseupEventType = null;
-  }
-
-  mouseupEventType = null;
 
   // click handler to handle clicking inside the waveform viewer
   // gets the absolute x position of the click relative to the scrollable content

@@ -5,3 +5,5 @@ node_modules
 *.vsix
 *.vcd
 target/
+src/extension_core/filehandler.ts
+*.tsbuildinfo

@@ -27,8 +27,8 @@
   "engines": {
     "vscode": "^1.89.0"
   },
-  "main": "./out/extension",
-  "browser": "./out/extension",
+  "main": "./out/core/extension",
+  "browser": "./out/core/extension",
   "activationEvents": [],
   "contributes": {
     "viewsContainers": {
@@ -275,17 +275,24 @@
     "@types/vscode": "1.89.0",
     "@typescript-eslint/eslint-plugin": "^7.6.0",
     "@typescript-eslint/parser": "^7.6.0",
+    "concurrently": "^9.1.0",
     "esbuild": "^0.20.2",
     "eslint": "^8.57.0",
     "serve": "^14.2.1",
-    "typescript": "^5.5.2"
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.7.2",
+    "webpack": "^5.96.1",
+    "webpack-cli": "^5.1.4"
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "build": "npm run compile && cargo build --target wasm32-unknown-unknown",
+    "vscode:prepublish": "npm run build",
+    "build": "npm run compile && npm run build:webview && cargo build --target wasm32-unknown-unknown",
     "compile": "npm run generate:model && tsc -b",
-    "watch": "tsc -b -w",
-    "lint": "eslint ./src/extension_core --ext .ts,.tsx",
+    "build:webview": "webpack --config webpack.config.webview.js",
+    "watch": "concurrently \"npm run watch:extension\" \"npm run watch:webview\"",
+    "watch:extension": "tsc -b -w",
+    "watch:webview": "webpack --config webpack.config.webview.js --watch",
+    "lint": "eslint ./src/extension_core --ext .ts,.tsx && eslint ./src/webview --ext .ts",
     "generate:model": "wit2ts --outDir ./src/extension_core ./wit",
     "serve": "serve --cors -l 5000 --ssl-cert $HOME/certs/localhost.pem --ssl-key $HOME/certs/localhost-key.pem"
   }

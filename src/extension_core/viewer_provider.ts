@@ -99,7 +99,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     };
 
     // Load the Wasm worker
-    const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'out', 'worker.js').fsPath;
+    const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'out', 'core', 'worker.js').fsPath;
     const wasmWorker = new Worker(workerFile);
     const document   = await VaporviewDocument.create(uri, openContext.backupId, wasmWorker, this.wasmModule, delegate);
 
@@ -546,7 +546,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     const extensionUri = this._context.extensionUri;
     const htmlFile     = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'src', 'webview', 'body.html'));
     const svgIconsUri  = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'src', 'webview', 'icons.svg'));
-    const jsFileUri    = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'src', 'webview', 'vaporview.js'));
+    const jsFileUri    = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'out', 'webview', 'vaporview.bundle.js'));
     const cssFileUri   = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'src', 'webview', 'style.css'));
     const codiconsUri  = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.css'));
     let htmlContent    = fs.readFileSync(htmlFile.fsPath, 'utf8');

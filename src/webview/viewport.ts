@@ -1,4 +1,4 @@
-import { vscode, NetlistData, WaveformData, parseValue, valueIs9State, sendWebviewContext, NetlistId, SignalId, NumberFormat, ValueChange } from "./vaporview";
+import { vscode, NetlistData, netlistData, WaveformData, waveformData, parseValue, getValueTextWidth, valueIs9State, arrayMove, sendWebviewContext, NetlistId, SignalId, NumberFormat, ValueChange, ActionType, EventHandler, viewerState } from "./vaporview";
 type DataCache = {
   startIndex: number;
   endIndex: number;
@@ -22,6 +22,19 @@ type columnCache = {
 const domParser = new DOMParser();
 
 export class Viewport {
+
+  scrollArea: HTMLElement;
+  contentArea: HTMLElement; 
+  scrollbar: HTMLElement;
+  waveformData: WaveformData[];
+  netlistData: NetlistData[];
+
+  highlightElement: any     = null;
+  highlightEndEvent: any = null;
+  highlightStartEvent: any = null;
+  highlightListenerSet      = false;
+  highlightDebounce: any    = null;
+
   // UI preferences
   rulerNumberSpacing: number = 100;
   rulerTickSpacing: number   = 10;
@@ -73,21 +86,75 @@ export class Viewport {
     altMarkerElement: '',
   };
 
+  mutationObserver: MutationObserver;
+
   constructor(
-    public scrollArea: HTMLElement,
-    public contentArea: HTMLElement, 
-    public scrollbar: HTMLElement,
-    public displayedSignals: any[],
-    public waveformData: WaveformData[],
-    public netlistData: NetlistData[],
-    public markerTime: number,
-    public altMarkerTime: number,
-    public selectedSignal: number,
+    private events: EventHandler,
   ) {
+
+    const scrollArea        = document.getElementById('scrollArea');
+    const contentArea       = document.getElementById('contentArea');
+    const scrollbar         = document.getElementById('scrollbar');
+
+    if (scrollArea === null || contentArea === null || scrollbar === null) {
+      throw new Error('Viewport elements not found');
+    }
+
+    this.scrollArea = scrollArea;
+    this.contentArea = contentArea;
+    this.scrollbar = scrollbar;
+    this.waveformData = waveformData;
+    this.netlistData = netlistData;
+
+    // click handler to handle clicking inside the waveform viewer
+    // gets the absolute x position of the click relative to the scrollable content
+    contentArea.addEventListener('mousedown', (e) => {this.handleScrollAreaMouseDown(e);});
+    scrollbar.addEventListener('mousedown',   (e) => {this.handleScrollbarDrag(e);});
+
+
+    this.mutationObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node: any) => {
+          if (node.classList.contains('shallow-chunk')) {
+            node.classList.remove('shallow-chunk');
+            node.classList.add('rendering-chunk');
+            const chunkIndex = parseInt(node.id.split('-')[1]);
+            const data     = this.dataCache.columns[chunkIndex];
+            if (!data || data.abortFlag || !data.isSafeToRemove) {
+              //console.log('chunk ' + chunkIndex + ' is not safe to touch');
+              //console.log(data);
+              return;
+            }
+            this.dataCache.columns[chunkIndex].isSafeToRemove = false;
+            this.dataCache.updatesPending++;
+            this.renderWaveformsAsync(node, chunkIndex);
+          }
+        });
+      });
+    });
+    this.mutationObserver.observe(contentArea, {childList: true});
+
     //this.handleScrollEvent = this.handleScrollEvent.bind(this);
     this.handleScrollbarMove = this.handleScrollbarMove.bind(this);
     //this.updateScrollbarResize = this.updateScrollbarResize.bind(this);
     this.updateViewportWidth = this.updateViewportWidth.bind(this);
+    this.handleZoom = this.handleZoom.bind(this);
+    this.handleSignalSelect = this.handleSignalSelect.bind(this);
+    this.handleMarkerSet = this.handleMarkerSet.bind(this);
+    this.handleReorderSignals = this.handleReorderSignals.bind(this);
+    this.highlightZoom = this.highlightZoom.bind(this);
+    this.drawHighlightZoom = this.drawHighlightZoom.bind(this);
+
+
+    this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
+    this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
+    this.events.subscribe(ActionType.Zoom, this.handleZoom);
+    this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
+    //this.events.subscribe(ActionType.AddVariable, this.updateWaveformInCache);
+    //this.events.subscribe(ActionType.RemoveVariable, this.updateWaveformInCache);
+    //this.events.subscribe(ActionType.Scroll, this.handleScrollEvent);
+    //this.events.subscribe(ActionType.RedrawVariable, this.updateWaveformInCache);
+    this.events.subscribe(ActionType.Resize, this.updateViewportWidth);
   }
 
   // This function actually creates the individual bus elements, and has can
@@ -382,7 +449,6 @@ export class Viewport {
     return polyline + shadedArea + noDraw + xzPolylines.join('');
   }
 
-
   binaryElementFromTransitionData(transitionData: ValueChange[], initialState: ValueChange, postState: ValueChange) {
     const svgHeight  = 20;
     const waveHeight = 16;
@@ -400,7 +466,7 @@ export class Viewport {
   createWaveformSVG(transitionData: ValueChange[], initialState: ValueChange, postState: ValueChange, width: number, chunkIndex: number, netlistId: NetlistId, textWidth: number) {
     let   className     = 'waveform-chunk';
     const vscodeContext = this.netlistData[netlistId].vscodeContext;
-    if (netlistId === this.selectedSignal) {className += ' is-selected';}
+    if (netlistId === viewerState.selectedSignal) {className += ' is-selected';}
     if (width === 1) {
       return `<div class="${className}" id="idx${chunkIndex}-${this.chunksInColumn}--${netlistId}" ${vscodeContext}>
       ${this.binaryElementFromTransitionData(transitionData, initialState, postState)}
@@ -507,25 +573,7 @@ export class Viewport {
       </svg>`;
   }
 
-  getValueTextWidth(width: number, numberFormat: NumberFormat) {
-    const characterWidth = 7.69;
-    let   numeralCount   = 0;
-    let   underscoreCount = 0;
 
-    if (numberFormat === 2)  {
-      numeralCount    = width;
-      underscoreCount = Math.floor((width - 1) / 4);
-    } 
-    if (numberFormat === 16) {
-      numeralCount    = Math.ceil(width / 4);
-      underscoreCount = Math.floor((width - 1) / 16);
-    }
-    if (numberFormat === 10) {
-      numeralCount    = Math.ceil(Math.log10(width % 32)) + (10 * Math.floor((width) / 32));
-      underscoreCount = Math.floor((width - 1) / 32);
-    }
-    return (numeralCount + underscoreCount) * characterWidth;
-  }
 
   updateWaveformInCache(netlistIdList: NetlistId[]) {
     netlistIdList.forEach((netlistId) => {
@@ -533,7 +581,9 @@ export class Viewport {
       for (let i = this.dataCache.startIndex; i < this.dataCache.endIndex; i+=this.chunksInColumn) {
         this.dataCache.columns[i].waveformChunk[netlistId] = this.renderWaveformChunk(netlistId, i);
       }
-      this.dataCache.valueAtMarker[signalId] = this.getValueAtTime(signalId, this.markerTime);
+      if (viewerState.markerTime !== null) {
+        this.dataCache.valueAtMarker[signalId] = this.getValueAtTime(signalId, viewerState.markerTime);
+      }
     });
     for (let i = this.dataCache.startIndex; i < this.dataCache.endIndex; i+=this.chunksInColumn) {
       this.parseHtmlInChunk(i);
@@ -550,56 +600,11 @@ export class Viewport {
       altMarker:     [],
     };
 
-    this.displayedSignals.forEach((netlistId: NetlistId) => {
+    viewerState.displayedSignals.forEach((netlistId: NetlistId) => {
       result.waveformChunk[netlistId] = this.renderWaveformChunk(netlistId, chunkIndex);
     });
 
     return result;
-  }
-
-
-  // Event handler helper functions
-  handleZoom(amount: number, zoomOrigin: number, screenPosition: number) {
-    // -1 zooms in, +1 zooms out
-    // zoomRatio is in pixels per time unit
-    if (this.updatePending) {return;}
-    if (amount === 0) {return;}
-
-    let newZoomRatio  = this.zoomRatio * Math.pow(2, (-1 * amount));
-    this.touchpadScrollCount = 0;
-    
-    if (newZoomRatio > this.maxZoomRatio) {
-      newZoomRatio = this.maxZoomRatio;
-
-      if (newZoomRatio === this.zoomRatio) {
-        console.log('zoom ratio is too high: ' + newZoomRatio + '');
-        return;
-      }
-    }
-
-    //console.log('zooming to ' + newZoomRatio + ' from ' + this.zoomRatio + '');
-
-    this.updatePending    = true;
-    this.zoomRatio        = newZoomRatio;
-    this.chunkWidth       = this.chunkTime * this.zoomRatio;
-    //this.maxScrollLeft    = Math.round(Math.max((chunkCount * this.chunkWidth) - this.viewerWidth, 0));
-    this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth + 10, 0));
-    this.pseudoScrollLeft = Math.max(Math.min((zoomOrigin * this.zoomRatio) - screenPosition, this.maxScrollLeft), 0);
-    for (let i = this.dataCache.startIndex; i < this.dataCache.endIndex; i+=this.chunksInColumn) {
-      this.dataCache.columns[i] = undefined;
-    }
-    this.getChunksWidth();
-    const startIndex  = Math.ceil(this.dataCache.startIndex / this.chunksInColumn) * this.chunksInColumn;
-    const endIndex    = Math.floor(this.dataCache.endIndex / this.chunksInColumn) * this.chunksInColumn;
-    this.dataCache.startIndex = startIndex;
-    this.dataCache.endIndex   = endIndex;
-
-    for (let i = startIndex; i < this.dataCache.endIndex; i+=this.chunksInColumn) {
-      this.dataCache.columns[i] = (this.updateChunkInCache(i));
-    }
-
-    this.updateContentArea(this.leftOffset, this.getBlockNum());
-    this.updateScrollbarResize();
   }
 
   // Experimental asynchronous rendering path
@@ -612,7 +617,7 @@ export class Viewport {
     try {
 
       // Render each waveform chunk asynchronously
-      for (const netlistId of this.displayedSignals) {
+      for (const netlistId of viewerState.displayedSignals) {
         //let signalId = netlistData[netlistId].signalId;
         // Check the abort flag at the start of each iteration
         if (this.dataCache.columns[chunkIndex].abortFlag) {continue;}
@@ -632,7 +637,7 @@ export class Viewport {
 
       // Update the DOM in the next animation frame
       await new Promise<void>(resolve => requestAnimationFrame(() => {
-        this.displayedSignals.forEach((netlistId: NetlistId) => {orderedElements.push(chunkElements[netlistId]);});
+        viewerState.displayedSignals.forEach((netlistId: NetlistId) => {orderedElements.push(chunkElements[netlistId]);});
         const domRef = document.getElementById('waveform-column-' + chunkIndex + '-' + this.chunksInColumn);
         if (domRef && !this.dataCache.columns[chunkIndex].abortFlag) { // Always check if the element still exists
           domRef.replaceChildren(...orderedElements);
@@ -733,15 +738,15 @@ export class Viewport {
     let shallowChunkClass = "";
     const idTag = `${chunkIndex}-${this.chunksInColumn}`;
     if (this.dataCache.columns[chunkIndex].waveformChunk) {
-      waveforms = this.displayedSignals.map((signal) => {return this.dataCache.columns[chunkIndex].waveformChunk[signal].html;}).join('');
+      waveforms = viewerState.displayedSignals.map((signal) => {return this.dataCache.columns[chunkIndex].waveformChunk[signal].html;}).join('');
     } else {
       shallowChunkClass = " shallow-chunk";
     }
 
     const columnIndex = Math.floor(chunkIndex / this.chunksInColumn);
 
-    if (this.markerChunkIndex !== null && columnIndex === Math.floor(this.markerChunkIndex / this.chunksInColumn))    {overlays += this.createTimeMarker(this.markerTime, 0);}
-    if (this.altMarkerChunkIndex !== null && columnIndex === Math.floor(this.altMarkerChunkIndex / this.chunksInColumn)) {overlays += this.createTimeMarker(this.altMarkerTime, 1);}
+    if (viewerState.markerTime !== null && this.markerChunkIndex !== null && columnIndex === Math.floor(this.markerChunkIndex / this.chunksInColumn))    {overlays += this.createTimeMarker(viewerState.markerTime, 0);}
+    if (viewerState.altMarkerTime !== null && this.altMarkerChunkIndex !== null && columnIndex === Math.floor(this.altMarkerChunkIndex / this.chunksInColumn)) {overlays += this.createTimeMarker(viewerState.altMarkerTime, 1);}
 
     const result = `<div class="column-chunk${shallowChunkClass}" id="column-${idTag}" style="width:${this.columnWidth}px">
     ${this.dataCache.columns[chunkIndex].rulerChunk}
@@ -817,7 +822,7 @@ export class Viewport {
   
     return transitionIndex;
   }
-  
+
   getValueAtTime(signalId: SignalId, time: number) {
   
     const result: string[] = [];
@@ -946,6 +951,60 @@ export class Viewport {
     return moveViewer;
   }
 
+  handleScrollAreaMouseDown(event: MouseEvent) {
+    if (event.button === 1) {
+      this.handleScrollAreaClick(event, 1);
+    } else if (event.button === 0) {
+      this.highlightStartEvent = event;
+      viewerState.mouseupEventType    = 'markerSet';
+
+      if (!this.highlightListenerSet) {
+        this.scrollArea.addEventListener('mousemove', this.drawHighlightZoom, false);
+        this.highlightListenerSet = true;
+      }
+    }
+  }
+
+  handleScrollAreaClick(event: any, eventButton: number) {
+
+    let button = eventButton;
+
+    if (eventButton === 1) {event.preventDefault();}
+    if (eventButton === 2) {return;}
+    if (eventButton === 0 && event.altKey) {button = 1;}
+
+    const snapToDistance = 3.5;
+
+    // Get the time position of the click
+    const time     = this.getTimeFromClick(event);
+    let snapToTime = time;
+
+    // Get the signal id of the click
+    let netlistId: any     = null;
+    const waveChunkId = event.target?.closest('.waveform-chunk');
+    if (waveChunkId) {netlistId = parseInt(waveChunkId.id.split('--').slice(1).join('--'));}
+    if (netlistId !== undefined && netlistId !== null) {
+
+      if (button === 0) {
+        this.events.dispatch(ActionType.SignalSelect, netlistId);
+      }
+
+      const signalId = netlistData[netlistId].signalId;
+
+      // Snap to the nearest transition if the click is close enough
+      const nearestTransition = this.getNearestTransition(signalId, time);
+
+      if (nearestTransition === null) {return;}
+
+      const nearestTime       = nearestTransition[0];
+      const pixelDistance     = Math.abs(nearestTime - time) * this.zoomRatio;
+
+      if (pixelDistance < snapToDistance) {snapToTime = nearestTime;}
+    }
+
+    this.events.dispatch(ActionType.MarkerSet, snapToTime, button);
+  }
+
   updateScrollbarResize() {
     this.scrollbarWidth        = Math.max(Math.round((this.viewerWidth ** 2) / (this.timeStop * this.zoomRatio)), 17);
     //this.scrollbarWidth        = Math.max(Math.round((this.viewerWidth ** 2) / (this.chunkCount * chunkWidth)), 17);
@@ -959,13 +1018,55 @@ export class Viewport {
     this.scrollbar.style.display = this.maxScrollLeft === 0 ? 'none' : 'block';
     this.scrollbar.style.left    = this.scrollbarPosition + 'px';
   }
+
+  handleScrollbarDrag(event: MouseEvent) {
+    event.preventDefault();
+    this.scrollbarMoved = false;
+    this.scrollbarStartX = event.clientX;
+    this.scrollbar.classList.add('is-dragging');
+
+    document.addEventListener('mousemove', this.handleScrollbarMove, false);
+    viewerState.mouseupEventType = 'scroll';
+  }
+
+  highlightZoom() {
+    const timeStart = this.getTimeFromClick(this.highlightStartEvent);
+    const timeEnd   = this.getTimeFromClick(this.highlightEndEvent);
+    const time      = Math.round((timeStart + timeEnd) / 2);
+    const width     = Math.abs(this.highlightStartEvent.pageX - this.highlightEndEvent.pageX);
+    const amount    = Math.ceil(Math.log2(width / this.viewerWidth));
+
+    if (this.highlightElement) {
+      this.highlightElement.remove();
+      this.highlightElement = null;
+    }
+
+    this.events.dispatch(ActionType.Zoom, amount, time, this.halfViewerWidth);
+  }
+
+  drawHighlightZoom(event: MouseEvent) {
+
+    this.highlightEndEvent = event;
+    const width       = Math.abs(this.highlightEndEvent.pageX - this.highlightStartEvent.pageX);
+    const left        = Math.min(this.highlightStartEvent.pageX, this.highlightEndEvent.pageX);
+    const elementLeft = left - this.scrollArea.getBoundingClientRect().left;
+    const style       = `left: ${elementLeft}px; width: ${width}px; height: ${this.contentArea.style.height};`;
   
-  updateViewportWidth() {
-    this.viewerWidth     = this.scrollArea.getBoundingClientRect().width;
-    this.halfViewerWidth = this.viewerWidth / 2;
-    this.maxScrollLeft   = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth + 10, 0));
-    //this.maxScrollLeft   = Math.round(Math.max((this.chunkCount * chunkWidth) - this.viewerWidth, 0));
-    this.updateScrollbarResize();
+    if (width > 5) {viewerState.mouseupEventType = 'highlightZoom';}
+  
+    if (!this.highlightElement) {
+      this.highlightElement = domParser.parseFromString(`<div id="highlight-zoom" style="${style}"></div>`, 'text/html').body.firstChild;
+      this.scrollArea.appendChild(this.highlightElement);
+    } else {
+      this.highlightElement.style.width = width + 'px';
+      this.highlightElement.style.left  = elementLeft + 'px';
+    }
+  
+    if (!this.highlightDebounce) {
+      this.highlightDebounce = setTimeout(() => {
+        viewerState.mouseupEventType  = 'highlightZoom';
+      }, 300);
+    }
   }
 
   handleScrollbarMove(e: MouseEvent) {
@@ -977,5 +1078,154 @@ export class Viewport {
     this.scrollbarStartX              = e.clientX;
     const newScrollLeft = Math.round((newPosition / this.maxScrollbarPosition) * this.maxScrollLeft);
     this.handleScrollEvent(newScrollLeft);
+  }
+
+  handleReorderSignals(oldIndex: number, newIndex: number) {
+    this.updatePending = true;
+    for (let i = this.dataCache.startIndex; i < this.dataCache.endIndex; i+=this.chunksInColumn) {
+      const waveformColumn = document.getElementById('waveform-column-' + i + '-' + this.chunksInColumn);
+      if (!waveformColumn) {continue;}
+      const children       = Array.from(waveformColumn.children);
+      arrayMove(children, oldIndex, newIndex);
+      waveformColumn.replaceChildren(...children);
+    }
+    this.updateContentArea(this.leftOffset, this.getBlockNum());
+  }
+
+  handleMarkerSet(time: number, markerType: number) {
+    if (time > this.timeStop) {return;}
+
+    const oldMarkerTime = markerType === 0 ? viewerState.markerTime           : viewerState.altMarkerTime;
+    let   chunkIndex    = markerType === 0 ? this.markerChunkIndex   : this.altMarkerChunkIndex;
+    const id            = markerType === 0 ? 'main-marker'      : 'alt-marker';
+    let viewerMoved     = false;
+
+    // dispose of old marker
+    if (oldMarkerTime !== null) {
+      if (chunkIndex !== null && chunkIndex >= this.dataCache.startIndex && chunkIndex < this.dataCache.endIndex + this.chunksInColumn) {
+        const timeMarker = document.getElementById(id);
+        if (timeMarker) {
+          timeMarker.remove();
+          //console.log('removing marker at time ' + oldMarkerTime + ' from chunk ' + chunkIndex + '');
+        } else {
+          //console.log('Could not find id: ' + id + ' chunk index ' + chunkIndex + ' is not in cache');
+        }
+      } else {
+        //console.log('chunk index ' + chunkIndex + ' is not in cache');
+      }
+    }
+
+    if (time === null) {
+      if (markerType === 0) {
+        viewerState.markerTime         = null;
+        this.markerChunkIndex   = null;
+      } else {
+        viewerState.altMarkerTime         = null;
+        this.altMarkerChunkIndex   = null;
+      }
+      return;
+    }
+
+    // first find the chunk with the marker
+    chunkIndex   = Math.floor(time / this.chunkTime);
+
+    // create new marker
+    if (chunkIndex >= this.dataCache.startIndex && chunkIndex < this.dataCache.endIndex + this.chunksInColumn) {
+      const clusterIndex = Math.floor((chunkIndex - this.dataCache.startIndex) / this.chunksInColumn);
+      const chunkElement   = this.contentArea.getElementsByClassName('column-chunk')[clusterIndex];
+      const marker         = domParser.parseFromString(this.createTimeMarker(time, markerType), 'text/html').body.firstChild;
+
+      if (marker) {chunkElement.appendChild(marker);}
+
+      //console.log('adding marker at time ' + time + ' from chunk ' + chunkIndex + '');
+    } else {
+      //console.log('chunk index ' + chunkIndex + ' is not in cache');
+    }
+
+    if (markerType === 0) {
+      viewerState.markerTime            = time;
+      this.markerChunkIndex      = chunkIndex;
+
+      viewerMoved = this.moveViewToTime(time);
+
+    } else {
+      viewerState.altMarkerTime           = time;
+      this.altMarkerChunkIndex   = chunkIndex;
+    }
+
+  }
+
+  handleSignalSelect(netlistId: NetlistId | null) {
+    if (netlistId === null) {return;}
+    if (viewerState.selectedSignal === null) {return;}
+  
+    let element;
+    let index;
+  
+    for (let i = this.dataCache.startIndex; i < this.dataCache.endIndex; i+=this.chunksInColumn) {
+      element = document.getElementById('idx' + i + '-' + this.chunksInColumn + '--' + viewerState.selectedSignal);
+      if (element) {
+        element.classList.remove('is-selected');
+        this.dataCache.columns[i].waveformChunk[viewerState.selectedSignal].html = element.outerHTML;
+      }
+  
+      element = document.getElementById('idx' + i + '-' + this.chunksInColumn + '--' + netlistId);
+      if (element) {
+        element.classList.add('is-selected');
+        this.dataCache.columns[i].waveformChunk[netlistId].html = element.outerHTML;
+      }
+    }
+  }
+
+  // Event handler helper functions
+  handleZoom(amount: number, zoomOrigin: number, screenPosition: number) {
+    // -1 zooms in, +1 zooms out
+    // zoomRatio is in pixels per time unit
+    if (this.updatePending) {return;}
+    if (amount === 0) {return;}
+
+    let newZoomRatio  = this.zoomRatio * Math.pow(2, (-1 * amount));
+    //this.touchpadScrollCount = 0;
+    
+    if (newZoomRatio > this.maxZoomRatio) {
+      newZoomRatio = this.maxZoomRatio;
+
+      if (newZoomRatio === this.zoomRatio) {
+        console.log('zoom ratio is too high: ' + newZoomRatio + '');
+        return;
+      }
+    }
+
+    //console.log('zooming to ' + newZoomRatio + ' from ' + this.zoomRatio + '');
+
+    this.updatePending    = true;
+    this.zoomRatio        = newZoomRatio;
+    this.chunkWidth       = this.chunkTime * this.zoomRatio;
+    //this.maxScrollLeft    = Math.round(Math.max((chunkCount * this.chunkWidth) - this.viewerWidth, 0));
+    this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth + 10, 0));
+    this.pseudoScrollLeft = Math.max(Math.min((zoomOrigin * this.zoomRatio) - screenPosition, this.maxScrollLeft), 0);
+    for (let i = this.dataCache.startIndex; i < this.dataCache.endIndex; i+=this.chunksInColumn) {
+      this.dataCache.columns[i] = undefined;
+    }
+    this.getChunksWidth();
+    const startIndex  = Math.ceil(this.dataCache.startIndex / this.chunksInColumn) * this.chunksInColumn;
+    const endIndex    = Math.floor(this.dataCache.endIndex / this.chunksInColumn) * this.chunksInColumn;
+    this.dataCache.startIndex = startIndex;
+    this.dataCache.endIndex   = endIndex;
+
+    for (let i = startIndex; i < this.dataCache.endIndex; i+=this.chunksInColumn) {
+      this.dataCache.columns[i] = (this.updateChunkInCache(i));
+    }
+
+    this.updateContentArea(this.leftOffset, this.getBlockNum());
+    this.updateScrollbarResize();
+  }
+
+  updateViewportWidth() {
+    this.viewerWidth     = this.scrollArea.getBoundingClientRect().width;
+    this.halfViewerWidth = this.viewerWidth / 2;
+    this.maxScrollLeft   = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth + 10, 0));
+    //this.maxScrollLeft   = Math.round(Math.max((this.chunkCount * chunkWidth) - this.viewerWidth, 0));
+    this.updateScrollbarResize();
   }
 }

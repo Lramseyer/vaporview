@@ -19,6 +19,44 @@ type columnCache = {
   isSafeToRemove: boolean;
 };
 
+class FrameMonitor {
+  private lastFrameTime: number = 0;
+  private frameDeltas: number[] = [];
+  private readonly targetFPS = 60;
+  private readonly targetFrameTime = 1000 / this.targetFPS;
+  private readonly maxSamples = 30;
+  private readonly threshold = 0.8; // 80% of target frame time
+  private readonly maxBatchSize = 128;
+  private readonly minBatchSize = 1;
+  public batchSize = 8;
+
+  measureFrame(): void {
+    const now = performance.now();
+    if (this.lastFrameTime) {
+      const delta = now - this.lastFrameTime;
+      this.frameDeltas.push(delta);
+      if (this.frameDeltas.length > this.maxSamples) {
+        this.frameDeltas.shift();
+      }
+    }
+    this.lastFrameTime = now;
+  }
+
+  getAverageFrameTime(): number {
+    if (this.frameDeltas.length === 0) return 0;
+    return this.frameDeltas.reduce((a, b) => a + b) / this.frameDeltas.length;
+  }
+
+  updateBatchSize(): void {
+    this.measureFrame();
+    if (this.getAverageFrameTime() > this.targetFrameTime * this.threshold) {
+      this.batchSize = Math.max(this.minBatchSize, this.batchSize - 2);
+    } else {
+      this.batchSize = Math.min(this.maxBatchSize, this.batchSize + 1);
+    }
+  }
+}
+
 const domParser = new DOMParser();
 
 export class Viewport {
@@ -87,6 +125,7 @@ export class Viewport {
   };
 
   mutationObserver: MutationObserver;
+  frameMonitor: FrameMonitor = new FrameMonitor();
 
   constructor(
     private events: EventHandler,
@@ -144,6 +183,8 @@ export class Viewport {
     this.handleReorderSignals = this.handleReorderSignals.bind(this);
     this.highlightZoom = this.highlightZoom.bind(this);
     this.drawHighlightZoom = this.drawHighlightZoom.bind(this);
+    this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
+    this.handleRedrawSignal = this.handleRedrawSignal.bind(this);
 
 
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
@@ -151,9 +192,8 @@ export class Viewport {
     this.events.subscribe(ActionType.Zoom, this.handleZoom);
     this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
     //this.events.subscribe(ActionType.AddVariable, this.updateWaveformInCache);
-    //this.events.subscribe(ActionType.RemoveVariable, this.updateWaveformInCache);
-    //this.events.subscribe(ActionType.Scroll, this.handleScrollEvent);
-    //this.events.subscribe(ActionType.RedrawVariable, this.updateWaveformInCache);
+    this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
+    this.events.subscribe(ActionType.RedrawVariable, this.handleRedrawSignal);
     this.events.subscribe(ActionType.Resize, this.updateViewportWidth);
   }
 
@@ -211,7 +251,7 @@ export class Viewport {
     } else {
       pElement = `<p style="left:${textOffset}px">${displayValue}</p>`;
     }
-    
+
     const divTag  = `<div class="bus-waveform-value" style="flex:${flexWidth};${justifyDirection}">`;
     return `${divTag}${pElement}</div>`;
   }
@@ -461,33 +501,49 @@ export class Viewport {
     result += this.polylinePathFromTransitionData(transitionData, initialState, postState, polylineAttributes);
     result += `</g></svg>`;
     return result;
+    //const result = document.createElement('svg');
+    //result.setAttribute('height', svgHeight.toString());
+    //result.setAttribute('width', this.columnWidth.toString());
+    //result.setAttribute('viewbox', `0 0 ${this.columnWidth} ${svgHeight}`);
+    //result.classList.add('binary-waveform-svg');
+
+    //const gElement = document.createElement('g');
+    //gElement.setAttribute('fill', 'none');
+    //gElement.setAttribute('transform', `translate(0.5 ${waveOffset}.5) scale(${this.zoomRatio} -${waveHeight})`);
+
+    //gElement.innerHTML = this.polylinePathFromTransitionData(transitionData, initialState, postState, polylineAttributes);
+    //result.appendChild(gElement);
+    //return result;
   }
 
+
   createWaveformSVG(transitionData: ValueChange[], initialState: ValueChange, postState: ValueChange, width: number, chunkIndex: number, netlistId: NetlistId, textWidth: number) {
-    let   className     = 'waveform-chunk';
-    const vscodeContext = this.netlistData[netlistId].vscodeContext;
-    if (netlistId === viewerState.selectedSignal) {className += ' is-selected';}
+    let result;
     if (width === 1) {
-      return `<div class="${className}" id="idx${chunkIndex}-${this.chunksInColumn}--${netlistId}" ${vscodeContext}>
-      ${this.binaryElementFromTransitionData(transitionData, initialState, postState)}
-      </div>`;
+      result = this.binaryElementFromTransitionData(transitionData, initialState, postState);
     } else {
       const numberFormat  = this.netlistData[netlistId].numberFormat;
-      return `<div class="${className}" id="idx${chunkIndex}-${this.chunksInColumn}--${netlistId}" ${vscodeContext}>
-                ${this.busElementsfromTransitionData(transitionData, initialState, postState, width, textWidth, numberFormat)}
-              </div>`;
+      result = this.busElementsfromTransitionData(transitionData, initialState, postState, width, textWidth, numberFormat);
     }
+    return result;
   }
 
   renderWaveformChunk(netlistId: NetlistId, chunkStartIndex: number) {
-    const result: any         = {};
-    const signalId     = this.netlistData[netlistId].signalId;
-    const data         = this.waveformData[signalId];
+    const result: any   = {};
+    const signalId      = this.netlistData[netlistId].signalId;
+    const data          = this.waveformData[signalId];
+    const element       = document.createElement('div');
+    const vscodeContext = this.netlistData[netlistId].vscodeContext;
+    element.id          = 'idx' + chunkStartIndex + '-' + this.chunksInColumn + '--' + netlistId;
+    element.classList.add('waveform-chunk');
+    if (netlistId === viewerState.selectedSignal) {element.classList.add('is-selected');}
+    element.setAttribute("data-vscode-context", vscodeContext);
 
     if (!data) {
-      const vscodeContext = this.netlistData[netlistId].vscodeContext;
-      return {html: `<div class="waveform-chunk" id="idx${chunkStartIndex}-${this.chunksInColumn}--${netlistId}" ${vscodeContext}></div>`};
+      //return {html: `<div class="waveform-chunk" id="idx${chunkStartIndex}-${this.chunksInColumn}--${netlistId}" ${vscodeContext}></div>`};
+      return {html: element};
     }
+
 
     const timeStart    = chunkStartIndex * this.chunkTime;
     const timeEnd      = timeStart + this.columnTime;
@@ -515,7 +571,14 @@ export class Viewport {
       return [time - timeStart, value] as ValueChange;
     });
 
-    result.html = this.createWaveformSVG(chunkTransitionData, relativeInitialState, relativePostState, width, chunkStartIndex, netlistId, textWidth);
+    const html = this.createWaveformSVG(chunkTransitionData, relativeInitialState, relativePostState, width, chunkStartIndex, netlistId, textWidth);
+    console.log(element);
+    console.log(html);
+    if (html) {
+      element.innerHTML = html;
+    }
+    
+    result.html = element;
     return result;
   }
 
@@ -527,55 +590,85 @@ export class Viewport {
     const numberStartpixel   = -1 * (chunkStartPixel % this.rulerNumberSpacing);
     const tickStartpixel     = this.rulerTickSpacing - (chunkStartPixel % this.rulerTickSpacing) - this.rulerNumberSpacing;
     let numValue           = chunkStartTime + (numberStartpixel / this.zoomRatio);
-    let textElements       = '';
+    //let textElements       = '';
+    const textElements: HTMLElement[]   = [];
 
     for (let i = numberStartpixel; i <= this.columnWidth + 64; i+= this.rulerNumberSpacing ) {
-      textElements += `<text x="${i}" y="20">${numValue * this.timeScale}</text>`;
+      //textElements += `<text x="${i}" y="20">${numValue * this.timeScale}</text>`;
+      const textElement = document.createElement('text');
+      textElement.setAttribute('x', i.toString());
+      textElement.setAttribute('y', '20');
+      textElement.textContent = (numValue * this.timeScale).toString();
+      textElements.push(textElement);
       numValue += timeMarkerInterval;
     }
 
-    return `
-      <div class="ruler-chunk">
-        <svg height="40" width="${this.columnWidth}" class="ruler-svg">
-        <line class="ruler-tick" x1="${tickStartpixel}" y1="32.5" x2="${this.columnWidth}" y2="32.5"/>
-          ${textElements}</svg></div>`;
+    const rulerChunk = document.createElement('div');
+    rulerChunk.classList.add('ruler-chunk');
+
+    const rulerSVG = document.createElement('svg');
+    rulerSVG.setAttribute('height', '40');
+    rulerSVG.setAttribute('width', this.columnWidth.toString());
+    rulerSVG.classList.add('ruler-svg');
+
+    const rulerTick = document.createElement('line');
+    rulerTick.classList.add('ruler-tick');
+    rulerTick.setAttribute('x1', tickStartpixel.toString());
+    rulerTick.setAttribute('y1', '32.5');
+    rulerTick.setAttribute('x2', this.columnWidth.toString());
+    rulerTick.setAttribute('y2', '32.5');
+
+    rulerSVG.appendChild(rulerTick);
+    textElements.forEach((element) => rulerSVG.appendChild(element));
+    rulerChunk.appendChild(rulerSVG);
+    return rulerChunk;
   }
 
   // This function creates ruler elements for a chunk
-  createRulerElement(chunkStartIndex: number) {
-    const timeMarkerInterval = this.rulerNumberSpacing / this.zoomRatio;
-    const chunkStartTime     = chunkStartIndex * this.chunkTime;
-    const chunkStartPixel    = chunkStartIndex * this.chunkWidth;
-    const numberStartpixel   = -1 * (chunkStartPixel % this.rulerNumberSpacing);
-    const tickStartpixel     = this.rulerTickSpacing - (chunkStartPixel % this.rulerTickSpacing) - this.rulerNumberSpacing;
-    const totalWidth         = this.columnWidth * this.columnsInCluster;
-    let   numValue           = chunkStartTime + (numberStartpixel / this.zoomRatio);
-    const textElements: string[] = [];
-
-    for (let i = numberStartpixel; i <= totalWidth + 64; i+= this.rulerNumberSpacing ) {
-      textElements.push(`<text x="${i}" y="20">${numValue * this.timeScale}</text>`);
-      numValue += timeMarkerInterval;
-    }
-
-    return `
-      <div class="ruler-chunk">
-        <svg height="40" width="${totalWidth}" class="ruler-svg">
-        <line class="ruler-tick" x1="${tickStartpixel}" y1="32.5" x2="${totalWidth}" y2="32.5"/>
-          ${textElements.join('')}</svg></div>`;
-  }
+//  createRulerElement(chunkStartIndex: number) {
+//    const timeMarkerInterval = this.rulerNumberSpacing / this.zoomRatio;
+//    const chunkStartTime     = chunkStartIndex * this.chunkTime;
+//    const chunkStartPixel    = chunkStartIndex * this.chunkWidth;
+//    const numberStartpixel   = -1 * (chunkStartPixel % this.rulerNumberSpacing);
+//    const tickStartpixel     = this.rulerTickSpacing - (chunkStartPixel % this.rulerTickSpacing) - this.rulerNumberSpacing;
+//    const totalWidth         = this.columnWidth * this.columnsInCluster;
+//    let   numValue           = chunkStartTime + (numberStartpixel / this.zoomRatio);
+//    const textElements: string[] = [];
+//
+//    for (let i = numberStartpixel; i <= totalWidth + 64; i+= this.rulerNumberSpacing ) {
+//      textElements.push(`<text x="${i}" y="20">${numValue * this.timeScale}</text>`);
+//      numValue += timeMarkerInterval;
+//    }
+//
+//    return `
+//      <div class="ruler-chunk">
+//        <svg height="40" width="${totalWidth}" class="ruler-svg">
+//        <line class="ruler-tick" x1="${tickStartpixel}" y1="32.5" x2="${totalWidth}" y2="32.5"/>
+//          ${textElements.join('')}</svg></div>`;
+//  }
 
   createTimeMarker(time: number, markerType: number) {
+    const fragment = document.createDocumentFragment();
     const x  = (time % this.columnTime) * this.zoomRatio;
     const id = markerType === 0 ? 'main-marker' : 'alt-marker';
-    return `
-      <svg id="${id}" class="time-marker" style="left:${x}px">
-        <line x1="0" y1="0" x2="0" y2="100%"/>
-      </svg>`;
+    const marker = document.createElement('svg');
+    marker.setAttribute('id', id);
+    marker.classList.add('time-marker');
+    marker.style.left = x + 'px';
+    const line = document.createElement('line');
+    line.setAttribute('x1', '0');
+    line.setAttribute('y1', '0');
+    line.setAttribute('x2', '0');
+    line.setAttribute('y2', '100%');
+    marker.appendChild(line);
+    fragment.appendChild(marker);
+    return fragment;
   }
 
-
-
   updateWaveformInCache(netlistIdList: NetlistId[]) {
+    console.log(netlistIdList);
+    console.log(this.netlistData);
+    console.log(this.dataCache);
     netlistIdList.forEach((netlistId) => {
       const signalId = this.netlistData[netlistId].signalId;
       for (let i = this.dataCache.startIndex; i < this.dataCache.endIndex; i+=this.chunksInColumn) {
@@ -591,21 +684,6 @@ export class Viewport {
   }
 
   // Event handler helper functions
-  updateChunkInCache(chunkIndex: number) {
-
-    const result = {
-      rulerChunk:    this.createRulerChunk(chunkIndex),
-      waveformChunk: {} as { [key: string]: any },
-      marker:        [],
-      altMarker:     [],
-    };
-
-    viewerState.displayedSignals.forEach((netlistId: NetlistId) => {
-      result.waveformChunk[netlistId] = this.renderWaveformChunk(netlistId, chunkIndex);
-    });
-
-    return result;
-  }
 
   // Experimental asynchronous rendering path
   async renderWaveformsAsync(node: any, chunkIndex: number) {
@@ -616,20 +694,24 @@ export class Viewport {
 
     try {
 
+      const sliceSize = this.frameMonitor.batchSize;
       // Render each waveform chunk asynchronously
-      for (const netlistId of viewerState.displayedSignals) {
-        //let signalId = netlistData[netlistId].signalId;
-        // Check the abort flag at the start of each iteration
-        if (this.dataCache.columns[chunkIndex].abortFlag) {continue;}
-
-        // Assume renderWaveformChunk is a heavy operation; simulate breaking it up
+      for (let i = 0; i < viewerState.displayedSignals.length; i+= sliceSize) {
+        const slice = viewerState.displayedSignals.slice(i, i + sliceSize);
         await new Promise<void>(resolve => requestAnimationFrame(() => {
-          chunkData[netlistId]     = this.renderWaveformChunk(netlistId, chunkIndex);
-          chunkElements[netlistId] = domParser.parseFromString(chunkData[netlistId].html, 'text/html').body.firstChild;
-          //if (!this.dataCache.columns[chunkIndex]) {console.log(chunkIndex);}
+          for (const netlistId of slice) {
+            //let signalId = netlistData[netlistId].signalId;
+            // Check the abort flag at the start of each iteration
+            if (this.dataCache.columns[chunkIndex].abortFlag) {continue;}
+            // Assume renderWaveformChunk is a heavy operation; simulate breaking it up
+              chunkData[netlistId]     = this.renderWaveformChunk(netlistId, chunkIndex);
+              chunkElements[netlistId] = chunkData[netlistId].html;
+              //if (!this.dataCache.columns[chunkIndex]) {console.log(chunkIndex);}
+            }
           resolve();
         }));
       }
+
 
       if (!this.dataCache.columns[chunkIndex].abortFlag) {
         this.dataCache.columns[chunkIndex].waveformChunk = chunkData;
@@ -643,6 +725,7 @@ export class Viewport {
           domRef.replaceChildren(...orderedElements);
           node.classList.remove('rendering-chunk');
         }
+        //this.frameMonitor.updateBatchSize();
         resolve();
       }));
 
@@ -712,6 +795,22 @@ export class Viewport {
     }
   }
 
+  updateChunkInCache(chunkIndex: number) {
+
+    const result = {
+      rulerChunk:    this.createRulerChunk(chunkIndex),
+      waveformChunk: {} as { [key: number]: any },
+      marker:        [],
+      altMarker:     [],
+    };
+
+    viewerState.displayedSignals.forEach((netlistId: NetlistId) => {
+      result.waveformChunk[netlistId] = this.renderWaveformChunk(netlistId, chunkIndex);
+    });
+
+    return result;
+  }
+
   updateChunkInCacheShallow(chunkIndex: number) {
 
     if (this.dataCache.columns[chunkIndex]) {
@@ -733,30 +832,41 @@ export class Viewport {
   }
 
   parseHtmlInChunk(chunkIndex: number) {
-    let overlays  = '';
-    let waveforms = "";
-    let shallowChunkClass = "";
+
+    let waveforms: any[] = [];
+
     const idTag = `${chunkIndex}-${this.chunksInColumn}`;
-    if (this.dataCache.columns[chunkIndex].waveformChunk) {
-      waveforms = viewerState.displayedSignals.map((signal) => {return this.dataCache.columns[chunkIndex].waveformChunk[signal].html;}).join('');
+    const columnIndex = Math.floor(chunkIndex / this.chunksInColumn);
+    const columnChunk = document.createElement('div');
+    columnChunk.classList.add('column-chunk');
+    columnChunk.setAttribute('id', 'column-' + idTag);
+    columnChunk.style.width = this.columnWidth + 'px';
+
+    const waveformColumn = document.createElement('div');
+    waveformColumn.classList.add('waveform-column');
+    waveformColumn.setAttribute('id', 'waveform-column-' + idTag);
+    waveformColumn.setAttribute('style', 'font-family:monospaced');
+
+    if (this.dataCache.columns[chunkIndex].waveformChunk !== undefined) {
+      waveforms = viewerState.displayedSignals.map((signal) => {return this.dataCache.columns[chunkIndex].waveformChunk[signal].html;});
     } else {
-      shallowChunkClass = " shallow-chunk";
+      //shallowChunkClass = " shallow-chunk";
+      columnChunk.classList.add('shallow-chunk');
     }
 
-    const columnIndex = Math.floor(chunkIndex / this.chunksInColumn);
+    waveformColumn.replaceChildren(...waveforms);
+    columnChunk.appendChild(this.dataCache.columns[chunkIndex].rulerChunk);
+    columnChunk.appendChild(waveformColumn);
 
-    if (viewerState.markerTime !== null && this.markerChunkIndex !== null && columnIndex === Math.floor(this.markerChunkIndex / this.chunksInColumn))    {overlays += this.createTimeMarker(viewerState.markerTime, 0);}
-    if (viewerState.altMarkerTime !== null && this.altMarkerChunkIndex !== null && columnIndex === Math.floor(this.altMarkerChunkIndex / this.chunksInColumn)) {overlays += this.createTimeMarker(viewerState.altMarkerTime, 1);}
+    if (viewerState.markerTime !== null && this.markerChunkIndex !== null && columnIndex === Math.floor(this.markerChunkIndex / this.chunksInColumn))    {
+      columnChunk.appendChild(this.createTimeMarker(viewerState.markerTime, 0));
+    }
+    if (viewerState.altMarkerTime !== null && this.altMarkerChunkIndex !== null && columnIndex === Math.floor(this.altMarkerChunkIndex / this.chunksInColumn)) {
+      columnChunk.appendChild(this.createTimeMarker(viewerState.altMarkerTime, 1));
+    }
 
-    const result = `<div class="column-chunk${shallowChunkClass}" id="column-${idTag}" style="width:${this.columnWidth}px">
-    ${this.dataCache.columns[chunkIndex].rulerChunk}
-    <div class="waveform-column" id="waveform-column-${idTag}" style="font-family:monospaced">
-    ${waveforms}
-    </div>
-    ${overlays}
-    </div>`;
-
-    this.dataCache.columns[chunkIndex].element        = domParser.parseFromString(result, 'text/html').body.firstChild;
+    columnChunk.innerHTML += "";
+    this.dataCache.columns[chunkIndex].element        = columnChunk;
     this.dataCache.columns[chunkIndex].isSafeToRemove = true;
   }
 
@@ -1056,7 +1166,13 @@ export class Viewport {
   
     if (!this.highlightElement) {
       this.highlightElement = domParser.parseFromString(`<div id="highlight-zoom" style="${style}"></div>`, 'text/html').body.firstChild;
+      //this.highlightElement = document.createElement('div');
+      //this.highlightElement.setAttribute('id', 'highlight-zoom');
+      //this.highlightElement.style.width = width + 'px';
+      //this.highlightElement.style.left  = elementLeft + 'px';
+
       this.scrollArea.appendChild(this.highlightElement);
+
     } else {
       this.highlightElement.style.width = width + 'px';
       this.highlightElement.style.left  = elementLeft + 'px';
@@ -1092,6 +1208,21 @@ export class Viewport {
     this.updateContentArea(this.leftOffset, this.getBlockNum());
   }
 
+  handleRemoveVariable(netlistId: NetlistId) {
+
+    this.updatePending    = true;
+    for (let i = this.dataCache.startIndex; i < this.dataCache.endIndex; i+=this.chunksInColumn) {
+      const waveformColumn = document.getElementById('waveform-column-' + i + '-' + this.chunksInColumn);
+      if (!waveformColumn) {continue;}
+      const children       = Array.from(waveformColumn.children).filter((element) => {
+        return element.id !== `idx${i}-${this.chunksInColumn}--${netlistId}`;
+      });
+      waveformColumn.replaceChildren(...children);
+    }
+    this.updateContentArea(this.leftOffset, this.getBlockNum());
+    this.contentArea.style.height = (40 + (28 * viewerState.displayedSignals.length)) + "px";
+  }
+
   handleMarkerSet(time: number, markerType: number) {
     if (time > this.timeStop) {return;}
 
@@ -1104,23 +1235,16 @@ export class Viewport {
     if (oldMarkerTime !== null) {
       if (chunkIndex !== null && chunkIndex >= this.dataCache.startIndex && chunkIndex < this.dataCache.endIndex + this.chunksInColumn) {
         const timeMarker = document.getElementById(id);
-        if (timeMarker) {
-          timeMarker.remove();
-          //console.log('removing marker at time ' + oldMarkerTime + ' from chunk ' + chunkIndex + '');
-        } else {
-          //console.log('Could not find id: ' + id + ' chunk index ' + chunkIndex + ' is not in cache');
-        }
-      } else {
-        //console.log('chunk index ' + chunkIndex + ' is not in cache');
+        if (timeMarker) {timeMarker.remove();}
       }
     }
 
     if (time === null) {
       if (markerType === 0) {
-        viewerState.markerTime         = null;
+        viewerState.markerTime  = null;
         this.markerChunkIndex   = null;
       } else {
-        viewerState.altMarkerTime         = null;
+        viewerState.altMarkerTime  = null;
         this.altMarkerChunkIndex   = null;
       }
       return;
@@ -1132,10 +1256,13 @@ export class Viewport {
     // create new marker
     if (chunkIndex >= this.dataCache.startIndex && chunkIndex < this.dataCache.endIndex + this.chunksInColumn) {
       const clusterIndex = Math.floor((chunkIndex - this.dataCache.startIndex) / this.chunksInColumn);
-      const chunkElement   = this.contentArea.getElementsByClassName('column-chunk')[clusterIndex];
-      const marker         = domParser.parseFromString(this.createTimeMarker(time, markerType), 'text/html').body.firstChild;
-
-      if (marker) {chunkElement.appendChild(marker);}
+      const chunkElement = this.contentArea.getElementsByClassName('column-chunk')[clusterIndex];
+      
+      if (chunkElement) {
+        const marker         = this.createTimeMarker(time, markerType);
+        chunkElement.appendChild(marker);
+        chunkElement.innerHTML += '';
+      }
 
       //console.log('adding marker at time ' + time + ' from chunk ' + chunkIndex + '');
     } else {
@@ -1152,7 +1279,6 @@ export class Viewport {
       viewerState.altMarkerTime           = time;
       this.altMarkerChunkIndex   = chunkIndex;
     }
-
   }
 
   handleSignalSelect(netlistId: NetlistId | null) {
@@ -1166,13 +1292,13 @@ export class Viewport {
       element = document.getElementById('idx' + i + '-' + this.chunksInColumn + '--' + viewerState.selectedSignal);
       if (element) {
         element.classList.remove('is-selected');
-        this.dataCache.columns[i].waveformChunk[viewerState.selectedSignal].html = element.outerHTML;
+        this.dataCache.columns[i].waveformChunk[viewerState.selectedSignal].html = element;
       }
   
       element = document.getElementById('idx' + i + '-' + this.chunksInColumn + '--' + netlistId);
       if (element) {
         element.classList.add('is-selected');
-        this.dataCache.columns[i].waveformChunk[netlistId].html = element.outerHTML;
+        this.dataCache.columns[i].waveformChunk[netlistId].html = element;
       }
     }
   }
@@ -1219,6 +1345,12 @@ export class Viewport {
 
     this.updateContentArea(this.leftOffset, this.getBlockNum());
     this.updateScrollbarResize();
+  }
+
+  handleRedrawSignal(netlistId: NetlistId) {
+    this.updatePending = true;
+    this.updateWaveformInCache([netlistId]);
+    this.updateContentArea(this.leftOffset, this.getBlockNum());
   }
 
   updateViewportWidth() {

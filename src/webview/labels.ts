@@ -87,6 +87,8 @@ export class LabelsPanels {
     this.handleMarkerSet = this.handleMarkerSet.bind(this);
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
     this.handleReorderSignals = this.handleReorderSignals.bind(this);
+    this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
+    this.handleRedrawVariable = this.handleRedrawVariable.bind(this);
   
     // click and drag handlers to rearrange the order of waveform signals
     labels.addEventListener('mousedown', (e) => {this.dragStart(e);});
@@ -100,6 +102,9 @@ export class LabelsPanels {
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
     this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
+    //this.events.subscribe(ActionType.AddVariable, this.);
+    this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
+    this.events.subscribe(ActionType.RedrawVariable, this.handleRedrawVariable);
   }
 
   renderLabelsPanels() {
@@ -259,6 +264,12 @@ export class LabelsPanels {
     }
   }
 
+  handleRemoveVariable(netlistId: NetlistId) {
+    const index = viewerState.displayedSignals.findIndex((id: NetlistId) => id === netlistId);
+    viewerState.displayedSignals.splice(index, 1);
+    this.renderLabelsPanels();
+  }
+
   handleReorderSignals(oldIndex: number, newIndex: number) {
 
     if (this.draggableItem) {
@@ -300,4 +311,7 @@ export class LabelsPanels {
     this.renderLabelsPanels();
   }
 
+  handleRedrawVariable(netlistId: NetlistId) {
+    this.renderLabelsPanels();
+  }
 }

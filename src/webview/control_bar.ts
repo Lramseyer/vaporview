@@ -83,9 +83,10 @@ export class ControlBar {
     this.setButtonState(this.previousButton, 0);
 
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
+    this.handleRedrawVariable = this.handleRedrawVariable.bind(this);
 
-    
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
+    this.events.subscribe(ActionType.RedrawVariable, this.handleRedrawVariable);
   }
 
   goToNextTransition(direction: number, edge: string | undefined = undefined) {
@@ -318,5 +319,14 @@ export class ControlBar {
     if (numberFormat === 2)  {this.valueIconRef.setAttribute('href', '#search-binary');}
     if (numberFormat === 10) {this.valueIconRef.setAttribute('href', '#search-decimal');}
     if (numberFormat === 16) {this.valueIconRef.setAttribute('href', '#search-hex');}
+  }
+
+  handleRedrawVariable(netlistId: NetlistId) {
+    const numberFormat = netlistData[netlistId].numberFormat;
+    if (netlistId === viewerState.selectedSignal) {
+      if (numberFormat === 2)  {this.valueIconRef.setAttribute('href', '#search-binary');}
+      if (numberFormat === 10) {this.valueIconRef.setAttribute('href', '#search-decimal');}
+      if (numberFormat === 16) {this.valueIconRef.setAttribute('href', '#search-hex');}
+    }
   }
 }

@@ -6,7 +6,8 @@
 - Added Home and End to go to the beginning and end of a waveform dump
 - Fixed 'webview is disposed' errors
 - Improved performance when loading many variables in FST dumps
-- Refactored Webview and converted it to Typescript
+- Refactored Core Extension and Webview. Converted Webview to Typescript
+  - Organized functions into appropriate classes, and split into multiple files
 
 # 1.2.0
 

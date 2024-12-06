@@ -88,6 +88,7 @@ export class LabelsPanels {
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
     this.handleReorderSignals = this.handleReorderSignals.bind(this);
     this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
+    this.handleAddVariable = this.handleAddVariable.bind(this);
     this.handleRedrawVariable = this.handleRedrawVariable.bind(this);
   
     // click and drag handlers to rearrange the order of waveform signals
@@ -102,7 +103,7 @@ export class LabelsPanels {
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
     this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
-    //this.events.subscribe(ActionType.AddVariable, this.);
+    this.events.subscribe(ActionType.AddVariable, this.handleAddVariable);
     this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
     this.events.subscribe(ActionType.RedrawVariable, this.handleRedrawVariable);
   }
@@ -262,6 +263,11 @@ export class LabelsPanels {
       this.webview.style.gridTemplateColumns = `${column1}px ${newWidth}px auto`;
       this.resize2.style.left = `${newPosition}px`;
     }
+  }
+
+  handleAddVariable(netlistIdList: NetlistId[], updateFlag: boolean) {
+    viewerState.displayedSignals = viewerState.displayedSignals.concat(netlistIdList);
+    this.renderLabelsPanels();
   }
 
   handleRemoveVariable(netlistId: NetlistId) {

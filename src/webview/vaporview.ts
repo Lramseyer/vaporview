@@ -35,7 +35,6 @@ let waveDromClock = {
   netlistId: null,
   edge: '1',
 };
-const domParser           = new DOMParser();
 
 export enum ActionType {
   MarkerSet,
@@ -65,6 +64,12 @@ export interface ViewerState {
 export let waveformData: WaveformData[] = [];
 export let netlistData: NetlistData[]   = [];
 export let waveformDataTemp: any        = [];
+
+// This is a simple queue to handle the fetching of waveform data
+// It's overkill for everything except large FST waveform dumps with lots of
+// Value Change Blocks. Batch fetching is much faster than individual fetches,
+// so this queue will ensure that fetches are grouped while waiting for any
+// previous fetches to complete.
 class WaveformDataQueue {
   requested: SignalId[] = [];
   queued:    SignalId[] = [];
@@ -278,9 +283,6 @@ class VaporviewWebview {
 
   // HTML Elements
   webview: HTMLElement;
-  //controlBar: HTMLElement;
-  labels: HTMLElement;
-  transitionDisplay: HTMLElement;
   labelsScroll: HTMLElement;
   transitionScroll: HTMLElement;
   scrollArea: HTMLElement;
@@ -306,26 +308,18 @@ class VaporviewWebview {
     this.controlBar = controlBar;
     // Assuming you have a reference to the webview element
     const webview           = document.getElementById('vaporview-top');
-    //const controlBar        = document.getElementById('control-bar');
-    const labels            = document.getElementById('waveform-labels');
-    const transitionDisplay = document.getElementById('transition-display');
     const labelsScroll      = document.getElementById('waveform-labels-container');
     const transitionScroll  = document.getElementById('transition-display-container');
     const scrollArea        = document.getElementById('scrollArea');
     const contentArea       = document.getElementById('contentArea');
     const scrollbar         = document.getElementById('scrollbar');
 
-    if (webview === null || controlBar === null || 
-      labels === null || transitionDisplay === null || labelsScroll === null ||
-      transitionScroll === null || scrollArea === null || contentArea === null ||
-      scrollbar === null) {
+    if (webview === null || labelsScroll === null || transitionScroll === null ||
+      scrollArea === null || contentArea === null || scrollbar === null) {
       throw new Error("Could not find all required elements");
     }
 
     this.webview = webview;
-    //this.controlBar = controlBar;
-    this.labels = labels;
-    this.transitionDisplay = transitionDisplay;
     this.labelsScroll = labelsScroll;
     this.transitionScroll = transitionScroll;
     this.scrollArea = scrollArea;
@@ -336,25 +330,25 @@ class VaporviewWebview {
  
     // #region Primitive Handlers
     window.addEventListener('message', (e) => {this.handleMessage(e);});
+    window.addEventListener('keydown', (e) => {this.keyDownHandler(e);});
+    window.addEventListener('mouseup', (e) => {this.handleMouseUp(e);});
+    window.addEventListener('resize',  ()  => {this.handleResizeViewer();}, false);
+    scrollArea.addEventListener('wheel', (e) => {this.scrollHandler(e);});
+    scrollArea.addEventListener(      'scroll', (e) => {this.syncVerticalScroll(scrollArea.scrollTop);});
     labelsScroll.addEventListener(    'scroll', (e) => {this.syncVerticalScroll(labelsScroll.scrollTop);});
     transitionScroll.addEventListener('scroll', (e) => {this.syncVerticalScroll(transitionScroll.scrollTop);});
-    scrollArea.addEventListener(      'scroll', (e) => {this.syncVerticalScroll(scrollArea.scrollTop);});
-    scrollArea.addEventListener('wheel', (e) => {this.scrollHandler(e);});
-    window.addEventListener('keydown', (e) => {this.keyDownHandler(e);});
-    window.addEventListener('resize',       ()  => {this.handleResizeViewer();}, false);
-    window.addEventListener('mouseup', (e) => {this.handleMouseUp(e);});
 
     this.resetTouchpadScrollCount = this.resetTouchpadScrollCount.bind(this);
     this.handleMarkerSet = this.handleMarkerSet.bind(this);
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
     this.reorderSignals = this.reorderSignals.bind(this);
 
-    this.events.subscribe(ActionType.Zoom, (direction: number, time: number, pixelLeft: number) => {
-      this.resetTouchpadScrollCount();
-    });
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
     this.events.subscribe(ActionType.ReorderSignals, this.reorderSignals);
+    this.events.subscribe(ActionType.Zoom, (direction: number, time: number, pixelLeft: number) => {
+      this.resetTouchpadScrollCount();
+    });
   }
 
   scrollHandler(e: any) {
@@ -515,33 +509,28 @@ class VaporviewWebview {
     const signalIdList: any   = [];
     const netlistIdList: any = [];
     let updateFlag      = false;
-    let selectedSignal  = null;
+    let selectedSignal  = viewerState.selectedSignal;
 
     signalList.forEach((signal: any) => {
 
       const netlistId      = signal.netlistId;
       const signalId       = signal.signalId;
-      const numberFormat   = signal.numberFormat;
-      const signalWidth    = signal.signalWidth;
-      viewerState.displayedSignals.push(netlistId);
 
       netlistData[netlistId] = {
         signalId:     signalId,
-        signalWidth:  signalWidth,
+        signalWidth:  signal.signalWidth,
         signalName:   signal.signalName,
         modulePath:   signal.modulePath,
-        numberFormat: numberFormat,
+        numberFormat: signal.numberFormat,
         vscodeContext: "",
       };
       netlistData[netlistId].vscodeContext = setSignalContextAttribute(netlistId);
       netlistIdList.push(netlistId);
 
-      if (waveformData[signalId]) {
-        selectedSignal  = netlistId;
-        updateFlag = true;
-      } else if (waveformDataTemp[signalId]) {
-        console.log('signal data is being fetched');
-      } else {
+      if (waveformData[signalId] !== undefined) {
+        selectedSignal = netlistId;
+        updateFlag     = true;
+      } else if (waveformDataTemp[signalId] === undefined) {
         signalIdList.push(signalId);
         waveformDataTemp[signalId] = {
           netlistId: netlistId,
@@ -550,22 +539,9 @@ class VaporviewWebview {
       }
     });
 
-    this.viewport.updateWaveformInCache(netlistIdList);
-    labelsPanel.renderLabelsPanels();
+    this.events.dispatch(ActionType.AddVariable, netlistIdList, updateFlag);
+    this.events.dispatch(ActionType.SignalSelect, selectedSignal);
 
-    if (updateFlag) {
-      this.viewport.updatePending  = true;
-      this.viewport.updateContentArea(this.viewport.leftOffset, this.viewport.getBlockNum());
-      this.contentArea.style.height = (40 + (28 * viewerState.displayedSignals.length)) + "px";
-      this.events.dispatch(ActionType.SignalSelect, selectedSignal);
-    }
-
-    //if (signalIdList.length > 0) {
-    //  vscode.postMessage({
-    //    command: 'fetchTransitionData',
-    //    signalIdList: signalIdList,
-    //  });
-    //}
     dataQueue.request(signalIdList);
   }
 
@@ -699,7 +675,6 @@ class VaporviewWebview {
     });
   }
 
-
   syncVerticalScroll(scrollLevel: number) {
     if (this.viewport.updatePending) {return;}
     this.viewport.updatePending     = true;
@@ -715,20 +690,8 @@ class VaporviewWebview {
 
   createRuler(metadata: any) {
     //console.log("creating ruler");
-    document.title                  = metadata.filename;
-    this.viewport.chunkTime         = metadata.chunkTime;
-    this.viewport.zoomRatio         = metadata.defaultZoom;
-    this.viewport.timeScale         = metadata.timeScale;
-    this.viewport.maxZoomRatio      = this.viewport.zoomRatio * 64;
-    this.viewport.chunkWidth        = this.viewport.chunkTime * this.viewport.zoomRatio;
-    this.viewport.chunkCount        = Math.ceil(metadata.timeEnd / metadata.chunkTime);
-    this.viewport.timeStop          = metadata.timeEnd;
-    this.viewport.dataCache.columns = new Array(this.viewport.chunkCount);
-
-    this.viewport.updatePending = true;
-    this.viewport.updateViewportWidth();
-    this.viewport.getChunksWidth();
-    this.viewport.updateContentArea(this.viewport.leftOffset, this.viewport.getBlockNum());
+    document.title = metadata.filename;
+    this.viewport.init(metadata);
   }
 
   unload() {
@@ -737,19 +700,13 @@ class VaporviewWebview {
     viewerState.selectedSignalIndex = null;
     viewerState.markerTime          = null;
     viewerState.altMarkerTime       = null;
-    // Search handler variables
-    // Data formatting variables
-
-    // Data variables
-    //contentData         = [];
     viewerState.displayedSignals    = [];
     waveformData        = [];
     netlistData         = [];
     waveformDataTemp    = {};
+    waveDromClock       = {netlistId: null, edge: ""};
 
-    this.viewport = new Viewport(this.events);
-    waveDromClock = {netlistId: null, edge: ""};
-
+    this.viewport.init({chunkTime: 128, defaultZoom: 1, timeScale: 1, timeEnd: 0});
     this.contentArea.style.height = '0px';
     this.viewport.updateContentArea(0, [0, 0]);
     this.events.dispatch(ActionType.Zoom, 1, 0, 0);
@@ -816,8 +773,8 @@ class VaporviewWebview {
     waveformData[signalId].chunkStart[0] = 1;
     waveformDataTemp[signalId] = undefined;
 
-    this.events.dispatch(ActionType.RedrawVariable, netlistId);
     this.contentArea.style.height = (40 + (28 * viewerState.displayedSignals.length)) + "px";
+    this.events.dispatch(ActionType.RedrawVariable, netlistId);
   }
 
   handleMessage(e: any) {
@@ -847,7 +804,6 @@ export const viewport    = new Viewport(events);
 export const labelsPanel  = new LabelsPanels(events);
 const vaporview   = new VaporviewWebview(events, viewport, controlBar);
 
-console.log('Hello Webview!');
 vscode.postMessage({ command: 'ready' });
 
 //function getNonce(): string {

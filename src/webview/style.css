@@ -269,6 +269,7 @@ body {
   flex-direction: row;
   flex-wrap: nowrap;
   min-width: fit-content;
+  height: fit-content;
 }
 
 #contentArea:focus-visible {
@@ -475,6 +476,10 @@ body {
 }
 
 .binary-waveform-svg polyline {
+  vector-effect: non-scaling-stroke;
+}
+
+.binary-waveform-svg path {
   vector-effect: non-scaling-stroke;
 }
 

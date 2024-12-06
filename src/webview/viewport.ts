@@ -184,6 +184,7 @@ export class Viewport {
     this.highlightZoom = this.highlightZoom.bind(this);
     this.drawHighlightZoom = this.drawHighlightZoom.bind(this);
     this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
+    this.handleAddVariable = this.handleAddVariable.bind(this);
     this.handleRedrawSignal = this.handleRedrawSignal.bind(this);
 
 
@@ -191,10 +192,25 @@ export class Viewport {
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
     this.events.subscribe(ActionType.Zoom, this.handleZoom);
     this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
-    //this.events.subscribe(ActionType.AddVariable, this.updateWaveformInCache);
+    this.events.subscribe(ActionType.AddVariable, this.handleAddVariable);
     this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
     this.events.subscribe(ActionType.RedrawVariable, this.handleRedrawSignal);
     this.events.subscribe(ActionType.Resize, this.updateViewportWidth);
+  }
+
+  init(metadata: any) {
+    this.chunkTime         = metadata.chunkTime;
+    this.zoomRatio         = metadata.defaultZoom;
+    this.timeScale         = metadata.timeScale;
+    this.timeStop          = metadata.timeEnd;
+    this.maxZoomRatio      = this.zoomRatio * 64;
+    this.chunkWidth        = this.chunkTime * this.zoomRatio;
+    this.chunkCount        = Math.ceil(metadata.timeEnd / metadata.chunkTime);
+    this.dataCache.columns = new Array(this.chunkCount);
+    this.updatePending     = true;
+    this.updateViewportWidth();
+    this.getChunksWidth();
+    this.updateContentArea(this.leftOffset, this.getBlockNum());
   }
 
   // This function actually creates the individual bus elements, and has can
@@ -379,32 +395,33 @@ export class Viewport {
     return result;
   }
 
-  polylinePathFromTransitionData(transitionData: ValueChange[], initialState: ValueChange, postState: ValueChange, polylineAttributes: any) {
-    const xzPolylines: string[]        = [];
+  binaryElementFromTransitionData(transitionData: ValueChange[], initialState: ValueChange, postState: ValueChange) {
     let initialValue       = initialState[1];
     let initialValue2state = initialValue;
     let initialTime        = initialState[0];
     let initialTimeOrStart = Math.max(initialState[0], -10);
     const minDrawWidth     = 1 / this.zoomRatio;
-    let xzAccumulatedPath = "";
+    let xzPath = "";
+    const drawColor        = "var(--vscode-debugTokenExpression-number)";
+    const xzColor          = "var(--vscode-debugTokenExpression-error)";
+    const columnTime       = this.columnTime.toString();
 
     if (valueIs9State(initialValue)) {
-      xzAccumulatedPath = "0,0 0,1 ";
       initialValue2state = "0";
     }
-    const accumulatedPath    = ["0," + initialValue2state];
+    let accumulatedPath    = " 0 " + initialValue2state;
 
     let value2state    = "0";
     // No Draw Code
     let lastDrawTime   = 0;
     let lastNoDrawTime: any = null;
     let noDrawFlag     = false;
-    const noDrawPath: string[]     = [];
+    let noDrawPath: string     = "";
     let lastDrawValue  = initialValue2state;
     let lastnoDrawValue: any = null;
 
+
     transitionData.forEach(([time, value]) => {
-      let xzPath = "";
 
       if (time - initialTime < minDrawWidth) {
         noDrawFlag     = true;
@@ -416,28 +433,26 @@ export class Viewport {
           initialValue2state = initialValue;
           if (valueIs9State(initialValue)) {initialValue2state = "0";}
 
-          noDrawPath.push(lastDrawTime + ",0 " + lastDrawTime + ",1 " + lastNoDrawTime + ",1 " + lastNoDrawTime + ",0 ");
-          accumulatedPath.push(lastDrawTime + "," + 0);
-          accumulatedPath.push(lastNoDrawTime + "," + 0);
-          //accumulatedPath.push(lastNoDrawTime + "," + lastDrawValue);
-          accumulatedPath.push(lastNoDrawTime + "," + initialValue2state);
+          noDrawPath +=        "M " + lastDrawTime + " 0 L" + lastDrawTime + " 1 L " + lastNoDrawTime + " 1 L " + lastNoDrawTime + " 0 ";
+          accumulatedPath += " L " + lastDrawTime + " 0 ";
+          accumulatedPath += " L " + lastNoDrawTime + " 0";
+          accumulatedPath += " L " + lastNoDrawTime + " " + initialValue2state;
           noDrawFlag = false;
         }
 
         if (valueIs9State(initialValue)) {
-          xzPath = `${initialTimeOrStart},0 ${time},0 ${time},1 ${initialTimeOrStart},1`;
+          xzPath = `M ${initialTimeOrStart} 0 L ${time} 0 L ${time} 1 L ${initialTimeOrStart} 1 `;
           if (initialTimeOrStart >= 0) {
-            xzPath += ` ${initialTimeOrStart},0`;
+            xzPath += `L ${initialTimeOrStart} 0 `;
           }
-          xzPolylines.push(`<polyline points="${xzPath}" stroke="var(--vscode-debugTokenExpression-error)"/>`);
         }
 
         value2state = value;
         if (valueIs9State(value)) {value2state =  "0";}
 
         // Draw the current transition to the main path
-        accumulatedPath.push(time + "," + initialValue2state);
-        accumulatedPath.push(time + "," + value2state);
+        accumulatedPath += " L " + time + " " + initialValue2state;
+        accumulatedPath += " L " + time + " " + value2state;
 
         lastDrawValue      = value2state;
         lastDrawTime       = time;
@@ -454,68 +469,51 @@ export class Viewport {
 
     if (postState[0] - initialTime < minDrawWidth) {
 
-        noDrawPath.push(lastDrawTime + ",0 " + lastDrawTime + ",1 " + this.columnTime + ",1 " + this.columnTime + ",0 ");
-        accumulatedPath.push(lastDrawTime + ",0");
-        accumulatedPath.push(this.columnTime + ",0");
-        //accumulatedPath.push(this.columnTime + "," + lastDrawValue);
+        noDrawPath += " M " + lastDrawTime + " 0 L " + lastDrawTime + " 1 L " + columnTime + " 1 L " + columnTime + " 0 ";
+        accumulatedPath += " L " + lastDrawTime + " 0 ";
+        accumulatedPath += " L " + columnTime + " 0 ";
+
     } else {
 
       if (noDrawFlag) {
 
-        noDrawPath.push(lastDrawTime + ",0 " + lastDrawTime + ",1 " + lastNoDrawTime + ",1 " + lastNoDrawTime + ",0 ");
-        accumulatedPath.push(lastDrawTime + "," + 0);
-        accumulatedPath.push(lastNoDrawTime + "," + 0);
-        //accumulatedPath.push(lastNoDrawTime + "," + lastDrawValue);
-        accumulatedPath.push(lastNoDrawTime + "," + initialValue2state);
+        noDrawPath      += " M " + lastDrawTime + " 0 L " + lastDrawTime + " 1 L " + lastNoDrawTime + " 1 L " + lastNoDrawTime + " 0 ";
+        accumulatedPath += " L " + lastDrawTime + " 0 ";
+        accumulatedPath += " L " + lastNoDrawTime + " 0 ";
+        accumulatedPath += " L " + lastNoDrawTime + " " + initialValue2state;
       }
 
       if (valueIs9State(initialValue))  {
 
         if (initialTimeOrStart >= 0) {
-          xzPolylines.push(`<polyline points="${this.columnTime},1 ${initialTimeOrStart},1 ${initialTimeOrStart},0 ${this.columnTime},0" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+          
+          xzPath += `M ${columnTime} 1 L ${initialTimeOrStart} 1 L ${initialTimeOrStart} 0 L ${columnTime} 0`;
         } else {
-          xzPolylines.push(`<polyline points="${initialTimeOrStart},0 ${this.columnTime},0" stroke="var(--vscode-debugTokenExpression-error)"/>`);
-          xzPolylines.push(`<polyline points="${initialTimeOrStart},1 ${this.columnTime},1" stroke="var(--vscode-debugTokenExpression-error)"/>`);
+          xzPath += `M ${initialTimeOrStart} 0 L ${columnTime} 0 M ${initialTimeOrStart} 1 L ${columnTime} 1 `;
         }
       }
     }
 
-    accumulatedPath.push(this.columnTime + "," + initialValue2state);
+    accumulatedPath += " L " + columnTime + " " + initialValue2state;
 
-    const polylinePath = accumulatedPath.join(" ");
-    const polyline     = `<polyline points="` + polylinePath + `" ${polylineAttributes}/>`;
-    const noDraw       = `<polygon points="${noDrawPath}" stroke="none" fill="var(--vscode-debugTokenExpression-number)"/>`;
-    const shadedArea   = `<polygon points="0,0 ${polylinePath} ${this.columnTime},0" stroke="none" fill="var(--vscode-debugTokenExpression-number)" fill-opacity="0.1"/>`;
-    return polyline + shadedArea + noDraw + xzPolylines.join('');
-  }
+    // Polylines
+    const polyline     = `<path d="M ` + accumulatedPath + `" stroke="${drawColor}"/>`;
+    const noDraw       = `<path d="${noDrawPath}" stroke="${drawColor}" fill="${drawColor}"/>`;
+    const shadedArea   = `<path d="M 0 0 L ${accumulatedPath} L ${columnTime} 0" stroke="none" fill="${drawColor}" fill-opacity="0.1"/>`;
+    const xzPolylines  = xzPath ? `<path d="${xzPath}" stroke="${xzColor}"/>` : '';
 
-  binaryElementFromTransitionData(transitionData: ValueChange[], initialState: ValueChange, postState: ValueChange) {
+    // SVG element
     const svgHeight  = 20;
     const waveHeight = 16;
     const waveOffset = waveHeight + (svgHeight - waveHeight) / 2;
-    const polylineAttributes = `stroke="var(--vscode-debugTokenExpression-number)"`;
     const gAttributes = `fill="none" transform="translate(0.5 ${waveOffset}.5) scale(${this.zoomRatio} -${waveHeight})"`;
     let result = '';
     result += `<svg height="${svgHeight}" width="${this.columnWidth}" viewbox="0 0 ${this.columnWidth} ${svgHeight}" class="binary-waveform-svg">`;
     result += `<g ${gAttributes}>`;
-    result += this.polylinePathFromTransitionData(transitionData, initialState, postState, polylineAttributes);
+    result += polyline + shadedArea + noDraw + xzPolylines;
     result += `</g></svg>`;
     return result;
-    //const result = document.createElement('svg');
-    //result.setAttribute('height', svgHeight.toString());
-    //result.setAttribute('width', this.columnWidth.toString());
-    //result.setAttribute('viewbox', `0 0 ${this.columnWidth} ${svgHeight}`);
-    //result.classList.add('binary-waveform-svg');
-
-    //const gElement = document.createElement('g');
-    //gElement.setAttribute('fill', 'none');
-    //gElement.setAttribute('transform', `translate(0.5 ${waveOffset}.5) scale(${this.zoomRatio} -${waveHeight})`);
-
-    //gElement.innerHTML = this.polylinePathFromTransitionData(transitionData, initialState, postState, polylineAttributes);
-    //result.appendChild(gElement);
-    //return result;
   }
-
 
   createWaveformSVG(transitionData: ValueChange[], initialState: ValueChange, postState: ValueChange, width: number, chunkIndex: number, netlistId: NetlistId, textWidth: number) {
     let result;
@@ -572,8 +570,8 @@ export class Viewport {
     });
 
     const html = this.createWaveformSVG(chunkTransitionData, relativeInitialState, relativePostState, width, chunkStartIndex, netlistId, textWidth);
-    console.log(element);
-    console.log(html);
+    //console.log(element);
+    //console.log(html);
     if (html) {
       element.innerHTML = html;
     }
@@ -623,29 +621,6 @@ export class Viewport {
     rulerChunk.appendChild(rulerSVG);
     return rulerChunk;
   }
-
-  // This function creates ruler elements for a chunk
-//  createRulerElement(chunkStartIndex: number) {
-//    const timeMarkerInterval = this.rulerNumberSpacing / this.zoomRatio;
-//    const chunkStartTime     = chunkStartIndex * this.chunkTime;
-//    const chunkStartPixel    = chunkStartIndex * this.chunkWidth;
-//    const numberStartpixel   = -1 * (chunkStartPixel % this.rulerNumberSpacing);
-//    const tickStartpixel     = this.rulerTickSpacing - (chunkStartPixel % this.rulerTickSpacing) - this.rulerNumberSpacing;
-//    const totalWidth         = this.columnWidth * this.columnsInCluster;
-//    let   numValue           = chunkStartTime + (numberStartpixel / this.zoomRatio);
-//    const textElements: string[] = [];
-//
-//    for (let i = numberStartpixel; i <= totalWidth + 64; i+= this.rulerNumberSpacing ) {
-//      textElements.push(`<text x="${i}" y="20">${numValue * this.timeScale}</text>`);
-//      numValue += timeMarkerInterval;
-//    }
-//
-//    return `
-//      <div class="ruler-chunk">
-//        <svg height="40" width="${totalWidth}" class="ruler-svg">
-//        <line class="ruler-tick" x1="${tickStartpixel}" y1="32.5" x2="${totalWidth}" y2="32.5"/>
-//          ${textElements.join('')}</svg></div>`;
-//  }
 
   createTimeMarker(time: number, markerType: number) {
     const fragment = document.createDocumentFragment();
@@ -1000,10 +975,10 @@ export class Viewport {
 
   getChunksWidth() {
     const chunksInCluster  = Math.max(Math.ceil((this.viewerWidth + 1000) / this.chunkWidth), 2);
-    this.chunksInColumn         = 4 ** (Math.max(0,(Math.floor(Math.log2(chunksInCluster) / 2) - 1)));
-    this.columnWidth            = this.chunkWidth * this.chunksInColumn;
-    this.columnsInCluster       = Math.max(Math.ceil((this.viewerWidth / this.columnWidth) * 2), 2);
-    this.columnTime             = this.chunkTime * this.chunksInColumn;
+    this.chunksInColumn    = 4 ** (Math.max(0,(Math.floor(Math.log2(chunksInCluster) / 2) - 1)));
+    this.columnWidth       = this.chunkWidth * this.chunksInColumn;
+    this.columnsInCluster  = Math.max(Math.ceil((this.viewerWidth / this.columnWidth) * 2), 2);
+    this.columnTime        = this.chunkTime * this.chunksInColumn;
 
     //console.log('chunks in cluster: ' + chunksInCluster + '; chunks in column: ' + this.chunksInColumn + '; column width: ' + this.columnWidth + '; blocks in cluster: ' + this.columnsInCluster + '');
   }
@@ -1020,7 +995,7 @@ export class Viewport {
   updateContentArea(oldLeftOffset: number, cluster: number[]) {
     const leftHidden = this.chunkWidth * cluster[0];
     if (this.updatePending || leftHidden !== oldLeftOffset) {
-      const newColumns       = this.shallowFetchColumns(cluster[0], cluster[1]);
+      const newColumns            = this.shallowFetchColumns(cluster[0], cluster[1]);
       this.contentLeft            = leftHidden - this.pseudoScrollLeft;
       this.contentArea.style.left = this.contentLeft + 'px';
       this.contentArea.replaceChildren(...newColumns);
@@ -1039,8 +1014,8 @@ export class Viewport {
   }
 
   getTimeFromClick(event: MouseEvent) {
-    const bounds      = this.contentArea.getBoundingClientRect();
-    const pixelLeft   = Math.round(event.pageX - bounds.left);
+    const bounds    = this.contentArea.getBoundingClientRect();
+    const pixelLeft = Math.round(event.pageX - bounds.left);
     return Math.round(pixelLeft / this.zoomRatio) + (this.chunkTime * this.dataCache.startIndex);
   }
 
@@ -1347,6 +1322,16 @@ export class Viewport {
     this.updateScrollbarResize();
   }
 
+  handleAddVariable(netlistIdList: NetlistId[], updateFlag: boolean) {
+    this.updateWaveformInCache(netlistIdList);
+
+    if (updateFlag) {
+      this.updatePending  = true;
+      this.updateContentArea(this.leftOffset, this.getBlockNum());
+      this.contentArea.style.height = (40 + (28 * viewerState.displayedSignals.length)) + "px";
+    }
+  }
+
   handleRedrawSignal(netlistId: NetlistId) {
     this.updatePending = true;
     this.updateWaveformInCache([netlistId]);
@@ -1359,5 +1344,6 @@ export class Viewport {
     this.maxScrollLeft   = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth + 10, 0));
     //this.maxScrollLeft   = Math.round(Math.max((this.chunkCount * chunkWidth) - this.viewerWidth, 0));
     this.updateScrollbarResize();
+    this.handleScrollEvent(this.pseudoScrollLeft);
   }
 }

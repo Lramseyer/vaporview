@@ -128,6 +128,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'showMessage':         {this.handleWebviewMessage(e); break;}
         case 'close-webview':       {webviewPanel.dispose(); break;}
         case 'ready':               {document.onWebviewReady(webviewPanel); break;}
+        case 'removeVariable':      {this.removeSignalFromDocument(e.netlistId); break;}
       }
 
       if (e.type === 'response')    {this.onMessage(e);}
@@ -342,9 +343,12 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     if (!document) {return;}
     const w = document.webviewContext;
-    w.markerTime       = event.markerTime       || w.markerTime;
-    w.altMarkerTime    = event.altMarkerTime    || w.altMarkerTime;
-    w.selectedSignal   = event.selectedSignal   || w.selectedSignal;
+    //w.markerTime       = event.markerTime       || w.markerTime;
+    //w.altMarkerTime    = event.altMarkerTime    || w.altMarkerTime;
+    //w.selectedSignal   = event.selectedSignal   || w.selectedSignal;
+    if (event.markerTime !== null) {w.markerTime = event.markerTime;}
+    if (event.altMarkerTime !== null) {w.altMarkerTime = event.altMarkerTime;}
+    if (event.selectedSignal !== null) {w.selectedSignal = event.selectedSignal;}
     w.displayedSignals = event.displayedSignals || w.displayedSignals;
     w.zoomRatio        = event.zoomRatio        || w.zoomRatio;
     w.scrollLeft       = event.scrollLeft       || w.scrollLeft;
@@ -353,7 +357,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (w.markerTime !== null) {
       this.markerTimeStatusBarItem.text = 'time: ' + document.formatTime(w.markerTime);
       this.markerTimeStatusBarItem.show();
-      if (w.altMarkerTime !== null) {
+      if (w.altMarkerTime !== null && w.markerTime !== null) {
         const deltaT = w.markerTime - w.altMarkerTime;
         this.deltaTimeStatusBarItem.text = 'Δt: ' + document.formatTime(deltaT);
         this.deltaTimeStatusBarItem.show();
@@ -477,7 +481,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
              element.type !== 'Real';
     });
 
-    if ((elementList.length > 10) && !noWarning) {
+    if ((elementList.length > 16) && !noWarning) {
       // show warning message
       vscode.window.showWarningMessage('You are about to add a large number of signals to the waveform viewer. This may cause performance issues. Do you want to continue?', 'Yes', 'No').then((response) => {
         if (response === 'Yes') {

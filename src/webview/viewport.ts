@@ -65,7 +65,6 @@ export class Viewport {
   contentArea: HTMLElement; 
   scrollbar: HTMLElement;
   waveformData: WaveformData[];
-  netlistData: NetlistData[];
 
   highlightElement: any     = null;
   highlightEndEvent: any = null;
@@ -143,7 +142,6 @@ export class Viewport {
     this.contentArea = contentArea;
     this.scrollbar = scrollbar;
     this.waveformData = waveformData;
-    this.netlistData = netlistData;
 
     // click handler to handle clicking inside the waveform viewer
     // gets the absolute x position of the click relative to the scrollable content
@@ -206,10 +204,17 @@ export class Viewport {
     this.maxZoomRatio      = this.zoomRatio * 64;
     this.chunkWidth        = this.chunkTime * this.zoomRatio;
     this.chunkCount        = Math.ceil(metadata.timeEnd / metadata.chunkTime);
-    this.dataCache.columns = new Array(this.chunkCount);
+    this.dataCache         = {
+      startIndex:     0,
+      endIndex:       0,
+      columns:        [],
+      valueAtMarker:  {},
+      updatesPending: 0,
+      markerElement:  '',
+      altMarkerElement: '',
+    };
     this.updatePending     = true;
     this.updateViewportWidth();
-    this.getChunksWidth();
     this.updateContentArea(this.leftOffset, this.getBlockNum());
   }
 
@@ -254,7 +259,7 @@ export class Viewport {
       const firstOffset    = Math.min(time * this.zoomRatio, 0) + ((totalWidth - ((textCount - 1) * renderInterval)) / 2);
       const lowerBound     = -0.5 * (textWidth + elementWidth);
       const upperBound     =  0.5 * (textWidth + elementWidth);
-      let textPosition   = firstOffset - (0.5 * elementWidth);
+      let textPosition     = firstOffset - (0.5 * elementWidth);
       const offsetStart    = Math.floor((lowerBound - firstOffset) / renderInterval);
   
       for (let i = offsetStart; i < textCount; i++) {
@@ -281,9 +286,10 @@ export class Viewport {
     let emptyDivWidth   = 0;
     let xPosition       = 0;
     let yPosition       = 0;
-    const points          = [time + ',0'];
-    const endPoints       = [time + ',0'];
-    const xzValues: string[]        = [];
+    let points          = 'M ' + time + ' 0';
+    const endPoints       = ['M ' + time + ' 0'];
+    let xzPoints        = '';
+    //const xzValues: string[]        = [];
     let textElements: string    = '';
     let spansChunk      = true;
     let moveCursor      = false;
@@ -292,6 +298,8 @@ export class Viewport {
     const minDrawWidth  = 1 / this.zoomRatio;
     let leftOverflow    = Math.min(initialState[0], 0);
     const rightOverflow = Math.max(postState[0] - this.columnTime, 0);
+    const drawColor        = "var(--vscode-debugTokenExpression-number)";
+    const xzColor          = "var(--vscode-debugTokenExpression-error)";
 
     for (let i = 0; i < transitionData.length; i++) {
 
@@ -301,8 +309,8 @@ export class Viewport {
       if (elementWidth > minDrawWidth) {
 
         if (moveCursor) {
-          points.push(time + ',0');
-          endPoints.push(time + ',0');
+          points += ' L ' + time + ' 0';
+          endPoints.push(' L ' + time + ' 0');
           moveCursor = false;
         }
 
@@ -310,10 +318,10 @@ export class Viewport {
         xPosition    = (elementWidth / 2) + time;
         yPosition    =  elementWidth * 2;
         if (is4State) {
-          xzValues.push(`<polyline fill="var(--vscode-debugTokenExpression-error)" points="${time},0 ${xPosition},${yPosition} ${transitionData[i][0]},0 ${xPosition},-${yPosition}"/>`);
+          xzPoints += `M ${time} 0 L ${xPosition} ${yPosition} L ${transitionData[i][0]} 0 L ${xPosition} -${yPosition}`;
         } else {
-          points.push(xPosition + ',' + yPosition);
-          endPoints.push(xPosition + ',-' + yPosition);
+          points +=   ' L ' + xPosition + ' ' + yPosition;
+          endPoints.push(' L ' + xPosition + ' -' + yPosition);
         }
 
         // Don't even bother rendering text if the element is too small. Since 
@@ -332,8 +340,8 @@ export class Viewport {
           emptyDivWidth += elementWidth + leftOverflow;
         }
 
-        points.push(transitionData[i][0] + ',0');
-        endPoints.push(transitionData[i][0] + ',0');
+        points      += ' L ' + transitionData[i][0] + ' 0';
+        endPoints.push(' L ' + transitionData[i][0] + ' 0');
       } else {
         emptyDivWidth += elementWidth + leftOverflow;
         drawBackgroundStrokes = true;
@@ -351,19 +359,19 @@ export class Viewport {
     if (elementWidth > minDrawWidth) {
 
       if (moveCursor) {
-        points.push(time + ',0');
-        endPoints.push(time + ',0');
+        points +=      ' L ' + time + ' 0';
+        endPoints.push(' L ' + time + ' 0');
         moveCursor = false;
       }
 
       xPosition    = (elementWidth / 2) + time;
       is4State     = valueIs9State(value);
       if (is4State) {
-        xzValues.push(`<polyline fill="var(--vscode-debugTokenExpression-error)" points="${time},0 ${xPosition},${elementWidth * 2} ${postState[0]},0 ${xPosition},-${elementWidth * 2}"/>`);
+        xzPoints += `M ${time} 0 L ${xPosition} ${elementWidth * 2} L ${postState[0]} 0 L ${xPosition} -${elementWidth * 2}`;
       } else {
-        points.push(xPosition + ',' + elementWidth * 2);
-        points.push(postState[0] + ',0');
-        endPoints.push(xPosition + ',-' + elementWidth * 2);
+        points      += ' L ' + xPosition + ' ' + elementWidth * 2;
+        points      += ' L ' + postState[0] + ' 0';
+        endPoints.push(' L ' + xPosition + ' -' + elementWidth * 2);
       }
     }
 
@@ -378,21 +386,26 @@ export class Viewport {
       textElements += `<div class="bus-waveform-value" style="flex:${emptyDivWidth};"></div>`;
     }
 
-    const polyline      = points.concat(endPoints.reverse()).join(' ');
+    const polyline    = points + endPoints.reverse().join(' ');
     const svgHeight   = 20;
     const gAttributes = `stroke="none" transform="scale(${this.zoomRatio})"`;
-    const polylineAttributes = `fill="var(--vscode-debugTokenExpression-number)"`;
+    const polylineAttributes = `fill="${drawColor}"`;
     let backgroundStrokes = "";
     if (drawBackgroundStrokes) {
-      backgroundStrokes += `<polyline points="0,0 ${this.columnTime},0" stroke="var(--vscode-debugTokenExpression-number)" stroke-width="3px" stroke-opacity="40%" vector-effect="non-scaling-stroke"/>`;
-      backgroundStrokes += `<polyline points="0,0 ${this.columnTime},0" stroke="var(--vscode-debugTokenExpression-number)" stroke-width="1px" stroke-opacity="80%" vector-effect="non-scaling-stroke"/>`;
+      backgroundStrokes += `<polyline points="0,0 ${this.columnTime},0" stroke="${drawColor}" stroke-width="3px" stroke-opacity="40%" vector-effect="non-scaling-stroke"/>`;
+      backgroundStrokes += `<polyline points="0,0 ${this.columnTime},0" stroke="${drawColor}" stroke-width="1px" stroke-opacity="80%" vector-effect="non-scaling-stroke"/>`;
     }
     let result = '';
     result += `<svg height="${svgHeight}" width="${this.columnWidth}" viewbox="0 -10 ${this.columnWidth} ${svgHeight}" class="bus-waveform-svg">`;
-    result += `<g ${gAttributes}>${backgroundStrokes}<polyline ${polylineAttributes} points="${polyline}"/>${xzValues.join("")}</g></svg>`;
+    result += `<g ${gAttributes}>${backgroundStrokes}`;
+    result += `<path ${polylineAttributes} d="${polyline}"/>`;
+    result += `<path d="${xzPoints}" fill="${xzColor}"/></g></svg>`;
     result += textElements;
-
     return result;
+
+    //const resultFragment = document.createDocumentFragment();
+    //resultFragment.replaceChildren(...domParser.parseFromString(result, 'text/html').body.children);
+    //return resultFragment;
   }
 
   binaryElementFromTransitionData(transitionData: ValueChange[], initialState: ValueChange, postState: ValueChange) {
@@ -513,6 +526,10 @@ export class Viewport {
     result += polyline + shadedArea + noDraw + xzPolylines;
     result += `</g></svg>`;
     return result;
+
+    //const resultFragment = document.createDocumentFragment();
+    //resultFragment.replaceChildren(...domParser.parseFromString(result, 'text/html').body.childNodes);
+    //return resultFragment;
   }
 
   createWaveformSVG(transitionData: ValueChange[], initialState: ValueChange, postState: ValueChange, width: number, chunkIndex: number, netlistId: NetlistId, textWidth: number) {
@@ -520,7 +537,7 @@ export class Viewport {
     if (width === 1) {
       result = this.binaryElementFromTransitionData(transitionData, initialState, postState);
     } else {
-      const numberFormat  = this.netlistData[netlistId].numberFormat;
+      const numberFormat  = netlistData[netlistId].numberFormat;
       result = this.busElementsfromTransitionData(transitionData, initialState, postState, width, textWidth, numberFormat);
     }
     return result;
@@ -528,10 +545,10 @@ export class Viewport {
 
   renderWaveformChunk(netlistId: NetlistId, chunkStartIndex: number) {
     const result: any   = {};
-    const signalId      = this.netlistData[netlistId].signalId;
+    const signalId      = netlistData[netlistId].signalId;
     const data          = this.waveformData[signalId];
     const element       = document.createElement('div');
-    const vscodeContext = this.netlistData[netlistId].vscodeContext;
+    const vscodeContext = netlistData[netlistId].vscodeContext;
     element.id          = 'idx' + chunkStartIndex + '-' + this.chunksInColumn + '--' + netlistId;
     element.classList.add('waveform-chunk');
     if (netlistId === viewerState.selectedSignal) {element.classList.add('is-selected');}
@@ -541,7 +558,6 @@ export class Viewport {
       //return {html: `<div class="waveform-chunk" id="idx${chunkStartIndex}-${this.chunksInColumn}--${netlistId}" ${vscodeContext}></div>`};
       return {html: element};
     }
-
 
     const timeStart    = chunkStartIndex * this.chunkTime;
     const timeEnd      = timeStart + this.columnTime;
@@ -574,6 +590,7 @@ export class Viewport {
     //console.log(html);
     if (html) {
       element.innerHTML = html;
+      //element.replaceChildren(...html.childNodes);
     }
     
     result.html = element;
@@ -642,14 +659,16 @@ export class Viewport {
 
   updateWaveformInCache(netlistIdList: NetlistId[]) {
     console.log(netlistIdList);
-    console.log(this.netlistData);
+    console.log(netlistData);
     console.log(this.dataCache);
     netlistIdList.forEach((netlistId) => {
-      const signalId = this.netlistData[netlistId].signalId;
+      const signalId = netlistData[netlistId].signalId;
       for (let i = this.dataCache.startIndex; i < this.dataCache.endIndex; i+=this.chunksInColumn) {
+        console.log("updating chunk " + i);
         this.dataCache.columns[i].waveformChunk[netlistId] = this.renderWaveformChunk(netlistId, i);
       }
       if (viewerState.markerTime !== null) {
+        console.log("updating marker");
         this.dataCache.valueAtMarker[signalId] = this.getValueAtTime(signalId, viewerState.markerTime);
       }
     });
@@ -974,6 +993,8 @@ export class Viewport {
   }
 
   getChunksWidth() {
+    //const debugViewportWidth = 1000;
+    //const chunksInCluster  = Math.max(Math.ceil((debugViewportWidth + 1000) / this.chunkWidth), 2);
     const chunksInCluster  = Math.max(Math.ceil((this.viewerWidth + 1000) / this.chunkWidth), 2);
     this.chunksInColumn    = 4 ** (Math.max(0,(Math.floor(Math.log2(chunksInCluster) / 2) - 1)));
     this.columnWidth       = this.chunkWidth * this.chunksInColumn;
@@ -988,7 +1009,6 @@ export class Viewport {
     const minColumnNum = Math.max(Math.round(blockNum - (this.columnsInCluster / 2)), 0) * this.chunksInColumn;
     const maxColumnNum = Math.min(Math.round(blockNum + (this.columnsInCluster / 2)) * this.chunksInColumn, this.chunkCount);
 
-    //console.log('min column number: ' + minColumnNum + '; max column number: ' + maxColumnNum + '');
     return [minColumnNum, maxColumnNum];
   }
 
@@ -1007,7 +1027,7 @@ export class Viewport {
 
   handleClusterChanged(startIndex: number, endIndex: number) {
     //console.log('deleting chunk cache outside of index ' + startIndex + ' to ' + endIndex + '');
-    //console.log('chunk cache start index: ' + this.dataCache.startIndex + ' end index: ' + this.dataCache.endIndex + '');
+    console.log('chunk cache start index: ' + this.dataCache.startIndex + ' end index: ' + this.dataCache.endIndex + '');
     this.uncacheChunks(startIndex, endIndex);
     this.dataCache.startIndex     = startIndex;
     this.dataCache.endIndex       = endIndex;
@@ -1166,7 +1186,7 @@ export class Viewport {
       if (!this.scrollbarMoved) {return;}
     }
     const newPosition   = Math.min(Math.max(0, e.clientX - this.scrollbarStartX + this.scrollbarPosition), this.maxScrollbarPosition);
-    this.scrollbarStartX              = e.clientX;
+    this.scrollbarStartX = e.clientX;
     const newScrollLeft = Math.round((newPosition / this.maxScrollbarPosition) * this.maxScrollLeft);
     this.handleScrollEvent(newScrollLeft);
   }
@@ -1309,6 +1329,7 @@ export class Viewport {
       this.dataCache.columns[i] = undefined;
     }
     this.getChunksWidth();
+
     const startIndex  = Math.ceil(this.dataCache.startIndex / this.chunksInColumn) * this.chunksInColumn;
     const endIndex    = Math.floor(this.dataCache.endIndex / this.chunksInColumn) * this.chunksInColumn;
     this.dataCache.startIndex = startIndex;
@@ -1344,6 +1365,7 @@ export class Viewport {
     this.maxScrollLeft   = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth + 10, 0));
     //this.maxScrollLeft   = Math.round(Math.max((this.chunkCount * chunkWidth) - this.viewerWidth, 0));
     this.updateScrollbarResize();
+    this.getChunksWidth();
     this.handleScrollEvent(this.pseudoScrollLeft);
   }
 }

@@ -401,8 +401,8 @@ class VaporviewWebview {
     // debug handler to print the data cache
     if (e.key === 'd' && e.ctrlKey) {
       console.log(this.viewport.updatePending);
-      console.log(this.viewport.dataCache);
       console.log(viewerState);
+      console.log(this.viewport.dataCache);
     }
 
     // left and right arrow keys move the marker
@@ -436,6 +436,9 @@ class VaporviewWebview {
     // "N" and Shoft + "N" go to the next transition
     else if (e.key === 'n') {controlBar.goToNextTransition(1);}
     else if (e.key === 'N') {controlBar.goToNextTransition(-1);}
+
+    else if (e.key === 'Escape') {this.events.dispatch(ActionType.SignalSelect, null);}
+    else if (e.key === 'Delete') {this.removeVariableInternal(viewerState.selectedSignal);}
   }
 
   handleMouseUp(event: MouseEvent) {
@@ -487,62 +490,6 @@ class VaporviewWebview {
   handleSignalSelect(netlistId: NetlistId | null) {
     if (netlistId === null) {return;}
     sendWebviewContext();
-  }
-
-  removeSignal(netlistId: NetlistId) {
-    const index = viewerState.displayedSignals.findIndex((id: NetlistId) => id === netlistId);
-    //console.log('deleting signal' + message.signalId + 'at index' + index);
-    if (index === -1) {
-      return;
-    } else {
-      this.events.dispatch(ActionType.RemoveVariable, netlistId);
-      if (viewerState.selectedSignal === netlistId) {
-        this.events.dispatch(ActionType.SignalSelect, null);
-      }
-    }
-  }
-
-  addVariable(signalList: any) {
-    // Handle rendering a signal, e.g., render the signal based on message content
-    //console.log(message);
-
-    const signalIdList: any   = [];
-    const netlistIdList: any = [];
-    let updateFlag      = false;
-    let selectedSignal  = viewerState.selectedSignal;
-
-    signalList.forEach((signal: any) => {
-
-      const netlistId      = signal.netlistId;
-      const signalId       = signal.signalId;
-
-      netlistData[netlistId] = {
-        signalId:     signalId,
-        signalWidth:  signal.signalWidth,
-        signalName:   signal.signalName,
-        modulePath:   signal.modulePath,
-        numberFormat: signal.numberFormat,
-        vscodeContext: "",
-      };
-      netlistData[netlistId].vscodeContext = setSignalContextAttribute(netlistId);
-      netlistIdList.push(netlistId);
-
-      if (waveformData[signalId] !== undefined) {
-        selectedSignal = netlistId;
-        updateFlag     = true;
-      } else if (waveformDataTemp[signalId] === undefined) {
-        signalIdList.push(signalId);
-        waveformDataTemp[signalId] = {
-          netlistId: netlistId,
-          totalChunks: 0
-        };
-      }
-    });
-
-    this.events.dispatch(ActionType.AddVariable, netlistIdList, updateFlag);
-    this.events.dispatch(ActionType.SignalSelect, selectedSignal);
-
-    dataQueue.request(signalIdList);
   }
 
 // #region Helper Functions
@@ -723,6 +670,75 @@ class VaporviewWebview {
     this.events.dispatch(ActionType.RedrawVariable, netlistId);
   }
 
+  removeVariableInternal(netlistId: NetlistId | null) {
+    if (netlistId === null) {return;}
+    vscode.postMessage({
+      command: 'removeVariable',
+      netlistId: netlistId
+    });
+  }
+
+  removeVariable(netlistId: NetlistId | null) {
+    if (netlistId === null) {return;}
+    const index = viewerState.displayedSignals.findIndex((id: NetlistId) => id === netlistId);
+    //console.log('deleting signal' + message.signalId + 'at index' + index);
+    if (index === -1) {
+      return;
+    } else {
+      const newindex = Math.min(viewerState.displayedSignals.length - 2, index);
+      this.events.dispatch(ActionType.RemoveVariable, netlistId);
+      if (viewerState.selectedSignal === netlistId) {
+        const newNetlistId = viewerState.displayedSignals[newindex];
+        this.events.dispatch(ActionType.SignalSelect, newNetlistId);
+      }
+    }
+  }
+
+  addVariable(signalList: any) {
+    // Handle rendering a signal, e.g., render the signal based on message content
+    //console.log(message);
+
+    const signalIdList: any   = [];
+    const netlistIdList: any = [];
+    let updateFlag      = false;
+    let selectedSignal  = viewerState.selectedSignal;
+
+    signalList.forEach((signal: any) => {
+
+      const netlistId      = signal.netlistId;
+      const signalId       = signal.signalId;
+
+      netlistData[netlistId] = {
+        signalId:     signalId,
+        signalWidth:  signal.signalWidth,
+        signalName:   signal.signalName,
+        modulePath:   signal.modulePath,
+        numberFormat: signal.numberFormat,
+        vscodeContext: "",
+      };
+      netlistData[netlistId].vscodeContext = setSignalContextAttribute(netlistId);
+      netlistIdList.push(netlistId);
+
+      if (waveformData[signalId] !== undefined) {
+        selectedSignal = netlistId;
+        updateFlag     = true;
+      } else if (waveformDataTemp[signalId] !== undefined) {
+        waveformDataTemp[signalId].netlistIdList.push(netlistId);
+      } else if (waveformDataTemp[signalId] === undefined) {
+        signalIdList.push(signalId);
+        waveformDataTemp[signalId] = {
+          netlistIdList: [netlistId],
+          totalChunks: 0
+        };
+      }
+    });
+
+    this.events.dispatch(ActionType.AddVariable, netlistIdList, updateFlag);
+    this.events.dispatch(ActionType.SignalSelect, selectedSignal);
+
+    dataQueue.request(signalIdList);
+  }
+
   udpateWaveformChunk(message: any) {
     const signalId = message.signalId;
     if (waveformDataTemp[signalId].totalChunks === 0) {
@@ -740,14 +756,14 @@ class VaporviewWebview {
     //console.log('all chunks loaded');
 
     dataQueue.receive(signalId);
-    const transitionData = JSON.parse(waveformDataTemp[signalId].chunkData.join(""));
-
-    const netlistId = waveformDataTemp[signalId].netlistId;
+    
+    const netlistIdList = waveformDataTemp[signalId].netlistIdList;
+    const netlistId     = netlistIdList[0];
     if (netlistId ===  undefined) {console.log('netlistId not found for signalId ' + signalId); return;}
-    const signalWidth = netlistData[netlistId].signalWidth;
+    const signalWidth  = netlistData[netlistId].signalWidth;
     const numberFormat = netlistData[netlistId].numberFormat;
     const nullValue = "X".repeat(signalWidth);
-
+    const transitionData = JSON.parse(waveformDataTemp[signalId].chunkData.join(""));
     if (transitionData[0][0] !== 0) {
       transitionData.unshift([0, nullValue]);
     }
@@ -774,7 +790,9 @@ class VaporviewWebview {
     waveformDataTemp[signalId] = undefined;
 
     this.contentArea.style.height = (40 + (28 * viewerState.displayedSignals.length)) + "px";
-    this.events.dispatch(ActionType.RedrawVariable, netlistId);
+    netlistIdList.forEach((netlistId: NetlistId) => {
+      this.events.dispatch(ActionType.RedrawVariable, netlistId);
+    });
   }
 
   handleMessage(e: any) {
@@ -785,7 +803,7 @@ class VaporviewWebview {
       case 'unload':                {this.unload(); break;}
       case 'add-variable':          {this.addVariable(message.signalList); break;}
       case 'update-waveform-chunk': {this.udpateWaveformChunk(message); break;}
-      case 'remove-signal':         {this.removeSignal(message.netlistId); break;}
+      case 'remove-signal':         {this.removeVariable(message.netlistId); break;}
       case 'setNumberFormat':       {this.setNumberFormat(message.numberFormat, message.netlistId); break;}
       case 'setWaveDromClock':      {waveDromClock = {netlistId: message.netlistId, edge:  message.edge,}; break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}

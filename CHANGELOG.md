@@ -2,12 +2,19 @@
 
 ## Next Release (Version TBD)
 
-- Fixed keybindings for Mac OS users
-- Added Home and End to go to the beginning and end of a waveform dump
+- Keybindings:
+  - Fixed keybindings for Mac OS users
+  - Added Home and End to go to the beginning and end of a waveform dump
+  - Added Delete to remove a variable
 - Fixed 'webview is disposed' errors
 - Improved performance when loading many variables in FST dumps
 - Refactored Core Extension and Webview. Converted Webview to Typescript
   - Organized functions into appropriate classes, and split into multiple files
+
+### Planned features and issues
+
+- Make "Reload file" actually work
+- Adding a variable that was previously removed doesn't re-render
 
 # 1.2.0
 

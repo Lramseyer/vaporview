@@ -6,11 +6,10 @@ I should also mention if it's not obvious; I come from a hardware background. We
 
 ## Low hanging fruit
 
-Since me and my gang of AI ghost writers have (up to this point) have been the biggest contributors to this project, you might imagine that it's a lot of work to make this code useful _and_ nicely organized _and_ well documented _and_ have hice asthaetics _and_ juggle all of my other priorities of life like Skiing and Rock Climbing. So I have compiled a list of things that you could easily get started on to contribute to this project.
+Since me and my gang of AI ghost writers have (up to this point) have been the biggest contributors to this project, you might imagine that it's a lot of work to make this code useful _and_ nicely organized _and_ well documented _and_ have hice asthaetics _and_ juggle all of my other priorities of life like Skiing, Rock Climbing, a full time job, and a social life. So I have compiled a list of things that you could easily get started on to contribute to this project.
 
-- Improving the look of the assets, like the icons or the logo
-- Organizing the code by breaking it up into multiple files or improve naming conventions
-- Improving documentation
+- Creating custom icons for netlist view or control bar
+- Adding data formats
 
 ## Not so low hanging fruit
 
@@ -20,7 +19,62 @@ While not necissarily a priority, I have a list of things that would greatly enh
 
 ## Extension overview
 
-There are 3 main parts to this extesnion: The VScode Extension (src/web/extension.ts,) The WASM file parser, and the webview component (media/extension.js.) The Extension and wevbiew communicate via a messaging interface: `webview.postMessage()` and `vscode.postMessage()` on the extension and webview side respectively. This is mainly used for setting up the webview, and for adding and removing signals from the viewer. It's important to note that when a signal is rendered in the webview, the extension only sends over the waveform data for that signal that is being rendered. This is important for larger waveform files. If we only load into memory what is actually in the viewer, we're not going to run into memory issues.
+The file structure for the extension (not including assets like icons and pcitures) is as follows
+
+- src
+  - extension_core
+    - extension.ts
+    - viewer_provider.ts
+    - document.ts
+    - terminal_links.ts
+    - worker.ts
+    - _filehandler.ts*_
+  - webview
+    - vaporview.ts
+    - viewport.ts
+    - control_bar.ts
+    - labels.ts
+    - body.html
+    - style.css
+  - lib.rs
+
+There are 3 main parts to this extesnion: The VScode Extension (src/extension_core) The WASM file parser (lib.rs,) and the webview component (src/webview). The Extension and wevbiew communicate via a messaging interface: `webview.postMessage()` and `vscode.postMessage()` on the extension and webview side respectively. This is used for setting up the webview, adding and removing signals, setting a marker, and communicating viewer context back to VScode. It's important to note that when a signal is rendered in the webview, the extension only sends over the Value Change data for that signal that is being rendered. This is important for larger waveform files because it allows us to be more memory efficient ...I say that, and here we are writing this in Typescript.
+
+### Extension.ts
+
+This is the main file that handles the activation of the extension, sets up the viewer provider (which you can think of as the main source of interaction with the VScode APIs) and handles all custom commands for the extension
+
+### viewer_provider.ts
+
+This handles all of the extension sub-components and all of their interaction with the VScode APIs. It manages which document is active, and handles other components and commands accordingly.
+
+### document.ts
+
+This handles all of the document specific information. It handles file management and file access, the WASM component, and communication with the webview.
+
+### terminal_links.ts
+
+This handles terminal links interactions.
+
+### worker.ts and filehandler.ts
+
+These files manage communication with WASM component. filehandler.ts is a compiled file, and not part of the repository. But it handles all of the type bindings, and function calls between the WASM and the Typescript code
+
+### vaporview.ts
+
+This handles all of the communication from the core extension to the sub-components of the webview as well as sets up all of the webview event handlers.
+
+### viewport.ts
+
+This handles all of the viewport actions like zooming, scrolling, and rendering. THis is what actually displays the signals
+
+### control_bar.ts
+
+This manages all of the control bar interaction including the search feature, and some basic commands
+
+### labels.ts
+
+THis handles all of the labels for the viewport. I broke this out into a separate component simply because the viewport was such a large piece of code.
 
 ## A few notes about WebAssembly
 

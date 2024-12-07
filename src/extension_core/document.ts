@@ -445,8 +445,9 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this.close(this.metadata.fd);
     await this.wasmApi.unload();
     this.metadata.timeTableLoaded = false;
-    this.webviewPanel?.webview.postMessage({command: 'unload'});
     this._webviewInitialized = false;
+    console.log("Unloading webview");
+    this.webviewPanel?.webview.postMessage({command: 'unload'});
   }
 
   public async reload() {

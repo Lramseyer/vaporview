@@ -8,7 +8,7 @@ export function createLabel(netlistId: NetlistId, isSelected: boolean) {
   const signalName    = htmlSafe(netlistData[netlistId].signalName);
   const modulePath    = htmlSafe(netlistData[netlistId].modulePath + '.');
   const fullPath      = htmlAttributeSafe(modulePath + signalName);
-  return `<div class="waveform-label ${selectorClass}" id="label-${netlistId}" title="${fullPath}" ${vscodeContext}>
+  return `<div class="waveform-label ${selectorClass}" id="label-${netlistId}" title="${fullPath}" data-vscode-context=${vscodeContext}>
             <div class='codicon codicon-grabber'></div>
             <p style="opacity:50%">${modulePath}</p><p>${signalName}</p>
           </div>`;
@@ -116,7 +116,7 @@ export class LabelsPanels {
       const numberFormat = netlistData[netlistId].numberFormat;
       const signalWidth  = netlistData[netlistId].signalWidth;
       const data           = waveformData[signalId];
-      const isSelected   = (index === viewerState.selectedSignalIndex);
+      const isSelected   = (netlistId === viewerState.selectedSignal);
       this.labelsList.push(createLabel(netlistId, isSelected));
       transitions.push(createValueDisplayElement(netlistId, viewport.dataCache.valueAtMarker[signalId], isSelected));
       if (data) {

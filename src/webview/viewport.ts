@@ -64,7 +64,6 @@ export class Viewport {
   scrollArea: HTMLElement;
   contentArea: HTMLElement; 
   scrollbar: HTMLElement;
-  waveformData: WaveformData[];
 
   highlightElement: any     = null;
   highlightEndEvent: any = null;
@@ -129,7 +128,6 @@ export class Viewport {
   constructor(
     private events: EventHandler,
   ) {
-
     const scrollArea        = document.getElementById('scrollArea');
     const contentArea       = document.getElementById('contentArea');
     const scrollbar         = document.getElementById('scrollbar');
@@ -141,7 +139,6 @@ export class Viewport {
     this.scrollArea = scrollArea;
     this.contentArea = contentArea;
     this.scrollbar = scrollbar;
-    this.waveformData = waveformData;
 
     // click handler to handle clicking inside the waveform viewer
     // gets the absolute x position of the click relative to the scrollable content
@@ -546,7 +543,7 @@ export class Viewport {
   renderWaveformChunk(netlistId: NetlistId, chunkStartIndex: number) {
     const result: any   = {};
     const signalId      = netlistData[netlistId].signalId;
-    const data          = this.waveformData[signalId];
+    const data          = waveformData[signalId];
     const element       = document.createElement('div');
     const vscodeContext = netlistData[netlistId].vscodeContext;
     element.id          = 'idx' + chunkStartIndex + '-' + this.chunksInColumn + '--' + netlistId;
@@ -658,9 +655,9 @@ export class Viewport {
   }
 
   updateWaveformInCache(netlistIdList: NetlistId[]) {
-    console.log(netlistIdList);
-    console.log(netlistData);
-    console.log(this.dataCache);
+    //console.log(netlistIdList);
+    //console.log(netlistData);
+    //console.log(this.dataCache);
     netlistIdList.forEach((netlistId) => {
       const signalId = netlistData[netlistId].signalId;
       for (let i = this.dataCache.startIndex; i < this.dataCache.endIndex; i+=this.chunksInColumn) {
@@ -908,7 +905,7 @@ export class Viewport {
     if (time === null) {return -1;}
   
     let endIndex;
-    const data        = this.waveformData[signalId];
+    const data        = waveformData[signalId];
     const chunk       = Math.floor(time / this.chunkTime);
     const startIndex  = Math.max(0, data.chunkStart[chunk] - 1);
     if (chunk === this.chunkCount - 1) {
@@ -930,7 +927,7 @@ export class Viewport {
   getValueAtTime(signalId: SignalId, time: number) {
   
     const result: string[] = [];
-    const data = this.waveformData[signalId];
+    const data = waveformData[signalId];
   
     if (!data) {return result;}
   
@@ -954,7 +951,7 @@ export class Viewport {
     const result = null;
     if (time === null) {return result;}
     
-    const data  = this.waveformData[signalId].transitionData;
+    const data  = waveformData[signalId].transitionData;
     const index = this.getNearestTransitionIndex(signalId, time);
     
     if (index === -1) {return result;}
@@ -1027,7 +1024,7 @@ export class Viewport {
 
   handleClusterChanged(startIndex: number, endIndex: number) {
     //console.log('deleting chunk cache outside of index ' + startIndex + ' to ' + endIndex + '');
-    console.log('chunk cache start index: ' + this.dataCache.startIndex + ' end index: ' + this.dataCache.endIndex + '');
+    //console.log('chunk cache start index: ' + this.dataCache.startIndex + ' end index: ' + this.dataCache.endIndex + '');
     this.uncacheChunks(startIndex, endIndex);
     this.dataCache.startIndex     = startIndex;
     this.dataCache.endIndex       = endIndex;
@@ -1348,12 +1345,13 @@ export class Viewport {
 
     if (updateFlag) {
       this.updatePending  = true;
-      this.updateContentArea(this.leftOffset, this.getBlockNum());
       this.contentArea.style.height = (40 + (28 * viewerState.displayedSignals.length)) + "px";
+      this.updateContentArea(this.leftOffset, this.getBlockNum());
     }
   }
 
   handleRedrawSignal(netlistId: NetlistId) {
+    //aconsole.log('redrawing signal ' + netlistId + '');
     this.updatePending = true;
     this.updateWaveformInCache([netlistId]);
     this.updateContentArea(this.leftOffset, this.getBlockNum());

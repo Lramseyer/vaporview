@@ -234,6 +234,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
   public async applySettings(settings: any) {
 
+    console.log(settings);
+
     if (!settings.displayedSignals) {return;}
     if (!this.activeDocument) {return;}
     const document = this.activeDocument;
@@ -248,6 +250,23 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         foundSignals.push(metaData);
       } else {
         missingSignals.push(signal);
+      }
+    }
+
+    if (settings.markerTime || settings.markerTime === 0) {
+      this.setMarkerAtTime(settings.markerTime);
+    }
+
+    console.log(settings.selectedSignal);
+    if (settings.selectedSignal) {
+      const s = settings.selectedSignal;
+      const metadata = await document.findTreeItem(s.name, s.msb, s.lsb);
+      if (metadata !== null) {
+        const netlistIdSelected = metadata.netlistId;
+        this.activeWebview?.webview.postMessage({
+          command: 'setSelectedSignal', 
+          netlistId: netlistIdSelected,
+        });
       }
     }
 
@@ -346,15 +365,15 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     //w.markerTime       = event.markerTime       || w.markerTime;
     //w.altMarkerTime    = event.altMarkerTime    || w.altMarkerTime;
     //w.selectedSignal   = event.selectedSignal   || w.selectedSignal;
-    if (event.markerTime !== null) {w.markerTime = event.markerTime;}
-    if (event.altMarkerTime !== null) {w.altMarkerTime = event.altMarkerTime;}
-    if (event.selectedSignal !== null) {w.selectedSignal = event.selectedSignal;}
+    if (event.markerTime || event.markerTime === 0) {w.markerTime = event.markerTime;}
+    if (event.altMarkerTime || event.altMarkerTime === 0) {w.altMarkerTime = event.altMarkerTime;}
+    if (event.selectedSignal || event.selectedSignal === 0) {w.selectedSignal = event.selectedSignal;}
     w.displayedSignals = event.displayedSignals || w.displayedSignals;
     w.zoomRatio        = event.zoomRatio        || w.zoomRatio;
     w.scrollLeft       = event.scrollLeft       || w.scrollLeft;
     w.numberFormat     = event.numberFormat     || w.numberFormat;
 
-    if (w.markerTime !== null) {
+    if (w.markerTime || w.markerTime === 0) {
       this.markerTimeStatusBarItem.text = 'time: ' + document.formatTime(w.markerTime);
       this.markerTimeStatusBarItem.show();
       if (w.altMarkerTime !== null && w.markerTime !== null) {
@@ -369,7 +388,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       this.markerTimeStatusBarItem.hide();
     }
 
-    if (w.selectedSignal !== null) {
+    if (w.selectedSignal || w.selectedSignal === 0) {
       const NetlistIdRef = document.netlistIdTable[w.selectedSignal];
       const signalName = NetlistIdRef.netlistItem.name;
       this.selectedSignalStatusBarItem.text = 'Selected signal: ' + signalName;

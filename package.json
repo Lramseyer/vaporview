@@ -126,6 +126,11 @@
           "command": "vaporview.loadViewerSettings",
           "when": "view == 'netlistContainer' || view == 'displaylistContainer'",
           "group": "1_saveLoad"
+        },
+        {
+          "command": "vaporview.reloadFile",
+          "when": "view == 'netlistContainer' || view == 'displaylistContainer'",
+          "group": "2_reload"
         }
       ],
       "webview/context": [
@@ -262,7 +267,7 @@
       },
       {
         "command": "vaporview.reloadFile",
-        "title": "Reload File (Beta)"
+        "title": "Reload File"
       }
     ]
   },

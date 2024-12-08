@@ -126,7 +126,7 @@ export class LabelsPanels {
     this.labels.innerHTML            = this.labelsList.join('');
     this.transitionDisplay.innerHTML = transitions.join('');
   }
-  
+
   clicklabel (event: any, containerElement: HTMLElement) {
     const labelsList   = Array.from(containerElement.querySelectorAll('.waveform-label'));
     const clickedLabel = event.target.closest('.waveform-label');
@@ -266,7 +266,6 @@ export class LabelsPanels {
   }
 
   handleAddVariable(netlistIdList: NetlistId[], updateFlag: boolean) {
-    viewerState.displayedSignals = viewerState.displayedSignals.concat(netlistIdList);
     this.renderLabelsPanels();
   }
 

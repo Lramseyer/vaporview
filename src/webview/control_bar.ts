@@ -312,7 +312,7 @@ export class ControlBar {
   handleSignalSelect(netlistId: NetlistId) {
     if (netlistId === null) {return;}
   
-    const numberFormat = netlistData[netlistId].numberFormat;
+    const numberFormat = netlistData[netlistId]?.numberFormat;
   
     this.updateButtonsForSelectedWaveform(netlistData[netlistId].signalWidth);
   

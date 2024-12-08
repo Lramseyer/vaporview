@@ -13,8 +13,7 @@
 
 ### Planned features and issues
 
-- Make "Reload file" actually work
-- Adding a variable that was previously removed doesn't re-render
+- Signal Select doesn't work when a file is freshly loaded
 
 # 1.2.0
 

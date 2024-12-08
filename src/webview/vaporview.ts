@@ -333,10 +333,10 @@ class VaporviewWebview {
     window.addEventListener('keydown', (e) => {this.keyDownHandler(e);});
     window.addEventListener('mouseup', (e) => {this.handleMouseUp(e);});
     window.addEventListener('resize',  ()  => {this.handleResizeViewer();}, false);
-    scrollArea.addEventListener('wheel', (e) => {this.scrollHandler(e);});
-    scrollArea.addEventListener(      'scroll', (e) => {this.syncVerticalScroll(scrollArea.scrollTop);});
-    labelsScroll.addEventListener(    'scroll', (e) => {this.syncVerticalScroll(labelsScroll.scrollTop);});
-    transitionScroll.addEventListener('scroll', (e) => {this.syncVerticalScroll(transitionScroll.scrollTop);});
+    this.scrollArea.addEventListener('wheel', (e) => {this.scrollHandler(e);});
+    //this.scrollArea.addEventListener(      'scroll', (e) => {this.syncVerticalScroll(scrollArea.scrollTop);});
+    this.labelsScroll.addEventListener(    'wheel', (e) => {this.syncVerticalScroll(e, labelsScroll.scrollTop);});
+    this.transitionScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, transitionScroll.scrollTop);});
 
     this.resetTouchpadScrollCount = this.resetTouchpadScrollCount.bind(this);
     this.handleMarkerSet = this.handleMarkerSet.bind(this);
@@ -622,12 +622,13 @@ class VaporviewWebview {
     });
   }
 
-  syncVerticalScroll(scrollLevel: number) {
+  syncVerticalScroll(e: any, scrollLevel: number) {
+    const deltaY = e.deltaY;
     if (this.viewport.updatePending) {return;}
     this.viewport.updatePending     = true;
-    this.labelsScroll.scrollTop     = scrollLevel;
-    this.transitionScroll.scrollTop = scrollLevel;
-    this.scrollArea.scrollTop       = scrollLevel;
+    this.labelsScroll.scrollTop     = scrollLevel + deltaY;
+    this.transitionScroll.scrollTop = scrollLevel + deltaY;
+    this.scrollArea.scrollTop       = scrollLevel + deltaY;
     this.viewport.updatePending     = false;
   }
 
@@ -653,11 +654,11 @@ class VaporviewWebview {
     waveformDataTemp    = {};
     waveDromClock       = {netlistId: null, edge: ""};
 
-    this.viewport.init({chunkTime: 128, defaultZoom: 1, timeScale: 1, timeEnd: 0});
-    this.contentArea.style.height = '0px';
+    this.contentArea.style.height = '40px';
     this.viewport.updateContentArea(0, [0, 0]);
     this.events.dispatch(ActionType.Zoom, 1, 0, 0);
     labelsPanel.renderLabelsPanels();
+    this.viewport.init({chunkTime: 128, defaultZoom: 1, timeScale: 1, timeEnd: 0});
     vscode.postMessage({type: 'ready'});
   }
 
@@ -733,6 +734,7 @@ class VaporviewWebview {
       }
     });
 
+    viewerState.displayedSignals = viewerState.displayedSignals.concat(netlistIdList);
     this.events.dispatch(ActionType.AddVariable, netlistIdList, updateFlag);
     this.events.dispatch(ActionType.SignalSelect, selectedSignal);
 
@@ -740,6 +742,8 @@ class VaporviewWebview {
   }
 
   udpateWaveformChunk(message: any) {
+    console.log('updateWaveformChunk');
+    console.log(message);
     const signalId = message.signalId;
     if (waveformDataTemp[signalId].totalChunks === 0) {
       waveformDataTemp[signalId].totalChunks = message.totalChunks;
@@ -790,6 +794,7 @@ class VaporviewWebview {
     waveformDataTemp[signalId] = undefined;
 
     this.contentArea.style.height = (40 + (28 * viewerState.displayedSignals.length)) + "px";
+
     netlistIdList.forEach((netlistId: NetlistId) => {
       this.events.dispatch(ActionType.RedrawVariable, netlistId);
     });
@@ -808,7 +813,10 @@ class VaporviewWebview {
       case 'setWaveDromClock':      {waveDromClock = {netlistId: message.netlistId, edge:  message.edge,}; break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
       case 'setMarker':             {this.events.dispatch(ActionType.MarkerSet, message.time, 0); break; }
-      case 'setSelectedSignal':     {this.events.dispatch(ActionType.SignalSelect, message.netlistId); break; }
+      case 'setSelectedSignal':     {
+        console.log('setSelectedSignal');
+        console.log(message.netlistId);
+        this.events.dispatch(ActionType.SignalSelect, message.netlistId); break; }
       case 'getContext':            {sendWebviewContext(); break;}
       case 'copyWaveDrom':          {this.copyWaveDrom(); break;}
     }

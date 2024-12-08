@@ -1275,14 +1275,13 @@ export class Viewport {
 
   handleSignalSelect(netlistId: NetlistId | null) {
     if (netlistId === null) {return;}
-    if (viewerState.selectedSignal === null) {return;}
   
     let element;
     let index;
   
     for (let i = this.dataCache.startIndex; i < this.dataCache.endIndex; i+=this.chunksInColumn) {
       element = document.getElementById('idx' + i + '-' + this.chunksInColumn + '--' + viewerState.selectedSignal);
-      if (element) {
+      if (element && viewerState.selectedSignal !== null) {
         element.classList.remove('is-selected');
         this.dataCache.columns[i].waveformChunk[viewerState.selectedSignal].html = element;
       }

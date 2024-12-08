@@ -1,19 +1,16 @@
 # Change Log
 
-## Next Release (Version TBD)
+## Next Release 1.2.5
 
+- Improved performance when loading many variables in large FST dumps
+- Added Feature to reload a file
 - Keybindings:
   - Fixed keybindings for Mac OS users
   - Added Home and End to go to the beginning and end of a waveform dump
   - Added Delete to remove a variable
 - Fixed 'webview is disposed' errors
-- Improved performance when loading many variables in FST dumps
 - Refactored Core Extension and Webview. Converted Webview to Typescript
   - Organized functions into appropriate classes, and split into multiple files
-
-### Planned features and issues
-
-- Signal Select doesn't work when a file is freshly loaded
 
 # 1.2.0
 

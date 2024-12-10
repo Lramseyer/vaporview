@@ -1,4 +1,4 @@
-import { vscode, NetlistData, netlistData, WaveformData, waveformData, parseValue, getValueTextWidth, valueIs9State, arrayMove, sendWebviewContext, NetlistId, SignalId, NumberFormat, ValueChange, ActionType, EventHandler, viewerState } from "./vaporview";
+import { vscode, NetlistData, netlistData, WaveformData, waveformData, getValueTextWidth, valueIs9State, arrayMove, sendWebviewContext, NetlistId, SignalId, NumberFormat, ValueChange, ActionType, EventHandler, viewerState } from "./vaporview";
 type DataCache = {
   startIndex: number;
   endIndex: number;
@@ -274,7 +274,7 @@ export class Viewport {
     return `${divTag}${pElement}</div>`;
   }
 
-  busElementsfromTransitionData(transitionData: ValueChange[], initialState: ValueChange, postState: ValueChange, signalWidth: number, textWidth: number, numberFormat: NumberFormat) {
+  busElementsfromTransitionData(transitionData: ValueChange[], initialState: ValueChange, postState: ValueChange, signalWidth: number, textWidth: number, parseValue: (value: string, signalWidth: number, is2State: boolean) => string) {
 
     let elementWidth;
     let is4State        = false;
@@ -332,7 +332,7 @@ export class Viewport {
             textElements += `<div class="bus-waveform-value" style="flex:${emptyDivWidth};"></div>`;
           }
           emptyDivWidth = 0;
-          textElements += this.busElement(time, elementWidth, parseValue(value, signalWidth, is4State, numberFormat), spansChunk, textWidth, leftOverflow, 0);
+          textElements += this.busElement(time, elementWidth, parseValue(value, signalWidth, !is4State), spansChunk, textWidth, leftOverflow, 0);
         } else {
           emptyDivWidth += elementWidth + leftOverflow;
         }
@@ -377,7 +377,7 @@ export class Viewport {
         textElements += `<div class="bus-waveform-value" style="flex:${emptyDivWidth};"></div>`;
       }
       emptyDivWidth = 0;
-      textElements += this.busElement(time, elementWidth, parseValue(value, signalWidth, is4State, numberFormat), true, textWidth, leftOverflow, rightOverflow);
+      textElements += this.busElement(time, elementWidth, parseValue(value, signalWidth, !is4State), true, textWidth, leftOverflow, rightOverflow);
     } else {
       emptyDivWidth += elementWidth + leftOverflow - rightOverflow;
       textElements += `<div class="bus-waveform-value" style="flex:${emptyDivWidth};"></div>`;
@@ -443,7 +443,7 @@ export class Viewport {
           initialValue2state = initialValue;
           if (valueIs9State(initialValue)) {initialValue2state = "0";}
 
-          noDrawPath +=        "M " + lastDrawTime + " 0 L" + lastDrawTime + " 1 L " + lastNoDrawTime + " 1 L " + lastNoDrawTime + " 0 ";
+          noDrawPath +=      " M " + lastDrawTime + " 0 L" + lastDrawTime + " 1 L " + lastNoDrawTime + " 1 L " + lastNoDrawTime + " 0 ";
           accumulatedPath += " L " + lastDrawTime + " 0 ";
           accumulatedPath += " L " + lastNoDrawTime + " 0";
           accumulatedPath += " L " + lastNoDrawTime + " " + initialValue2state;
@@ -451,7 +451,7 @@ export class Viewport {
         }
 
         if (valueIs9State(initialValue)) {
-          xzPath = `M ${initialTimeOrStart} 0 L ${time} 0 L ${time} 1 L ${initialTimeOrStart} 1 `;
+          xzPath   += `M ${initialTimeOrStart} 0 L ${time} 0 L ${time} 1 L ${initialTimeOrStart} 1 `;
           if (initialTimeOrStart >= 0) {
             xzPath += `L ${initialTimeOrStart} 0 `;
           }
@@ -497,7 +497,7 @@ export class Viewport {
 
         if (initialTimeOrStart >= 0) {
           
-          xzPath += `M ${columnTime} 1 L ${initialTimeOrStart} 1 L ${initialTimeOrStart} 0 L ${columnTime} 0`;
+          xzPath += `M ${columnTime} 1 L ${initialTimeOrStart} 1 L ${initialTimeOrStart} 0 L ${columnTime} 0 `;
         } else {
           xzPath += `M ${initialTimeOrStart} 0 L ${columnTime} 0 M ${initialTimeOrStart} 1 L ${columnTime} 1 `;
         }
@@ -535,7 +535,8 @@ export class Viewport {
       result = this.binaryElementFromTransitionData(transitionData, initialState, postState);
     } else {
       const numberFormat  = netlistData[netlistId].numberFormat;
-      result = this.busElementsfromTransitionData(transitionData, initialState, postState, width, textWidth, numberFormat);
+      const parseValue    = netlistData[netlistId].valueFormat.formatString;
+      result = this.busElementsfromTransitionData(transitionData, initialState, postState, width, textWidth, parseValue);
     }
     return result;
   }

@@ -10,7 +10,7 @@
 				"--extensionDevelopmentPath=${workspaceRoot}",
 			],
 			"outFiles": [
-				"${workspaceRoot}/out/**/*.js"
+				"${workspaceRoot}/dist/*.js"
 			],
 			"sourceMaps": true,
 			"preLaunchTask": "npm: build"

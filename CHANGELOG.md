@@ -1,16 +1,18 @@
 # Change Log
 
-## Next Release 1.2.5
+## Upcoming Release 1.2.5
 
 - Improved performance when loading many variables in large FST dumps
 - Added Feature to reload a file
 - Keybindings:
   - Fixed keybindings for Mac OS users
-  - Added Home and End to go to the beginning and end of a waveform dump
-  - Added Delete to remove a variable
+  - Added **Home** and **End** to go to the beginning and end of a waveform dump
+  - Added **Delete** to remove a variable
 - Fixed 'webview is disposed' errors
 - Refactored Core Extension and Webview. Converted Webview to Typescript
   - Organized functions into appropriate classes, and split into multiple files
+  - Ported build proces back to esbuild
+  - Added .vscodeignore file to keep build size reasonable
 
 # 1.2.0
 

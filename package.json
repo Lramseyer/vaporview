@@ -27,8 +27,8 @@
   "engines": {
     "vscode": "^1.89.0"
   },
-  "main": "./out/core/extension",
-  "browser": "./out/core/extension",
+  "main": "./dist/extension",
+  "browser": "./dist/extension",
   "activationEvents": [],
   "contributes": {
     "viewsContainers": {
@@ -290,15 +290,15 @@
     "webpack-cli": "^5.1.4"
   },
   "scripts": {
-    "vscode:prepublish": "npm run build",
-    "build": "npm run compile && npm run build:webview && cargo build --target wasm32-unknown-unknown",
-    "compile": "npm run generate:model && tsc -b",
-    "build:webview": "webpack --config webpack.config.webview.js",
-    "watch": "concurrently \"npm run watch:extension\" \"npm run watch:webview\"",
-    "watch:extension": "tsc -b -w",
-    "watch:webview": "webpack --config webpack.config.webview.js --watch",
-    "lint": "eslint ./src/extension_core --ext .ts,.tsx && eslint ./src/webview --ext .ts",
+    "build": "npm run compile",
+    "compile-wasm" : "npm run generate:model && cargo build --target wasm32-unknown-unknown --release",
     "generate:model": "wit2ts --outDir ./src/extension_core ./wit",
-    "serve": "serve --cors -l 5000 --ssl-cert $HOME/certs/localhost.pem --ssl-key $HOME/certs/localhost-key.pem"
+    "compile": "npm run compile-wasm && npm run check-types && node esbuild.js",
+    "check-types": "tsc --noEmit",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "vscode:prepublish": "npm run package",
+    "package": "npm run compile-wasm && npm run check-types && node esbuild.js --production"
   }
 }

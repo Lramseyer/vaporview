@@ -1,0 +1,10 @@
+target/debug/**
+target/release/**
+target/wasm32-unknown-unknown/debug/**
+.vscode/**
+.gitignore
+node_modules/**
+!node_modules/@vscode/codicons/**
+out/**/*.map
+dist/**/*.map
+*.vsix

@@ -1,4 +1,4 @@
-import { EventHandler, viewport, NetlistData, arrayMove, NetlistId, ActionType, viewerState, waveformData, netlistData, getValueTextWidth, htmlSafe, htmlAttributeSafe, parseValue, valueIs9State} from './vaporview';
+import { EventHandler, viewport, NetlistData, arrayMove, NetlistId, ActionType, viewerState, waveformData, netlistData, getValueTextWidth, htmlSafe, htmlAttributeSafe, valueIs9State} from './vaporview';
 
 export function createLabel(netlistId: NetlistId, isSelected: boolean) {
   //let selectorClass = 'is-idle';
@@ -18,15 +18,17 @@ export function createValueDisplayElement(netlistId: NetlistId, value: any, isSe
 
   if (value === undefined) {value = [];}
 
-  const vscodeContext = netlistData[netlistId].vscodeContext;
+  const data          = netlistData[netlistId];
+  const vscodeContext = data.vscodeContext;
   const selectorClass = isSelected ? 'is-selected' : 'is-idle';
   const joinString    = '<p style="color:var(--vscode-foreground)">-></p>';
-  const width         = netlistData[netlistId].signalWidth;
-  const numberFormat  = netlistData[netlistId].numberFormat;
+  const width         = data.signalWidth;
+  const numberFormat  = data.numberFormat;
+  const parseValue    = data.valueFormat.formatString;
   const pElement      = value.map((v: string) => {
-    const is4State     = valueIs9State(v);
-    const color        = is4State ? 'style="color:var(--vscode-debugTokenExpression-error)"' : '';
-    const displayValue = parseValue(v, width, is4State, numberFormat);
+    const is9State     = valueIs9State(v);
+    const color        = is9State ? 'style="color:var(--vscode-debugTokenExpression-error)"' : '';
+    const displayValue = parseValue(v, width, !is9State);
     return `<p ${color}>${displayValue}</p>`;
   }).join(joinString);
 

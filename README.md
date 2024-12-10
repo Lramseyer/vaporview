@@ -37,15 +37,20 @@ VaporView associates timestamps and netlist paths as links in the terminal. Thes
 - **Ctrl + Left/Right Arrow** - Move marker to previous/next value transition of selected signal
 - **Alt + Click or Middle Click** - Set Alt-Marker
 
+#### New for 1.2.5
+
+- **Home** and **End** - Scroll to the beginning and end (respectively) of the waveform
+- **Delete** - Remove Selected Signal
+
 ## Adding and Removing Signals
 
 Signals may be added or removed through VaporView view container. Click on the VaporView Activity Bar icon, and it will show the netlist for the opened waveform file as well as the signals displayed in the tab.
 
 To Add a signal, simply check the box next to the netlist signal ID in the "Netlist" view. It will also show in the "Displayed Signals" view.
 
-To remove a signal, that signal can be un-checked from either the "Netlist" view or the "Displayed Signals" view. Alternatively, you can right click on a signal in the viewer and select "remove signal" from the menu.
+To remove a signal, that signal can be un-checked from either the "Netlist" view or the "Displayed Signals" view. From the viewer, you can either select the signal you would like to remode and hit **Delete**, or right click on a signal in the viewer and select **remove signal** from the menu.
 
-To add or remove multiple signals, select the signals you would like to add or remove, right click and select "Add/Remove selected signals" from the menu.
+To add or remove multiple signals, select the signals you would like to add or remove, right click and select **Add/Remove selected signals** from the menu.
 
 Signals can also be added by clicking on a link in the terminal with the full signal path.
 
@@ -135,6 +140,18 @@ This extension was designed on Vscode version 1.83
 
 # Development Roadmap
 
+## Upcoming Release 1.2.5
+
+- Improved performance when loading many variables in large FST dumps
+- Added Feature to reload a file
+- Keybindings:
+  - Fixed keybindings for Mac OS users
+  - Added **Home** and **End** to go to the beginning and end of a waveform dump
+  - Added **Delete** to remove a variable
+- Fixed 'webview is disposed' errors
+- Refactored Core Extension and Webview. Converted Webview to Typescript
+  - Organized functions into appropriate classes, and split into multiple files
+
 ## 1.2.0 - Latest Release
 
 - Removed checkboxes for scope \[module\] items in netlist viewer to reduce confusion
@@ -145,6 +162,8 @@ This extension was designed on Vscode version 1.83
 - Scroll Position now limited to end of trace rather than the end of the last chunk
 - Save/Load viewer settings has been added as context menu item for easier access
 
+See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
+
 ## Planned Features
 
 In no particular order of priority, here's a list of features that are on my radar. If you have any preferences as to which should be priorized, or a suggestion that is not on this list, leave a comment on the [github discussions](https://github.com/Lramseyer/VaporView/discussions)!
@@ -153,6 +172,7 @@ In no particular order of priority, here's a list of features that are on my rad
   - Float 8 - 64, signed integers
   - Add support for custom Enums and named values. Including callback functions for those daring enough!
   - Reals
+  - Strings
 - Improve renderer to better render non-2 state
 - Add support to highlight all transitions of a signal
 - Add support for custom colors - waiting for the VScode API to allow access to semantic token colors - [Github issue](https://github.com/microsoft/vscode/issues/32813)

@@ -21,7 +21,9 @@ export type NetlistData = {
   modulePath: string;
   signalWidth: number;
   numberFormat: number;
+  valueFormat: ValueFormat;
   vscodeContext: string;
+  type: string;
 };
 
 export type WaveformData = {
@@ -133,7 +135,7 @@ export class EventHandler {
 
 // Parse VCD values into either binary, hex, or decimal
 // This function is so cursed...
-export function parseValue(binaryString: string, width: number, is4State: boolean, numberFormat: NumberFormat) {
+export function parseValueOld(binaryString: string, width: number, is4State: boolean, numberFormat: NumberFormat) {
 
   let stringArray;
 
@@ -278,6 +280,121 @@ export function setSignalContextAttribute(netlistId: NetlistId) {
   }).replace(/\s/g, '%x20')}`;
   return attribute;
 }
+
+export interface ValueFormat {
+  id: string;
+  rightJustify: boolean;
+  formatString: (value: string, width: number, is2State: boolean) => string;
+  getTextWidth: (width: number) => number;
+  checkValid: (value: string) => boolean;
+  parseValueForSearch: (value: string) => string;
+}
+
+const formatHex: ValueFormat = {
+  id: "hex",
+  rightJustify: true,
+
+  formatString: (inputString: string, width: number, is2State: boolean) => {
+  // If number format is hexadecimal
+    if (!is2State) {
+      const stringArray = inputString.replace(/\B(?=(.{4})+(?!.))/g, "_").split("_");
+      return stringArray.map((chunk) => {
+        if (chunk.match(/[zZ]/)) {return "Z";}
+        if (chunk.match(/[xX]/)) {return "X";}
+        return parseInt(chunk, 2).toString(16);
+      }).join('').replace(/\B(?=(.{4})+(?!.))/g, "_");
+    } else {
+      const stringArray = inputString.replace(/\B(?=(\d{16})+(?!\d))/g, "_").split("_");
+      return stringArray.map((chunk) => {
+        const digits = Math.ceil(chunk.length / 4);
+        return parseInt(chunk, 2).toString(16).padStart(digits, '0');
+      }).join('_');
+    }
+  },
+
+  getTextWidth: (width: number) => {
+    const characterWidth = 7.69;
+    const numeralCount    = Math.ceil(width / 4);
+    const underscoreCount = Math.floor((width - 1) / 16);
+    return (numeralCount + underscoreCount) * characterWidth;
+  },
+
+  checkValid: (inputText: string) => {
+    if (inputText.match(/^(0x)?[0-9a-fA-FxzXZ_]+$/)) {return true;}
+    else {return false;}
+  },
+
+  parseValueForSearch: (inputText: string) =>{
+    let result = inputText.replace(/_/g, '').replace(/^0x/i, '');
+    result = result.split('').map((c) => {
+      if (c.match(/[xXzZ]/)) {return '....';}
+      return parseInt(c, 16).toString(2).padStart(4, '0');
+    }).join('');
+    return result;
+  },
+};
+
+const formatBinary: ValueFormat = {
+  id: "binary",
+  rightJustify: true,
+  formatString: (inputString: string, width: number, is2State: boolean) => {
+    return inputString.replace(/\B(?=(\d{4})+(?!\d))/g, "_");
+  },
+
+  getTextWidth: (width: number) => {
+    const characterWidth = 7.69;
+    const numeralCount    = width;
+    const underscoreCount = Math.floor((width - 1) / 4);
+    return (numeralCount + underscoreCount) * characterWidth;
+  },
+
+  checkValid: (inputText: string) => {
+    if (inputText.match(/^b?[01xzXZdD_]+$/)) {return true;}
+    else {return false;}
+  },
+
+  parseValueForSearch:(inputText: string) => {
+    return inputText.replace(/_/g, '').replace(/[dD]/g, '.');
+  },
+};
+
+const formatDecimal: ValueFormat = {
+  id: "decimal",
+  rightJustify: false,
+
+  formatString: (inputString: string, width: number, is2State: boolean) => {
+    let xzMask = "";
+    let numericalData = inputString;
+
+    if (!is2State) {
+      numericalData = inputString.replace(/[XZ]/i, "0");
+      xzMask = '|' +  inputString.replace(/[01]/g, "0");
+    }
+    const stringArray = numericalData.replace(/\B(?=(\d{32})+(?!\d))/g, "_").split("_");
+    return stringArray.map((chunk) => {return parseInt(chunk, 2).toString(10);}).join('_') + xzMask;
+  },
+
+  getTextWidth: (width: number) => {
+    const characterWidth = 7.69;
+    const numeralCount    = Math.ceil(Math.log10(width % 32)) + (10 * Math.floor((width) / 32));
+    const underscoreCount = Math.floor((width - 1) / 32);
+    return (numeralCount + underscoreCount) * characterWidth;
+  },
+
+  checkValid: (inputText: string) => {
+    if (inputText.match(/^[0-9xzXZ_,]+$/)) {return true;}
+    else {return false;}
+  },
+
+  parseValueForSearch: (inputText: string) => {
+    const result = inputText.replace(/,/g, '');
+    return result.split('_').map((n) => {
+      if (n === '') {return '';}
+      if (n.match(/[xXzZ]/)) {return '.{32}';}
+      return parseInt(n, 10).toString(2).padStart(32, '0');
+    }).join('');
+  },
+};
 
 class VaporviewWebview {
 
@@ -551,6 +668,7 @@ class VaporviewWebview {
           transitionCount++;
           viewerState.displayedSignals.forEach((n) => {
             const signal = waveDromData[n];
+            const parseValue = netlistData[n].valueFormat.formatString;
             let numberFormat = netlistData[n].numberFormat;
             if (!numberFormat) {numberFormat = 16;}
             if (signal.initialState === null) {signal.json.wave += '.';}
@@ -558,7 +676,7 @@ class VaporviewWebview {
               if (signal.signalWidth > 1) {
                 const is4State = valueIs9State(signal.initialState);
                 signal.json.wave += is4State ? "9" : "7";
-                signal.json.data.push(parseValue(signal.initialState, signal.signalWidth, is4State, numberFormat));
+                signal.json.data.push(parseValue(signal.initialState, signal.signalWidth, !is4State));
               } else {
                 signal.json.wave += signal.initialState;
               }
@@ -580,6 +698,7 @@ class VaporviewWebview {
         viewerState.displayedSignals.forEach((n) => {
           const signal = waveDromData[n];
           const signalData = signal.signalData;
+          const parseValue = netlistData[n].valueFormat.formatString;
           let numberFormat = netlistData[n].numberFormat;
             if (!numberFormat) {numberFormat = 16;}
           if (n === waveDromClock.netlistId) {signal.json.wave += edge;}
@@ -592,7 +711,7 @@ class VaporviewWebview {
               if (signal.signalWidth > 1) {
                 const is4State = valueIs9State(transition[1]);
                 signal.json.wave += is4State ? "9" : "7";
-                signal.json.data.push(parseValue(transition[1], signal.signalWidth, is4State, numberFormat));
+                signal.json.data.push(parseValue(transition[1], signal.signalWidth, !is4State));
               } else {
                 signal.json.wave += transition[1];
               }
@@ -664,6 +783,13 @@ class VaporviewWebview {
 
   setNumberFormat(numberFormat: number, netlistId: NetlistId) {
     if (netlistData[netlistId] === undefined) {return;}
+
+    switch (numberFormat) {
+      case 2:  netlistData[netlistId].valueFormat = formatBinary; break;
+      case 10: netlistData[netlistId].valueFormat = formatDecimal; break;
+      case 16: netlistData[netlistId].valueFormat = formatHex; break;
+      default: netlistData[netlistId].valueFormat = formatBinary; break;
+    }
   
     netlistData[netlistId].numberFormat  = numberFormat;
     netlistData[netlistId].vscodeContext = setSignalContextAttribute(netlistId);
@@ -716,6 +842,8 @@ class VaporviewWebview {
         modulePath:   signal.modulePath,
         numberFormat: signal.numberFormat,
         vscodeContext: "",
+        type:         signal.type,
+        valueFormat:  signal.signalWidth === 1 ? formatBinary : formatHex,
       };
       netlistData[netlistId].vscodeContext = setSignalContextAttribute(netlistId);
       netlistIdList.push(netlistId);
@@ -742,8 +870,7 @@ class VaporviewWebview {
   }
 
   udpateWaveformChunk(message: any) {
-    console.log('updateWaveformChunk');
-    console.log(message);
+
     const signalId = message.signalId;
     if (waveformDataTemp[signalId].totalChunks === 0) {
       waveformDataTemp[signalId].totalChunks = message.totalChunks;
@@ -812,11 +939,8 @@ class VaporviewWebview {
       case 'setNumberFormat':       {this.setNumberFormat(message.numberFormat, message.netlistId); break;}
       case 'setWaveDromClock':      {waveDromClock = {netlistId: message.netlistId, edge:  message.edge,}; break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
-      case 'setMarker':             {this.events.dispatch(ActionType.MarkerSet, message.time, 0); break; }
-      case 'setSelectedSignal':     {
-        console.log('setSelectedSignal');
-        console.log(message.netlistId);
-        this.events.dispatch(ActionType.SignalSelect, message.netlistId); break; }
+      case 'setMarker':             {this.events.dispatch(ActionType.MarkerSet, message.time, 0); break;}
+      case 'setSelectedSignal':     {this.events.dispatch(ActionType.SignalSelect, message.netlistId); break;}
       case 'getContext':            {sendWebviewContext(); break;}
       case 'copyWaveDrom':          {this.copyWaveDrom(); break;}
     }

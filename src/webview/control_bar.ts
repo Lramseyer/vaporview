@@ -11,6 +11,7 @@ export class ControlBar {
   private nextEdge: HTMLElement;
   private timeEquals: HTMLElement;
   private valueEquals: HTMLElement;
+  private valueEqualsSymbol: HTMLElement;
   private previousButton: HTMLElement;
   private nextButton: HTMLElement;
   private touchScroll: HTMLElement;
@@ -40,6 +41,7 @@ export class ControlBar {
     this.nextEdge      = document.getElementById('next-edge-button')!;
     this.timeEquals    = document.getElementById('time-equals-button')!;
     this.valueEquals   = document.getElementById('value-equals-button')!;
+    this.valueEqualsSymbol = document.getElementById('search-symbol')!;
     this.previousButton = document.getElementById('previous-button')!;
     this.nextButton    = document.getElementById('next-button')!;
     this.touchScroll   = document.getElementById('touchpad-scroll-button')!;
@@ -53,7 +55,7 @@ export class ControlBar {
         this.prevEdge === null || this.nextEdge === null || this.timeEquals === null ||
         this.valueEquals === null || this.previousButton === null || this.nextButton === null ||
         this.touchScroll === null || this.searchContainer === null || this.searchBar === null || 
-        this.valueIconRef === null) {
+        this.valueIconRef === null || this.valueEqualsSymbol === null) {
       throw new Error("Could not find all required elements");
     }
 
@@ -190,39 +192,6 @@ export class ControlBar {
     else {return false;}
   }
 
-  checkValidBinaryString(inputText: string) {
-    if (inputText.match(/^b?[01xzXZdD_]+$/)) {
-      this.parsedSearchValue = inputText.replace(/_/g, '').replace(/[dD]/g, '.');
-      return true;
-    } 
-    else {return false;}
-  }
-
-  checkValidHexString(inputText: string) {
-    if (inputText.match(/^(0x)?[0-9a-fA-FxzXZ_]+$/)) {
-      this.parsedSearchValue = inputText.replace(/_/g, '').replace(/^0x/i, '');
-      this.parsedSearchValue = this.parsedSearchValue.split('').map((c) => {
-        if (c.match(/[xXzZ]/)) {return '....';}
-        return parseInt(c, 16).toString(2).padStart(4, '0');
-      }).join('');
-      return true;
-    }
-    else {return false;}
-  }
-
-  checkValidDecimalString(inputText: string) {
-    if (inputText.match(/^[0-9xzXZ_,]+$/)) {
-      this.parsedSearchValue = inputText.replace(/,/g, '');
-      this.parsedSearchValue = this.parsedSearchValue.split('_').map((n) => {
-        if (n === '') {return '';}
-        if (n.match(/[xXzZ]/)) {return '.{32}';}
-        return parseInt(n, 10).toString(2).padStart(32, '0');
-      }).join('');
-      return true;
-    }
-    else {return false;}
-  }
-
   handleSearchBarKeyDown(event: KeyboardEvent) {
     if (event.key === 'Enter') {
       event.preventDefault();
@@ -234,17 +203,22 @@ export class ControlBar {
   handleSearchBarEntry(event: any) {
     const inputText  = this.searchBar.value;
     let inputValid   = true;
-    let numberFormat = 16;
-    if (viewerState.selectedSignal) {
-      numberFormat = netlistData[viewerState.selectedSignal].numberFormat;
-    }
+    console.log(viewerState.selectedSignal);
+    console.log(this.searchState);
+    if (viewerState.selectedSignal !== null) {
+      const format = netlistData[viewerState.selectedSignal].valueFormat;
+      const checkValid = format.checkValid;
+      const parseValue = format.parseValueForSearch;
   
-    // check to see that the input is valid
-    if (this.searchState === 0) {         inputValid = this.checkValidTimeString(inputText);
-    } else if (this.searchState === 1) {
-      if      (numberFormat === 2)  {inputValid = this.checkValidBinaryString(inputText);}
-      else if (numberFormat === 16) {inputValid = this.checkValidHexString(inputText);} 
-      else if (numberFormat === 10) {inputValid = this.checkValidDecimalString(inputText);}
+      // check to see that the input is valid
+      if (this.searchState === 0) {
+        inputValid = this.checkValidTimeString(inputText);
+      } else if (this.searchState === 1) {
+        inputValid = checkValid(inputText);
+        if (inputValid) {this.parsedSearchValue = parseValue(inputText);}
+        console.log(inputValid);
+        console.log(this.parsedSearchValue);
+      }
     }
   
     // Update UI accordingly
@@ -311,22 +285,14 @@ export class ControlBar {
 
   handleSignalSelect(netlistId: NetlistId) {
     if (netlistId === null) {return;}
-  
-    const numberFormat = netlistData[netlistId]?.numberFormat;
-  
+
     this.updateButtonsForSelectedWaveform(netlistData[netlistId].signalWidth);
-  
-    if (numberFormat === 2)  {this.valueIconRef.setAttribute('href', '#search-binary');}
-    if (numberFormat === 10) {this.valueIconRef.setAttribute('href', '#search-decimal');}
-    if (numberFormat === 16) {this.valueIconRef.setAttribute('href', '#search-hex');}
+    this.valueEqualsSymbol.textContent = netlistData[netlistId]?.valueFormat.symbolText;
   }
 
   handleRedrawVariable(netlistId: NetlistId) {
-    const numberFormat = netlistData[netlistId].numberFormat;
     if (netlistId === viewerState.selectedSignal) {
-      if (numberFormat === 2)  {this.valueIconRef.setAttribute('href', '#search-binary');}
-      if (numberFormat === 10) {this.valueIconRef.setAttribute('href', '#search-decimal');}
-      if (numberFormat === 16) {this.valueIconRef.setAttribute('href', '#search-hex');}
+      this.valueEqualsSymbol.textContent = netlistData[netlistId]?.valueFormat.symbolText;
     }
   }
 }

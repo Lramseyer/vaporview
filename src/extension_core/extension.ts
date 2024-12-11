@@ -80,21 +80,21 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   // Value Format commands
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsBinary', (e) => {
-    if (e.netlistId) {
-      viewerProvider.setValueFormat(e.netlistId, 2);
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsBinary', (e, a) => {
+    if (e.netlistId !== undefined) {
+      viewerProvider.setValueFormat(e.netlistId, "binary");
     }
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsHexadecimal', (e) => {
-    if (e.netlistId) {
-      viewerProvider.setValueFormat(e.netlistId, 16);
+    if (e.netlistId !== undefined) {
+      viewerProvider.setValueFormat(e.netlistId, "hexadecimal");
     }
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsDecimal', (e) => {
-    if (e.netlistId) {
-      viewerProvider.setValueFormat(e.netlistId, 10);
+    if (e.netlistId !== undefined) {
+      viewerProvider.setValueFormat(e.netlistId, "decimal");
     }
   }));
 

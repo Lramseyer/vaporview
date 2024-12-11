@@ -555,7 +555,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
   }
 
-  public setValueFormat(id: NetlistId, format: number) {
+  public setValueFormat(id: NetlistId, format: string) {
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.active) {return;}

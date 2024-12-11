@@ -113,7 +113,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     displayedSignals: [],
     zoomRatio: 1,
     scrollLeft: 0,
-    numberFormat: 16,
+    numberFormat: "hexadecimal",
   };
 
   static async create(
@@ -621,7 +621,7 @@ export class NetlistItem extends vscode.TreeItem {
   private _onDidChangeCheckboxState: vscode.EventEmitter<vscode.TreeItem | undefined | null> = new vscode.EventEmitter<vscode.TreeItem | undefined | null>();
   onDidChangeCheckboxState: vscode.Event<vscode.TreeItem | undefined | null> = this._onDidChangeCheckboxState.event;
 
-  public numberFormat: number;
+  public numberFormat: string;
 
   constructor(
     public readonly label:      string,
@@ -638,7 +638,7 @@ export class NetlistItem extends vscode.TreeItem {
     public checkboxState:    vscode.TreeItemCheckboxState | undefined = undefined // Display preference
   ) {
     super(label, collapsibleState);
-    this.numberFormat = 16;
+    this.numberFormat = "hexadecimal";
     if (collapsibleState === vscode.TreeItemCollapsibleState.None) {
       this.contextValue = 'netlistVar'; // Set a context value for leaf nodes
     } else {

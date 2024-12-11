@@ -2,6 +2,7 @@ import { error } from 'console';
 import { Viewport } from './viewport';
 import { LabelsPanels } from './labels';
 import { ControlBar } from './control_bar';
+import { formatBinary, formatHex, ValueFormat, valueFormatList } from './value_format';
 
 declare function acquireVsCodeApi(): VsCodeApi;
 export const vscode = acquireVsCodeApi();
@@ -13,23 +14,21 @@ interface VsCodeApi {
 
 export type NetlistId = number;
 export type SignalId  = number;
-export type NumberFormat = number;
 export type ValueChange = [number, string];
 export type NetlistData = {
   signalId: number;
   signalName: string;
   modulePath: string;
   signalWidth: number;
-  numberFormat: number;
   valueFormat: ValueFormat;
   vscodeContext: string;
   type: string;
+  textWidth: number;
 };
 
 export type WaveformData = {
   transitionData: any[];
   chunkStart: number[];
-  textWidth: number;
   signalWidth: number;
 };
 
@@ -132,72 +131,6 @@ export class EventHandler {
   }
 }
 
-
-// Parse VCD values into either binary, hex, or decimal
-// This function is so cursed...
-export function parseValueOld(binaryString: string, width: number, is4State: boolean, numberFormat: NumberFormat) {
-
-  let stringArray;
-
-  // If number format is binary
-  if (numberFormat === 2) {
-    return binaryString.replace(/\B(?=(\d{4})+(?!\d))/g, "_");
-  }
-
-  // If number format is hexadecimal
-  if (numberFormat === 16) {
-    if (is4State) {
-      stringArray = binaryString.replace(/\B(?=(.{4})+(?!.))/g, "_").split("_");
-      return stringArray.map((chunk) => {
-        if (chunk.match(/[zZ]/)) {return "Z";}
-        if (chunk.match(/[xX]/)) {return "X";}
-        return parseInt(chunk, 2).toString(numberFormat);
-      }).join('').replace(/\B(?=(.{4})+(?!.))/g, "_");
-    } else {
-      stringArray = binaryString.replace(/\B(?=(\d{16})+(?!\d))/g, "_").split("_");
-      return stringArray.map((chunk) => {
-        const digits = Math.ceil(chunk.length / 4);
-        return parseInt(chunk, 2).toString(numberFormat).padStart(digits, '0');
-      }).join('_');
-    }
-  }
-
-  let xzMask = "";
-  let numericalData = binaryString;
-
-  // If number format is decimal
-  if (numberFormat === 10) {
-    if (is4State) {
-      numericalData = binaryString.replace(/[XZ]/i, "0");
-      xzMask = '|' +  binaryString.replace(/[01]/g, "0");
-    }
-    stringArray = numericalData.replace(/\B(?=(\d{32})+(?!\d))/g, "_").split("_");
-    return stringArray.map((chunk) => {return parseInt(chunk, 2).toString(numberFormat);}).join('_') + xzMask;
-  }
-
-  return "";
-}
-
-export function getValueTextWidth(width: number, numberFormat: NumberFormat) {
-  const characterWidth = 7.69;
-  let   numeralCount   = 0;
-  let   underscoreCount = 0;
-
-  if (numberFormat === 2)  {
-    numeralCount    = width;
-    underscoreCount = Math.floor((width - 1) / 4);
-  } 
-  if (numberFormat === 16) {
-    numeralCount    = Math.ceil(width / 4);
-    underscoreCount = Math.floor((width - 1) / 16);
-  }
-  if (numberFormat === 10) {
-    numeralCount    = Math.ceil(Math.log10(width % 32)) + (10 * Math.floor((width) / 32));
-    underscoreCount = Math.floor((width - 1) / 32);
-  }
-  return (numeralCount + underscoreCount) * characterWidth;
-}
-
 export function valueIs4State(value: string) {
   if (value.match(/[xXzZ]/)) {return true;}
   else {return false;}
@@ -265,7 +198,6 @@ export function sendWebviewContext() {
 
 export function setSignalContextAttribute(netlistId: NetlistId) {
   const width        = netlistData[netlistId].signalWidth;
-  const numberFormat = netlistData[netlistId].numberFormat;
   const modulePath   = netlistData[netlistId].modulePath;
   const signalName   = netlistData[netlistId].signalName;
   //const attribute    = `data-vscode-context=${JSON.stringify({
@@ -276,125 +208,10 @@ export function setSignalContextAttribute(netlistId: NetlistId) {
     width: width,
     preventDefaultContextMenuItems: true,
     netlistId: netlistId,
-    numberFormat: numberFormat
   }).replace(/\s/g, '%x20')}`;
   return attribute;
 }
 
-export interface ValueFormat {
-  id: string;
-  rightJustify: boolean;
-  formatString: (value: string, width: number, is2State: boolean) => string;
-  getTextWidth: (width: number) => number;
-  checkValid: (value: string) => boolean;
-  parseValueForSearch: (value: string) => string;
-}
-
-const formatHex: ValueFormat = {
-  id: "hex",
-  rightJustify: true,
-
-  formatString: (inputString: string, width: number, is2State: boolean) => {
-  // If number format is hexadecimal
-    if (!is2State) {
-      const stringArray = inputString.replace(/\B(?=(.{4})+(?!.))/g, "_").split("_");
-      return stringArray.map((chunk) => {
-        if (chunk.match(/[zZ]/)) {return "Z";}
-        if (chunk.match(/[xX]/)) {return "X";}
-        return parseInt(chunk, 2).toString(16);
-      }).join('').replace(/\B(?=(.{4})+(?!.))/g, "_");
-    } else {
-      const stringArray = inputString.replace(/\B(?=(\d{16})+(?!\d))/g, "_").split("_");
-      return stringArray.map((chunk) => {
-        const digits = Math.ceil(chunk.length / 4);
-        return parseInt(chunk, 2).toString(16).padStart(digits, '0');
-      }).join('_');
-    }
-  },
-
-  getTextWidth: (width: number) => {
-    const characterWidth = 7.69;
-    const numeralCount    = Math.ceil(width / 4);
-    const underscoreCount = Math.floor((width - 1) / 16);
-    return (numeralCount + underscoreCount) * characterWidth;
-  },
-
-  checkValid: (inputText: string) => {
-    if (inputText.match(/^(0x)?[0-9a-fA-FxzXZ_]+$/)) {return true;}
-    else {return false;}
-  },
-
-  parseValueForSearch: (inputText: string) =>{
-    let result = inputText.replace(/_/g, '').replace(/^0x/i, '');
-    result = result.split('').map((c) => {
-      if (c.match(/[xXzZ]/)) {return '....';}
-      return parseInt(c, 16).toString(2).padStart(4, '0');
-    }).join('');
-    return result;
-  },
-};
-
-const formatBinary: ValueFormat = {
-  id: "binary",
-  rightJustify: true,
-  formatString: (inputString: string, width: number, is2State: boolean) => {
-    return inputString.replace(/\B(?=(\d{4})+(?!\d))/g, "_");
-  },
-
-  getTextWidth: (width: number) => {
-    const characterWidth = 7.69;
-    const numeralCount    = width;
-    const underscoreCount = Math.floor((width - 1) / 4);
-    return (numeralCount + underscoreCount) * characterWidth;
-  },
-
-  checkValid: (inputText: string) => {
-    if (inputText.match(/^b?[01xzXZdD_]+$/)) {return true;}
-    else {return false;}
-  },
-
-  parseValueForSearch:(inputText: string) => {
-    return inputText.replace(/_/g, '').replace(/[dD]/g, '.');
-  },
-};
-
-const formatDecimal: ValueFormat = {
-  id: "decimal",
-  rightJustify: false,
-
-  formatString: (inputString: string, width: number, is2State: boolean) => {
-    let xzMask = "";
-    let numericalData = inputString;
-
-    if (!is2State) {
-      numericalData = inputString.replace(/[XZ]/i, "0");
-      xzMask = '|' +  inputString.replace(/[01]/g, "0");
-    }
-    const stringArray = numericalData.replace(/\B(?=(\d{32})+(?!\d))/g, "_").split("_");
-    return stringArray.map((chunk) => {return parseInt(chunk, 2).toString(10);}).join('_') + xzMask;
-  },
-
-  getTextWidth: (width: number) => {
-    const characterWidth = 7.69;
-    const numeralCount    = Math.ceil(Math.log10(width % 32)) + (10 * Math.floor((width) / 32));
-    const underscoreCount = Math.floor((width - 1) / 32);
-    return (numeralCount + underscoreCount) * characterWidth;
-  },
-
-  checkValid: (inputText: string) => {
-    if (inputText.match(/^[0-9xzXZ_,]+$/)) {return true;}
-    else {return false;}
-  },
-
-  parseValueForSearch: (inputText: string) => {
-    const result = inputText.replace(/,/g, '');
-    return result.split('_').map((n) => {
-      if (n === '') {return '';}
-      if (n.match(/[xXzZ]/)) {return '.{32}';}
-      return parseInt(n, 10).toString(2).padStart(32, '0');
-    }).join('');
-  },
-};
 
 class VaporviewWebview {
 
@@ -669,8 +486,6 @@ class VaporviewWebview {
           viewerState.displayedSignals.forEach((n) => {
             const signal = waveDromData[n];
             const parseValue = netlistData[n].valueFormat.formatString;
-            let numberFormat = netlistData[n].numberFormat;
-            if (!numberFormat) {numberFormat = 16;}
             if (signal.initialState === null) {signal.json.wave += '.';}
             else {
               if (signal.signalWidth > 1) {
@@ -699,8 +514,6 @@ class VaporviewWebview {
           const signal = waveDromData[n];
           const signalData = signal.signalData;
           const parseValue = netlistData[n].valueFormat.formatString;
-          let numberFormat = netlistData[n].numberFormat;
-            if (!numberFormat) {numberFormat = 16;}
           if (n === waveDromClock.netlistId) {signal.json.wave += edge;}
           else {
             let transition = signalData.find((t: ValueChange) => t[0] >= currentTime && t[0] < nextEdge);
@@ -781,17 +594,22 @@ class VaporviewWebview {
     vscode.postMessage({type: 'ready'});
   }
 
-  setNumberFormat(numberFormat: number, netlistId: NetlistId) {
+  setNumberFormat(numberFormat: string, netlistId: NetlistId) {
     if (netlistData[netlistId] === undefined) {return;}
 
-    switch (numberFormat) {
-      case 2:  netlistData[netlistId].valueFormat = formatBinary; break;
-      case 10: netlistData[netlistId].valueFormat = formatDecimal; break;
-      case 16: netlistData[netlistId].valueFormat = formatHex; break;
-      default: netlistData[netlistId].valueFormat = formatBinary; break;
-    }
-  
-    netlistData[netlistId].numberFormat  = numberFormat;
+    let valueFormat = valueFormatList.find((format) => format.id === numberFormat);
+
+    if (valueFormat === undefined) {valueFormat = formatBinary;}
+
+    netlistData[netlistId].valueFormat = valueFormat;
+
+    //switch (numberFormat) {
+    //  case 2:  netlistData[netlistId].valueFormat = formatBinary; break;
+    //  case 10: netlistData[netlistId].valueFormat = formatDecimal; break;
+    //  case 16: netlistData[netlistId].valueFormat = formatHex; break;
+    //  default: netlistData[netlistId].valueFormat = formatBinary; break;
+    //}
+
     netlistData[netlistId].vscodeContext = setSignalContextAttribute(netlistId);
 
     this.events.dispatch(ActionType.RedrawVariable, netlistId);
@@ -840,11 +658,12 @@ class VaporviewWebview {
         signalWidth:  signal.signalWidth,
         signalName:   signal.signalName,
         modulePath:   signal.modulePath,
-        numberFormat: signal.numberFormat,
         vscodeContext: "",
         type:         signal.type,
         valueFormat:  signal.signalWidth === 1 ? formatBinary : formatHex,
+        textWidth:    0,
       };
+      netlistData[netlistId].textWidth = netlistData[netlistId].valueFormat.getTextWidth(netlistData[netlistId].signalWidth);
       netlistData[netlistId].vscodeContext = setSignalContextAttribute(netlistId);
       netlistIdList.push(netlistId);
 
@@ -887,12 +706,11 @@ class VaporviewWebview {
     //console.log('all chunks loaded');
 
     dataQueue.receive(signalId);
-    
+
     const netlistIdList = waveformDataTemp[signalId].netlistIdList;
     const netlistId     = netlistIdList[0];
     if (netlistId ===  undefined) {console.log('netlistId not found for signalId ' + signalId); return;}
     const signalWidth  = netlistData[netlistId].signalWidth;
-    const numberFormat = netlistData[netlistId].numberFormat;
     const nullValue = "X".repeat(signalWidth);
     const transitionData = JSON.parse(waveformDataTemp[signalId].chunkData.join(""));
     if (transitionData[0][0] !== 0) {
@@ -904,7 +722,6 @@ class VaporviewWebview {
     waveformData[signalId] = {
       transitionData: transitionData,
       signalWidth:    signalWidth,
-      textWidth:      getValueTextWidth(signalWidth, numberFormat),
       chunkStart:     [],
     };
 

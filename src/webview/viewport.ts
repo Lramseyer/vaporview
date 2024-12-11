@@ -1,4 +1,6 @@
-import { vscode, NetlistData, netlistData, WaveformData, waveformData, getValueTextWidth, valueIs9State, arrayMove, sendWebviewContext, NetlistId, SignalId, NumberFormat, ValueChange, ActionType, EventHandler, viewerState } from "./vaporview";
+import { vscode, NetlistData, netlistData, WaveformData, waveformData, valueIs9State, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState } from "./vaporview";
+import { ValueFormat } from './value_format';
+
 type DataCache = {
   startIndex: number;
   endIndex: number;
@@ -405,7 +407,7 @@ export class Viewport {
     //return resultFragment;
   }
 
-  binaryElementFromTransitionData(transitionData: ValueChange[], initialState: ValueChange, postState: ValueChange) {
+  binaryElementFromTransitionData(transitionData: ValueChange[], initialState: ValueChange, postState: ValueChange, signalWidth: number, textWidth: number, parseValue: (value: string, signalWidth: number, is2State: boolean) => string) {
     let initialValue       = initialState[1];
     let initialValue2state = initialValue;
     let initialTime        = initialState[0];
@@ -531,11 +533,10 @@ export class Viewport {
 
   createWaveformSVG(transitionData: ValueChange[], initialState: ValueChange, postState: ValueChange, width: number, chunkIndex: number, netlistId: NetlistId, textWidth: number) {
     let result;
+    const parseValue = netlistData[netlistId].valueFormat.formatString;
     if (width === 1) {
-      result = this.binaryElementFromTransitionData(transitionData, initialState, postState);
+      result = this.binaryElementFromTransitionData(transitionData, initialState, postState, width, textWidth, parseValue);
     } else {
-      const numberFormat  = netlistData[netlistId].numberFormat;
-      const parseValue    = netlistData[netlistId].valueFormat.formatString;
       result = this.busElementsfromTransitionData(transitionData, initialState, postState, width, textWidth, parseValue);
     }
     return result;
@@ -547,6 +548,7 @@ export class Viewport {
     const data          = waveformData[signalId];
     const element       = document.createElement('div');
     const vscodeContext = netlistData[netlistId].vscodeContext;
+    const textWidth     = netlistData[netlistId].textWidth;
     element.id          = 'idx' + chunkStartIndex + '-' + this.chunksInColumn + '--' + netlistId;
     element.classList.add('waveform-chunk');
     if (netlistId === viewerState.selectedSignal) {element.classList.add('is-selected');}
@@ -563,7 +565,6 @@ export class Viewport {
     const startIndex   = data.chunkStart[chunkStartIndex];
     const endIndex     = data.chunkStart[chunkStartIndex + this.chunksInColumn];
     const initialState = data.transitionData[startIndex - 1];
-    const textWidth    = data.textWidth;
 
     let postState: ValueChange;
     if (chunkStartIndex >= data.chunkStart.length - this.chunksInColumn) {

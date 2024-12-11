@@ -1,4 +1,5 @@
-import { EventHandler, viewport, NetlistData, arrayMove, NetlistId, ActionType, viewerState, waveformData, netlistData, getValueTextWidth, htmlSafe, htmlAttributeSafe, valueIs9State} from './vaporview';
+import { EventHandler, viewport, NetlistData, arrayMove, NetlistId, ActionType, viewerState, waveformData, netlistData, htmlSafe, htmlAttributeSafe, valueIs9State} from './vaporview';
+import { ValueFormat } from './value_format';
 
 export function createLabel(netlistId: NetlistId, isSelected: boolean) {
   //let selectorClass = 'is-idle';
@@ -23,7 +24,6 @@ export function createValueDisplayElement(netlistId: NetlistId, value: any, isSe
   const selectorClass = isSelected ? 'is-selected' : 'is-idle';
   const joinString    = '<p style="color:var(--vscode-foreground)">-></p>';
   const width         = data.signalWidth;
-  const numberFormat  = data.numberFormat;
   const parseValue    = data.valueFormat.formatString;
   const pElement      = value.map((v: string) => {
     const is9State     = valueIs9State(v);
@@ -115,14 +115,14 @@ export class LabelsPanels {
     const transitions: string[] = [];
     viewerState.displayedSignals.forEach((netlistId, index) => {
       const signalId     = netlistData[netlistId].signalId;
-      const numberFormat = netlistData[netlistId].numberFormat;
       const signalWidth  = netlistData[netlistId].signalWidth;
       const data           = waveformData[signalId];
       const isSelected   = (netlistId === viewerState.selectedSignal);
+      const getValueTextWidth = netlistData[netlistId].valueFormat.getTextWidth;
       this.labelsList.push(createLabel(netlistId, isSelected));
       transitions.push(createValueDisplayElement(netlistId, viewport.dataCache.valueAtMarker[signalId], isSelected));
       if (data) {
-        data.textWidth   = getValueTextWidth(signalWidth, numberFormat);
+        netlistData[netlistId].textWidth = getValueTextWidth(signalWidth);
       }
     });
     this.labels.innerHTML            = this.labelsList.join('');

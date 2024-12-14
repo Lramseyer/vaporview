@@ -36,9 +36,6 @@ VaporView associates timestamps and netlist paths as links in the terminal. Thes
 - **Alt + Up/Down Arrow** - Rearrange selected signal
 - **Ctrl + Left/Right Arrow** - Move marker to previous/next value transition of selected signal
 - **Alt + Click or Middle Click** - Set Alt-Marker
-
-#### New for 1.2.5
-
 - **Home** and **End** - Scroll to the beginning and end (respectively) of the waveform
 - **Delete** - Remove Selected Signal
 
@@ -140,27 +137,10 @@ This extension was designed on Vscode version 1.83
 
 # Development Roadmap
 
-## Upcoming Release 1.2.5
+## Upcoming Release 1.2.6
 
-- Improved performance when loading many variables in large FST dumps
-- Added Feature to reload a file
-- Keybindings:
-  - Fixed keybindings for Mac OS users
-  - Added **Home** and **End** to go to the beginning and end of a waveform dump
-  - Added **Delete** to remove a variable
-- Fixed 'webview is disposed' errors
-- Refactored Core Extension and Webview. Converted Webview to Typescript
-  - Organized functions into appropriate classes, and split into multiple files
-
-## 1.2.0 - Latest Release
-
-- Removed checkboxes for scope \[module\] items in netlist viewer to reduce confusion
-- File parsing uses the [wellen](https://github.com/ekiwi/wellen/tree/new-api) library compiled to wasm. Benefits include:
-  - FST and GHW file support
-  - Improves file parsing speed and memory efficiency (over storing everything in JS objects)
-- Variables loaded into viewer show up before waveform data is loaded as a better visual acknowledgement to user action
-- Scroll Position now limited to end of trace rather than the end of the last chunk
-- Save/Load viewer settings has been added as context menu item for easier access
+- Adding support support for more datatypes
+  - TBD
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

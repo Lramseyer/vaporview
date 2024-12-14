@@ -1,4 +1,4 @@
-import {ActionType, EventHandler, NetlistId, viewerState, waveformData, netlistData, viewport} from './vaporview';
+import {ActionType, EventHandler, NetlistId, viewerState, viewport, dataManager} from './vaporview';
 
 export class ControlBar {
   private zoomInButton: HTMLElement;
@@ -99,8 +99,8 @@ export class ControlBar {
 
     if (viewerState.markerTime === null) {return;}
   
-    const signalId = netlistData[viewerState.selectedSignal].signalId;
-    const data     = waveformData[signalId];
+    const signalId = dataManager.netlistData[viewerState.selectedSignal].signalId;
+    const data     = dataManager.valueChangeData[signalId];
     const time     = viewerState.markerTime;
     let timeIndex;
     let indexIncrement;
@@ -206,7 +206,7 @@ export class ControlBar {
     console.log(viewerState.selectedSignal);
     console.log(this.searchState);
     if (viewerState.selectedSignal !== null) {
-      const format = netlistData[viewerState.selectedSignal].valueFormat;
+      const format = dataManager.netlistData[viewerState.selectedSignal].valueFormat;
       const checkValid = format.checkValid;
       const parseValue = format.parseValueForSearch;
   
@@ -243,17 +243,17 @@ export class ControlBar {
     let startTime = viewerState.markerTime;
     if (startTime === null) {startTime = 0;}
   
-    const signalId = netlistData[viewerState.selectedSignal].signalId;
+    const signalId = dataManager.netlistData[viewerState.selectedSignal].signalId;
   
     if (this.searchState === 0 && direction === 1) {
       //this.handleMarkerSet(parseInt(this.parsedSearchValue), 0);
       this.events.dispatch(ActionType.MarkerSet, parseInt(this.parsedSearchValue), 0);
     } else {
-      const signalWidth      = waveformData[signalId].signalWidth;
+      const signalWidth      = dataManager.valueChangeData[signalId].signalWidth;
       let trimmedSearchValue = this.parsedSearchValue;
       if (this.parsedSearchValue.length > signalWidth) {trimmedSearchValue = this.parsedSearchValue.slice(-1 * signalWidth);}
       const searchRegex = new RegExp(trimmedSearchValue, 'ig');
-      const data      = waveformData[signalId];
+      const data      = dataManager.valueChangeData[signalId];
       const timeIndex = data.transitionData.findIndex(([t, v]) => {return t >= startTime;});
       let indexOffset = 0;
   
@@ -286,13 +286,13 @@ export class ControlBar {
   handleSignalSelect(netlistId: NetlistId) {
     if (netlistId === null) {return;}
 
-    this.updateButtonsForSelectedWaveform(netlistData[netlistId].signalWidth);
-    this.valueEqualsSymbol.textContent = netlistData[netlistId]?.valueFormat.symbolText;
+    this.updateButtonsForSelectedWaveform(dataManager.netlistData[netlistId].signalWidth);
+    this.valueEqualsSymbol.textContent = dataManager.netlistData[netlistId]?.valueFormat.symbolText;
   }
 
   handleRedrawVariable(netlistId: NetlistId) {
     if (netlistId === viewerState.selectedSignal) {
-      this.valueEqualsSymbol.textContent = netlistData[netlistId]?.valueFormat.symbolText;
+      this.valueEqualsSymbol.textContent = dataManager.netlistData[netlistId]?.valueFormat.symbolText;
     }
   }
 }

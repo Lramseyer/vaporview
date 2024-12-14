@@ -341,6 +341,7 @@ impl Guest for Filecontext {
       let name = var.name(&hierarchy).to_string();
       let id = v.index();
       let tpe = format!("{:?}", var.var_type());
+      let encoding = format!("{:?}", var.signal_encoding());
       let width = var.length().unwrap_or(0);
       let signal_ref = var.signal_ref().index();
       let mut msb: i32 = -1;
@@ -350,8 +351,8 @@ impl Guest for Filecontext {
         Some(b) => {msb = b.msb() as i32; lsb = b.lsb() as i32;},
         None => {}
       }
-      let var_string = format!("{{\"name\": {:?},\"netlistId\": {:?},\"signalId\": {:?},\"type\": {:?},\"width\": {:?}, \"msb\": {:?}, \"lsb\": {:?}}}", name, id, signal_ref, tpe, width, msb, lsb);
-      
+      let var_string = format!("{{\"name\": {:?},\"netlistId\": {:?},\"signalId\": {:?},\"type\": {:?},\"encoding\": {:?}, \"width\": {:?}, \"msb\": {:?}, \"lsb\": {:?}}}", name, id, signal_ref, tpe, encoding, width, msb, lsb);
+
       items_returned += 1;
       return_length += (var_string.len() as u32) + 1;
       child_vars_string.push(var_string);

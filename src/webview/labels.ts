@@ -1,13 +1,14 @@
-import { EventHandler, viewport, NetlistData, arrayMove, NetlistId, ActionType, viewerState, waveformData, netlistData, htmlSafe, htmlAttributeSafe, valueIs9State} from './vaporview';
+import { EventHandler, viewport, NetlistData, arrayMove, NetlistId, ActionType, viewerState, valueIs9State, dataManager} from './vaporview';
 import { ValueFormat } from './value_format';
 
 export function createLabel(netlistId: NetlistId, isSelected: boolean) {
   //let selectorClass = 'is-idle';
   //if (isSelected) {selectorClass = 'is-selected';}
-  const vscodeContext = netlistData[netlistId].vscodeContext;
+  const netlistData   = dataManager.netlistData[netlistId];
+  const vscodeContext = netlistData.vscodeContext;
   const selectorClass = isSelected ? 'is-selected' : 'is-idle';
-  const signalName    = htmlSafe(netlistData[netlistId].signalName);
-  const modulePath    = htmlSafe(netlistData[netlistId].modulePath + '.');
+  const signalName    = htmlSafe(netlistData.signalName);
+  const modulePath    = htmlSafe(netlistData.modulePath + '.');
   const fullPath      = htmlAttributeSafe(modulePath + signalName);
   return `<div class="waveform-label ${selectorClass}" id="label-${netlistId}" title="${fullPath}" data-vscode-context=${vscodeContext}>
             <div class='codicon codicon-grabber'></div>
@@ -19,7 +20,7 @@ export function createValueDisplayElement(netlistId: NetlistId, value: any, isSe
 
   if (value === undefined) {value = [];}
 
-  const data          = netlistData[netlistId];
+  const data          = dataManager.netlistData[netlistId];
   const vscodeContext = data.vscodeContext;
   const selectorClass = isSelected ? 'is-selected' : 'is-idle';
   const joinString    = '<p style="color:var(--vscode-foreground)">-></p>';
@@ -33,6 +34,14 @@ export function createValueDisplayElement(netlistId: NetlistId, value: any, isSe
   }).join(joinString);
 
   return `<div class="waveform-label ${selectorClass}" id="value-${netlistId}" ${vscodeContext}>${pElement}</div>`;
+}
+
+export function htmlSafe(string: string) {
+  return string.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+export function htmlAttributeSafe(string: string) {
+  return string.replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 
 export class LabelsPanels {
@@ -114,16 +123,9 @@ export class LabelsPanels {
     this.labelsList  = [];
     const transitions: string[] = [];
     viewerState.displayedSignals.forEach((netlistId, index) => {
-      const signalId     = netlistData[netlistId].signalId;
-      const signalWidth  = netlistData[netlistId].signalWidth;
-      const data           = waveformData[signalId];
-      const isSelected   = (netlistId === viewerState.selectedSignal);
-      const getValueTextWidth = netlistData[netlistId].valueFormat.getTextWidth;
+      const isSelected  = (netlistId === viewerState.selectedSignal);
       this.labelsList.push(createLabel(netlistId, isSelected));
-      transitions.push(createValueDisplayElement(netlistId, viewport.dataCache.valueAtMarker[signalId], isSelected));
-      if (data) {
-        netlistData[netlistId].textWidth = getValueTextWidth(signalWidth);
-      }
+      transitions.push(createValueDisplayElement(netlistId, viewport.dataCache.valueAtMarker[netlistId], isSelected));
     });
     this.labels.innerHTML            = this.labelsList.join('');
     this.transitionDisplay.innerHTML = transitions.join('');
@@ -298,8 +300,7 @@ export class LabelsPanels {
 
     if (markerType === 0) {
       viewerState.displayedSignals.forEach((netlistId) => {
-        const signalId = netlistData[netlistId].signalId;
-        viewport.dataCache.valueAtMarker[signalId] = viewport.getValueAtTime(signalId, time);
+        viewport.dataCache.valueAtMarker[netlistId] = dataManager.getValueAtTime(netlistId, time);
       });
 
       this.renderLabelsPanels();

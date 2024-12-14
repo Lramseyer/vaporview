@@ -1,6 +1,10 @@
 # Change Log
 
-## Upcoming Release 1.2.5
+## Upcoming release 1.2.6
+
+- None yet
+
+## 1.2.5
 
 - Improved performance when loading many variables in large FST dumps
 - Added Feature to reload a file

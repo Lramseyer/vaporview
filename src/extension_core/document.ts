@@ -46,7 +46,7 @@ export function createScope(name: string, type: string, path: string, netlistId:
   if      (typename === 'module' ) {icon = moduleIcon;} 
   else if (typename === 'function') {icon = funcIcon;}
 
-  const module    = new NetlistItem(name, 'module', 0, 0, netlistId, name, path, 0, 0, [], vscode.TreeItemCollapsibleState.Collapsed);
+  const module    = new NetlistItem(name, 'module', 'none', 0, 0, netlistId, name, path, 0, 0, [], vscode.TreeItemCollapsibleState.Collapsed);
   module.iconPath = icon;
 
   return module;
@@ -57,10 +57,10 @@ function bitRangeString(msb: number, lsb: number): string {
   if (msb === lsb) {return " [" + msb + "]";}
   return " [" + msb + ":" + lsb + "]";
 }
-  
-export function createVar(name: string, type: string, path: string, netlistId: NetlistId, signalId: SignalId, width: number, msb: number, lsb: number) {
+
+export function createVar(name: string, type: string, encoding: string, path: string, netlistId: NetlistId, signalId: SignalId, width: number, msb: number, lsb: number) {
   const field = bitRangeString(msb, lsb);
-  const variable = new NetlistItem(name + field, type, width, signalId, netlistId, name, path, msb, lsb, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked);
+  const variable = new NetlistItem(name + field, type, encoding, width, signalId, netlistId, name, path, msb, lsb, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked);
   const typename = type.toLocaleLowerCase();
   if ((typename === 'wire') || (typename === 'reg')) {
     if (width > 1) {variable.iconPath = regIcon;}
@@ -326,12 +326,13 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       if (!metadata) {return;}
 
       signalList.push({
-        netlistId:  metadata.netlistId,
-        signalId:   metadata.signalId,
+        signalId:    metadata.signalId,
         signalWidth: metadata.width,
-        signalName: metadata.name,
-        modulePath: metadata.modulePath,
-        numberFormat: metadata.numberFormat
+        signalName:  metadata.name,
+        modulePath:  metadata.modulePath,
+        netlistId:   metadata.netlistId,
+        type:        metadata.type,
+        encoding:    metadata.encoding,
      });
     });
     this.webviewPanel.webview.postMessage({
@@ -390,7 +391,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       childItems.vars.forEach((child: any) => {
         // Need to handle the case where we get a variable with the same name but
         // different bit ranges.
-        const varItem = createVar(child.name, child.type, modulePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb);
+        const encoding = child.encoding.split('(')[0];
+        const varItem = createVar(child.name, child.type, encoding, modulePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb);
         if (varTable[child.name] === undefined) {
           varTable[child.name] = [varItem];
         } else {
@@ -587,7 +589,7 @@ export class DisplayedSignalsViewProvider implements vscode.TreeDataProvider<Net
 
   public addSignalToTreeData(netlistItem: NetlistItem): NetlistItem {
     const n = netlistItem;
-    const displayedItem = new NetlistItem(n.label, n.type, n.width, n.signalId, n.netlistId, n.name, n.modulePath, n.msb, n.lsb, n.children, vscode.TreeItemCollapsibleState.None, n.checkboxState);
+    const displayedItem = new NetlistItem(n.label, n.type, n.encoding, n.width, n.signalId, n.netlistId, n.name, n.modulePath, n.msb, n.lsb, n.children, vscode.TreeItemCollapsibleState.None, n.checkboxState);
     displayedItem.iconPath = n.iconPath;
     this.treeData.push(displayedItem);
     this._onDidChangeTreeData.fire(undefined); // Trigger a refresh of the Netlist view
@@ -626,6 +628,7 @@ export class NetlistItem extends vscode.TreeItem {
   constructor(
     public readonly label:      string,
     public readonly type:       string,
+    public readonly encoding:   string,
     public readonly width:      number,
     public readonly signalId:   SignalId, // Signal-specific information
     public readonly netlistId:  NetlistId, // Netlist-specific information

@@ -1,6 +1,15 @@
 // This section defines all of the different ways we can display the various values
 // in the waveform viewer. The interface is defined by the ValueFormat interface:
 
+export function  valueIs9State(value: string): boolean {
+  if (value.match(/[uxzwlh-]/)) {return true;}
+  return false;
+}
+
+function formatBinaryString(inputString: string) {
+  return inputString.replace(/\B(?=(\d{4})+(?!\d))/g, "_");
+}
+
 export interface ValueFormat {
   // Unique identifier for the format
   id: string;
@@ -23,6 +32,9 @@ export interface ValueFormat {
 
   // Function to parse the value back to a binary string for searching
   parseValueForSearch: (value: string) => string;
+
+  // Function to check if the value is a 9-state value
+  is9State: (value: string) => boolean;
 }
 
 // #region Format Hexadecimal
@@ -36,8 +48,14 @@ export const formatHex: ValueFormat = {
     if (!is2State) {
       const stringArray = inputString.replace(/\B(?=(.{4})+(?!.))/g, "_").split("_");
       return stringArray.map((chunk) => {
-        if (chunk.match(/[zZ]/)) {return "Z";}
-        if (chunk.match(/[xX]/)) {return "X";}
+
+        if (chunk.match(/[z]/)) {return "z";}
+        if (chunk.match(/[x]/)) {return "x";}
+        if (chunk.match(/[u]/)) {return "u";}
+        if (chunk.match(/[w]/)) {return "w";}
+        if (chunk.match(/[l]/)) {return "l";}
+        if (chunk.match(/[h]/)) {return "h";}
+        if (chunk.match(/[-]/)) {return "-";}
         return parseInt(chunk, 2).toString(16);
       }).join('').replace(/\B(?=(.{4})+(?!.))/g, "_");
     } else {
@@ -69,6 +87,8 @@ export const formatHex: ValueFormat = {
     }).join('');
     return result;
   },
+
+  is9State: valueIs9State,
 };
 
 // #region Format Binary
@@ -96,6 +116,8 @@ export const formatBinary: ValueFormat = {
   parseValueForSearch:(inputText: string) => {
     return inputText.replace(/_/g, '').replace(/[dD]/g, '.');
   },
+
+  is9State: valueIs9State,
 };
 
 // #region Format Decimal
@@ -136,6 +158,32 @@ const formatDecimal: ValueFormat = {
       return parseInt(n, 10).toString(2).padStart(32, '0');
     }).join('');
   },
+
+  is9State: valueIs9State,
 };
 
-export const valueFormatList: ValueFormat[] = [formatBinary, formatHex, formatDecimal];
+export const formatString: ValueFormat = {
+  id: "string",
+  rightJustify: false,
+  symbolText: "str",
+
+  formatString: (inputString: string, width: number, is2State: boolean) => {
+    return inputString;
+  },
+
+  getTextWidth: (width: number) => {
+    return width * 7.69;
+  },
+
+  checkValid: (inputText: string) => {
+    return true;
+  },
+
+  parseValueForSearch: (inputText: string) => {
+    return inputText;
+  },
+
+  is9State: () => {return false;},
+};
+
+export const valueFormatList: ValueFormat[] = [formatBinary, formatHex, formatDecimal, formatString];

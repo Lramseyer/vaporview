@@ -2,7 +2,9 @@
 
 ## Upcoming release 1.2.6
 
-- None yet
+- Added GHW file support
+- Added Support for Real and String datatypes
+- Improved 9 state rendering
 
 ## 1.2.5
 

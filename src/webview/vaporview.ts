@@ -88,11 +88,6 @@ export class EventHandler {
   }
 }
 
-export function  valueIs9State(value: string): boolean {
-  if (value.match(/[UuXxZzWwLlHh-]/)) {return true;}
-  return false;
-}
-
 // Event handler helper functions
 export function arrayMove(array: any[], fromIndex: number, toIndex: number) {
   const element = array[fromIndex];

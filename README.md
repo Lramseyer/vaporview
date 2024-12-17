@@ -139,8 +139,9 @@ This extension was designed on Vscode version 1.83
 
 ## Upcoming Release 1.2.6
 
-- Adding support support for more datatypes
-  - TBD
+- Added GHW file support
+- Added Support for Real and String datatypes
+- Improved 9 state rendering
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 
@@ -151,8 +152,6 @@ In no particular order of priority, here's a list of features that are on my rad
 - Datatypes
   - Float 8 - 64, signed integers
   - Add support for custom Enums and named values. Including callback functions for those daring enough!
-  - Reals
-  - Strings
 - Improve renderer to better render non-2 state
 - Add support to highlight all transitions of a signal
 - Add support for custom colors - waiting for the VScode API to allow access to semantic token colors - [Github issue](https://github.com/microsoft/vscode/issues/32813)

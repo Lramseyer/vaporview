@@ -1,5 +1,4 @@
 import { NetlistData } from './vaporview';
-import { valueIs9State } from './vaporview';
 
 export interface WaveformRenderer {
   id: string;
@@ -76,6 +75,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     const signalWidth    = netlistData.signalWidth;
     const textWidth      = netlistData.textWidth;
     const parseValue     = netlistData.valueFormat.formatString;
+    const valueIs9State  = netlistData.valueFormat.is9State;
 
     let elementWidth;
     let is4State        = false;
@@ -224,6 +224,7 @@ export const binaryWaveformRenderer: WaveformRenderer = {
     const drawColor        = "var(--vscode-debugTokenExpression-number)";
     const xzColor          = "var(--vscode-debugTokenExpression-error)";
     const columnTime       = viewportSpecs.columnTime.toString();
+    const valueIs9State    = netlistData.valueFormat.is9State;
 
     if (valueIs9State(initialValue)) {
       initialValue2state = "0";

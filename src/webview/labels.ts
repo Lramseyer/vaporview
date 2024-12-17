@@ -1,4 +1,4 @@
-import { EventHandler, viewport, NetlistData, arrayMove, NetlistId, ActionType, viewerState, valueIs9State, dataManager} from './vaporview';
+import { EventHandler, viewport, NetlistData, arrayMove, NetlistId, ActionType, viewerState, dataManager} from './vaporview';
 import { ValueFormat } from './value_format';
 
 export function createLabel(netlistId: NetlistId, isSelected: boolean) {
@@ -26,6 +26,7 @@ export function createValueDisplayElement(netlistId: NetlistId, value: any, isSe
   const joinString    = '<p style="color:var(--vscode-foreground)">-></p>';
   const width         = data.signalWidth;
   const parseValue    = data.valueFormat.formatString;
+  const valueIs9State = data.valueFormat.is9State;
   const pElement      = value.map((v: string) => {
     const is9State     = valueIs9State(v);
     const color        = is9State ? 'style="color:var(--vscode-debugTokenExpression-error)"' : '';

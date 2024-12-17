@@ -1,4 +1,4 @@
-import { vscode, NetlistData,  WaveformData,  valueIs9State, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager } from "./vaporview";
+import { vscode, NetlistData,  WaveformData, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 
@@ -21,44 +21,6 @@ type columnCache = {
   abortFlag: boolean;
   isSafeToRemove: boolean;
 };
-
-class FrameMonitor {
-  private lastFrameTime: number = 0;
-  private frameDeltas: number[] = [];
-  private readonly targetFPS = 60;
-  private readonly targetFrameTime = 1000 / this.targetFPS;
-  private readonly maxSamples = 30;
-  private readonly threshold = 0.8; // 80% of target frame time
-  private readonly maxBatchSize = 128;
-  private readonly minBatchSize = 1;
-  public batchSize = 8;
-
-  measureFrame(): void {
-    const now = performance.now();
-    if (this.lastFrameTime) {
-      const delta = now - this.lastFrameTime;
-      this.frameDeltas.push(delta);
-      if (this.frameDeltas.length > this.maxSamples) {
-        this.frameDeltas.shift();
-      }
-    }
-    this.lastFrameTime = now;
-  }
-
-  getAverageFrameTime(): number {
-    if (this.frameDeltas.length === 0) return 0;
-    return this.frameDeltas.reduce((a, b) => a + b) / this.frameDeltas.length;
-  }
-
-  updateBatchSize(): void {
-    this.measureFrame();
-    if (this.getAverageFrameTime() > this.targetFrameTime * this.threshold) {
-      this.batchSize = Math.max(this.minBatchSize, this.batchSize - 2);
-    } else {
-      this.batchSize = Math.min(this.maxBatchSize, this.batchSize + 1);
-    }
-  }
-}
 
 const domParser = new DOMParser();
 
@@ -126,7 +88,7 @@ export class Viewport {
   };
 
   mutationObserver: MutationObserver;
-  frameMonitor: FrameMonitor = new FrameMonitor();
+  public batchSize = 8;
 
   constructor(
     private events: EventHandler,
@@ -370,7 +332,7 @@ export class Viewport {
 
     try {
 
-      const sliceSize = this.frameMonitor.batchSize;
+      const sliceSize = this.batchSize;
       // Render each waveform chunk asynchronously
       for (let i = 0; i < viewerState.displayedSignals.length; i+= sliceSize) {
         const slice = viewerState.displayedSignals.slice(i, i + sliceSize);
@@ -401,7 +363,6 @@ export class Viewport {
           domRef.replaceChildren(...orderedElements);
           node.classList.remove('rendering-chunk');
         }
-        //this.frameMonitor.updateBatchSize();
         resolve();
       }));
 

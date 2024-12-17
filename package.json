@@ -21,6 +21,7 @@
     "Viewer",
     "VCD",
     "FST",
+    "GHW",
     "Logic Simulation",
     "Logic Analyzer"
   ],
@@ -62,6 +63,9 @@
           },
           {
             "filenamePattern": "*.fst"
+          },
+          {
+            "filenamePattern": "*.ghw"
           }
         ]
       }

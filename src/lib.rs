@@ -405,17 +405,10 @@ impl Guest for Filecontext {
       //log(&format!("Total Time Indices: {:?}", time_index.len()));
       let mut i: usize = 0;
       for (_, value) in transitions {
-        match value.to_bit_string() {
-          Some(v) => {
-          
-            let time = time_table[time_index[i] as usize];
-            result.push_str(&format!("[{:?},{:?}],", time, v));
-            //result.push_str(&format!("[{:?},{:?}],", time_index[i], v));
-            //result.push_str(&format!("{:?},", v));
-            i += 1;
-          },
-          None => {}
-        }
+        let v = value.to_string();
+        let time = time_table[time_index[i] as usize];
+        result.push_str(&format!("[{:?},{:?}],", time, v));
+        i += 1;
       }
 
       //log(&format!("Signal Data Orgainzed!"));

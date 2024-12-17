@@ -616,13 +616,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     console.log(metadata);
 
-    if (metadata.type === 'Real') {
-      console.log('Real signals are not supported in the waveform viewer.');
-      vscode.window.showWarningMessage('Real signals are not supported in the waveform viewer.');
-      this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Unchecked);
-      return;
-    }
-
     if (metadata.checkboxState === vscode.TreeItemCheckboxState.Checked) {
       this.addSignalsToDocument([metadata]);
     } else if (metadata.checkboxState === vscode.TreeItemCheckboxState.Unchecked) {

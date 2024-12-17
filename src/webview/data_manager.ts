@@ -1,5 +1,5 @@
-import { NetlistData, SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport, valueIs9State} from './vaporview';
-import { formatBinary, formatHex, ValueFormat, valueFormatList } from './value_format';
+import { NetlistData, SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport } from './vaporview';
+import { formatBinary, formatHex, ValueFormat, formatString, valueFormatList } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 
 export class WaveformDataManager {
@@ -77,6 +77,10 @@ export class WaveformDataManager {
       const netlistId      = signal.netlistId;
       const signalId       = signal.signalId;
 
+      let valueFormat;
+      if (signal.encoding === "String" || signal.encoding === "Real") {valueFormat = formatString;}
+      else {valueFormat = signal.signalWidth === 1 ? formatBinary : formatHex;}
+
       this.netlistData[netlistId] = {
         signalId:     signalId,
         signalWidth:  signal.signalWidth,
@@ -85,7 +89,7 @@ export class WaveformDataManager {
         variableType: signal.type,
         encoding:     signal.encoding,
         vscodeContext: "",
-        valueFormat:  signal.signalWidth === 1 ? formatBinary : formatHex,
+        valueFormat:  valueFormat,
         renderType:   signal.signalWidth === 1 ? binaryWaveformRenderer : multiBitWaveformRenderer,
         textWidth:    0,
       };
@@ -137,7 +141,7 @@ export class WaveformDataManager {
     const netlistId     = netlistIdList[0];
     if (netlistId ===  undefined) {console.log('netlistId not found for signalId ' + signalId); return;}
     const signalWidth  = this.netlistData[netlistId].signalWidth;
-    const nullValue = "X".repeat(signalWidth);
+    const nullValue = "x".repeat(signalWidth);
     const transitionData = JSON.parse(this.valueChangeDataTemp[signalId].chunkData.join(""));
     if (transitionData[0][0] !== 0) {
       transitionData.unshift([0, nullValue]);
@@ -329,6 +333,7 @@ export class WaveformDataManager {
           viewerState.displayedSignals.forEach((n) => {
             const signal = waveDromData[n];
             const parseValue = this.netlistData[n].valueFormat.formatString;
+            const valueIs9State = this.netlistData[n].valueFormat.is9State;
             if (signal.initialState === null) {signal.json.wave += '.';}
             else {
               if (signal.signalWidth > 1) {
@@ -357,6 +362,7 @@ export class WaveformDataManager {
           const signal = waveDromData[n];
           const signalData = signal.signalData;
           const parseValue = this.netlistData[n].valueFormat.formatString;
+          const valueIs9State = this.netlistData[n].valueFormat.is9State;
           if (n === this.waveDromClock.netlistId) {signal.json.wave += edge;}
           else {
             let transition = signalData.find((t: ValueChange) => t[0] >= currentTime && t[0] < nextEdge);

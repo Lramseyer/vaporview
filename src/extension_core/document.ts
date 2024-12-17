@@ -208,6 +208,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     },
     sendtransitiondatachunk: (signalid: number, totalchunks: number, chunknum: number, transitionData: string) => {
 
+      console.log(transitionData);
       this.webviewPanel?.webview.postMessage({
         command: 'update-waveform-chunk',
         signalId: signalid,

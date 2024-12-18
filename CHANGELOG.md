@@ -1,6 +1,6 @@
 # Change Log
 
-## Upcoming release 1.2.6
+## 1.2.6
 
 - Added GHW file support
 - Added Support for Real and String datatypes

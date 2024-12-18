@@ -137,11 +137,14 @@ This extension was designed on Vscode version 1.83
 
 # Development Roadmap
 
-## Upcoming Release 1.2.6
+## Release 1.2.6
 
 - Added GHW file support
 - Added Support for Real and String datatypes
 - Improved 9 state rendering
+- Added Octal number formatting
+- Fixed Binary display formatting with 9 satate values
+- Added more Netlist View icons, and colored them consistentely
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

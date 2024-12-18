@@ -1,5 +1,10 @@
 import { NetlistData } from './vaporview';
 
+// blue   --vscode-debugView-valueChangedHighlight
+// green  --vscode-debugTokenExpression-number
+// orange --vscode-debugTokenExpression-string
+// purple --vscode-debugTokenExpression-name
+
 export interface WaveformRenderer {
   id: string;
   createSvgFromValueChangeChunk(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: any): string;

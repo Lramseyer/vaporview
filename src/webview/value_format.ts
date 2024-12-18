@@ -7,7 +7,7 @@ export function  valueIs9State(value: string): boolean {
 }
 
 function formatBinaryString(inputString: string) {
-  return inputString.replace(/\B(?=(\d{4})+(?!\d))/g, "_");
+  return inputString.replace(/\B(?=(\w{4})+(?!\w))/g, "_");
 }
 
 export interface ValueFormat {
@@ -91,15 +91,66 @@ export const formatHex: ValueFormat = {
   is9State: valueIs9State,
 };
 
+// #region Format Octal
+export const formatOctal: ValueFormat = {
+  id: "octal",
+  rightJustify: true,
+  symbolText: "oct",
+
+  formatString: (inputString: string, width: number, is2State: boolean) => {
+  // If number format is hexadecimal
+    if (!is2State) {
+      const stringArray = inputString.replace(/\B(?=(.{3})+(?!.))/g, "_").split("_");
+      return stringArray.map((chunk) => {
+
+        if (chunk.match(/[z]/)) {return "z";}
+        if (chunk.match(/[x]/)) {return "x";}
+        if (chunk.match(/[u]/)) {return "u";}
+        if (chunk.match(/[w]/)) {return "w";}
+        if (chunk.match(/[l]/)) {return "l";}
+        if (chunk.match(/[h]/)) {return "h";}
+        if (chunk.match(/[-]/)) {return "-";}
+        return parseInt(chunk, 2).toString(16);
+      }).join('');
+    } else {
+      const stringArray = inputString.replace(/\B(?=(\d{3})+(?!\d))/g, "_").split("_");
+      return stringArray.map((chunk) => {
+        const digits = Math.ceil(chunk.length / 3);
+        return parseInt(chunk, 2).toString(8).padStart(digits, '0');
+      }).join('');
+    }
+  },
+
+  getTextWidth: (width: number) => {
+    const characterWidth = 7.69;
+    const numeralCount    = Math.ceil(width / 3);
+    return numeralCount * characterWidth;
+  },
+
+  checkValid: (inputText: string) => {
+    if (inputText.match(/^[0-7xzXZ_]+$/)) {return true;}
+    else {return false;}
+  },
+
+  parseValueForSearch: (inputText: string) =>{
+    let result = inputText.replace(/_/g, '');
+    result = result.split('').map((c) => {
+      if (c.match(/[xXzZ]/)) {return '....';}
+      return parseInt(c, 8).toString(2).padStart(3, '0');
+    }).join('');
+    return result;
+  },
+
+  is9State: valueIs9State,
+};
+
 // #region Format Binary
 export const formatBinary: ValueFormat = {
   id: "binary",
   rightJustify: true,
   symbolText: "bin",
 
-  formatString: (inputString: string, width: number, is2State: boolean) => {
-    return inputString.replace(/\B(?=(\d{4})+(?!\d))/g, "_");
-  },
+  formatString: formatBinaryString,
 
   getTextWidth: (width: number) => {
     const characterWidth = 7.69;
@@ -127,15 +178,12 @@ const formatDecimal: ValueFormat = {
   symbolText: "dec",
 
   formatString: (inputString: string, width: number, is2State: boolean) => {
-    let xzMask = "";
-    let numericalData = inputString;
-
     if (!is2State) {
-      numericalData = inputString.replace(/[XZ]/i, "0");
-      xzMask = '|' +  inputString.replace(/[01]/g, "0");
+      return formatBinaryString(inputString);
     }
+    const numericalData = inputString;
     const stringArray = numericalData.replace(/\B(?=(\d{32})+(?!\d))/g, "_").split("_");
-    return stringArray.map((chunk) => {return parseInt(chunk, 2).toString(10);}).join('_') + xzMask;
+    return stringArray.map((chunk) => {return parseInt(chunk, 2).toString(10);}).join('_');
   },
 
   getTextWidth: (width: number) => {
@@ -186,4 +234,4 @@ export const formatString: ValueFormat = {
   is9State: () => {return false;},
 };
 
-export const valueFormatList: ValueFormat[] = [formatBinary, formatHex, formatDecimal, formatString];
+export const valueFormatList: ValueFormat[] = [formatBinary, formatHex, formatDecimal, formatOctal, formatString];

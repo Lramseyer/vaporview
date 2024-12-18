@@ -98,6 +98,12 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsOctal', (e) => {
+    if (e.netlistId !== undefined) {
+      viewerProvider.setValueFormat(e.netlistId, "octal");
+    }
+  }));
+
   // WaveDrom commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.copyWaveDrom', (e) => {
     viewerProvider.copyWaveDrom();

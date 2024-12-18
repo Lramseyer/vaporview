@@ -170,15 +170,19 @@
       "vaporview.valueFormat": [
         {
           "command": "vaporview.displayAsBinary",
-          "when": "webviewSection == 'signal' && width != '1'"
+          "when": "webviewSection == 'signal' && width > '1'"
         },
         {
           "command": "vaporview.displayAsDecimal",
-          "when": "webviewSection == 'signal' && width != '1'"
+          "when": "webviewSection == 'signal' && width > '1'"
         },
         {
           "command": "vaporview.displayAsHexadecimal",
-          "when": "webviewSection == 'signal' && width != '1'"
+          "when": "webviewSection == 'signal' && width > '1'"
+        },
+        {
+          "command": "vaporview.displayAsOctal",
+          "when": "webviewSection == 'signal' && width > '1'"
         }
       ],
       "vaporview.waveDrom": [
@@ -240,6 +244,10 @@
       {
         "command": "vaporview.displayAsHexadecimal",
         "title": "Hexadecimal"
+      },
+      {
+        "command": "vaporview.displayAsOctal",
+        "title": "Octal"
       },
       {
         "command": "vaporview.copyWaveDrom",

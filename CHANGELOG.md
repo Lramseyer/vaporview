@@ -5,6 +5,9 @@
 - Added GHW file support
 - Added Support for Real and String datatypes
 - Improved 9 state rendering
+- Added Octal number formatting
+- Fixed Binary display formatting with 9 satate values
+- Added more Netlist View icons, and colored them consistentely
 
 ## 1.2.5
 
@@ -23,7 +26,7 @@
 # 1.2.0
 
 - File parsing uses the [wellen](https://github.com/ekiwi/wellen/tree/new-api) library compiled to wasm. Benefits include:
-  - FST and GHW file support
+  - FST file support
   - Improved file parsing speed and memory efficiency (over storing everything in JS objects)
 - Removed checkboxes for scope \[module\] items in netlist viewer to reduce confusion
 - Variables loaded into viewer show up before waveform data is loaded as a better visual acknowledgement to user action

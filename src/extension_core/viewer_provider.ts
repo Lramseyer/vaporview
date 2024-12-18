@@ -61,9 +61,9 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this._context.subscriptions.push(this.displayedSignalsView);
 
     // Create a status bar item for marker time, delta time, and selected signal
-    this.deltaTimeStatusBarItem      = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-    this.markerTimeStatusBarItem     = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
-    this.selectedSignalStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
+    this.markerTimeStatusBarItem     = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
+    this.deltaTimeStatusBarItem      = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
+    this.selectedSignalStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
 
     // Subscribe to the View events. We need to subscribe to expand and collapse events
     // because the collapsible state would not otherwise be preserved when the tree view is refreshed

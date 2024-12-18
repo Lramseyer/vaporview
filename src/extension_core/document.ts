@@ -9,15 +9,6 @@ import { SignalId, NetlistId, VaporviewDocumentDelegate} from './viewer_provider
 // See GETTING_STARTED.md for more details
 import { filehandler } from './filehandler';
 
-const moduleIcon = new vscode.ThemeIcon('chip',             new vscode.ThemeColor('charts.purple'));
-const funcIcon   = new vscode.ThemeIcon('symbol-module',    new vscode.ThemeColor('charts.yellow'));
-const scopeIcon  = new vscode.ThemeIcon('symbol-module',    new vscode.ThemeColor('charts.white'));
-const regIcon    = new vscode.ThemeIcon('symbol-array',     new vscode.ThemeColor('charts.green'));
-const wireIcon   = new vscode.ThemeIcon('symbol-interface', new vscode.ThemeColor('charts.pink'));
-const intIcon    = new vscode.ThemeIcon('symbol-variable',  new vscode.ThemeColor('charts.blue'));
-const paramIcon  = new vscode.ThemeIcon('settings',         new vscode.ThemeColor('charts.orange'));
-const realIcon   = new vscode.ThemeIcon('symbol-constant',  new vscode.ThemeColor('charts.purple'));
-
 export type NetlistIdTable = NetlistIdRef[];
 export type NetlistIdRef = {
   netlistItem: NetlistItem;
@@ -39,12 +30,49 @@ type WaveformTopMetadata = {
   timeUnit:    string;
 };
 
-export function createScope(name: string, type: string, path: string, netlistId: number) {
+// Scopes
+const moduleIcon    = new vscode.ThemeIcon('chip',                   new vscode.ThemeColor('charts.purple'));
+const taskIcon      = new vscode.ThemeIcon('debug-stack-frame',      new vscode.ThemeColor('charts.blue'));
+const funcIcon      = new vscode.ThemeIcon('symbol-module',          new vscode.ThemeColor('charts.blue'));
+const beginIcon     = new vscode.ThemeIcon('debug-start',            new vscode.ThemeColor('charts.blue'));
+const forkIcon      = new vscode.ThemeIcon('repo-forked',            new vscode.ThemeColor('charts.blue'));
+const structIcon    = new vscode.ThemeIcon('symbol-structure', new vscode.ThemeColor('charts.blue'));
+const unionIcon     = new vscode.ThemeIcon('surround-with',    new vscode.ThemeColor('charts.blue'));
+const classIcon     = new vscode.ThemeIcon('symbol-misc',      new vscode.ThemeColor('charts.blue'));
+const interfaceIcon = new vscode.ThemeIcon('debug-disconnect', new vscode.ThemeColor('charts.purple'));
+const packageIcon   = new vscode.ThemeIcon('package',          new vscode.ThemeColor('charts.purple'));
+const scopeIcon     = new vscode.ThemeIcon('symbol-module',    new vscode.ThemeColor('charts.purple'));
 
-  const typename = type.toLocaleLowerCase();
+export function createScope(name: string, type: string, path: string, netlistId: number) {
+  
   let icon = scopeIcon;
-  if      (typename === 'module' ) {icon = moduleIcon;} 
-  else if (typename === 'function') {icon = funcIcon;}
+  const typename = type.toLocaleLowerCase();
+  switch (typename) {
+    case 'module':           {icon = moduleIcon; break;}
+    case 'task':             {icon = taskIcon; break;}
+    case 'function':         {icon = funcIcon; break;}
+    case 'begin':            {icon = beginIcon; break;}
+    case 'fork':             {icon = forkIcon; break;}
+    case 'generate':         {icon = scopeIcon; break;}
+    case 'struct':           {icon = structIcon; break;}
+    case 'union':            {icon = unionIcon; break;}
+    case 'class':            {icon = classIcon; break;}
+    case 'interface':        {icon = interfaceIcon; break;}
+    case 'package':          {icon = packageIcon; break;}
+    case 'program':          {icon = scopeIcon; break;}
+    case 'vhdlarchitecture': {icon = scopeIcon; break;}
+    case 'vhdlprocedure':    {icon = taskIcon; break;}
+    case 'vhdlfunction':     {icon = funcIcon; break;}
+    case 'vhdlrecord':       {icon = scopeIcon; break;}
+    case 'vhdlprocess':      {icon = scopeIcon; break;}
+    case 'vhdlblock':        {icon = scopeIcon; break;}
+    case 'vhdlforgenerate':  {icon = scopeIcon; break;}
+    case 'vhdlifgenerate':   {icon = scopeIcon; break;}
+    case 'vhdlgenerate':     {icon = scopeIcon; break;}
+    case 'vhdlpackage':      {icon = packageIcon; break;}
+    case 'ghwgeneric':       {icon = scopeIcon; break;}
+    case 'vhdlarray':        {icon = scopeIcon; break;}
+  }
 
   const module    = new NetlistItem(name, 'module', 'none', 0, 0, netlistId, name, path, 0, 0, [], vscode.TreeItemCollapsibleState.Collapsed);
   module.iconPath = icon;
@@ -58,17 +86,66 @@ function bitRangeString(msb: number, lsb: number): string {
   return " [" + msb + ":" + lsb + "]";
 }
 
+// Variables
+const regIcon     = new vscode.ThemeIcon('symbol-array',     new vscode.ThemeColor('charts.green'));
+const wireIcon    = new vscode.ThemeIcon('symbol-interface', new vscode.ThemeColor('charts.pink'));
+const intIcon     = new vscode.ThemeIcon('symbol-variable',  new vscode.ThemeColor('charts.green'));
+const paramIcon   = new vscode.ThemeIcon('settings',         new vscode.ThemeColor('charts.green'));
+const realIcon    = new vscode.ThemeIcon('pulse',            new vscode.ThemeColor('charts.orange'));
+const defaultIcon = new vscode.ThemeIcon('file-binary',      new vscode.ThemeColor('charts.green'));
+const stringIcon  = new vscode.ThemeIcon('symbol-key',       new vscode.ThemeColor('charts.yellow'));
+const portIcon    = new vscode.ThemeIcon('plug',             new vscode.ThemeColor('charts.green'));
+const timeIcon    = new vscode.ThemeIcon('watch',            new vscode.ThemeColor('charts.green'));
+
 export function createVar(name: string, type: string, encoding: string, path: string, netlistId: NetlistId, signalId: SignalId, width: number, msb: number, lsb: number) {
   const field = bitRangeString(msb, lsb);
   const variable = new NetlistItem(name + field, type, encoding, width, signalId, netlistId, name, path, msb, lsb, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked);
   const typename = type.toLocaleLowerCase();
-  if ((typename === 'wire') || (typename === 'reg')) {
+  let icon;
+
+  switch (typename) {
+    case 'event':           {icon = defaultIcon; break;}
+    case 'integer':         {icon = intIcon; break;}
+    case 'parameter':       {icon = paramIcon; break;}
+    case 'real':            {icon = realIcon; break;}
+    case 'reg':             {icon = defaultIcon; break;}
+    case 'supply0':         {icon = defaultIcon; break;}
+    case 'supply1':         {icon = defaultIcon; break;}
+    case 'time':            {icon = timeIcon; break;}
+    case 'tri':             {icon = defaultIcon; break;}
+    case 'triand':          {icon = defaultIcon; break;}
+    case 'trior':           {icon = defaultIcon; break;}
+    case 'trireg':          {icon = defaultIcon; break;}
+    case 'tri0':            {icon = defaultIcon; break;}
+    case 'tri1':            {icon = defaultIcon; break;}
+    case 'wand':            {icon = defaultIcon; break;}
+    case 'wire':            {icon = wireIcon; break;}
+    case 'wor':             {icon = defaultIcon; break;}
+    case 'string':          {icon = stringIcon; break;}
+    case 'port':            {icon = portIcon; break;}
+    case 'sparsearray':     {icon = defaultIcon; break;}
+    case 'realtime':        {icon = timeIcon; break;}
+    case 'bit':             {icon = defaultIcon; break;}
+    case 'logic':           {icon = defaultIcon; break;}
+    case 'int':             {icon = intIcon; break;}
+    case 'shortint':        {icon = intIcon; break;}
+    case 'longint':         {icon = intIcon; break;}
+    case 'byte':            {icon = defaultIcon; break;}
+    case 'enum':            {icon = defaultIcon; break;}
+    case 'shortreal':       {icon = defaultIcon; break;}
+    case 'boolean':         {icon = defaultIcon; break;}
+    case 'bitvector':       {icon = defaultIcon; break;}
+    case 'stdlogic':        {icon = defaultIcon; break;}
+    case 'stdlogicvector':  {icon = defaultIcon; break;}
+    case 'stdulogic':       {icon = defaultIcon; break;}
+    case 'stdulogicvector': {icon = defaultIcon; break;}
+  }
+
+  variable.iconPath = icon;
+  if ((typename === 'wire') || (typename === 'reg') || (icon === defaultIcon)) {
     if (width > 1) {variable.iconPath = regIcon;}
     else           {variable.iconPath = wireIcon;}
   }
-  else if (typename === 'integer')   {variable.iconPath = intIcon;}
-  else if (typename === 'parameter') {variable.iconPath = paramIcon;}
-  else if (typename === 'real')      {variable.iconPath = realIcon;}
 
   return variable;
 }

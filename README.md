@@ -103,6 +103,17 @@ When log files are opened in the terminal, VaporView will automatically parse ou
 
 Finding a particular transition or a value in a waveform is done in relation to the selected signal and the marker (similar to how Visual Studio Code handles search in relation to the text cursor)
 
+## Value Formatting
+
+Vaporview can display values in different number formats. To change the value format, right click on the signal in the viewer and select **Format Values** -> and select the value format you wish to display. Note that some values have limitations when displaying values with non-2-state bits in them, and will fall back to displaying the value as Binary. For details see the table below:
+
+| Value Format | Non-2-state Supported |
+| ------------ | --------------------- |
+| Binary       | ✅ Yes                |
+| Hexadecimal  | ✅ Yes                |
+| Octal        | ✅ Yes                |
+| Decimal      | ❌ No                 |
+
 ## Saving and loading opened signals
 
 VaporView allows you to save and load your signal list. This can be done either by right clicking anywhere in the viewer or netlist and selecting **"Save Vaproview Settings"** or **"Load Vaproview Settings"**. You can also access the command directly by pressing **Ctrl + Shift + P** and Type **">Save Vaproview Settings"** or **">Load Vaproview Settings"** and press **Enter** to slect the command. A dialog box will pop up prompting which file you would like to save/load settings from.

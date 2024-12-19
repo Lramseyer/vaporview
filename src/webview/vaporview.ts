@@ -47,7 +47,7 @@ export enum ActionType {
   Resize,
 }
 
-let resizeDebounce: any       = 0;
+let resizeDebounce: any = 0;
 
 export interface ViewerState {
   markerTime: number | null;
@@ -159,8 +159,8 @@ class VaporviewWebview {
     controlBar: ControlBar
   ) {
 
-    this.events = events;
-    this.viewport = viewport;
+    this.events     = events;
+    this.viewport   = viewport;
     this.controlBar = controlBar;
     // Assuming you have a reference to the webview element
     const webview           = document.getElementById('vaporview-top');
@@ -175,12 +175,12 @@ class VaporviewWebview {
       throw new Error("Could not find all required elements");
     }
 
-    this.webview = webview;
-    this.labelsScroll = labelsScroll;
+    this.webview          = webview;
+    this.labelsScroll     = labelsScroll;
     this.transitionScroll = transitionScroll;
-    this.scrollArea = scrollArea;
-    this.contentArea = contentArea;
-    this.scrollbar = scrollbar;
+    this.scrollArea       = scrollArea;
+    this.contentArea      = contentArea;
+    this.scrollbar        = scrollbar;
 
     webview.style.gridTemplateColumns = `150px 50px auto`;
  
@@ -189,15 +189,14 @@ class VaporviewWebview {
     window.addEventListener('keydown', (e) => {this.keyDownHandler(e);});
     window.addEventListener('mouseup', (e) => {this.handleMouseUp(e);});
     window.addEventListener('resize',  ()  => {this.handleResizeViewer();}, false);
-    this.scrollArea.addEventListener('wheel', (e) => {this.scrollHandler(e);});
-    //this.scrollArea.addEventListener(      'scroll', (e) => {this.syncVerticalScroll(scrollArea.scrollTop);});
+    this.scrollArea.addEventListener(      'wheel', (e) => {this.scrollHandler(e);});
     this.labelsScroll.addEventListener(    'wheel', (e) => {this.syncVerticalScroll(e, labelsScroll.scrollTop);});
     this.transitionScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, transitionScroll.scrollTop);});
 
     this.resetTouchpadScrollCount = this.resetTouchpadScrollCount.bind(this);
-    this.handleMarkerSet = this.handleMarkerSet.bind(this);
-    this.handleSignalSelect = this.handleSignalSelect.bind(this);
-    this.reorderSignals = this.reorderSignals.bind(this);
+    this.handleMarkerSet          = this.handleMarkerSet.bind(this);
+    this.handleSignalSelect       = this.handleSignalSelect.bind(this);
+    this.reorderSignals           = this.reorderSignals.bind(this);
 
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
@@ -268,22 +267,22 @@ class VaporviewWebview {
     if ((e.key === 'ArrowRight') && (viewerState.markerTime !== null)) {
       if (e.ctrlKey || e.altKey) {controlBar.goToNextTransition(1);}
       else if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, this.viewport.timeStop, 0);}
-      else                    {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime + 1, 0);}
+      else                {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime + 1, 0);}
     } else if ((e.key === 'ArrowLeft') && (viewerState.markerTime !== null)) {
-      if (e.ctrlKey || e.altKey)  {controlBar.goToNextTransition(-1);}
+      if (e.ctrlKey || e.altKey) {controlBar.goToNextTransition(-1);}
       else if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, 0, 0);}
-      else                    {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime - 1, 0);}
+      else                {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime - 1, 0);}
 
     // up and down arrow keys move the selected signal
     // alt + up and down arrow keys reorder the selected signal up and down
     } else if ((e.key === 'ArrowUp') && (viewerState.selectedSignalIndex !== null)) {
       const newIndex = Math.max(viewerState.selectedSignalIndex - 1, 0);
-      if (e.altKey)  {this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignalIndex, newIndex);}
-      else               {this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignals[newIndex]);}
+      if (e.altKey) {this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignalIndex, newIndex);}
+      else          {this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignals[newIndex]);}
     } else if ((e.key === 'ArrowDown') && (viewerState.selectedSignalIndex !== null)) {
       const newIndex = Math.min(viewerState.selectedSignalIndex + 1, viewerState.displayedSignals.length - 1);
-      if (e.altKey)  {this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignalIndex, newIndex);}
-      else               {this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignals[newIndex]);}
+      if (e.altKey) {this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignalIndex, newIndex);}
+      else          {this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignals[newIndex]);}
     }
 
     // handle Home and End keys to move to the start and end of the waveform
@@ -335,7 +334,6 @@ class VaporviewWebview {
 
   handleResizeViewer() {
     clearTimeout(resizeDebounce);
-    //resizeDebounce = setTimeout(this.viewport.updateViewportWidth, 100);
     resizeDebounce = setTimeout(this.events.dispatch.bind(this.events, ActionType.Resize), 100);
   }
 
@@ -366,7 +364,6 @@ class VaporviewWebview {
   }
 
   unload() {
-    // Marker and signal selection variables
     viewerState.selectedSignal      = null;
     viewerState.selectedSignalIndex = null;
     viewerState.markerTime          = null;
@@ -382,6 +379,9 @@ class VaporviewWebview {
     vscode.postMessage({type: 'ready'});
   }
 
+  // We need to let the extension know that we are removing a variable so that
+  // it can update the views. Rather than handling it and telling the extension,
+  // we just have the extension handle it as normal.
   removeVariableInternal(netlistId: NetlistId | null) {
     if (netlistId === null) {return;}
     vscode.postMessage({
@@ -426,12 +426,12 @@ class VaporviewWebview {
   }
 }
 
-const events      = new EventHandler();
+const events             = new EventHandler();
 export const dataManager = new WaveformDataManager(events);
 export const controlBar  = new ControlBar(events);
 export const viewport    = new Viewport(events);
 export const labelsPanel = new LabelsPanels(events);
-const vaporview   = new VaporviewWebview(events, viewport, controlBar);
+const vaporview          = new VaporviewWebview(events, viewport, controlBar);
 
 vscode.postMessage({ command: 'ready' });
 

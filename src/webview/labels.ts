@@ -76,8 +76,8 @@ export class LabelsPanels {
     const transitionDisplay = document.getElementById('transition-display');
     const labelsScroll      = document.getElementById('waveform-labels-container');
     const transitionScroll  = document.getElementById('transition-display-container');
-    const resize1       = document.getElementById("resize-1");
-    const resize2       = document.getElementById("resize-2");
+    const resize1           = document.getElementById("resize-1");
+    const resize2           = document.getElementById("resize-2");
 
     if (webview === null || labels === null || transitionDisplay === null || labelsScroll === null || transitionScroll === null || resize1 === null || resize2 === null) {
       throw new Error("Could not find all required elements");
@@ -91,17 +91,17 @@ export class LabelsPanels {
     this.resize1           = resize1;
     this.resize2           = resize2;
 
-    this.dragMove = this.dragMove.bind(this);
-    this.resize   = this.resize.bind(this);
-    this.dragEnd  = this.dragEnd.bind(this);
-    this.dragStart = this.dragStart.bind(this);
+    this.dragMove              = this.dragMove.bind(this);
+    this.resize                = this.resize.bind(this);
+    this.dragEnd               = this.dragEnd.bind(this);
+    this.dragStart             = this.dragStart.bind(this);
     this.handleResizeMousedown = this.handleResizeMousedown.bind(this);
-    this.handleMarkerSet = this.handleMarkerSet.bind(this);
-    this.handleSignalSelect = this.handleSignalSelect.bind(this);
-    this.handleReorderSignals = this.handleReorderSignals.bind(this);
-    this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
-    this.handleAddVariable = this.handleAddVariable.bind(this);
-    this.handleRedrawVariable = this.handleRedrawVariable.bind(this);
+    this.handleMarkerSet       = this.handleMarkerSet.bind(this);
+    this.handleSignalSelect    = this.handleSignalSelect.bind(this);
+    this.handleReorderSignals  = this.handleReorderSignals.bind(this);
+    this.handleRemoveVariable  = this.handleRemoveVariable.bind(this);
+    this.handleAddVariable     = this.handleAddVariable.bind(this);
+    this.handleRedrawVariable  = this.handleRedrawVariable.bind(this);
   
     // click and drag handlers to rearrange the order of waveform signals
     labels.addEventListener('mousedown', (e) => {this.dragStart(e);});
@@ -141,52 +141,52 @@ export class LabelsPanels {
   }
 
   updateIdleItemsStateAndPosition() {
-  const draggableItemRect = this.draggableItem.getBoundingClientRect();
-  const draggableItemY    = draggableItemRect.top + draggableItemRect.height / 2;
+    const draggableItemRect = this.draggableItem.getBoundingClientRect();
+    const draggableItemY    = draggableItemRect.top + draggableItemRect.height / 2;
 
-  let closestItemAbove: any      = null;
-  let closestItemBelow: any      = null;
-  let closestDistanceAbove  = Infinity;
-  let closestDistanceBelow  = Infinity;
+    let closestItemAbove: any = null;
+    let closestItemBelow: any = null;
+    let closestDistanceAbove  = Infinity;
+    let closestDistanceBelow  = Infinity;
 
-  this.idleItems.forEach((item: any) => {
-    item.style.border = 'none';
-    const itemRect = item.getBoundingClientRect();
-    const itemY = itemRect.top + itemRect.height / 2;
-    if (draggableItemY >= itemY) {
-      const distance = draggableItemY - itemY;
-      if (distance < closestDistanceAbove) {
-        closestDistanceAbove = distance;
-        closestItemAbove     = item;
+    this.idleItems.forEach((item: any) => {
+      item.style.border = 'none';
+      const itemRect = item.getBoundingClientRect();
+      const itemY = itemRect.top + itemRect.height / 2;
+      if (draggableItemY >= itemY) {
+        const distance = draggableItemY - itemY;
+        if (distance < closestDistanceAbove) {
+          closestDistanceAbove = distance;
+          closestItemAbove     = item;
+        }
+      } else if (draggableItemY < itemY) {
+        const distance = itemY - draggableItemY;
+        if (distance < closestDistanceBelow) {
+          closestDistanceBelow = distance;
+          closestItemBelow     = item;
+        }
       }
-    } else if (draggableItemY < itemY) {
-      const distance = itemY - draggableItemY;
-      if (distance < closestDistanceBelow) {
-        closestDistanceBelow = distance;
-        closestItemBelow     = item;
-      }
+    });
+
+    const closestItemAboveIndex = Math.max(this.labelsList.indexOf(closestItemAbove), 0);
+    let closestItemBelowIndex = this.labelsList.indexOf(closestItemBelow);
+    if (closestItemBelowIndex === -1) {closestItemBelowIndex = this.labelsList.length - 1;}
+
+    if (closestItemBelow !== null) {
+      closestItemBelow.style.borderTop    = '2px dotted var(--vscode-editorCursor-foreground)';
+      closestItemBelow.style.borderBottom = '2px dotted transparent';
+    } else if (closestItemAbove !== null) {
+      closestItemAbove.style.borderTop    = '2px dotted transparent';
+      closestItemAbove.style.borderBottom = '2px dotted var(--vscode-editorCursor-foreground)';
     }
-  });
 
-  const closestItemAboveIndex = Math.max(this.labelsList.indexOf(closestItemAbove), 0);
-  let closestItemBelowIndex = this.labelsList.indexOf(closestItemBelow);
-  if (closestItemBelowIndex === -1) {closestItemBelowIndex = this.labelsList.length - 1;}
-
-  if (closestItemBelow !== null) {
-    closestItemBelow.style.borderTop    = '2px dotted var(--vscode-editorCursor-foreground)';
-    closestItemBelow.style.borderBottom = '2px dotted transparent';
-  } else if (closestItemAbove !== null) {
-    closestItemAbove.style.borderTop    = '2px dotted transparent';
-    closestItemAbove.style.borderBottom = '2px dotted var(--vscode-editorCursor-foreground)';
-  }
-
-  if (this.draggableItemIndex < closestItemAboveIndex) {
-    this.draggableItemNewIndex = closestItemAboveIndex;
-  } else if (this.draggableItemIndex > closestItemBelowIndex) {
-    this.draggableItemNewIndex = closestItemBelowIndex;
-  } else {
-    this.draggableItemNewIndex = this.draggableItemIndex;
-  }
+    if (this.draggableItemIndex < closestItemAboveIndex) {
+      this.draggableItemNewIndex = closestItemAboveIndex;
+    } else if (this.draggableItemIndex > closestItemBelowIndex) {
+      this.draggableItemNewIndex = closestItemBelowIndex;
+    } else {
+      this.draggableItemNewIndex = this.draggableItemIndex;
+    }
   }
 
   dragStart(event: any) {
@@ -208,7 +208,7 @@ export class LabelsPanels {
 
     document.addEventListener('mousemove', this.dragMove);
 
-    viewerState.mouseupEventType      = 'rearrange';
+    viewerState.mouseupEventType = 'rearrange';
     this.draggableItemIndex    = this.labelsList.indexOf(this.draggableItem);
     this.draggableItemNewIndex = this.draggableItemIndex;
     this.idleItems             = this.labelsList.filter((item: any) => {return item.classList.contains('is-idle');});

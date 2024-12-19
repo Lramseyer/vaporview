@@ -234,7 +234,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
   public async applySettings(settings: any) {
 
-    console.log(settings);
+    //console.log(settings);
 
     if (!settings.displayedSignals) {return;}
     if (!this.activeDocument) {return;}
@@ -257,7 +257,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       this.setMarkerAtTime(settings.markerTime);
     }
 
-    console.log(settings.selectedSignal);
+    //console.log(settings.selectedSignal);
     if (settings.selectedSignal) {
       const s = settings.selectedSignal;
       const metadata = await document.findTreeItem(s.name, s.msb, s.lsb);
@@ -614,7 +614,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       return;
     }
 
-    console.log(metadata);
+    //console.log(metadata);
 
     if (metadata.checkboxState === vscode.TreeItemCheckboxState.Checked) {
       this.addSignalsToDocument([metadata]);

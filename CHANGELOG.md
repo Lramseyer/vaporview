@@ -6,8 +6,9 @@
 - Added Support for Real and String datatypes
 - Improved 9 state rendering
 - Added Octal number formatting
-- Fixed Binary display formatting with 9 satate values
-- Added more Netlist View icons, and colored them consistentely
+- Added more Netlist View icons, and colored them consistently
+- Fixed Binary display formatting with 9 state values
+- Fixed issue where top level variables in global scope didn't load
 
 ## 1.2.5
 

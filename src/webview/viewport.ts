@@ -308,11 +308,11 @@ export class Viewport {
     //console.log(this.dataCache);
     netlistIdList.forEach((netlistId) => {
       for (let i = this.dataCache.startIndex; i < this.dataCache.endIndex; i+=this.chunksInColumn) {
-        console.log("updating chunk " + i);
+        //console.log("updating chunk " + i);
         this.dataCache.columns[i].waveformChunk[netlistId] = this.renderWaveformChunk(netlistId, i);
       }
       if (viewerState.markerTime !== null) {
-        console.log("updating marker");
+        //console.log("updating marker");
         this.dataCache.valueAtMarker[netlistId] = dataManager.getValueAtTime(netlistId, viewerState.markerTime);
       }
     });

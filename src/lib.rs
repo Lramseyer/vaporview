@@ -9,7 +9,7 @@ wit_bindgen::generate!({
 use std::io::{self, BufReader, Cursor, Read, Seek, SeekFrom};
 use lazy_static::lazy_static;
 use std::sync::Mutex;
-use wellen::{FileFormat, GetItem, Hierarchy, ScopeRef, SignalRef, SignalSource, TimeTable, TimescaleUnit, WellenError};
+use wellen::{FileFormat, GetItem, Hierarchy, ScopeRef, SignalRef, SignalSource, TimeTable, TimescaleUnit, WellenError, VarRef};
 use wellen::viewers::{read_body, read_header, ReadBodyContinuation, HeaderResult};
 use wellen::LoadOptions;
 use std::sync::Arc;
@@ -50,6 +50,51 @@ impl WasmFileReader {
     let reader = WasmFileReader { fd, file_size, cursor: 0, read_callback };
     reader
   }
+}
+
+struct VarData {
+  name: String,
+  id: u32,
+  signal_id: u32,
+  tpe: String,
+  encoding: String,
+  width: u32,
+  msb: i32,
+  lsb: i32,
+}
+
+struct ScopeData {
+  name: String,
+  id: u32,
+  tpe: String,
+}
+
+fn get_var_data(hierarchy: &Hierarchy, v: VarRef) -> VarData {
+
+  let variable = hierarchy.get(v);
+  let name = variable.name(&hierarchy).to_string();
+  let id = v.index() as u32;
+  let tpe = format!("{:?}", variable.var_type());
+  let encoding = format!("{:?}", variable.signal_encoding());
+  let width = variable.length().unwrap_or(0);
+  let signal_id = variable.signal_ref().index() as u32;
+  let mut msb: i32 = -1;
+  let mut lsb: i32 = -1;
+  let bits = variable.index();
+  match bits {
+    Some(b) => {msb = b.msb() as i32; lsb = b.lsb() as i32;},
+    None => {}
+  }
+
+  VarData { name, id, signal_id, tpe, encoding, width, msb, lsb }
+}
+
+fn get_scope_data(hierarchy: &Hierarchy, s: ScopeRef) -> ScopeData {
+  let scope = hierarchy.get(s);
+  let name = scope.name(&hierarchy).to_string();
+  let id = s.index() as u32;
+  let tpe = format!("{:?}", scope.scope_type());
+  ScopeData { name, id, tpe }
 }
 
 impl Read for WasmFileReader {
@@ -209,17 +254,13 @@ impl Guest for Filecontext {
     setmetadata(scope_count, var_count, time_scale, time_unit.as_str());
 
     for s in hierarchy.scopes() {
-      let scope = hierarchy.get(s);
-      //log(&format!("ID: {:?} Scope: {:?}", s, scope));
-      let name = scope.name(&hierarchy).to_string();
-      let tpe = format!("{:?}", scope.scope_type());
-
-      setscopetop(&name, s.index() as u32, &tpe);
+      let scope_data = get_scope_data(&hierarchy, s);
+      setscopetop(&scope_data.name, scope_data.id, &scope_data.tpe);
     }
 
     for v in hierarchy.vars() {
-      let variable = hierarchy.get(v);
-      log(&format!("Item: {:?}", variable));
+      let var_data = get_var_data(&hierarchy, v);
+      setvartop(&var_data.name, var_data.id, var_data.signal_id, &var_data.tpe, &var_data.encoding, var_data.width, var_data.msb, var_data.lsb);
     }
   }
 
@@ -314,12 +355,9 @@ impl Guest for Filecontext {
       if (index < startindex) || (return_length > max_return_length) {index+=1; continue;}
       index+=1;
 
-      let scope = hierarchy.get(s);
-      let name = scope.name(&hierarchy).to_string();
-      let id = s.index();
-      let tpe = format!("{:?}", scope.scope_type());
-      let scope_string = format!("{{\"name\": {:?},\"id\": {:?},\"type\": {:?}}}", name, id, tpe);
-      
+      let scope_data = get_scope_data(&hierarchy, s);
+      let scope_string = format!("{{\"name\": {:?},\"id\": {:?},\"type\": {:?}}}", scope_data.name, scope_data.id, scope_data.tpe);
+
       items_returned += 1;
       return_length += (scope_string.len() as u32) + 1;
       child_scopes_string.push(scope_string);
@@ -337,21 +375,8 @@ impl Guest for Filecontext {
       if (index < startindex) || (return_length > max_return_length) {index+=1; continue;}
       index+=1;
 
-      let var = hierarchy.get(v);
-      let name = var.name(&hierarchy).to_string();
-      let id = v.index();
-      let tpe = format!("{:?}", var.var_type());
-      let encoding = format!("{:?}", var.signal_encoding());
-      let width = var.length().unwrap_or(0);
-      let signal_ref = var.signal_ref().index();
-      let mut msb: i32 = -1;
-      let mut lsb: i32 = -1;
-      let bits = var.index();
-      match bits {
-        Some(b) => {msb = b.msb() as i32; lsb = b.lsb() as i32;},
-        None => {}
-      }
-      let var_string = format!("{{\"name\": {:?},\"netlistId\": {:?},\"signalId\": {:?},\"type\": {:?},\"encoding\": {:?}, \"width\": {:?}, \"msb\": {:?}, \"lsb\": {:?}}}", name, id, signal_ref, tpe, encoding, width, msb, lsb);
+      let var_data = get_var_data(&hierarchy, v);
+      let var_string = format!("{{\"name\": {:?},\"netlistId\": {:?},\"signalId\": {:?},\"type\": {:?},\"encoding\": {:?}, \"width\": {:?}, \"msb\": {:?}, \"lsb\": {:?}}}", var_data.name, var_data.id, var_data.signal_id, var_data.tpe, var_data.encoding, var_data.width, var_data.msb, var_data.lsb);
 
       items_returned += 1;
       return_length += (var_string.len() as u32) + 1;

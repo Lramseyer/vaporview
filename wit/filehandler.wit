@@ -33,6 +33,7 @@ world filehandler {
 	import fsread: func(fd: u32, offset: u64, length: u32) -> list<u8>;
 	import getsize: func(fd: u32) -> u64;
 	import setscopetop: func(name: string, id: u32, tpe: string);
+  import setvartop: func(name: string, id: u32, signalid: u32, tpe: string, encoding: string, width: u32, msb: s32, lsb: s32);
   import setmetadata: func (scopecount: u32, varcount: u32, timescale: u32, timeunit: string);
   import setchunksize: func(chunksize: u64, timeend: u64);
 	import sendtransitiondatachunk: func(signalid: u32, totalchunks: u32, chunknum: u32, data: string);

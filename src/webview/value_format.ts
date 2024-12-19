@@ -1,5 +1,12 @@
 // This section defines all of the different ways we can display the various values
-// in the waveform viewer. The interface is defined by the ValueFormat interface:
+// in the waveform viewer. To create your own format, you need to implement a new
+// ValueFormat object and add it to the valueFormatList array at the bottom of the file.
+// There are helper functions supplied to discern 9-state values and to format as binary
+// in case non-2-state values are invalid.
+// You will also need to define a new command in the package.json file (which has examples)
+// under contributes.commands and create the context menus entries under 
+// contributes.menus.vaporview.valueFormat. You will also need to register the new
+// command in the extension.ts (which has examples)
 
 export function  valueIs9State(value: string): boolean {
   if (value.match(/[uxzwlh-]/)) {return true;}
@@ -10,6 +17,7 @@ function formatBinaryString(inputString: string) {
   return inputString.replace(/\B(?=(\w{4})+(?!\w))/g, "_");
 }
 
+// The interface is defined by the ValueFormat interface:
 export interface ValueFormat {
   // Unique identifier for the format
   id: string;

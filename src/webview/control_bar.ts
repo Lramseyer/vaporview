@@ -45,7 +45,6 @@ export class ControlBar {
     this.previousButton = document.getElementById('previous-button')!;
     this.nextButton    = document.getElementById('next-button')!;
     this.touchScroll   = document.getElementById('touchpad-scroll-button')!;
-
     this.searchContainer = document.getElementById('search-container');
     this.searchBar     = document.getElementById('search-bar');
     this.valueIconRef  = document.getElementById('value-icon-reference');
@@ -59,11 +58,9 @@ export class ControlBar {
       throw new Error("Could not find all required elements");
     }
 
+    // Control bar button event handlers
     this.zoomInButton.addEventListener( 'click', (e) => {this.events.dispatch(ActionType.Zoom, -1, (viewport.pseudoScrollLeft + viewport.halfViewerWidth) / viewport.zoomRatio, viewport.halfViewerWidth);});
     this.zoomOutButton.addEventListener('click', (e) => {this.events.dispatch(ActionType.Zoom, 1, (viewport.pseudoScrollLeft + viewport.halfViewerWidth) / viewport.zoomRatio, viewport.halfViewerWidth);});
-
-
-    // Control bar button event handlers
     this.prevNegedge.addEventListener(  'click', (e: any) => {this.goToNextTransition(-1, '0');});
     this.prevPosedge.addEventListener(  'click', (e: any) => {this.goToNextTransition(-1, '1');});
     this.nextNegedge.addEventListener(  'click', (e: any) => {this.goToNextTransition( 1, '0');});
@@ -72,12 +69,12 @@ export class ControlBar {
     this.nextEdge.addEventListener(     'click', (e: any) => {this.goToNextTransition( 1);});
 
     // Search bar event handlers
-    this.searchBar.addEventListener(    'focus', (e: any) => {this.handleSearchBarInFocus(true);});
-    this.searchBar.addEventListener(     'blur', (e: any) => {this.handleSearchBarInFocus(false);});
-    this.searchBar.addEventListener(  'keydown', (e: any) => {this.handleSearchBarKeyDown(e);});
-    this.searchBar.addEventListener(    'keyup', (e: any) => {this.handleSearchBarEntry(e);});
-    this.timeEquals.addEventListener(   'click', (e: any) => {this.handleSearchButtonSelect(0);});
-    this.valueEquals.addEventListener(  'click', (e: any) => {this.handleSearchButtonSelect(1);});
+    this.searchBar.addEventListener(     'focus', (e: any) => {this.handleSearchBarInFocus(true);});
+    this.searchBar.addEventListener(      'blur', (e: any) => {this.handleSearchBarInFocus(false);});
+    this.searchBar.addEventListener(   'keydown', (e: any) => {this.handleSearchBarKeyDown(e);});
+    this.searchBar.addEventListener(     'keyup', (e: any) => {this.handleSearchBarEntry(e);});
+    this.timeEquals.addEventListener(    'click', (e: any) => {this.handleSearchButtonSelect(0);});
+    this.valueEquals.addEventListener(   'click', (e: any) => {this.handleSearchButtonSelect(1);});
     this.previousButton.addEventListener('click', (e: any) => {this.handleSearchGoTo(-1);});
     this.nextButton.addEventListener(    'click', (e: any) => {this.handleSearchGoTo(1);});
     this.touchScroll.addEventListener(   'click', (e: any) => {this.handleTouchScroll();});
@@ -203,8 +200,8 @@ export class ControlBar {
   handleSearchBarEntry(event: any) {
     const inputText  = this.searchBar.value;
     let inputValid   = true;
-    console.log(viewerState.selectedSignal);
-    console.log(this.searchState);
+    //console.log(viewerState.selectedSignal);
+    //console.log(this.searchState);
     if (viewerState.selectedSignal !== null) {
       const format = dataManager.netlistData[viewerState.selectedSignal].valueFormat;
       const checkValid = format.checkValid;
@@ -216,8 +213,8 @@ export class ControlBar {
       } else if (this.searchState === 1) {
         inputValid = checkValid(inputText);
         if (inputValid) {this.parsedSearchValue = parseValue(inputText);}
-        console.log(inputValid);
-        console.log(this.parsedSearchValue);
+        //console.log(inputValid);
+        //console.log(this.parsedSearchValue);
       }
     }
   
@@ -284,7 +281,7 @@ export class ControlBar {
   }
 
   handleSignalSelect(netlistId: NetlistId) {
-    if (netlistId === null) {return;}
+    if (netlistId === null || netlistId === undefined) {return;}
 
     this.updateButtonsForSelectedWaveform(dataManager.netlistData[netlistId].signalWidth);
     this.valueEqualsSymbol.textContent = dataManager.netlistData[netlistId]?.valueFormat.symbolText;

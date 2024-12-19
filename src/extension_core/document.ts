@@ -248,7 +248,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     });
 
     this._delegate.updateViews(this.uri);
-    await this._readBody();
+    await this._readBody(fileType);
   }
 
   public readonly service: filehandler.Imports.Promisified = {
@@ -269,6 +269,12 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       this.treeData.push(scope);
       this._netlistIdTable[id] = {netlistItem: scope, displayedItem: undefined, signalId: 0};
     },
+  setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number) => {
+
+      const varItem = createVar(name, tpe, encoding, "", id, signalid, width, msb, lsb);
+      this.treeData.push(varItem);
+      this._netlistIdTable[id] = {netlistItem: varItem, displayedItem: undefined, signalId: signalid};
+    },
     setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
       this.metadata.moduleCount = scopecount;
       this.metadata.netlistIdCount = varcount;
@@ -285,7 +291,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     },
     sendtransitiondatachunk: (signalid: number, totalchunks: number, chunknum: number, transitionData: string) => {
 
-      console.log(transitionData);
       this.webviewPanel?.webview.postMessage({
         command: 'update-waveform-chunk',
         signalId: signalid,
@@ -305,18 +310,22 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this.wasmApi = await filehandler._.bind(this.service, wasmModule, this._wasmWorker);
   }
 
-  private _readBody() {
-    vscode.window.withProgress({
-      location: vscode.ProgressLocation.Notification,
-      title: "Parsing Waveforms for " + this.uri.fsPath,
-      cancellable: false
-    }, async (progress) => {
+  private async _readBody(fileType: string | undefined) {
+    if (fileType === 'vcd') {
+      vscode.window.withProgress({
+        location: vscode.ProgressLocation.Notification,
+        title: "Parsing Waveforms for " + this.uri.fsPath,
+        cancellable: false
+      }, async (progress) => {
+        await this.wasmApi.readbody();
+      });
+    } else {
       await this.wasmApi.readbody();
-    });
+    }
   }
 
   public onWebviewReady(webviewPanel: vscode.WebviewPanel) {
-    console.log("Webview Ready");
+    //console.log("Webview Ready");
     this.webviewPanel = webviewPanel;
     if (this._webviewInitialized) {return;}
     if (!this.metadata.timeTableLoaded) {return;}
@@ -330,7 +339,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   public onDoneParsingWaveforms() {
-    console.log("onDoneParsingWaveforms");
+    //console.log("onDoneParsingWaveforms");
     if (this.webviewPanel) {
       this.onWebviewReady(this.webviewPanel);
     }
@@ -518,7 +527,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   public async unload() {
-    console.log("Reloading document");
+    //console.log("Reloading document");
     this.treeData         = [];
     this.displayedSignals = [];
     this._netlistIdTable  = [];
@@ -526,7 +535,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     await this.wasmApi.unload();
     this.metadata.timeTableLoaded = false;
     this._webviewInitialized = false;
-    console.log("Unloading webview");
+    //console.log("Unloading webview");
     this.webviewPanel?.webview.postMessage({command: 'unload'});
   }
 

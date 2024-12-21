@@ -81,27 +81,19 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Value Format commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsBinary', (e, a) => {
-    if (e.netlistId !== undefined) {
-      viewerProvider.setValueFormat(e.netlistId, "binary");
-    }
+    viewerProvider.setValueFormat(e.netlistId, "binary", undefined, undefined);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsHexadecimal', (e) => {
-    if (e.netlistId !== undefined) {
-      viewerProvider.setValueFormat(e.netlistId, "hexadecimal");
-    }
+    viewerProvider.setValueFormat(e.netlistId, "hexadecimal", undefined, undefined);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsDecimal', (e) => {
-    if (e.netlistId !== undefined) {
-      viewerProvider.setValueFormat(e.netlistId, "decimal");
-    }
+    viewerProvider.setValueFormat(e.netlistId, "decimal", undefined, undefined);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsOctal', (e) => {
-    if (e.netlistId !== undefined) {
-      viewerProvider.setValueFormat(e.netlistId, "octal");
-    }
+    viewerProvider.setValueFormat(e.netlistId, "octal", undefined, undefined);
   }));
 
   // WaveDrom commands
@@ -131,6 +123,39 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.reloadFile', (e) => {
     viewerProvider.reloadFile();
+  }));
+
+  // Custom Color commands
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor1', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, undefined, "var(--vscode-debugTokenExpression-number)", undefined);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor2', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, undefined, "var(--vscode-debugTokenExpression-string)", undefined);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor3', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, undefined, "var(--vscode-debugView-valueChangedHighlight)", undefined);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor4', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, undefined, "var(--vscode-debugTokenExpression-name)", undefined);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor1', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, undefined, undefined, undefined);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor2', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, undefined, undefined, undefined);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor3', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, undefined, undefined, undefined);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor4', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, undefined, undefined, undefined);
   }));
 }
 

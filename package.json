@@ -79,7 +79,31 @@
           "minimum": 0,
           "maximum": 65536,
           "scope": "application",
-          "description": "Maximum file size to load FST files into memory. This is faster, but consumes more memory. Set to 0 to disable."
+          "description": "Maximum file size (in MB) to load FST files into memory. This is faster, but consumes more memory. Set to 0 to disable."
+        },
+        "vaporview.customColor1": {
+          "type": "string",
+          "default": "#C0FFEE",
+          "scope": "application",
+          "description": "Custom Color in CSS format ie '#C0FFEE' or 'rgb(192, 255, 238)' or 'blue'"
+        },
+        "vaporview.customColor2": {
+          "type": "string",
+          "default": "#C0FFEE",
+          "scope": "application",
+          "description": "Custom Color in CSS format ie '#C0FFEE' or 'rgb(192, 255, 238)' or 'blue'"
+        },
+        "vaporview.customColor3": {
+          "type": "string",
+          "default": "#C0FFEE",
+          "scope": "application",
+          "description": "Custom Color in CSS format ie '#C0FFEE' or 'rgb(192, 255, 238)' or 'blue'"
+        },
+        "vaporview.customColor4": {
+          "type": "string",
+          "default": "#C0FFEE",
+          "scope": "application",
+          "description": "Custom Color in CSS format ie '#C0FFEE' or 'rgb(192, 255, 238)' or 'blue'"
         }
       }
     },
@@ -92,6 +116,11 @@
         "id": "vaporview.valueFormat",
         "label": "Format Values",
         "when": "webviewSection == 'signal' && width != '1'"
+      },
+      {
+        "id": "vaporview.valueColor",
+        "label": "Color",
+        "when": "webviewSection == 'signal'"
       }
     ],
     "menus": {
@@ -154,6 +183,11 @@
           "group": "0_default"
         },
         {
+          "submenu": "vaporview.valueColor",
+          "when": "webviewSection == 'signal'",
+          "group": "0_default"
+        },
+        {
           "command": "vaporview.saveViewerSettings",
           "group": "1_saveLoad"
         },
@@ -183,6 +217,48 @@
         {
           "command": "vaporview.displayAsOctal",
           "when": "webviewSection == 'signal' && width > '1'"
+        }
+      ],
+      "vaporview.valueColor": [
+        {
+          "command": "vaporview.defaultColor1",
+          "when": "webviewSection == 'signal'",
+          "group": "0_default"
+        },
+        {
+          "command": "vaporview.defaultColor2",
+          "when": "webviewSection == 'signal'",
+          "group": "0_default"
+        },
+        {
+          "command": "vaporview.defaultColor3",
+          "when": "webviewSection == 'signal'",
+          "group": "0_default"
+        },
+        {
+          "command": "vaporview.defaultColor4",
+          "when": "webviewSection == 'signal'",
+          "group": "0_default"
+        },
+        {
+          "command": "vaporview.customColor1",
+          "when": "webviewSection == 'signal'",
+          "group": "1_custom"
+        },
+        {
+          "command": "vaporview.customColor2",
+          "when": "webviewSection == 'signal'",
+          "group": "1_custom"
+        },
+        {
+          "command": "vaporview.customColor3",
+          "when": "webviewSection == 'signal'",
+          "group": "1_custom"
+        },
+        {
+          "command": "vaporview.customColor4",
+          "when": "webviewSection == 'signal'",
+          "group": "1_custom"
         }
       ],
       "vaporview.waveDrom": [
@@ -248,6 +324,70 @@
       {
         "command": "vaporview.displayAsOctal",
         "title": "Octal"
+      },
+      {
+        "command": "vaporview.defaultColor1",
+        "title": "Number Token Color"
+      },
+      {
+        "command": "vaporview.defaultColor2",
+        "title": "String Token Color"
+      },
+      {
+        "command": "vaporview.defaultColor3",
+        "title": "Declaration Token Color"
+      },
+      {
+        "command": "vaporview.defaultColor4",
+        "title": "Flow Control Token Color"
+      },
+      {
+        "command": "vaporview.customColor1",
+        "title": "Custom Color 1"
+      },
+      {
+        "command": "vaporview.customColor2",
+        "title": "Custom Color 2"
+      },
+      {
+        "command": "vaporview.customColor3",
+        "title": "Custom Color 3"
+      },
+      {
+        "command": "vaporview.customColor4",
+        "title": "Custom Color 4"
+      },
+      {
+        "command": "vaporview.copyWaveDrom",
+        "title": "Copy Selection as WaveDrom"
+      },
+      {
+        "command": "vaporview.setWaveDromClockRising",
+        "title": "Set WaveDrom Clock Rising"
+      },
+      {
+        "command": "vaporview.setWaveDromClockFalling",
+        "title": "Set WaveDrom Clock Falling"
+      },
+      {
+        "command": "vaporview.unsetWaveDromClock",
+        "title": "Unset WaveDrom Clock"
+      },
+      {
+        "command": "vaporview.viewVaporViewSidebar",
+        "title": "View VaporView Sidebar"
+      },
+      {
+        "command": "vaporview.saveViewerSettings",
+        "title": "Save Vaporview Settings"
+      },
+      {
+        "command": "vaporview.loadViewerSettings",
+        "title": "Load Vaporview Settings"
+      },
+      {
+        "command": "vaporview.reloadFile",
+        "title": "Reload File"
       },
       {
         "command": "vaporview.copyWaveDrom",

@@ -236,8 +236,9 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       bufferSize = 8192;
       vscode.window.showInformationMessage(
         this.uri.fsPath + ' is larger than the max static load size of ' + fstMaxStaticLoadSize +
-        ' MB. File will be loaded dynamically. You can configure the max load size in your extension settings.');
+        ' MB. File will be loaded dynamically. You can configure the max load size in your extension settings');
     }
+    //`#vaporview.fstMaxStaticLoadSize#`
 
     await vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification,

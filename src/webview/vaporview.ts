@@ -28,6 +28,7 @@ export type NetlistData = {
   variableType: string;
   encoding: string;
   renderType: WaveformRenderer;
+  color: string;
 };
 
 export type WaveformData = {
@@ -415,7 +416,7 @@ class VaporviewWebview {
       case 'add-variable':          {dataManager.addVariable(message.signalList); break;}
       case 'update-waveform-chunk': {dataManager.udpateWaveformChunk(message); break;}
       case 'remove-signal':         {this.removeVariable(message.netlistId); break;}
-      case 'setNumberFormat':       {dataManager.setNumberFormat(message.numberFormat, message.netlistId); break;}
+      case 'setDisplayFormat':      {dataManager.setDisplayFormat(message); break;}
       case 'setWaveDromClock':      {dataManager.waveDromClock = {netlistId: message.netlistId, edge:  message.edge,}; break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
       case 'setMarker':             {this.events.dispatch(ActionType.MarkerSet, message.time, 0); break;}

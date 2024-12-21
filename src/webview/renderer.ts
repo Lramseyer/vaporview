@@ -1,9 +1,9 @@
 import { NetlistData } from './vaporview';
 
-// blue   --vscode-debugView-valueChangedHighlight
-// green  --vscode-debugTokenExpression-number
-// orange --vscode-debugTokenExpression-string
-// purple --vscode-debugTokenExpression-name
+// green  var(--vscode-debugTokenExpression-number)
+// orange var(--vscode-debugTokenExpression-string)
+// blue   var(--vscode-debugView-valueChangedHighlight)
+// purple var(--vscode-debugTokenExpression-name)
 
 export interface WaveformRenderer {
   id: string;
@@ -101,7 +101,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     const minDrawWidth  = 1 / viewportSpecs.zoomRatio;
     let leftOverflow    = Math.min(initialState[0], 0);
     const rightOverflow = Math.max(postState[0] - viewportSpecs.columnTime, 0);
-    const drawColor        = "var(--vscode-debugTokenExpression-number)";
+    const drawColor        = netlistData.color;
     const xzColor          = "var(--vscode-debugTokenExpression-error)";
 
     for (let i = 0; i < transitionData.length; i++) {
@@ -226,7 +226,7 @@ export const binaryWaveformRenderer: WaveformRenderer = {
     let initialTimeOrStart = Math.max(initialState[0], -10);
     const minDrawWidth     = 1 / viewportSpecs.zoomRatio;
     let xzPath = "";
-    const drawColor        = "var(--vscode-debugTokenExpression-number)";
+    const drawColor        = netlistData.color;
     const xzColor          = "var(--vscode-debugTokenExpression-error)";
     const columnTime       = viewportSpecs.columnTime.toString();
     const valueIs9State    = netlistData.valueFormat.is9State;

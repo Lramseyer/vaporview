@@ -555,20 +555,29 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
   }
 
-  public setValueFormat(id: NetlistId, format: string) {
+  public setValueFormat(id: NetlistId | undefined, format: string | undefined, color: string | undefined, renderType: string | undefined) {
+    if (id === undefined) {return;}
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.active) {return;}
 
-    const panel    = this.activeWebview;
-    const document = this.activeDocument;
-
+    const panel      = this.activeWebview;
+    const document   = this.activeDocument;
     const netlistRef = document.netlistIdTable[id];
+
     if (netlistRef) {
-      netlistRef.netlistItem.numberFormat = format;
+      if (format !== undefined) {
+        netlistRef.netlistItem.numberFormat = format;
+      }
     }
 
-    panel.webview.postMessage({command: 'setNumberFormat', netlistId: id, numberFormat: format});
+    panel.webview.postMessage({
+      command: 'setDisplayFormat',
+      netlistId: id,
+      numberFormat: format,
+      color: color,
+      renderType: renderType,
+    });
   }
 
   // To do: implement nonce with this HTML:

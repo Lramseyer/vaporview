@@ -29,9 +29,9 @@ export function createValueDisplayElement(netlistId: NetlistId, value: any, isSe
   const valueIs9State = data.valueFormat.is9State;
   const pElement      = value.map((v: string) => {
     const is9State     = valueIs9State(v);
-    const color        = is9State ? 'style="color:var(--vscode-debugTokenExpression-error)"' : '';
+    const colorStyle   = is9State ? 'var(--vscode-debugTokenExpression-error)' : data.color;
     const displayValue = parseValue(v, width, !is9State);
-    return `<p ${color}>${displayValue}</p>`;
+    return `<p style="color:${colorStyle}">${displayValue}</p>`;
   }).join(joinString);
 
   return `<div class="waveform-label ${selectorClass}" id="value-${netlistId}" ${vscodeContext}>${pElement}</div>`;

@@ -1,6 +1,24 @@
 # Change Log
 
-## 1.2.6
+# 1.3.0 - Upcoming Release
+
+### Planned Features
+
+- Add Linear and Stepped waveform Rendering
+- Add More Number format support
+  - Signed Integers
+  - Floats
+- Support basic coloring of signals
+  - Provided Token Colors
+  - Custom colors
+- Add Feature to "Reveal in Netlist View"
+- Fix
+  - Chunks disappear when adding groups of signals already displayed
+  - Number format and color are not preserved on reload
+- Stretch goals
+  - Support VScode web
+
+## 1.2.6 - Current Release
 
 - Added GHW file support
 - Added Support for Real and String datatypes
@@ -34,7 +52,6 @@
 - Scroll Position now limited to end of trace rather than the end of the last chunk
 - Save/Load viewer settings has been added as context menu item for easier access
 - Fixed issues with netlists loading into the wrong view on load
-- Added (Beta) File reloading
 
 # 1.1.0
 

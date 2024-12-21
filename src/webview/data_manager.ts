@@ -78,8 +78,16 @@ export class WaveformDataManager {
       const signalId       = signal.signalId;
 
       let valueFormat;
-      if (signal.encoding === "String" || signal.encoding === "Real") {valueFormat = formatString;}
-      else {valueFormat = signal.signalWidth === 1 ? formatBinary : formatHex;}
+      let color = "var(--vscode-debugTokenExpression-number)";
+      if (signal.encoding === "String") {
+        valueFormat = formatString;
+        color = "var(--vscode-debugTokenExpression-string)";
+        //color = "var(--vscode-debugTokenExpression-name)";
+      } else if (signal.encoding === "Real") {
+        valueFormat = formatString;
+      } else {
+        valueFormat = signal.signalWidth === 1 ? formatBinary : formatHex;
+      }
 
       this.netlistData[netlistId] = {
         signalId:     signalId,
@@ -92,6 +100,7 @@ export class WaveformDataManager {
         valueFormat:  valueFormat,
         renderType:   signal.signalWidth === 1 ? binaryWaveformRenderer : multiBitWaveformRenderer,
         textWidth:    0,
+        color:        color,
       };
       this.netlistData[netlistId].textWidth = this.netlistData[netlistId].valueFormat.getTextWidth(this.netlistData[netlistId].signalWidth);
       this.netlistData[netlistId].vscodeContext = this.setSignalContextAttribute(netlistId);
@@ -174,17 +183,28 @@ export class WaveformDataManager {
     });
   }
 
-  setNumberFormat(numberFormat: string, netlistId: NetlistId) {
+  setDisplayFormat(message: any) {
 
-    let valueFormat = valueFormatList.find((format) => format.id === numberFormat);
-
+    const netlistId = message.netlistId;
+    if (message.netlistId === undefined) {return;}
     if (this.netlistData[netlistId] === undefined) {return;}
-    if (valueFormat === undefined) {valueFormat = formatBinary;}
 
-    this.netlistData[netlistId].valueFormat   = valueFormat;
+    if (message.numberFormat !== undefined) {
+      let valueFormat = valueFormatList.find((format) => format.id === message.numberFormat);
+      if (valueFormat === undefined) {valueFormat = formatBinary;}
+      this.netlistData[netlistId].valueFormat   = valueFormat;
+      this.netlistData[netlistId].textWidth     = valueFormat.getTextWidth(this.netlistData[netlistId].signalWidth);
+    }
+
+    if (message.color !== undefined) {
+      this.netlistData[netlistId].color = message.color;
+    }
+
+    //if (message.renderType !== undefined) {
+    //  this.netlistData[netlistId].renderType = message.renderType;
+    //}
+
     this.netlistData[netlistId].vscodeContext = this.setSignalContextAttribute(netlistId);
-    this.netlistData[netlistId].textWidth     = valueFormat.getTextWidth(this.netlistData[netlistId].signalWidth);
-
     this.events.dispatch(ActionType.RedrawVariable, netlistId);
   }
 

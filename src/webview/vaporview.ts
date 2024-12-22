@@ -24,10 +24,10 @@ export type NetlistData = {
   signalWidth: number;
   valueFormat: ValueFormat;
   vscodeContext: string;
-  textWidth: number;
   variableType: string;
   encoding: string;
   renderType: WaveformRenderer;
+  colorIndex: number;
   color: string;
 };
 

@@ -555,7 +555,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
   }
 
-  public setValueFormat(id: NetlistId | undefined, format: string | undefined, color: string | undefined, renderType: string | undefined) {
+  public setValueFormat(id: NetlistId | undefined, format: string | undefined, color: number | undefined, renderType: string | undefined) {
     if (id === undefined) {return;}
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
@@ -571,12 +571,18 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       }
     }
 
+    const color1 = vscode.workspace.getConfiguration('vaporview').get('customColor1');
+    const color2 = vscode.workspace.getConfiguration('vaporview').get('customColor2');
+    const color3 = vscode.workspace.getConfiguration('vaporview').get('customColor3');
+    const color4 = vscode.workspace.getConfiguration('vaporview').get('customColor4');
+
     panel.webview.postMessage({
       command: 'setDisplayFormat',
       netlistId: id,
       numberFormat: format,
       color: color,
       renderType: renderType,
+      customColors: [color1, color2, color3, color4],
     });
   }
 

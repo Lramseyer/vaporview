@@ -83,25 +83,25 @@
         },
         "vaporview.customColor1": {
           "type": "string",
-          "default": "#C0FFEE",
+          "default": "#cccccc",
           "scope": "application",
           "description": "Custom Color in CSS format ie '#C0FFEE' or 'rgb(192, 255, 238)' or 'blue'"
         },
         "vaporview.customColor2": {
           "type": "string",
-          "default": "#C0FFEE",
+          "default": "#dcdcaa",
           "scope": "application",
           "description": "Custom Color in CSS format ie '#C0FFEE' or 'rgb(192, 255, 238)' or 'blue'"
         },
         "vaporview.customColor3": {
           "type": "string",
-          "default": "#C0FFEE",
+          "default": "#4ec9b0",
           "scope": "application",
           "description": "Custom Color in CSS format ie '#C0FFEE' or 'rgb(192, 255, 238)' or 'blue'"
         },
         "vaporview.customColor4": {
           "type": "string",
-          "default": "#C0FFEE",
+          "default": "#9cdcfe",
           "scope": "application",
           "description": "Custom Color in CSS format ie '#C0FFEE' or 'rgb(192, 255, 238)' or 'blue'"
         }

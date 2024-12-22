@@ -127,35 +127,35 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Custom Color commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor1', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, "var(--vscode-debugTokenExpression-number)", undefined);
+    viewerProvider.setValueFormat(e.netlistId, undefined, 0, undefined);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor2', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, "var(--vscode-debugTokenExpression-string)", undefined);
+    viewerProvider.setValueFormat(e.netlistId, undefined, 1, undefined);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor3', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, "var(--vscode-debugView-valueChangedHighlight)", undefined);
+    viewerProvider.setValueFormat(e.netlistId, undefined, 2, undefined);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor4', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, "var(--vscode-debugTokenExpression-name)", undefined);
+    viewerProvider.setValueFormat(e.netlistId, undefined, 3, undefined);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor1', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, undefined, undefined);
+    viewerProvider.setValueFormat(e.netlistId, undefined, 4, undefined);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor2', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, undefined, undefined);
+    viewerProvider.setValueFormat(e.netlistId, undefined, 5, undefined);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor3', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, undefined, undefined);
+    viewerProvider.setValueFormat(e.netlistId, undefined, 6, undefined);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor4', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, undefined, undefined);
+    viewerProvider.setValueFormat(e.netlistId, undefined, 7, undefined);
   }));
 }
 

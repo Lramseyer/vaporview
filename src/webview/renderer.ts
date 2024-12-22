@@ -5,6 +5,8 @@ import { NetlistData } from './vaporview';
 // blue   var(--vscode-debugView-valueChangedHighlight)
 // purple var(--vscode-debugTokenExpression-name)
 
+const characterWidth = 7.69;
+
 export interface WaveformRenderer {
   id: string;
   createSvgFromValueChangeChunk(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: any): string;
@@ -78,7 +80,6 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     const initialState   = valueChangeChunk.initialState;
     const postState      = valueChangeChunk.postState;
     const signalWidth    = netlistData.signalWidth;
-    const textWidth      = netlistData.textWidth;
     const parseValue     = netlistData.valueFormat.formatString;
     const valueIs9State  = netlistData.valueFormat.is9State;
 
@@ -138,7 +139,8 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
             textElements += `<div class="bus-waveform-value" style="flex:${emptyDivWidth};"></div>`;
           }
           emptyDivWidth = 0;
-          textElements += this.busElement(time, elementWidth, parseValue(value, signalWidth, !is4State), spansChunk, textWidth, leftOverflow, 0, viewportSpecs);
+          const parsedValue = parseValue(value, signalWidth, !is4State)
+          textElements += this.busElement(time, elementWidth, parsedValue, spansChunk, parsedValue.length * characterWidth, leftOverflow, 0, viewportSpecs);
         } else {
           emptyDivWidth += elementWidth + leftOverflow;
         }
@@ -183,7 +185,8 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
         textElements += `<div class="bus-waveform-value" style="flex:${emptyDivWidth};"></div>`;
       }
       emptyDivWidth = 0;
-      textElements += this.busElement(time, elementWidth, parseValue(value, signalWidth, !is4State), true, textWidth, leftOverflow, rightOverflow, viewportSpecs);
+      const parsedValue = parseValue(value, signalWidth, !is4State);
+      textElements += this.busElement(time, elementWidth, parsedValue, true, parsedValue.length * characterWidth, leftOverflow, rightOverflow, viewportSpecs);
     } else {
       emptyDivWidth += elementWidth + leftOverflow - rightOverflow;
       textElements += `<div class="bus-waveform-value" style="flex:${emptyDivWidth};"></div>`;

@@ -270,7 +270,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       this.treeData.push(scope);
       this._netlistIdTable[id] = {netlistItem: scope, displayedItem: undefined, signalId: 0};
     },
-  setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number) => {
+    setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number) => {
 
       const varItem = createVar(name, tpe, encoding, "", id, signalid, width, msb, lsb);
       this.treeData.push(varItem);
@@ -394,6 +394,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     const numberFormat = netlistData?.numberFormat;
     const msb          = netlistData?.msb;
     const lsb          = netlistData?.lsb;
+    //const colorIndex   = netlistData?.colorIndex;
     return {
       name: modulePath + '.' + signalName,
       numberFormat: numberFormat,

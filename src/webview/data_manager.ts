@@ -2,6 +2,16 @@ import { NetlistData, SignalId, NetlistId, WaveformData, ValueChange, EventHandl
 import { formatBinary, formatHex, ValueFormat, formatString, valueFormatList } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 
+const colorKey = [
+  "var(--vscode-debugTokenExpression-number)",
+  "var(--vscode-debugTokenExpression-string)",
+  "var(--vscode-debugView-valueChangedHighlight)",
+  "var(--vscode-debugTokenExpression-name)"
+];
+
+// This will be populated when a custom color is set
+let customColorKey = [];
+
 export class WaveformDataManager {
   requested: SignalId[] = [];
   queued:    SignalId[] = [];
@@ -78,11 +88,10 @@ export class WaveformDataManager {
       const signalId       = signal.signalId;
 
       let valueFormat;
-      let color = "var(--vscode-debugTokenExpression-number)";
+      let colorIndex = 0;
       if (signal.encoding === "String") {
         valueFormat = formatString;
-        color = "var(--vscode-debugTokenExpression-string)";
-        //color = "var(--vscode-debugTokenExpression-name)";
+        colorIndex  = 1;
       } else if (signal.encoding === "Real") {
         valueFormat = formatString;
       } else {
@@ -99,11 +108,11 @@ export class WaveformDataManager {
         vscodeContext: "",
         valueFormat:  valueFormat,
         renderType:   signal.signalWidth === 1 ? binaryWaveformRenderer : multiBitWaveformRenderer,
-        textWidth:    0,
-        color:        color,
+        colorIndex:   colorIndex,
+        color:        "",
       };
-      this.netlistData[netlistId].textWidth = this.netlistData[netlistId].valueFormat.getTextWidth(this.netlistData[netlistId].signalWidth);
       this.netlistData[netlistId].vscodeContext = this.setSignalContextAttribute(netlistId);
+      this.setColorFromColorIndex(netlistId);
       netlistIdList.push(netlistId);
 
       if (this.valueChangeData[signalId] !== undefined) {
@@ -183,6 +192,18 @@ export class WaveformDataManager {
     });
   }
 
+  setColorFromColorIndex(netlistId: NetlistId) {
+    const data = this.netlistData[netlistId];
+    if (data === undefined) {return;}
+
+    const colorIndex = data.colorIndex;
+    if (colorIndex < 4) {
+      data.color = colorKey[colorIndex];
+    } else {
+      data.color = customColorKey[colorIndex - 4];
+    }
+  }
+
   setDisplayFormat(message: any) {
 
     const netlistId = message.netlistId;
@@ -193,11 +214,12 @@ export class WaveformDataManager {
       let valueFormat = valueFormatList.find((format) => format.id === message.numberFormat);
       if (valueFormat === undefined) {valueFormat = formatBinary;}
       this.netlistData[netlistId].valueFormat   = valueFormat;
-      this.netlistData[netlistId].textWidth     = valueFormat.getTextWidth(this.netlistData[netlistId].signalWidth);
     }
 
     if (message.color !== undefined) {
-      this.netlistData[netlistId].color = message.color;
+      customColorKey = message.customColors;
+      this.netlistData[netlistId].colorIndex = message.color;
+      this.setColorFromColorIndex(netlistId);
     }
 
     //if (message.renderType !== undefined) {
@@ -422,4 +444,4 @@ export class WaveformDataManager {
       maxTransitions: MAX_TRANSITIONS
     });
   }
-}
+  }

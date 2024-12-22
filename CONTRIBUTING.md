@@ -265,7 +265,6 @@ Here are some of the important structures for the viewer:
     - startIndex: number
   - signalWidth: number
   - chunkCount: number
-  - textWidth: number
 
 - netlistData: Map<netlistId, netlistData>
   - signalId: string

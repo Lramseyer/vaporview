@@ -17,6 +17,15 @@ function formatBinaryString(inputString: string) {
   return inputString.replace(/\B(?=(\w{4})+(?!\w))/g, "_");
 }
 
+function signedBinaryStringToInt(inputString: string) {
+  const isNegative = inputString[0] === '1';
+  let result = parseInt(inputString, 2);
+  if (isNegative) {
+    result -= Math.pow(2, inputString.length);
+  }
+  return result.toString();
+}
+
 // The interface is defined by the ValueFormat interface:
 export interface ValueFormat {
   // Unique identifier for the format
@@ -31,9 +40,6 @@ export interface ValueFormat {
   // Function to format the string for display. The input format is an ASCII string of binary values
   // and the output format is a string that will be displayed in the viewer.
   formatString: (value: string, width: number, is2State: boolean) => string;
-
-  // Function to calculate the  maximum width of the text in the viewer
-  getTextWidth: (width: number) => number;
 
   // Function to check if the string is valid in the search bar
   checkValid: (value: string) => boolean;
@@ -73,13 +79,6 @@ export const formatHex: ValueFormat = {
         return parseInt(chunk, 2).toString(16).padStart(digits, '0');
       }).join('_');
     }
-  },
-
-  getTextWidth: (width: number) => {
-    const characterWidth = 7.69;
-    const numeralCount    = Math.ceil(width / 4);
-    const underscoreCount = Math.floor((width - 1) / 16);
-    return (numeralCount + underscoreCount) * characterWidth;
   },
 
   checkValid: (inputText: string) => {
@@ -129,12 +128,6 @@ export const formatOctal: ValueFormat = {
     }
   },
 
-  getTextWidth: (width: number) => {
-    const characterWidth = 7.69;
-    const numeralCount    = Math.ceil(width / 3);
-    return numeralCount * characterWidth;
-  },
-
   checkValid: (inputText: string) => {
     if (inputText.match(/^[0-7xzXZ_]+$/)) {return true;}
     else {return false;}
@@ -159,13 +152,6 @@ export const formatBinary: ValueFormat = {
   symbolText: "bin",
 
   formatString: formatBinaryString,
-
-  getTextWidth: (width: number) => {
-    const characterWidth = 7.69;
-    const numeralCount    = width;
-    const underscoreCount = Math.floor((width - 1) / 4);
-    return (numeralCount + underscoreCount) * characterWidth;
-  },
 
   checkValid: (inputText: string) => {
     if (inputText.match(/^b?[01xzXZdD_]+$/)) {return true;}
@@ -194,13 +180,6 @@ const formatDecimal: ValueFormat = {
     return stringArray.map((chunk) => {return parseInt(chunk, 2).toString(10);}).join('_');
   },
 
-  getTextWidth: (width: number) => {
-    const characterWidth = 7.69;
-    const numeralCount    = Math.ceil(Math.log10(width % 32)) + (10 * Math.floor((width) / 32));
-    const underscoreCount = Math.floor((width - 1) / 32);
-    return (numeralCount + underscoreCount) * characterWidth;
-  },
-
   checkValid: (inputText: string) => {
     if (inputText.match(/^[0-9xzXZ_,]+$/)) {return true;}
     else {return false;}
@@ -218,6 +197,43 @@ const formatDecimal: ValueFormat = {
   is9State: valueIs9State,
 };
 
+// #region Format Signed
+const formatSignedInt: ValueFormat = {
+  id: "signed",
+  rightJustify: false,
+  symbolText: "int",
+
+  formatString: (inputString: string, width: number, is2State: boolean) => {
+    if (!is2State) {
+      return formatBinaryString(inputString);
+    }
+    return signedBinaryStringToInt(inputString).toString();
+  },
+
+  checkValid: (inputText: string) => {
+    if (inputText.match(/^-?[0-9xzXZ_,]+$/)) {return true;}
+    else {return false;}
+  },
+
+  parseValueForSearch: (inputText: string) => {
+    const result = inputText.replace(/[,_]/g, '');
+    if (inputText[0] === "-") {
+      // convert number to 2's complement with the minimum number of bits
+      const positive = parseInt(result, 10);
+      const positiveBinary = positive.toString(2);
+      const length = positiveBinary.length;
+      const negativeBinary = (positive + Math.pow(2, length)).toString(2);
+      if (negativeBinary.length > length) {return negativeBinary.slice(1);}
+      return negativeBinary;
+    } else {
+      return parseInt(result, 10).toString(2);
+    }
+  },
+
+  is9State: valueIs9State,
+};
+
+// #region Format String
 export const formatString: ValueFormat = {
   id: "string",
   rightJustify: false,
@@ -225,10 +241,6 @@ export const formatString: ValueFormat = {
 
   formatString: (inputString: string, width: number, is2State: boolean) => {
     return inputString;
-  },
-
-  getTextWidth: (width: number) => {
-    return width * 7.69;
   },
 
   checkValid: (inputText: string) => {
@@ -242,4 +254,4 @@ export const formatString: ValueFormat = {
   is9State: () => {return false;},
 };
 
-export const valueFormatList: ValueFormat[] = [formatBinary, formatHex, formatDecimal, formatOctal, formatString];
+export const valueFormatList: ValueFormat[] = [formatBinary, formatHex, formatDecimal, formatOctal, formatSignedInt, formatString];

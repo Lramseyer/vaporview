@@ -211,6 +211,10 @@
           "when": "webviewSection == 'signal' && width > '1'"
         },
         {
+          "command": "vaporview.displayAsDecimalSigned",
+          "when": "webviewSection == 'signal' && width > '1'"
+        },
+        {
           "command": "vaporview.displayAsHexadecimal",
           "when": "webviewSection == 'signal' && width > '1'"
         },
@@ -315,7 +319,11 @@
       },
       {
         "command": "vaporview.displayAsDecimal",
-        "title": "Decimal"
+        "title": "Decimal (Unsigned)"
+      },
+      {
+        "command": "vaporview.displayAsDecimalSigned",
+        "title": "Decimal (Signed)"
       },
       {
         "command": "vaporview.displayAsHexadecimal",

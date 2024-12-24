@@ -92,6 +92,10 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.setValueFormat(e.netlistId, "decimal", undefined, undefined);
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsDecimalSigned', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, "signed", undefined, undefined);
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsOctal', (e) => {
     viewerProvider.setValueFormat(e.netlistId, "octal", undefined, undefined);
   }));

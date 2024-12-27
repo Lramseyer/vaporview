@@ -77,6 +77,8 @@ export class WaveformDataManager {
     // Handle rendering a signal, e.g., render the signal based on message content
     //console.log(message);
 
+    if (signalList.length === 0) {return;}
+
     let updateFlag      = false;
     let selectedSignal  = viewerState.selectedSignal;
 
@@ -130,7 +132,6 @@ export class WaveformDataManager {
     });
 
     this.request(signalIdList);
-
     viewerState.displayedSignals = viewerState.displayedSignals.concat(netlistIdList);
     this.events.dispatch(ActionType.AddVariable, netlistIdList, updateFlag);
     this.events.dispatch(ActionType.SignalSelect, selectedSignal);

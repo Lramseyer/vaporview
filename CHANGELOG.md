@@ -2,18 +2,18 @@
 
 # 1.3.0 - Upcoming Release
 
+- Added Number formats:
+  - Signed Integers
+  - Floats: 8, 16, 32, 64, BFloat, TensorFloat
+- Added color option to waveforms
+- Fixed issues:
+  - Chunks disappear when adding groups of signals already displayed
+
 ### Planned Features
 
 - Add Linear and Stepped waveform Rendering
-- Add More Number format support
-  - Signed Integers
-  - Floats
-- Support basic coloring of signals
-  - Provided Token Colors
-  - Custom colors
 - Add Feature to "Reveal in Netlist View"
 - Fix
-  - Chunks disappear when adding groups of signals already displayed
   - Number format and color are not preserved on reload
 - Stretch goals
   - Support VScode web

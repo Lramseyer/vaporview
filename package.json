@@ -221,6 +221,18 @@
         {
           "command": "vaporview.displayAsOctal",
           "when": "webviewSection == 'signal' && width > '1'"
+        },
+        {
+          "command": "vaporview.displayAsFloat",
+          "when": "webviewSection == 'signal' && (width == '8' || width == '16' || width == '32' || width == '64')"
+        },
+        {
+          "command": "vaporview.displayAsBFloat",
+          "when": "webviewSection == 'signal' && width == '16'"
+        },
+        {
+          "command": "vaporview.displayAsTFloat",
+          "when": "webviewSection == 'signal' && width == '19'"
         }
       ],
       "vaporview.valueColor": [
@@ -332,6 +344,18 @@
       {
         "command": "vaporview.displayAsOctal",
         "title": "Octal"
+      },
+      {
+        "command": "vaporview.displayAsFloat",
+        "title": "Floating Point"
+      },
+      {
+        "command": "vaporview.displayAsBFloat",
+        "title": "BFloat 16"
+      },
+      {
+        "command": "vaporview.displayAsTFloat",
+        "title": "TensorFloat 32"
       },
       {
         "command": "vaporview.defaultColor1",

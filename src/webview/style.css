@@ -463,6 +463,7 @@ body {
   padding: 0 5px 0 5px;
   width: inherit;
   margin: 0;
+  white-space: nowrap;
 }
 
 .binary-waveform-svg {

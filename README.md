@@ -107,12 +107,13 @@ Finding a particular transition or a value in a waveform is done in relation to 
 
 Vaporview can display values in different number formats. To change the value format, right click on the signal in the viewer and select **Format Values** -> and select the value format you wish to display. Note that some values have limitations when displaying values with non-2-state bits in them, and will fall back to displaying the value as Binary. For details see the table below:
 
-| Value Format | Non-2-state Supported |
-| ------------ | --------------------- |
-| Binary       | ✅ Yes                |
-| Hexadecimal  | ✅ Yes                |
-| Octal        | ✅ Yes                |
-| Decimal      | ❌ No                 |
+| Value Format   | Non-2-state Supported |
+| -------------- | --------------------- |
+| Binary         | ✅ Yes                |
+| Hexadecimal    | ✅ Yes                |
+| Octal          | ✅ Yes                |
+| Decimal        | ❌ No                 |
+| Floating Point | ❌ No                 |
 
 ## Saving and loading opened signals
 

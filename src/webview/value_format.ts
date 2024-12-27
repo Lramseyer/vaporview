@@ -23,9 +23,65 @@ function signedBinaryStringToInt(inputString: string) {
   if (isNegative) {
     result -= Math.pow(2, inputString.length);
   }
-  return result.toString();
+  return result;
 }
 
+function formatBinaryStringFloat9State(inputString: string, exponentBits: number, mantissaBits: number) {
+  const sign = inputString[0];
+  const exponent = inputString.slice(1, 1 + exponentBits);
+  const mantissa = inputString.slice(1 + exponentBits);
+  return sign + "_" + exponent + "_" + mantissa;
+}
+
+function parseBinaryStringAsFloat(inputString: string, exponentBits: number, mantissaBits: number) {
+  const sign = inputString[0] === '1' ? -1 : 1;
+  const exponent = parseInt(inputString.slice(1, 1 + exponentBits), 2);
+  const mantissa = parseInt(inputString.slice(1 + exponentBits), 2);
+  // Infinity and NaN
+  if (exponent === Math.pow(2, exponentBits) - 1) {
+    if (mantissa === 0) {
+      return sign * Infinity;
+    } else {
+      return sign * NaN;
+    }
+  }
+  return sign * Math.pow(2, exponent - (Math.pow(2, exponentBits - 1) - 1)) * (1 + mantissa / Math.pow(2, mantissaBits));
+}
+
+function formatFloat(inputString: string, exponentBits: number, mantissaBits: number, is2State: boolean) {
+  if (!is2State) {
+    return formatBinaryStringFloat9State(inputString, exponentBits, mantissaBits);
+  }
+  return parseBinaryStringAsFloat(inputString, exponentBits, mantissaBits).toString();
+}
+
+// This function checks for a valid number in float format in the search bar
+function checkValidFloat(inputText: string) {
+  if (inputText.match(/^-?(\d+)?\.?\d+$/)) {return true;}
+  if (inputText.match(/^-?Inf(inity)?$/)) {return true;}
+  if (inputText.match(/^-?NaN$/)) {return true;}
+  return false;
+}
+
+// This function parses a number and returns a binary string for searching
+function parseFloatForSearch(inputText: string, exponentBits: number, mantissaBits: number,) {
+  if (inputText.match(/^-?Inf(inity)?$/)) {
+    let sign = inputText[0] === '-' ? '1' : '0';
+    return sign + '1'.repeat(exponentBits) + '0'.repeat(mantissaBits);
+  }
+  if (inputText.match(/^-?NaN$/)) {
+    let sign = inputText[0] === '-' ? '1' : '0';
+    return sign + '1'.repeat(exponentBits) + '1' + '.'.repeat(mantissaBits - 1);
+  }
+  const number = parseFloat(inputText);
+  const sign = number < 0 ? '1' : '0';
+  const absNumber = Math.abs(number);
+  const exponent = Math.floor(Math.log2(absNumber));
+  const mantissa = absNumber / Math.pow(2, exponent) - 1;
+  return sign + exponent.toString(2).padStart(exponentBits, '0') + mantissa.toString(2).slice(2).padEnd(mantissaBits, '0');
+}
+
+// #region Value Format Interface
 // The interface is defined by the ValueFormat interface:
 export interface ValueFormat {
   // Unique identifier for the format
@@ -233,6 +289,72 @@ const formatSignedInt: ValueFormat = {
   is9State: valueIs9State,
 };
 
+// #region Format Float 8
+export const formatFloat8: ValueFormat = {
+  id: "float8",
+  rightJustify: false,
+  symbolText: "f8",
+  formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 4, 3, is2State);},
+  checkValid: checkValidFloat,
+  parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 4, 3);},
+  is9State: valueIs9State,
+}
+
+// #region Format Float 16
+export const formatFloat16: ValueFormat = {
+  id: "float16",
+  rightJustify: false,
+  symbolText: "f16",
+  formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 5, 10, is2State);},
+  checkValid: checkValidFloat,
+  parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 5, 10);},
+  is9State: valueIs9State,
+}
+
+// #region Format BFloat 16
+export const formatBFloat16: ValueFormat = {
+  id: "bfloat16",
+  rightJustify: false,
+  symbolText: "b16",
+  formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 8, 7, is2State);},
+  checkValid: checkValidFloat,
+  parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 8, 7);},
+  is9State: valueIs9State,
+}
+
+// #region TensorFloat 32
+export const formatTensorFloat32: ValueFormat = {
+  id: "tensorfloat32",
+  rightJustify: false,
+  symbolText: "t19",
+  formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 8, 10, is2State);},
+  checkValid: checkValidFloat,
+  parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 8, 10);},
+  is9State: valueIs9State,
+}
+
+// #region Format Float 32
+export const formatFloat32: ValueFormat = {
+  id: "float32",
+  rightJustify: false,
+  symbolText: "f32",
+  formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 8, 23, is2State);},
+  checkValid: checkValidFloat,
+  parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 8, 23);},
+  is9State: valueIs9State,
+}
+
+// #region Format Float 64
+export const formatFloat64: ValueFormat = {
+  id: "float64",
+  rightJustify: false,
+  symbolText: "f64",
+  formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 11, 52, is2State);},
+  checkValid: checkValidFloat,
+  parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 11, 52);},
+  is9State: valueIs9State,
+}
+
 // #region Format String
 export const formatString: ValueFormat = {
   id: "string",
@@ -254,4 +376,17 @@ export const formatString: ValueFormat = {
   is9State: () => {return false;},
 };
 
-export const valueFormatList: ValueFormat[] = [formatBinary, formatHex, formatDecimal, formatOctal, formatSignedInt, formatString];
+export const valueFormatList: ValueFormat[] = [
+  formatBinary,
+  formatHex,
+  formatDecimal,
+  formatOctal,
+  formatSignedInt,
+  formatFloat8,
+  formatFloat16,
+  formatFloat32,
+  formatFloat64,
+  formatBFloat16,
+  formatTensorFloat32,
+  formatString
+];

@@ -81,6 +81,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Value Format commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsBinary', (e, a) => {
+    
+    console.log(e);
+    console.log(a);
     viewerProvider.setValueFormat(e.netlistId, "binary", undefined, undefined);
   }));
 
@@ -98,6 +101,24 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsOctal', (e) => {
     viewerProvider.setValueFormat(e.netlistId, "octal", undefined, undefined);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsFloat', (e) => {
+    switch (e.width) {
+      case 8:  viewerProvider.setValueFormat(e.netlistId, "float8",  undefined, undefined); break;
+      case 16: viewerProvider.setValueFormat(e.netlistId, "float16", undefined, undefined); break;
+      case 32: viewerProvider.setValueFormat(e.netlistId, "float32", undefined, undefined); break;
+      case 64: viewerProvider.setValueFormat(e.netlistId, "float64", undefined, undefined); break;
+      default: viewerProvider.setValueFormat(e.netlistId, "binary",  undefined, undefined); break;
+    }
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsBFloat', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, "bfloat16", undefined, undefined);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsTFloat', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, "tensorfloat32", undefined, undefined);
   }));
 
   // WaveDrom commands

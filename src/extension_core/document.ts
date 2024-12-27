@@ -371,7 +371,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       selectedSignal: this.getNameFromNetlistId(this.webviewContext.selectedSignal),
       zoomRatio: this.webviewContext.zoomRatio,
       scrollLeft: this.webviewContext.scrollLeft,
-      displayedSignals: this.webviewContext.displayedSignals.map((n: NetlistId) => {return this.getNameFromNetlistId(n);}),
+      displayedSignals: this.webviewContext.displayedSignals
     };
   }
 

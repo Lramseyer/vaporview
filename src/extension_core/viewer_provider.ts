@@ -272,6 +272,9 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     console.log(missingSignals);
     this.filterAddSignalsInNetlist(foundSignals, true);
+    for (const signalInfo of settings.displayedSignals) {
+      this.setValueFormat(signalInfo.netlistId, signalInfo.numberFormat, signalInfo.colorIndex, signalInfo.renderType);
+    }
   }
 
   async reloadFile() {
@@ -484,8 +487,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     //console.log('found signal ' + signalName);
     const netlistId   = metadata.netlistId;
-    const isDisplayed = document.webviewContext.displayedSignals.includes(netlistId as never);
-    if (isDisplayed) {
+    const isDisplayed = document.webviewContext.displayedSignals.find((element: any) => element.netlistId === netlistId);
+    if (isDisplayed !== undefined) {
       document.revealSignalInWebview(netlistId);
     } else {
       this.addSignalsToDocument([metadata]);

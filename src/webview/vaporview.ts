@@ -130,9 +130,17 @@ export function sendWebviewContext() {
     markerTime: viewerState.markerTime,
     altMarkerTime: viewerState.altMarkerTime,
     selectedSignal: viewerState.selectedSignal,
-    displayedSignals: viewerState.displayedSignals,
     zoomRatio: vaporview.viewport.zoomRatio,
     scrollLeft: vaporview.viewport.pseudoScrollLeft,
+    displayedSignals: viewerState.displayedSignals.map((id: NetlistId) => {
+      const data = dataManager.netlistData[id];
+      return {
+        netlistId:    id,
+        name:         data.modulePath + "." + data.signalName,
+        numberFormat: data.valueFormat.id,
+        colorIndex:   data.colorIndex,
+      };
+    })
   });
 }
 

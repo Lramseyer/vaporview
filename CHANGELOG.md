@@ -6,15 +6,16 @@
   - Signed Integers
   - Floats: 8, 16, 32, 64, BFloat, TensorFloat
 - Added color option to waveforms
+- Added "Show in Netlist view" context menu item
 - Fixed issues:
   - Chunks disappear when adding groups of signals already displayed
+  - Number format and color are not preserved on reload
 
 ### Planned Features
 
 - Add Linear and Stepped waveform Rendering
-- Add Feature to "Reveal in Netlist View"
 - Fix
-  - Number format and color are not preserved on reload
+  - Gestures on Mac OS
 - Stretch goals
   - Support VScode web
 

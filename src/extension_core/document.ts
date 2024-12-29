@@ -641,8 +641,8 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
   }
 
   getParent(element: NetlistItem): vscode.ProviderResult<NetlistItem> {
-    if (this.document) {
-      return element.findChild(element.modulePath, this.document, undefined, undefined);
+    if (this.document && element.modulePath !== "") {
+      return Promise.resolve(this.document.findTreeItem(element.modulePath, undefined, undefined));
     }
     return null;
   }
@@ -759,6 +759,7 @@ export class NetlistItem extends vscode.TreeItem {
     }
 
     const childItem     = this.children.find((child) => child.name === currentModule);
+
 
     if (childItem) {
       return await childItem.findChild(subModules.join("."), document, msb, lsb);

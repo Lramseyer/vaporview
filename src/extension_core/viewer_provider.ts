@@ -275,6 +275,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     for (const signalInfo of settings.displayedSignals) {
       this.setValueFormat(signalInfo.netlistId, signalInfo.numberFormat, signalInfo.colorIndex, signalInfo.renderType);
     }
+
+    //this.netlistTreeDataProvider.loadDocument(document);
   }
 
   async reloadFile() {

@@ -27,12 +27,15 @@ const domParser = new DOMParser();
 export class Viewport {
 
   scrollArea: HTMLElement;
-  contentArea: HTMLElement; 
+  contentArea: HTMLElement;
   scrollbar: HTMLElement;
+  scrollbarContainer: HTMLElement;
+  scrollbarCanvasElement: HTMLElement;
+  scrollbarCanvas: CanvasRenderingContext2D;
 
   highlightElement: any     = null;
-  highlightEndEvent: any = null;
-  highlightStartEvent: any = null;
+  highlightEndEvent: any    = null;
+  highlightStartEvent: any  = null;
   highlightListenerSet      = false;
   highlightDebounce: any    = null;
 
@@ -50,6 +53,7 @@ export class Viewport {
   maxScrollbarPosition: number = 0;
   scrollbarWidth: number      = 17;
   scrollbarPosition: number   = 0;
+  scrollbarHidden: boolean    = true;
 
   touchpadScrollCount: number = 0;
   scrollbarMoved: boolean      = false;
@@ -67,15 +71,16 @@ export class Viewport {
   timeStop: number            = 0;
 
   // Clusterize variables
-  updatePending: boolean       = false;
+  updatePending: boolean      = false;
   columnsInCluster: number    = 4;
-  scrollEventPending: boolean  = false;
-  currentCluster      = [0, 0];
-  columnWidth         = this.chunksInColumn  * this.chunkWidth;
+  scrollEventPending: boolean = false;
+  currentCluster              = [0, 0];
+  columnWidth                 = this.chunksInColumn  * this.chunkWidth;
 
   // Marker variables
   markerChunkIndex: number | null    = null;
   altMarkerChunkIndex: number | null = null;
+  markerAnnotation: string           = '';
 
   dataCache: DataCache = {
     startIndex:     0,
@@ -93,23 +98,38 @@ export class Viewport {
   constructor(
     private events: EventHandler,
   ) {
-    const scrollArea        = document.getElementById('scrollArea');
-    const contentArea       = document.getElementById('contentArea');
-    const scrollbar         = document.getElementById('scrollbar');
+    const scrollArea         = document.getElementById('scrollArea');
+    const contentArea        = document.getElementById('contentArea');
+    const scrollbar          = document.getElementById('scrollbar');
+    const scrollbarContainer = document.getElementById('scrollbarContainer');
+    const scrollbarCanvas    = document.getElementById('scrollbarAreaCanvas');
 
-    if (scrollArea === null || contentArea === null || scrollbar === null) {
+    if (scrollArea === null || contentArea === null || scrollbar === null || 
+      scrollbarContainer === null || scrollbarCanvas === null) {
       throw new Error('Viewport elements not found');
+    }
+
+    const canvasContext = (scrollbarCanvas as HTMLCanvasElement).getContext('2d');
+
+    if (canvasContext === null) {
+      throw new Error('Canvas context not found');
     }
 
     this.scrollArea = scrollArea;
     this.contentArea = contentArea;
     this.scrollbar = scrollbar;
+    this.scrollbarContainer = scrollbarContainer;
+    this.scrollbarCanvasElement = scrollbarCanvas;
+    this.scrollbarCanvas = canvasContext;
+
+    // I calculated this as 174, 176, 173 @ 10% opacity in the default theme, but there was no CSS color that matched
+    this.markerAnnotation = document.documentElement.style.getPropertyValue('--vscode-editorOverviewRuler-selectionHighlightForeground');
 
     // click handler to handle clicking inside the waveform viewer
     // gets the absolute x position of the click relative to the scrollable content
-    contentArea.addEventListener('mousedown', (e) => {this.handleScrollAreaMouseDown(e);});
-    scrollbar.addEventListener('mousedown',   (e) => {this.handleScrollbarDrag(e);});
-
+    contentArea.addEventListener('mousedown',        (e) => {this.handleScrollAreaMouseDown(e);});
+    scrollbar.addEventListener('mousedown',          (e) => {this.handleScrollbarDrag(e);});
+    scrollbarContainer.addEventListener('mousedown', (e) => {this.handleScrollbarContainerClick(e);});
 
     this.mutationObserver = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
@@ -179,6 +199,8 @@ export class Viewport {
     this.updatePending = true;
     this.updateViewportWidth();
     this.updateContentArea(this.leftOffset, this.getBlockNum());
+    this.scrollbarCanvasElement.setAttribute("width",  `${this.viewerWidth}`);
+    this.scrollbarCanvasElement.setAttribute("height", `${this.scrollbarContainer.clientHeight}`);
   }
 
   renderWaveformChunk(netlistId: NetlistId, chunkStartIndex: number) {
@@ -688,16 +710,32 @@ export class Viewport {
     this.maxScrollbarPosition  = Math.max(this.viewerWidth - this.scrollbarWidth, 0);
     this.updateScrollBarPosition();
     this.scrollbar.style.width = this.scrollbarWidth + 'px';
+    this.updateScrollContainer();
   }
   
   updateScrollBarPosition() {
+    this.scrollbarHidden         = this.maxScrollLeft === 0;
     this.scrollbarPosition       = Math.round((this.pseudoScrollLeft / this.maxScrollLeft) * this.maxScrollbarPosition);
-    this.scrollbar.style.display = this.maxScrollLeft === 0 ? 'none' : 'block';
+    this.scrollbar.style.display = this.scrollbarHidden ? 'none' : 'block';
     this.scrollbar.style.left    = this.scrollbarPosition + 'px';
+  }
+
+  handleScrollbarContainerClick(e: MouseEvent) {
+    e.preventDefault();
+    if (this.scrollbarHidden) {return;}
+    const scrollbarBounds = this.scrollbarContainer.getBoundingClientRect();
+    const scrollbarX      = e.clientX - scrollbarBounds.left;
+    const newPosition     = Math.min(Math.max(0, scrollbarX - (this.scrollbarWidth / 2)), this.maxScrollbarPosition);
+    const newScrollLeft   = Math.round((newPosition / this.maxScrollbarPosition) * this.maxScrollLeft);
+    this.handleScrollEvent(newScrollLeft);
+
+    // roll this event into the scrollbar drag event
+    this.handleScrollbarDrag(e);
   }
 
   handleScrollbarDrag(event: MouseEvent) {
     event.preventDefault();
+    event.stopPropagation();
     this.scrollbarMoved = false;
     this.scrollbarStartX = event.clientX;
     this.scrollbar.classList.add('is-dragging');
@@ -808,11 +846,11 @@ export class Viewport {
 
     if (time === null) {
       if (markerType === 0) {
-        viewerState.markerTime  = null;
-        this.markerChunkIndex   = null;
+        viewerState.markerTime = null;
+        this.markerChunkIndex  = null;
       } else {
-        viewerState.altMarkerTime  = null;
-        this.altMarkerChunkIndex   = null;
+        viewerState.altMarkerTime = null;
+        this.altMarkerChunkIndex  = null;
       }
       return;
     }
@@ -826,7 +864,7 @@ export class Viewport {
       const chunkElement = this.contentArea.getElementsByClassName('column-chunk')[clusterIndex];
       
       if (chunkElement) {
-        const marker         = this.createTimeMarker(time, markerType);
+        const marker = this.createTimeMarker(time, markerType);
         chunkElement.appendChild(marker);
         chunkElement.innerHTML += '';
       }
@@ -837,15 +875,35 @@ export class Viewport {
     }
 
     if (markerType === 0) {
-      viewerState.markerTime            = time;
-      this.markerChunkIndex      = chunkIndex;
+      viewerState.markerTime = time;
+      this.markerChunkIndex  = chunkIndex;
 
       viewerMoved = this.moveViewToTime(time);
 
     } else {
-      viewerState.altMarkerTime           = time;
-      this.altMarkerChunkIndex   = chunkIndex;
+      viewerState.altMarkerTime = time;
+      this.altMarkerChunkIndex  = chunkIndex;
     }
+
+    this.updateScrollContainer();
+  }
+
+  updateScrollContainer() {
+    this.scrollbarCanvas.clearRect(0, 0, this.scrollbarCanvas.canvas.width, this.scrollbarCanvas.canvas.height);
+    this.annotateScrollContainer(this.markerAnnotation , viewerState.markerTime);
+    this.annotateScrollContainer(this.markerAnnotation , viewerState.altMarkerTime);
+  }
+
+  annotateScrollContainer(color, time) {
+
+    if (time === null) {return;}
+    const xOffset = (time / this.timeStop) * this.scrollbarCanvas.canvas.width;
+    this.scrollbarCanvas.lineWidth   = 1;
+    this.scrollbarCanvas.strokeStyle = color;
+    this.scrollbarCanvas.beginPath();
+    this.scrollbarCanvas.moveTo(xOffset, 0);
+    this.scrollbarCanvas.lineTo(xOffset, this.scrollbarCanvas.canvas.height);
+    this.scrollbarCanvas.stroke();
   }
 
   handleSignalSelect(netlistId: NetlistId | null) {
@@ -932,9 +990,11 @@ export class Viewport {
   }
 
   updateViewportWidth() {
+    this.scrollbarCanvasElement.setAttribute("width",  `0`);
     this.viewerWidth     = this.scrollArea.getBoundingClientRect().width;
     this.halfViewerWidth = this.viewerWidth / 2;
     this.maxScrollLeft   = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth + 10, 0));
+    this.scrollbarCanvasElement.setAttribute("width",  `${this.viewerWidth}`);
     //this.maxScrollLeft   = Math.round(Math.max((this.chunkCount * chunkWidth) - this.viewerWidth, 0));
     this.updateScrollbarResize();
     this.getChunksWidth();

@@ -7,17 +7,17 @@
   - Floats: 8, 16, 32, 64, BFloat, TensorFloat
 - Added color option to waveforms
 - Added "Show in Netlist view" context menu item
+- Added scrollbar annotation for marker position
 - Fixed issues:
   - Chunks disappear when adding groups of signals already displayed
-  - Number format and color are not preserved on reload
+  - Number format (and color) are not preserved on reload
 
 ### Planned Features
 
 - Add Linear and Stepped waveform Rendering
-- Fix
-  - Gestures on Mac OS
-- Stretch goals
-  - Support VScode web
+- Fix gestures on Mac OS
+- Support VScode web
+- Add file icon for waveform dump files
 
 ## 1.2.6 - Current Release
 

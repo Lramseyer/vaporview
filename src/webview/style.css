@@ -259,6 +259,10 @@ body {
   margin-left: 1px;
 }
 
+#scrollbarAreaCanvas {
+  display: block;
+}
+
 #displayedContent {
   display: inherit;
 }

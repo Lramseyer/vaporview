@@ -247,6 +247,7 @@ export class LabelsPanels {
     this.resizeIndex   = index;
     this.resizeElement = element;
     event.preventDefault();
+    this.resizeElement.classList.remove('is-idle');
     this.resizeElement.classList.add('is-resizing');
     document.addEventListener("mousemove", this.resize, false);
     viewerState.mouseupEventType = 'resize';

@@ -56,7 +56,7 @@ export class Viewport {
   scrollbarHidden: boolean    = true;
 
   touchpadScrollCount: number = 0;
-  scrollbarMoved: boolean      = false;
+  scrollbarMoved: boolean     = false;
   scrollbarStartX: number     = 0;
 
   // Zoom level variables
@@ -153,9 +153,7 @@ export class Viewport {
     });
     this.mutationObserver.observe(contentArea, {childList: true});
 
-    //this.handleScrollEvent = this.handleScrollEvent.bind(this);
     this.handleScrollbarMove = this.handleScrollbarMove.bind(this);
-    //this.updateScrollbarResize = this.updateScrollbarResize.bind(this);
     this.updateViewportWidth = this.updateViewportWidth.bind(this);
     this.handleZoom = this.handleZoom.bind(this);
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
@@ -706,7 +704,6 @@ export class Viewport {
 
   updateScrollbarResize() {
     this.scrollbarWidth        = Math.max(Math.round((this.viewerWidth ** 2) / (this.timeStop * this.zoomRatio)), 17);
-    //this.scrollbarWidth        = Math.max(Math.round((this.viewerWidth ** 2) / (this.chunkCount * chunkWidth)), 17);
     this.maxScrollbarPosition  = Math.max(this.viewerWidth - this.scrollbarWidth, 0);
     this.updateScrollBarPosition();
     this.scrollbar.style.width = this.scrollbarWidth + 'px';
@@ -868,7 +865,6 @@ export class Viewport {
         chunkElement.appendChild(marker);
         chunkElement.innerHTML += '';
       }
-
       //console.log('adding marker at time ' + time + ' from chunk ' + chunkIndex + '');
     } else {
       //console.log('chunk index ' + chunkIndex + ' is not in cache');
@@ -898,7 +894,7 @@ export class Viewport {
 
     if (time === null) {return;}
     const xOffset = (time / this.timeStop) * this.scrollbarCanvas.canvas.width;
-    this.scrollbarCanvas.lineWidth   = 1;
+    this.scrollbarCanvas.lineWidth   = 1.5;
     this.scrollbarCanvas.strokeStyle = color;
     this.scrollbarCanvas.beginPath();
     this.scrollbarCanvas.moveTo(xOffset, 0);
@@ -951,7 +947,6 @@ export class Viewport {
     this.updatePending    = true;
     this.zoomRatio        = newZoomRatio;
     this.chunkWidth       = this.chunkTime * this.zoomRatio;
-    //this.maxScrollLeft    = Math.round(Math.max((chunkCount * this.chunkWidth) - this.viewerWidth, 0));
     this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth + 10, 0));
     this.pseudoScrollLeft = Math.max(Math.min((zoomOrigin * this.zoomRatio) - screenPosition, this.maxScrollLeft), 0);
     for (let i = this.dataCache.startIndex; i < this.dataCache.endIndex; i+=this.chunksInColumn) {
@@ -983,7 +978,7 @@ export class Viewport {
   }
 
   handleRedrawSignal(netlistId: NetlistId) {
-    //aconsole.log('redrawing signal ' + netlistId + '');
+    //console.log('redrawing signal ' + netlistId + '');
     this.updatePending = true;
     this.updateWaveformInCache([netlistId]);
     this.updateContentArea(this.leftOffset, this.getBlockNum());

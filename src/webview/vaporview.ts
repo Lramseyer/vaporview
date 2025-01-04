@@ -312,6 +312,7 @@ class VaporviewWebview {
       labelsPanel.dragEnd(event);
     } else if (viewerState.mouseupEventType === 'resize') {
       labelsPanel.resizeElement.classList.remove('is-resizing');
+      labelsPanel.resizeElement.classList.add('is-idle');
       document.removeEventListener("mousemove", labelsPanel.resize, false);
       this.handleResizeViewer();
     } else if (viewerState.mouseupEventType === 'scroll') {

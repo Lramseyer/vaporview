@@ -230,7 +230,7 @@ body {
   }
 }
 
-.resize-bar:hover {
+.resize-bar.is-idle:hover {
   animation-delay: 500ms;
   animation-iteration-count: 1;
   animation: highlightresize-bar 100ms forwards;

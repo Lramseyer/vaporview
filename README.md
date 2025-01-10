@@ -149,14 +149,24 @@ This extension was designed on Vscode version 1.83
 
 # Development Roadmap
 
-## Release 1.2.6
+## Upcoming Release 1.3.0
 
-- Added GHW file support
-- Added Support for Real and String datatypes
-- Improved 9 state rendering
-- Added Octal number formatting
-- Fixed Binary display formatting with 9 satate values
-- Added more Netlist View icons, and colored them consistentely
+- Added Number formats:
+  - Signed Integers
+  - Floats: 8, 16, 32, 64, BFloat, TensorFloat
+- Added color option to waveforms
+- Added "Show in Netlist view" context menu item
+- Added scrollbar annotation for marker position
+- Added file icon for waveform dump files
+- Fixed issues:
+  - Chunks disappear when adding groups of signals already displayed
+  - Number format (and color) are not preserved on reload
+
+### Planned Features
+
+- Add Linear and Stepped waveform Rendering
+- Fix gestures on Mac OS
+- Support VScode web
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 
@@ -164,12 +174,9 @@ See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.m
 
 In no particular order of priority, here's a list of features that are on my radar. If you have any preferences as to which should be priorized, or a suggestion that is not on this list, leave a comment on the [github discussions](https://github.com/Lramseyer/VaporView/discussions)!
 
-- Datatypes
-  - Float 8 - 64, signed integers
-  - Add support for custom Enums and named values. Including callback functions for those daring enough!
+- Add support for custom Enums and named values. Including callback functions for those daring enough!
 - Improve renderer to better render non-2 state
 - Add support to highlight all transitions of a signal
-- Add support for custom colors - waiting for the VScode API to allow access to semantic token colors - [Github issue](https://github.com/microsoft/vscode/issues/32813)
 - Add support for remote sessions to save on memory
 - Link netlist to RTL tokens so that signals can be connected back to RTL locations - rtlbrowse stems file support (this may require interoperability with another extension)
 - Allow users to link .objdump files to a program counter value for a more integrated debug experience

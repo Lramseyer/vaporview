@@ -8,6 +8,7 @@
 - Added color option to waveforms
 - Added "Show in Netlist view" context menu item
 - Added scrollbar annotation for marker position
+- Added file icon for waveform dump files
 - Fixed issues:
   - Chunks disappear when adding groups of signals already displayed
   - Number format (and color) are not preserved on reload
@@ -17,7 +18,6 @@
 - Add Linear and Stepped waveform Rendering
 - Fix gestures on Mac OS
 - Support VScode web
-- Add file icon for waveform dump files
 
 ## 1.2.6 - Current Release
 

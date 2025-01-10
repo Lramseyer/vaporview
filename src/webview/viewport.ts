@@ -356,11 +356,12 @@ export class Viewport {
       // Render each waveform chunk asynchronously
       for (let i = 0; i < viewerState.displayedSignals.length; i+= sliceSize) {
         const slice = viewerState.displayedSignals.slice(i, i + sliceSize);
+        if (this.dataCache.columns[chunkIndex].abortFlag) {break;}
         await new Promise<void>(resolve => requestAnimationFrame(() => {
           for (const netlistId of slice) {
             //let signalId = netlistData[netlistId].signalId;
             // Check the abort flag at the start of each iteration
-            if (this.dataCache.columns[chunkIndex].abortFlag) {continue;}
+            if (this.dataCache.columns[chunkIndex].abortFlag) {break;}
             // Assume renderWaveformChunk is a heavy operation; simulate breaking it up
               chunkData[netlistId]     = this.renderWaveformChunk(netlistId, chunkIndex);
               chunkElements[netlistId] = chunkData[netlistId].html;
@@ -370,21 +371,22 @@ export class Viewport {
         }));
       }
 
-
       if (!this.dataCache.columns[chunkIndex].abortFlag) {
         this.dataCache.columns[chunkIndex].waveformChunk = chunkData;
       }
 
       // Update the DOM in the next animation frame
-      await new Promise<void>(resolve => requestAnimationFrame(() => {
-        viewerState.displayedSignals.forEach((netlistId: NetlistId) => {orderedElements.push(chunkElements[netlistId]);});
-        const domRef = document.getElementById('waveform-column-' + chunkIndex + '-' + this.chunksInColumn);
-        if (domRef && !this.dataCache.columns[chunkIndex].abortFlag) { // Always check if the element still exists
-          domRef.replaceChildren(...orderedElements);
-          node.classList.remove('rendering-chunk');
-        }
-        resolve();
-      }));
+      if (!this.dataCache.columns[chunkIndex].abortFlag) {
+        await new Promise<void>(resolve => requestAnimationFrame(() => {
+          viewerState.displayedSignals.forEach((netlistId: NetlistId) => {orderedElements.push(chunkElements[netlistId]);});
+          const domRef = document.getElementById('waveform-column-' + chunkIndex + '-' + this.chunksInColumn);
+          if (domRef && !this.dataCache.columns[chunkIndex].abortFlag) { // Always check if the element still exists
+            domRef.replaceChildren(...orderedElements);
+            node.classList.remove('rendering-chunk');
+          }
+          resolve();
+        }));
+      }
 
       if (this.dataCache.columns[chunkIndex]) {
         if (this.dataCache.columns[chunkIndex].abortFlag) {

@@ -9,6 +9,7 @@ export type SignalId  = number;
 export interface VaporviewDocumentDelegate {
   getViewerContext(): Promise<Uint8Array>;
   updateViews(uri: vscode.Uri): void;
+  removeFromCollection(uri: vscode.Uri, document: VaporviewDocument): void;
 }
 
 // #region WaveformViewerProvider
@@ -17,6 +18,13 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   private static newViewerId = 1;
   private static readonly viewType = 'vaporview.waveformViewer';
   private readonly webviews = new WebviewCollection();
+  //private readonly documentCollection = new DocumentCollection();
+  private numDocuments = 0;
+  private readonly documentCollection = new Set<{
+    readonly resource: string;
+    readonly document: VaporviewDocument;
+  }>();
+
   private activeWebview: vscode.WebviewPanel | undefined;
   private activeDocument: VaporviewDocument | undefined;
   private lastActiveWebview: vscode.WebviewPanel | undefined;
@@ -95,6 +103,11 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         if (this.activeDocument?.uri !== uri) {return;}
         this.netlistTreeDataProvider.loadDocument(document);
         this.displayedSignalsTreeDataProvider.setTreeData(document.displayedSignals);
+      },
+      removeFromCollection: (uri: vscode.Uri, document: VaporviewDocument) => {
+        const entry = { resource: uri.toString(), document: document };
+        this.documentCollection.delete(entry);
+        this.numDocuments--;
       }
     };
 
@@ -164,12 +177,23 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.webviews.add(document.uri, webviewPanel);
 
     // Setup initial content for the webview
-    webviewPanel.webview.options = {
-      enableScripts: true,
-    };
-    webviewPanel.webview.html = this.getHtmlContent(webviewPanel.webview);
+    webviewPanel.webview.options = { enableScripts: true, };
+    webviewPanel.webview.html    = this.getHtmlContent(webviewPanel.webview);
+
+    // Register the document in the dcoument collection
+    const entry = { resource: document.uri.toString(), document };
+    this.documentCollection.add(entry);
+    this.numDocuments++;
 
     this.onDidChangeViewStateActive(document, webviewPanel);
+  }
+
+  public getDocumentFromUri(uri: vscode.Uri): VaporviewDocument | undefined {
+    const key = uri.toString();
+    for (const entry of this.documentCollection) {
+      if (entry.resource === key) {return entry.document;}
+    }
+    return undefined;
   }
 
   public saveSettingsToFile() {
@@ -229,16 +253,19 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       vscode.window.showWarningMessage('The settings file may not match the active viewer');
     }
 
-    this.applySettings(fileData);
+    this.applySettings(fileData, this.activeDocument);
   }
 
-  public async applySettings(settings: any) {
+  public async applySettings(settings: any, document: VaporviewDocument | undefined = undefined) {
 
     //console.log(settings);
 
     if (!settings.displayedSignals) {return;}
-    if (!this.activeDocument) {return;}
-    const document = this.activeDocument;
+    if (!document) {
+      if (!this.activeDocument) {return;}
+      document = this.activeDocument;
+    }
+
     const missingSignals: string[] = [];
     const foundSignals: NetlistItem[] = [];
 
@@ -279,14 +306,23 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     //this.netlistTreeDataProvider.loadDocument(document);
   }
 
-  async reloadFile() {
+  async reloadFile(e: any) {
+
+    let document: VaporviewDocument | undefined;
+    if (e.fsPath) {
+      document = this.getDocumentFromUri(e);
+    } else {
+      document = this.activeDocument;
+    }
     if (!this.activeDocument) {return;}
-    const document = this.activeDocument;
+    if (!document) {return;}
+    if (document.uri.fsPath !== this.activeDocument.uri.fsPath) {return;}
+
     const settings = document.getSettings();
     this.netlistTreeDataProvider.hide();
     this.displayedSignalsTreeDataProvider.hide();
-    await this.activeDocument.reload();
-    this.applySettings(settings);
+    await document.reload();
+    this.applySettings(settings, this.activeDocument);
   }
 
   copyWaveDrom() {
@@ -398,9 +434,9 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       const signalName = NetlistIdRef.netlistItem.name;
       this.selectedSignalStatusBarItem.text = 'Selected signal: ' + signalName;
       this.selectedSignalStatusBarItem.show();
-      if (NetlistIdRef.displayedItem) {
-        this.displayedSignalsView.reveal(NetlistIdRef.displayedItem, {select: true, focus: false});
-      }
+      //if (NetlistIdRef.displayedItem) {
+      //  this.displayedSignalsView.reveal(NetlistIdRef.displayedItem, {select: true, focus: false});
+      //}
     } else {
       this.selectedSignalStatusBarItem.hide();
     }
@@ -425,11 +461,23 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.selectedSignalStatusBarItem.hide();
   }
 
+  async showInNetlistViewByName(signalName: string) {
+    if (!this.lastActiveDocument) {return;}
+    const document = this.lastActiveDocument;
+    const metadata = await document.findTreeItem(signalName, undefined, undefined);
+    if (metadata !== null) {
+      this.netlistView.reveal(metadata, {select: true, focus: false, expand: 3});
+    }
+  }
+
   showInNetlistView(netlistId: NetlistId) {
     if (!this.activeDocument) {return;}
     const NetlistIdRef = this.activeDocument.netlistIdTable[netlistId];
     if (NetlistIdRef.netlistItem) {
       this.netlistView.reveal(NetlistIdRef.netlistItem, {select: true, focus: false, expand: 3});
+      if (NetlistIdRef.displayedItem) {
+        this.displayedSignalsView.reveal(NetlistIdRef.displayedItem, {select: true, focus: false});
+      }
     }
   }
 

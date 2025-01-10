@@ -53,6 +53,18 @@
         }
       ]
     },
+    "languages": [
+      {
+        "id": "wavedump",
+        "extensions": [".vcd", ".fst", ".ghw"],
+        "aliases": ["Waveform Dump"],
+        "filenames": [],
+        "icon": {
+          "light": "./media/wavedump_file_icon.svg",
+          "dark": "./media/wavedump_file_icon.svg"
+        }
+      }
+    ],
     "customEditors": [
       {
         "viewType": "vaporview.waveformViewer",
@@ -124,6 +136,13 @@
       }
     ],
     "menus": {
+      "editor/title/context": [
+        {
+          "command": "vaporview.reloadFile",
+          "group": "1_open",
+          "when": "activeCustomEditorId == 'vaporview.waveformViewer' && (resourceExtname == '.vcd' || resourceExtname == '.fst' || resourceExtname == '.ghw')"
+        }
+      ],
       "view/item/context": [
         {
           "command": "vaporview.addSelected",

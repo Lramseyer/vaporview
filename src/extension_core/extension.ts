@@ -147,7 +147,7 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.reloadFile', (e) => {
-    viewerProvider.reloadFile();
+    viewerProvider.reloadFile(e);
   }));
 
   // Custom Color commands

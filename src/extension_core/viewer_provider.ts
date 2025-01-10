@@ -553,7 +553,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
              element.type !== 'Real';
     });
 
-    if ((elementList.length > 16) && !noWarning) {
+    if ((elementList.length > 24) && !noWarning) {
       // show warning message
       vscode.window.showWarningMessage('You are about to add a large number of signals to the waveform viewer. This may cause performance issues. Do you want to continue?', 'Yes', 'No').then((response) => {
         if (response === 'Yes') {

@@ -172,12 +172,12 @@
         {
           "command": "vaporview.saveViewerSettings",
           "when": "view == 'netlistContainer' || view == 'displaylistContainer'",
-          "group": "1_saveLoad"
+          "group": "1_saveLoad@1"
         },
         {
           "command": "vaporview.loadViewerSettings",
           "when": "view == 'netlistContainer' || view == 'displaylistContainer'",
-          "group": "1_saveLoad"
+          "group": "1_saveLoad@2"
         },
         {
           "command": "vaporview.reloadFile",
@@ -187,32 +187,32 @@
       ],
       "webview/context": [
         {
-          "command": "vaporview.removeSignal",
-          "when": "webviewSection == 'signal'",
-          "group": "0_default"
-        },
-        {
-          "command": "vaporview.showInNetlistView",
-          "when": "webviewSection == 'signal'",
-          "group": "0_default"
-        },
-        {
           "submenu": "vaporview.valueFormat",
           "when": "webviewSection == 'signal'",
-          "group": "0_default"
+          "group": "0_default@1"
         },
         {
           "submenu": "vaporview.valueColor",
           "when": "webviewSection == 'signal'",
-          "group": "0_default"
+          "group": "0_default@2"
+        },
+        {
+          "command": "vaporview.showInNetlistView",
+          "when": "webviewSection == 'signal'",
+          "group": "0_default@3"
+        },
+        {
+          "command": "vaporview.removeSignal",
+          "when": "webviewSection == 'signal'",
+          "group": "0_default@4"
         },
         {
           "command": "vaporview.saveViewerSettings",
-          "group": "1_saveLoad"
+          "group": "1_saveLoad@1"
         },
         {
           "command": "vaporview.loadViewerSettings",
-          "group": "1_saveLoad"
+          "group": "1_saveLoad@2"
         },
         {
           "submenu": "vaporview.waveDrom",
@@ -223,34 +223,42 @@
       "vaporview.valueFormat": [
         {
           "command": "vaporview.displayAsBinary",
-          "when": "webviewSection == 'signal' && width > '1'"
-        },
-        {
-          "command": "vaporview.displayAsDecimal",
-          "when": "webviewSection == 'signal' && width > '1'"
-        },
-        {
-          "command": "vaporview.displayAsDecimalSigned",
+          "group": "0_default@1",
           "when": "webviewSection == 'signal' && width > '1'"
         },
         {
           "command": "vaporview.displayAsHexadecimal",
+          "group": "0_default@2",
           "when": "webviewSection == 'signal' && width > '1'"
         },
         {
           "command": "vaporview.displayAsOctal",
+          "group": "0_default@3",
+          "when": "webviewSection == 'signal' && width > '1'"
+        },
+        {
+          "command": "vaporview.displayAsDecimal",
+          "group": "0_default@4",
+          "when": "webviewSection == 'signal' && width > '1'"
+        },
+        {
+          "command": "vaporview.displayAsDecimalSigned",
+          "group": "0_default@5",
           "when": "webviewSection == 'signal' && width > '1'"
         },
         {
           "command": "vaporview.displayAsFloat",
+          "group": "0_default@6",
           "when": "webviewSection == 'signal' && (width == '8' || width == '16' || width == '32' || width == '64')"
         },
         {
           "command": "vaporview.displayAsBFloat",
+          "group": "0_default@7",
           "when": "webviewSection == 'signal' && width == '16'"
         },
         {
           "command": "vaporview.displayAsTFloat",
+          "group": "0_default@8",
           "when": "webviewSection == 'signal' && width == '19'"
         }
       ],
@@ -258,42 +266,42 @@
         {
           "command": "vaporview.defaultColor1",
           "when": "webviewSection == 'signal'",
-          "group": "0_default"
+          "group": "0_default@1"
         },
         {
           "command": "vaporview.defaultColor2",
           "when": "webviewSection == 'signal'",
-          "group": "0_default"
+          "group": "0_default@2"
         },
         {
           "command": "vaporview.defaultColor3",
           "when": "webviewSection == 'signal'",
-          "group": "0_default"
+          "group": "0_default@3"
         },
         {
           "command": "vaporview.defaultColor4",
           "when": "webviewSection == 'signal'",
-          "group": "0_default"
+          "group": "0_default@4"
         },
         {
           "command": "vaporview.customColor1",
           "when": "webviewSection == 'signal'",
-          "group": "1_custom"
+          "group": "1_custom@1"
         },
         {
           "command": "vaporview.customColor2",
           "when": "webviewSection == 'signal'",
-          "group": "1_custom"
+          "group": "1_custom@2"
         },
         {
           "command": "vaporview.customColor3",
           "when": "webviewSection == 'signal'",
-          "group": "1_custom"
+          "group": "1_custom@3"
         },
         {
           "command": "vaporview.customColor4",
           "when": "webviewSection == 'signal'",
-          "group": "1_custom"
+          "group": "1_custom@4"
         }
       ],
       "vaporview.waveDrom": [
@@ -322,7 +330,7 @@
       },
       {
         "command": "vaporview.addAllInModule",
-        "title": "Add All Signals In Module"
+        "title": "Add All Variables In Module"
       },
       {
         "command": "vaporview.removeSelectedNetlist",
@@ -334,11 +342,11 @@
       },
       {
         "command": "vaporview.removeAllInModule",
-        "title": "Remove All Signals In Module"
+        "title": "Remove All Variables In Module"
       },
       {
         "command": "vaporview.removeSignal",
-        "title": "Remove Signal"
+        "title": "Remove Variable"
       },
       {
         "command": "vaporview.showInNetlistView",

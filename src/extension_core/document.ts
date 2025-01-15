@@ -16,8 +16,6 @@ export type NetlistIdRef = {
   signalId: SignalId;
 };
 type WaveformTopMetadata = {
-  fileSize:    number;
-  fd:          number;
   timeTableLoaded: boolean;
   moduleCount: number;
   netlistIdCount: number;
@@ -29,6 +27,17 @@ type WaveformTopMetadata = {
   defaultZoom: number;
   timeUnit:    string;
 };
+
+interface fsWrapper {
+  loadStatic: boolean;
+  fd: number;
+  fileSize: number;
+  bufferSize: number;
+  fileData?: Uint8Array;
+  loadFile: (uri: vscode.Uri, fileType: string) => void;
+  readSlice: (fd: number, buffer: Uint8Array, offset: number, length: number, position: number) => number;
+  close: (fd: number) => void;
+}
 
 // Scopes
 const moduleIcon    = new vscode.ThemeIcon('chip',                   new vscode.ThemeColor('charts.purple'));
@@ -150,13 +159,56 @@ export function createVar(name: string, type: string, encoding: string, path: st
   return variable;
 }
 
+const nodeFsWrapper: fsWrapper = {
+  loadStatic: false,
+  fd: 0,
+  fileSize: 0,
+  bufferSize: 60 * 1024,
+  loadFile: async (uri: vscode.Uri, fileType: string) => {
+    const open                 = promisify(fs.open);
+    const stats                = fs.statSync(uri.fsPath);
+    nodeFsWrapper.fd           = await open(uri.fsPath, 'r');
+    nodeFsWrapper.fileSize     = stats.size;
+    const fstMaxStaticLoadSize = vscode.workspace.getConfiguration('vaporview').get('fstMaxStaticLoadSize');
+    const maxStaticSize        = Number(fstMaxStaticLoadSize) * 1048576;
+    nodeFsWrapper.loadStatic   = (stats.size < maxStaticSize);
+
+    // For VCD files, we stream the file, so we want to use a larger buffer size
+    // For FST files, we want to use Rust's default buffer size of 8192 bytes,
+    // but we don't care about buffer size if we statically load the file
+    if (fileType === 'fst' && nodeFsWrapper.loadStatic === false) {
+      nodeFsWrapper.bufferSize = 8192;
+      vscode.window.showInformationMessage(
+        uri.fsPath + ' is larger than the max static load size of ' + fstMaxStaticLoadSize +
+        ' MB. File will be loaded dynamically. You can configure the max load size in your extension settings');
+    }
+  },
+  readSlice: fs.readSync,
+  close: promisify(fs.close)
+};
+
+const wroskpaceFsWrapper: fsWrapper = {
+  loadStatic: true,
+  fd: 0,
+  fileSize: 0,
+  bufferSize: 60 * 1024,
+  loadFile: async (uri: vscode.Uri, fileType: string) => {
+    const stats                 = await vscode.workspace.fs.stat(uri);
+    wroskpaceFsWrapper.fileData = await vscode.workspace.fs.readFile(uri);
+    wroskpaceFsWrapper.fileSize = stats.size;
+  },
+  readSlice: (fd: number, buffer: Uint8Array, offset: number, length: number, position: number) => {
+    buffer.set(wroskpaceFsWrapper.fileData!.subarray(position, position + length), offset);
+    return length;
+  },
+  close: (fd: number) => {}
+};
+
 // #region VaporviewDocument
 export class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocument {
 
-  private open  = promisify(fs.open);
-  private close = promisify(fs.close);
-
   private readonly _uri: vscode.Uri;
+  private fileReader: fsWrapper = nodeFsWrapper;
   // Hierarchy
   public treeData:         NetlistItem[] = [];
   public displayedSignals: NetlistItem[] = [];
@@ -170,8 +222,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public webviewPanel: vscode.WebviewPanel | undefined = undefined;
   private _webviewInitialized: boolean = false;
   public metadata:   WaveformTopMetadata = {
-    fileSize:    0,
-    fd:          0,
     timeTableLoaded: false,
     moduleCount:    0,
     netlistIdCount: 0,
@@ -220,32 +270,15 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   private async load() {
-    const stats                = fs.statSync(this.uri.fsPath);
-    const fileType             = this.uri.fsPath.split('.').pop()?.toLocaleLowerCase();
-    this.metadata.fd           = await this.open(this.uri.fsPath, 'r');
-    this.metadata.fileSize     = stats.size;
-    const fstMaxStaticLoadSize = vscode.workspace.getConfiguration('vaporview').get('fstMaxStaticLoadSize');
-    const maxStaticSize        = Number(fstMaxStaticLoadSize) * 1048576;
-    const loadStatic           = (stats.size < maxStaticSize);
-    let bufferSize             = 60 * 1024; // WASM is limited to 64KB, and we need some extra space for the function call overhead
 
-    // For VCD files, we stream the file, so we want to use a larger buffer size
-    // For FST files, we want to use Rust's default buffer size of 8192 bytes,
-    // but we don't care about buffer size if we statically load the file
-    if (fileType === 'fst' && loadStatic === false) {
-      bufferSize = 8192;
-      vscode.window.showInformationMessage(
-        this.uri.fsPath + ' is larger than the max static load size of ' + fstMaxStaticLoadSize +
-        ' MB. File will be loaded dynamically. You can configure the max load size in your extension settings');
-    }
-    //`#vaporview.fstMaxStaticLoadSize#`
-
+    const fileType = this.uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
+    await this.fileReader.loadFile(this.uri, fileType);
     await vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification,
       title: "Parsing Netlist for " + this.uri.fsPath,
       cancellable: false
     }, async () => {
-      await this.wasmApi.loadfile(BigInt(stats.size), this.metadata.fd, loadStatic, bufferSize);
+      await this.wasmApi.loadfile(BigInt(this.fileReader.fileSize), this.fileReader.fd, this.fileReader.loadStatic, this.fileReader.bufferSize);
     });
 
     this._delegate.updateViews(this.uri);
@@ -257,7 +290,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     log: (msg: string) => {console.log(msg);},
     fsread: (fd: number, offset: bigint, length: number): Uint8Array => {
 
-      const bytesRead = fs.readSync(fd, this.fileBuffer, 0, length, Number(offset));
+      const bytesRead = this.fileReader.readSlice(fd, this.fileBuffer, 0, length, Number(offset));
       return this.fileBuffer.subarray(0, bytesRead);
     },
     getsize: (fd: number): bigint => {
@@ -533,7 +566,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this.treeData         = [];
     this.displayedSignals = [];
     this._netlistIdTable  = [];
-    this.close(this.metadata.fd);
+    this.fileReader.close(this.fileReader.fd);
     await this.wasmApi.unload();
     this.metadata.timeTableLoaded = false;
     this._webviewInitialized = false;

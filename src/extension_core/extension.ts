@@ -45,6 +45,10 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   // Add or remove signal commands
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.addVariableByInstancePath', (e) => {
+    viewerProvider.addSignalByNameToDocument(e.instancePath);
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeSignal', (e) => {
     if (e.netlistId !== undefined) {
       viewerProvider.removeSignalFromDocument(e.netlistId);
@@ -55,9 +59,14 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.filterAddSignalsInNetlist(viewerProvider.netlistViewSelectedSignals, false);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.addAllInModule', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.addAllInModuleShallow', (e) => {
     if (e.collapsibleState === vscode.TreeItemCollapsibleState.None) {return;}
-    viewerProvider.filterAddSignalsInNetlist(e.children, false);
+    viewerProvider.addChildVariablesToDocument(e, false, 128);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.addAllInModuleRecursive', (e) => {
+    if (e.collapsibleState === vscode.TreeItemCollapsibleState.None) {return;}
+    viewerProvider.addChildVariablesToDocument(e, true, 128);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeSelectedNetlist', (e) => {

@@ -15,6 +15,7 @@
 
 ### Planned Features
 
+- Fix Vertical Scrolling events
 - Add Linear and Stepped waveform Rendering
 - Fix gestures on Mac OS
 - Support VScode web

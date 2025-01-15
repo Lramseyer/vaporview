@@ -147,27 +147,32 @@
         {
           "command": "vaporview.addSelected",
           "when": "viewItem == 'netlistVar' && view == 'netlistContainer'",
-          "group": "0_default"
+          "group": "0_default@1"
         },
         {
           "command": "vaporview.removeSelectedNetlist",
           "when": "viewItem == 'netlistVar' && view == 'netlistContainer'",
-          "group": "0_default"
+          "group": "0_default@2"
         },
         {
           "command": "vaporview.removeSelectedDisplayedSignals",
           "when": "viewItem == 'netlistVar' && view == 'displaylistContainer'",
-          "group": "0_default"
+          "group": "0_default@3"
         },
         {
-          "command": "vaporview.addAllInModule",
+          "command": "vaporview.addAllInModuleShallow",
           "when": "viewItem == 'netlistScope'",
-          "group": "0_default"
+          "group": "0_default@4"
+        },
+        {
+          "command": "vaporview.addAllInModuleRecursive",
+          "when": "viewItem == 'netlistScope'",
+          "group": "0_default@5"
         },
         {
           "command": "vaporview.removeAllInModule",
           "when": "viewItem == 'netlistScope'",
-          "group": "0_default"
+          "group": "0_default@6"
         },
         {
           "command": "vaporview.saveViewerSettings",
@@ -329,8 +334,16 @@
         "title": "Add Selected"
       },
       {
-        "command": "vaporview.addAllInModule",
-        "title": "Add All Variables In Module"
+        "command": "vaporview.addVariableByInstancePath",
+        "title": "Add To Vaporview"
+      },
+      {
+        "command": "vaporview.addAllInModuleShallow",
+        "title": "Add All Variables in Scope (Shallow)"
+      },
+      {
+        "command": "vaporview.addAllInModuleRecursive",
+        "title": "Add All Variables in Scope (Recursive)"
       },
       {
         "command": "vaporview.removeSelectedNetlist",
@@ -342,7 +355,7 @@
       },
       {
         "command": "vaporview.removeAllInModule",
-        "title": "Remove All Variables In Module"
+        "title": "Remove All Variables in Scope"
       },
       {
         "command": "vaporview.removeSignal",
@@ -475,10 +488,6 @@
       {
         "command": "vaporview.loadViewerSettings",
         "title": "Load Vaporview Settings"
-      },
-      {
-        "command": "vaporview.reloadFile",
-        "title": "Reload File"
       }
     ]
   },

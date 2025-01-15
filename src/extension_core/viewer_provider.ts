@@ -545,12 +545,37 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
   }
 
+  public async addChildVariablesToDocument(netlistItem: NetlistItem, recursive: boolean, maxChildren: number) {
+
+    if (!this.activeDocument) {return;}
+    if (netlistItem.contextValue !== 'netlistScope') {return;}
+
+    const document = this.activeDocument;
+    const netlistVariables: NetlistItem[] = [];
+    const netlistScopes: NetlistItem[] = [netlistItem];
+
+    while (netlistScopes.length > 0 && netlistVariables.length < maxChildren) {
+
+      const parentScope = netlistScopes.shift();
+      const children = await document.getChildrenExternal(parentScope);
+      children.forEach((element) => {
+        if (element.contextValue === 'netlistVar' && element.checkboxState === vscode.TreeItemCheckboxState.Unchecked) {
+          netlistVariables.push(element);
+        }
+        else if (element.contextValue === 'netlistScope' && recursive) {
+          netlistScopes.push(element);
+        }
+      });
+    }
+
+    this.filterAddSignalsInNetlist(netlistVariables, false);
+  }
+
   public filterAddSignalsInNetlist(netlistElements: NetlistItem[], noWarning: boolean = false) {
 
     const elementList = netlistElements.filter((element) => {
       return element.checkboxState === vscode.TreeItemCheckboxState.Unchecked && 
-             element.contextValue === 'netlistVar' && 
-             element.type !== 'Real';
+             element.contextValue === 'netlistVar';
     });
 
     if ((elementList.length > 24) && !noWarning) {

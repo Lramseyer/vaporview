@@ -162,7 +162,7 @@ This extension was designed on Vscode version 1.83
   - Chunks disappear when adding groups of signals already displayed
   - Number format (and color) are not preserved on reload
 
-### Planned Features
+### Planned Features for 1.3.0
 
 - Add Linear and Stepped waveform Rendering
 - Fix gestures on Mac OS
@@ -170,7 +170,7 @@ This extension was designed on Vscode version 1.83
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 
-## Planned Features
+## Other Planned Features
 
 In no particular order of priority, here's a list of features that are on my radar. If you have any preferences as to which should be priorized, or a suggestion that is not on this list, leave a comment on the [github discussions](https://github.com/Lramseyer/VaporView/discussions)!
 

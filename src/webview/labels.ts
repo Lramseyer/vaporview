@@ -6,11 +6,11 @@ export function createLabel(netlistId: NetlistId, isSelected: boolean) {
   //if (isSelected) {selectorClass = 'is-selected';}
   const netlistData   = dataManager.netlistData[netlistId];
   const vscodeContext = netlistData.vscodeContext;
-  const selectorClass = isSelected ? 'is-selected' : 'is-idle';
+  const selectorClass = isSelected ? 'is-selected' : '';
   const signalName    = htmlSafe(netlistData.signalName);
   const modulePath    = htmlSafe(netlistData.modulePath + '.');
   const fullPath      = htmlAttributeSafe(modulePath + signalName);
-  return `<div class="waveform-label ${selectorClass}" id="label-${netlistId}" title="${fullPath}" data-vscode-context=${vscodeContext}>
+  return `<div class="waveform-label is-idle ${selectorClass}" id="label-${netlistId}" title="${fullPath}" data-vscode-context=${vscodeContext}>
             <div class='codicon codicon-grabber'></div>
             <p style="opacity:50%">${modulePath}</p><p>${signalName}</p>
           </div>`;
@@ -191,7 +191,7 @@ export class LabelsPanels {
 
   dragStart(event: any) {
     event.preventDefault();
-    this.labelsList = Array.from(this.labels.querySelectorAll('.waveform-label'));
+    this.labelsList    = Array.from(this.labels.querySelectorAll('.waveform-label'));
 
     if (event.target.classList.contains('codicon-grabber')) {
       this.draggableItem = event.target.closest('.waveform-label');

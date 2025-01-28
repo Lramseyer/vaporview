@@ -139,7 +139,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
             textElements += `<div class="bus-waveform-value" style="flex:${emptyDivWidth};"></div>`;
           }
           emptyDivWidth = 0;
-          const parsedValue = parseValue(value, signalWidth, !is4State)
+          const parsedValue = parseValue(value, signalWidth, !is4State);
           textElements += busElement(time, elementWidth, parsedValue, spansChunk, parsedValue.length * characterWidth, leftOverflow, 0, viewportSpecs, justifydirection);
         } else {
           emptyDivWidth += elementWidth + leftOverflow;
@@ -347,10 +347,12 @@ export const binaryWaveformRenderer: WaveformRenderer = {
   }
 };
 
-function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: any, stepped: boolean, evaluate: (v: string) => number) {
+function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: any, stepped: boolean, evalCoordinates: (v: string) => number) {
   const transitionData   = valueChangeChunk.valueChanges;
   const initialState     = valueChangeChunk.initialState;
   const postState        = valueChangeChunk.postState;
+  const min              = valueChangeChunk.min;
+  const max              = valueChangeChunk.max;
   let initialValue       = initialState[1];
   let initialValue2state = initialValue;
   let initialTime        = initialState[0];
@@ -366,7 +368,7 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
     initialValue2state = "0";
   }
 
-  let accumulatedPath   = " 0 " + initialValue2state;
+  let accumulatedPath;
 
   let interpolatedInitialValue;
   let interpolatedPostState;
@@ -376,20 +378,25 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
     let firstTime;
     let lastTime;
     if (transitionData.length > 0) {
-      firstValue = evaluate(transitionData[0][1]);
-      lastValue  = evaluate(transitionData[transitionData.length - 1][1]);
+      firstValue = evalCoordinates(transitionData[0][1]);
+      lastValue  = evalCoordinates(transitionData[transitionData.length - 1][1]);
       firstTime  = transitionData[0][0];
       lastTime   = transitionData[transitionData.length - 1][0];
     } else {
-      firstValue = evaluate(postState[1]);
-      lastValue  = evaluate(initialValue);
+      firstValue = evalCoordinates(postState[1]);
+      lastValue  = evalCoordinates(initialValue);
       firstTime  = postState[0];
       lastTime   = initialTime;
     }
-    interpolatedInitialValue = ((firstValue - evaluate(initialValue)) / (firstTime - initialTime)) * -1 * initialTime;
-    interpolatedPostState    = ((lastValue - evaluate(postState[1])) / (lastTime - postState[0])) * (postState[0] - viewportSpecs.columnTime);
+    interpolatedInitialValue = (((firstValue - evalCoordinates(initialValue)) / (firstTime - initialTime)) * (-1 * initialTime)) + evalCoordinates(initialValue);
+    interpolatedPostState    = (((lastValue - evalCoordinates(postState[1])) / (lastTime - postState[0])) * (postState[0] - viewportSpecs.columnTime)) + evalCoordinates(postState[1]);
     accumulatedPath = " 0 " + interpolatedInitialValue;
+
+    console.log("initialValue: " + evalCoordinates(initialValue) + " initialTime: " + initialTime + " firstTime: " + firstTime + " firstValue: " + firstValue);
+  } else {
+    accumulatedPath = " 0 " + initialValue2state;
   }
+
 
   let value2state    = "0";
   // No Draw Code
@@ -415,7 +422,7 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
         noDrawPath +=      " M " + lastDrawTime + " 0 L" + lastDrawTime + " 1 L " + lastNoDrawTime + " 1 L " + lastNoDrawTime + " 0 ";
         accumulatedPath += " L " + lastDrawTime + " 0 ";
         accumulatedPath += " L " + lastNoDrawTime + " 0";
-        accumulatedPath += " L " + lastNoDrawTime + " " + initialValue2state;
+        accumulatedPath += " L " + lastNoDrawTime + " " + evalCoordinates(initialValue2state);
         noDrawFlag = false;
       }
 
@@ -431,9 +438,9 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
 
       // Draw the current transition to the main path
       if (stepped) {
-        accumulatedPath += " L " + time + " " + initialValue2state;
+        accumulatedPath += " L " + time + " " + evalCoordinates(initialValue2state);
       }
-      accumulatedPath += " L " + time + " " + value2state;
+      accumulatedPath += " L " + time + " " + evalCoordinates(value2state);
 
       lastDrawValue      = value2state;
       lastDrawTime       = time;
@@ -475,7 +482,7 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
     }
   }
 
-  accumulatedPath += " L " + columnTime + " " + initialValue2state;
+  accumulatedPath += " L " + columnTime + " " + evalCoordinates(initialValue2state);
 
   // Polylines
   const polyline     = `<path d="M ` + accumulatedPath + `" stroke="${drawColor}"/>`;
@@ -486,8 +493,10 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
   // SVG element
   const svgHeight  = 20;
   const waveHeight = 16;
+  const yScale     = waveHeight / (max - min);
   const waveOffset = waveHeight + (svgHeight - waveHeight) / 2;
-  const gAttributes = `fill="none" transform="translate(0.5 ${waveOffset}.5) scale(${viewportSpecs.zoomRatio} -${waveHeight})"`;
+  const translateY = 0.5 + (max / (max - min)) * waveOffset;
+  const gAttributes = `fill="none" transform="translate(0.5 ${translateY}) scale(${viewportSpecs.zoomRatio} -${yScale})"`;
   let result = '';
   result += `<svg height="${svgHeight}" width="${viewportSpecs.columnWidth}" viewbox="0 0 ${viewportSpecs.columnWidth} ${svgHeight}" class="binary-waveform-svg">`;
   result += `<g ${gAttributes}>`;
@@ -500,10 +509,31 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
   //return resultFragment;
 }
 
+const evalBinary8plus = (v: string) => {return parseInt(v.slice(0,8), 2);};
+const evalBinary = (v: string) => {return parseInt(v, 2);};
+const evalReal = parseFloat;
+
+function getEval(type: string, width: number) {
+  if (type !== "Real") {
+    if (width > 8) {return evalBinary8plus;}
+    else {return evalBinary;}
+  } else {return evalReal;}
+}
+
 export const linearWaveformRenderer: WaveformRenderer = {
   id: "linear",
 
   createSvgFromValueChangeChunk(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: any) {
-    return createSvgWaveform(valueChangeChunk, netlistData, viewportSpecs, false, (v: string) => {return parseInt(v, 2);});
+    const evalCoordinates = getEval(valueChangeChunk.encoding, netlistData.signalWidth);
+    return createSvgWaveform(valueChangeChunk, netlistData, viewportSpecs, false, evalCoordinates);
+  }
+};
+
+export const steppedrWaveformRenderer: WaveformRenderer = {
+  id: "stepped",
+
+  createSvgFromValueChangeChunk(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: any) {
+    const evalCoordinates = getEval(valueChangeChunk.encoding, netlistData.signalWidth);
+    return createSvgWaveform(valueChangeChunk, netlistData, viewportSpecs, true, evalCoordinates);
   }
 };

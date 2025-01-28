@@ -66,11 +66,11 @@ function checkValidFloat(inputText: string) {
 // This function parses a number and returns a binary string for searching
 function parseFloatForSearch(inputText: string, exponentBits: number, mantissaBits: number,) {
   if (inputText.match(/^-?Inf(inity)?$/)) {
-    let sign = inputText[0] === '-' ? '1' : '0';
+    const sign = inputText[0] === '-' ? '1' : '0';
     return sign + '1'.repeat(exponentBits) + '0'.repeat(mantissaBits);
   }
   if (inputText.match(/^-?NaN$/)) {
-    let sign = inputText[0] === '-' ? '1' : '0';
+    const sign = inputText[0] === '-' ? '1' : '0';
     return sign + '1'.repeat(exponentBits) + '1' + '.'.repeat(mantissaBits - 1);
   }
   const number = parseFloat(inputText);
@@ -298,7 +298,7 @@ export const formatFloat8: ValueFormat = {
   checkValid: checkValidFloat,
   parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 4, 3);},
   is9State: valueIs9State,
-}
+};
 
 // #region Format Float 16
 export const formatFloat16: ValueFormat = {
@@ -309,7 +309,7 @@ export const formatFloat16: ValueFormat = {
   checkValid: checkValidFloat,
   parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 5, 10);},
   is9State: valueIs9State,
-}
+};
 
 // #region Format BFloat 16
 export const formatBFloat16: ValueFormat = {
@@ -320,7 +320,7 @@ export const formatBFloat16: ValueFormat = {
   checkValid: checkValidFloat,
   parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 8, 7);},
   is9State: valueIs9State,
-}
+};
 
 // #region TensorFloat 32
 export const formatTensorFloat32: ValueFormat = {
@@ -331,7 +331,7 @@ export const formatTensorFloat32: ValueFormat = {
   checkValid: checkValidFloat,
   parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 8, 10);},
   is9State: valueIs9State,
-}
+};
 
 // #region Format Float 32
 export const formatFloat32: ValueFormat = {
@@ -342,7 +342,7 @@ export const formatFloat32: ValueFormat = {
   checkValid: checkValidFloat,
   parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 8, 23);},
   is9State: valueIs9State,
-}
+};
 
 // #region Format Float 64
 export const formatFloat64: ValueFormat = {
@@ -353,7 +353,7 @@ export const formatFloat64: ValueFormat = {
   checkValid: checkValidFloat,
   parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 11, 52);},
   is9State: valueIs9State,
-}
+};
 
 // #region Format String
 export const formatString: ValueFormat = {

@@ -122,6 +122,19 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.renderMultiBit', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, undefined, undefined, "multiBit");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.renderLinear', (e) => {
+    console.log(e);
+    viewerProvider.setValueFormat(e.netlistId, undefined, undefined, "linear");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.renderStepped', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, undefined, undefined, "stepped");
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsBFloat', (e) => {
     viewerProvider.setValueFormat(e.netlistId, "bfloat16", undefined, undefined);
   }));

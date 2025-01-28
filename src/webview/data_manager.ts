@@ -1,6 +1,6 @@
 import { NetlistData, SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport } from './vaporview';
 import { formatBinary, formatHex, ValueFormat, formatString, valueFormatList } from './value_format';
-import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
+import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer } from './renderer';
 
 const colorKey = [
   "var(--vscode-debugTokenExpression-number)",
@@ -172,6 +172,8 @@ export class WaveformDataManager {
       transitionData: transitionData,
       signalWidth:    signalWidth,
       chunkStart:     [],
+      min:            message.min,
+      max:            message.max,
     };
 
     // Create ChunkStart array
@@ -223,9 +225,16 @@ export class WaveformDataManager {
       this.setColorFromColorIndex(netlistId);
     }
 
-    //if (message.renderType !== undefined) {
-    //  this.netlistData[netlistId].renderType = message.renderType;
-    //}
+    console.log(message);
+
+    if (message.renderType !== undefined) {
+      switch (message.renderType) {
+        case "multiBit": this.netlistData[netlistId].renderType = multiBitWaveformRenderer; break;
+        case "linear":   this.netlistData[netlistId].renderType = linearWaveformRenderer; break;
+        case "stepped":  this.netlistData[netlistId].renderType = steppedrWaveformRenderer; break;
+        default:         this.netlistData[netlistId].renderType = multiBitWaveformRenderer; break;
+      }
+    }
 
     this.netlistData[netlistId].vscodeContext = this.setSignalContextAttribute(netlistId);
     this.events.dispatch(ActionType.RedrawVariable, netlistId);
@@ -240,6 +249,7 @@ export class WaveformDataManager {
       webviewSection: "signal",
       modulePath: modulePath,
       signalName: signalName,
+      type: this.netlistData[netlistId].variableType,
       width: width,
       preventDefaultContextMenuItems: true,
       netlistId: netlistId,

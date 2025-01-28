@@ -35,6 +35,8 @@ export type WaveformData = {
   transitionData: any[];
   chunkStart: number[];
   signalWidth: number;
+  min: number;
+  max: number;
 };
 
 export enum ActionType {
@@ -199,6 +201,7 @@ class VaporviewWebview {
     window.addEventListener('mouseup', (e) => {this.handleMouseUp(e);});
     window.addEventListener('resize',  ()  => {this.handleResizeViewer();}, false);
     this.scrollArea.addEventListener(      'wheel', (e) => {this.scrollHandler(e);});
+    this.scrollArea.addEventListener(      'scroll', () => {this.handleViewportScroll();});
     this.labelsScroll.addEventListener(    'wheel', (e) => {this.syncVerticalScroll(e, labelsScroll.scrollTop);});
     this.transitionScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, transitionScroll.scrollTop);});
 
@@ -366,6 +369,14 @@ class VaporviewWebview {
     this.labelsScroll.scrollTop     = scrollLevel + deltaY;
     this.transitionScroll.scrollTop = scrollLevel + deltaY;
     this.scrollArea.scrollTop       = scrollLevel + deltaY;
+    this.viewport.updatePending     = false;
+  }
+
+  handleViewportScroll() {
+    if (this.viewport.updatePending) {return;}
+    this.viewport.updatePending     = true;
+    this.labelsScroll.scrollTop     = this.scrollArea.scrollTop;
+    this.transitionScroll.scrollTop = this.scrollArea.scrollTop;
     this.viewport.updatePending     = false;
   }
 

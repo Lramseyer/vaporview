@@ -240,7 +240,16 @@ export class Viewport {
       valueChanges: chunkTransitionData,
       initialState: relativeInitialState,
       postState: relativePostState,
+      encoding: netlistData.encoding,
+      signalWidth: netlistData.signalWidth,
+      min: data.min,
+      max: data.max,
     };
+
+    if (netlistData.encoding !== "Real") {
+      valueChangeChunk.min = 0;
+      valueChangeChunk.max = Math.min(Math.pow(2, netlistData.signalWidth) - 1, 255);
+    }
 
     const viewportSpecs = {
       zoomRatio: this.zoomRatio,

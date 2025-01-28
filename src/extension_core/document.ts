@@ -294,8 +294,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       return this.fileBuffer.subarray(0, bytesRead);
     },
     getsize: (fd: number): bigint => {
-      const stats = fs.fstatSync(fd);
-      return BigInt(stats.size);
+      //const stats = fs.fstatSync(fd);
+      return BigInt(this.fileReader.fileSize);
     },
     setscopetop: (name: string, id: number, tpe: string) => {
 
@@ -323,14 +323,16 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       this.metadata.timeTableLoaded = true;
       this.onDoneParsingWaveforms();
     },
-    sendtransitiondatachunk: (signalid: number, totalchunks: number, chunknum: number, transitionData: string) => {
+    sendtransitiondatachunk: (signalid: number, totalchunks: number, chunknum: number, min: number, max: number ,transitionData: string) => {
 
       this.webviewPanel?.webview.postMessage({
         command: 'update-waveform-chunk',
         signalId: signalid,
         transitionDataChunk: transitionData,
         totalChunks: totalchunks,
-        chunkNum: chunknum
+        chunkNum: chunknum,
+        min: min,
+        max: max
       });
     }
   };

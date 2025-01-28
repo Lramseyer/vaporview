@@ -411,7 +411,7 @@ impl Guest for Filecontext {
         Some(s) => {signal_ref_list.push(s);},
         None => {
           log(&format!("Signal not found"));
-          sendtransitiondatachunk(*signalid, 1, 0, "[]");
+          sendtransitiondatachunk(*signalid, 1, 0, 0.0, 1.0, "[]");
           return;
         }
       }
@@ -429,9 +429,18 @@ impl Guest for Filecontext {
 
       //log(&format!("Total Time Indices: {:?}", time_index.len()));
       let mut i: usize = 0;
+      let mut min: f64 = 0.0;
+      let mut max: f64 = 0.0;
       for (_, value) in transitions {
         let v = value.to_string();
         let time = time_table[time_index[i] as usize];
+        match value {
+          wellen::SignalValue::Real(v) => {
+            min = f64::min(min, v);
+            max = f64::max(max, v);
+          },
+          _ => {}
+        }
         result.push_str(&format!("[{:?},{:?}],", time, v));
         i += 1;
       }
@@ -451,7 +460,7 @@ impl Guest for Filecontext {
         let end = std::cmp::min((i + 1) * max_return_length, result_length as u32);
         let chunk = &result[start as usize..end as usize];
         //log(&format!("Sending chunk: {:?} for {:?}", i, signalid));
-        sendtransitiondatachunk(signalid, chunk_count, i as u32, chunk);
+        sendtransitiondatachunk(signalid, chunk_count, i as u32, min, max, chunk);
       }
 
     //log(&format!("Signal Data Sent!"));

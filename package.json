@@ -130,6 +130,11 @@
         "when": "webviewSection == 'signal' && width != '1'"
       },
       {
+        "id": "vaporview.renderType",
+        "label": "Render Type",
+        "when": "webviewSection == 'signal'"
+      },
+      {
         "id": "vaporview.valueColor",
         "label": "Color",
         "when": "webviewSection == 'signal'"
@@ -202,14 +207,19 @@
           "group": "0_default@2"
         },
         {
+          "submenu": "vaporview.renderType",
+          "when": "webviewSection == 'signal'",
+          "group": "0_default@4"
+        },
+        {
           "command": "vaporview.showInNetlistView",
           "when": "webviewSection == 'signal'",
-          "group": "0_default@3"
+          "group": "0_default@5"
         },
         {
           "command": "vaporview.removeSignal",
           "when": "webviewSection == 'signal'",
-          "group": "0_default@4"
+          "group": "0_default@6"
         },
         {
           "command": "vaporview.saveViewerSettings",
@@ -309,6 +319,20 @@
           "group": "1_custom@4"
         }
       ],
+      "vaporview.renderType":[
+        {
+          "command": "vaporview.renderMultiBit",
+          "when": "webviewSection == 'signal' && (width > '1' || type == 'Real')"
+        },
+        {
+          "command": "vaporview.renderLinear",
+          "when": "webviewSection == 'signal' && (width > '1' || type == 'Real')"
+        },
+        {
+          "command": "vaporview.renderStepped",
+          "when": "webviewSection == 'signal' && (width > '1' || type == 'Real')"
+        }
+      ],
       "vaporview.waveDrom": [
         {
           "command": "vaporview.copyWaveDrom",
@@ -396,6 +420,18 @@
       {
         "command": "vaporview.displayAsTFloat",
         "title": "TensorFloat 32"
+      },
+      {
+        "command": "vaporview.renderMultiBit",
+        "title": "Multi Bit"
+      },
+      {
+        "command": "vaporview.renderLinear",
+        "title": "Linear"
+      },
+      {
+        "command": "vaporview.renderStepped",
+        "title": "Stepped"
       },
       {
         "command": "vaporview.defaultColor1",

@@ -9,15 +9,16 @@
 - Added "Show in Netlist view" context menu item
 - Added scrollbar annotation for marker position
 - Added file icon for waveform dump files
+- Added (tentative) support for VScode web
 - Fixed issues:
   - Chunks disappear when adding groups of signals already displayed
   - Number format (and color) are not preserved on reload
+  - Vertical scrolling issues from 1.2.5
 
 ### Planned Features
 
 - Add Linear and Stepped waveform Rendering
 - Fix gestures on Mac OS
-- Support VScode web
 
 ## 1.2.6 - Current Release
 

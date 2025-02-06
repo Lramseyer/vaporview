@@ -156,7 +156,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       if (e.webviewPanel.active) {
         this.onDidChangeViewStateActive(document, webviewPanel);
         webviewPanel.webview.postMessage({command: 'getSelectionContext'});
-      } else if (!e.webviewPanel.active && e.webviewPanel === this.activeWebview) {
+      } else if (!e.webviewPanel.visible && e.webviewPanel === this.activeWebview) {
         this.onDidChangeViewStateInactive();
       }
     }, this, this._context.subscriptions);
@@ -500,7 +500,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   private addSignalsToDocument(netlistElements: NetlistItem[]) {
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
-    if (!this.activeWebview.active) {return;}
+    if (!this.activeWebview.visible) {return;}
 
     const document = this.activeDocument;
     const netlistIdList: NetlistId[] = [];
@@ -532,6 +532,12 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     if (metadata === null) {
       console.log('Signal not found ' + signalName);
+      return;
+    }
+
+    // If it's a scope item, we just reveal it in the tree view
+    if (metadata.contextValue === 'netlistScope') {
+      this.netlistView.reveal(metadata, {select: true, focus: false, expand: 0});
       return;
     }
 
@@ -593,7 +599,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   public removeSignalFromDocument(netlistId: NetlistId) {
 
     if (!this.activeDocument) {return;}
-    if (!this.activeWebview?.active) {return;}
+    if (!this.activeWebview?.visible) {return;}
 
     const document = this.activeDocument;
     document.removeSignalFromWebview(netlistId);
@@ -613,7 +619,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   public removeSignalList(signalList: NetlistItem[]) {
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
-    if (!this.activeWebview.active) {return;}
+    if (!this.activeWebview.visible) {return;}
 
     signalList.forEach((element) => {
       const metadata  = element;
@@ -637,7 +643,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (id === undefined) {return;}
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
-    if (!this.activeWebview.active) {return;}
+    if (!this.activeWebview.visible) {return;}
 
     const panel      = this.activeWebview;
     const document   = this.activeDocument;
@@ -696,7 +702,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     //console.log(this.netlistView);
     const metadata = e.items[0][0];
 
-    if (!this.activeWebview?.active) {return;}
+    if (!this.activeWebview?.visible) {return;}
     if (!this.activeDocument?.webviewInitialized) {
       console.log('Webview not initialized');
       this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Unchecked);
@@ -722,7 +728,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     const metadata = e.items[0][0];
 
-    if (!this.activeWebview?.active) {return;}
+    if (!this.activeWebview?.visible) {return;}
     if (!this.activeDocument?.webviewInitialized) {return;}
     if (metadata.checkboxState !== vscode.TreeItemCheckboxState.Unchecked) {return;}
 
@@ -747,13 +753,13 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   };
 
   private handleNetlistCollapseElement = (e: vscode.TreeViewExpansionEvent<NetlistItem>) => {
-    if (!this.lastActiveWebview?.active) {return;}
+    if (!this.lastActiveWebview?.visible) {return;}
     if (e.element.collapsibleState === vscode.TreeItemCollapsibleState.None) {return;}
     e.element.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
   };
 
   private handleNetlistExpandElement = (e: vscode.TreeViewExpansionEvent<NetlistItem>) => {
-    if (!this.lastActiveWebview?.active) {return;}
+    if (!this.lastActiveWebview?.visible) {return;}
     if (e.element.collapsibleState === vscode.TreeItemCollapsibleState.None) {return;}
     e.element.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
   };

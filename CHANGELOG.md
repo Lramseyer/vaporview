@@ -14,11 +14,13 @@
   - Chunks disappear when adding groups of signals already displayed
   - Number format (and color) are not preserved on reload
   - Vertical scrolling issues from 1.2.5
+  - Zoom gesture scaling
+  - Terminal links to netlist paths pointing to scope items reveal in netlist view, and won't add anything to the viewer
+  - Improved netlist view visibility
 
 ### Planned Features
 
 - Add Linear and Stepped waveform Rendering
-- Fix gestures on Mac OS
 
 ## 1.2.6 - Current Release
 

@@ -243,10 +243,13 @@ class VaporviewWebview {
 
       // Handle zooming with touchpad since we apply scroll attenuation
       else if (viewerState.touchpadScrolling) {
+        const touchpadScrollDivisor = 12;
         this.viewport.touchpadScrollCount += deltaY;
         clearTimeout(this.scrollcountTimeout);
         this.scrollcountTimeout = setTimeout(this.resetTouchpadScrollCount, 1000);
-        this.events.dispatch(ActionType.Zoom, Math.round(this.viewport.touchpadScrollCount / 25), time, pixelLeft);
+        if (this.viewport.touchpadScrollCount > touchpadScrollDivisor || this.viewport.touchpadScrollCount < -touchpadScrollDivisor) {
+          this.events.dispatch(ActionType.Zoom, Math.round(this.viewport.touchpadScrollCount / touchpadScrollDivisor), time, pixelLeft);
+        }
       }
 
     } else {

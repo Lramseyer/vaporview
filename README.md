@@ -26,6 +26,8 @@ VaporView associates timestamps and netlist paths as links in the terminal. Thes
 - Timestamp with Units - ie: `50,000 ns` (comma is optional)
 - Netlist elements - ie: `top.submodule.signal`
 
+When clicking on netlit element links, paths that point to a variable will add that variable to the viewer. However, if the path points to a scope, it will instead reveal and select that scope in the netlist view.
+
 # Controls
 
 ## Keyboard Shortcuts

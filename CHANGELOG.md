@@ -2,14 +2,16 @@
 
 # 1.3.0 - Upcoming Release
 
-- Added Number formats:
-  - Signed Integers
-  - Floats: 8, 16, 32, 64, BFloat, TensorFloat
-- Added color option to waveforms
-- Added "Show in Netlist view" context menu item
-- Added scrollbar annotation for marker position
-- Added file icon for waveform dump files
-- Added (tentative) support for VScode web
+- Added:
+  - Linear and Stepped waveform Rendering
+  - Number formats:
+    - Signed Integers
+    - Floats: 8, 16, 32, 64, BFloat, TensorFloat
+  - Color option to waveforms
+  - "Show in Netlist view" context menu item
+  - Scrollbar annotation for marker position
+  - File icon for waveform dump files
+  - (tentative) support for VScode web
 - Fixed issues:
   - Chunks disappear when adding groups of signals already displayed
   - Number format (and color) are not preserved on reload
@@ -17,10 +19,6 @@
   - Zoom gesture scaling
   - Terminal links to netlist paths pointing to scope items reveal in netlist view, and won't add anything to the viewer
   - Improved netlist view visibility
-
-### Planned Features
-
-- Add Linear and Stepped waveform Rendering
 
 ## 1.2.6 - Current Release
 

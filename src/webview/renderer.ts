@@ -357,7 +357,7 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
   let initialValue2state = initialValue;
   let initialTime        = initialState[0];
   let initialTimeOrStart = Math.max(initialState[0], -10);
-  const minDrawWidth     = 1 / viewportSpecs.zoomRatio;
+  const minDrawWidth     = 0.25 / viewportSpecs.zoomRatio;
   let xzPath             = "";
   const drawColor        = netlistData.color;
   const xzColor          = "var(--vscode-debugTokenExpression-error)";
@@ -389,12 +389,12 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
       lastTime   = initialTime;
     }
     interpolatedInitialValue = (((firstValue - evalCoordinates(initialValue)) / (firstTime - initialTime)) * (-1 * initialTime)) + evalCoordinates(initialValue);
-    interpolatedPostState    = (((lastValue - evalCoordinates(postState[1])) / (lastTime - postState[0])) * (postState[0] - viewportSpecs.columnTime)) + evalCoordinates(postState[1]);
+    interpolatedPostState    = (((lastValue - evalCoordinates(postState[1])) / (postState[0] - lastTime)) * (postState[0] - viewportSpecs.columnTime)) + evalCoordinates(postState[1]);
     accumulatedPath = " 0 " + interpolatedInitialValue;
 
     console.log("initialValue: " + evalCoordinates(initialValue) + " initialTime: " + initialTime + " firstTime: " + firstTime + " firstValue: " + firstValue);
   } else {
-    accumulatedPath = " 0 " + initialValue2state;
+    accumulatedPath = " 0 " + evalCoordinates(initialValue2state);
   }
 
 
@@ -419,7 +419,7 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
         initialValue2state = initialValue;
         if (valueIs9State(initialValue)) {initialValue2state = "0";}
 
-        noDrawPath +=      " M " + lastDrawTime + " 0 L" + lastDrawTime + " 1 L " + lastNoDrawTime + " 1 L " + lastNoDrawTime + " 0 ";
+        noDrawPath +=      " M " + lastDrawTime + " " + min + " L" + lastDrawTime + " " + max + " L " + lastNoDrawTime + " " + max + " L " + lastNoDrawTime + " " + min + " ";
         accumulatedPath += " L " + lastDrawTime + " 0 ";
         accumulatedPath += " L " + lastNoDrawTime + " 0";
         accumulatedPath += " L " + lastNoDrawTime + " " + evalCoordinates(initialValue2state);
@@ -457,7 +457,7 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
 
   if (postState[0] - initialTime < minDrawWidth) {
 
-      noDrawPath += " M " + lastDrawTime + " 0 L " + lastDrawTime + " 1 L " + columnTime + " 1 L " + columnTime + " 0 ";
+      noDrawPath += " M " + lastDrawTime + " " + min + " L " + lastDrawTime + " " + max + " L " + columnTime + " " + max + " L " + columnTime + " " + min + " ";
       accumulatedPath += " L " + lastDrawTime + " 0 ";
       accumulatedPath += " L " + columnTime + " 0 ";
 
@@ -465,10 +465,10 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
 
     if (noDrawFlag) {
 
-      noDrawPath      += " M " + lastDrawTime + " 0 L " + lastDrawTime + " 1 L " + lastNoDrawTime + " 1 L " + lastNoDrawTime + " 0 ";
+      noDrawPath      += " M " + lastDrawTime + " " + min + " L " + lastDrawTime + " " + max + " L " + lastNoDrawTime + " " + max + " L " + lastNoDrawTime + " " + min + " ";
       accumulatedPath += " L " + lastDrawTime + " 0 ";
       accumulatedPath += " L " + lastNoDrawTime + " 0 ";
-      accumulatedPath += " L " + lastNoDrawTime + " " + initialValue2state;
+      accumulatedPath += " L " + lastNoDrawTime + " " + evalCoordinates(initialValue2state);
     }
 
     if (valueIs9State(initialValue))  {
@@ -482,7 +482,11 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
     }
   }
 
-  accumulatedPath += " L " + columnTime + " " + evalCoordinates(initialValue2state);
+  if (stepped) {
+    accumulatedPath += " L " + columnTime + " " + evalCoordinates(initialValue2state);
+  } else {
+    accumulatedPath += " L " + columnTime + " " + interpolatedPostState;
+  }
 
   // Polylines
   const polyline     = `<path d="M ` + accumulatedPath + `" stroke="${drawColor}"/>`;
@@ -509,9 +513,9 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
   //return resultFragment;
 }
 
-const evalBinary8plus = (v: string) => {return parseInt(v.slice(0,8), 2);};
-const evalBinary = (v: string) => {return parseInt(v, 2);};
-const evalReal = parseFloat;
+const evalBinary8plus = (v: string) => {return parseInt(v.slice(0,8), 2) || 0;};
+const evalBinary = (v: string) => {return parseInt(v, 2) || 0;};
+const evalReal = (v: string) => {return parseFloat(v) || 0;};
 
 function getEval(type: string, width: number) {
   if (type !== "Real") {

@@ -153,22 +153,23 @@ This extension was designed on Vscode version 1.83
 
 ## Upcoming Release 1.3.0
 
-- Added Number formats:
-  - Signed Integers
-  - Floats: 8, 16, 32, 64, BFloat, TensorFloat
-- Added color option to waveforms
-- Added "Show in Netlist view" context menu item
-- Added scrollbar annotation for marker position
-- Added file icon for waveform dump files
+- Added:
+  - Linear and Stepped waveform Rendering
+  - Number formats:
+    - Signed Integers
+    - Floats: 8, 16, 32, 64, BFloat, TensorFloat
+  - Color option to waveforms
+  - "Show in Netlist view" context menu item
+  - Scrollbar annotation for marker position
+  - File icon for waveform dump files
+  - (tentative) support for VScode web
 - Fixed issues:
   - Chunks disappear when adding groups of signals already displayed
   - Number format (and color) are not preserved on reload
-
-### Planned Features for 1.3.0
-
-- Add Linear and Stepped waveform Rendering
-- Fix gestures on Mac OS
-- Support VScode web
+  - Vertical scrolling issues from 1.2.5
+  - Zoom gesture scaling
+  - Terminal links to netlist paths pointing to scope items reveal in netlist view, and won't add anything to the viewer
+  - Improved netlist view visibility
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

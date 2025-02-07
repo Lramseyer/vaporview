@@ -322,15 +322,18 @@
       "vaporview.renderType":[
         {
           "command": "vaporview.renderMultiBit",
-          "when": "webviewSection == 'signal' && (width > '1' || type == 'Real')"
+          "when": "webviewSection == 'signal' && (width > '1' || type == 'Real')",
+          "group": "0_default@1"
         },
         {
           "command": "vaporview.renderLinear",
-          "when": "webviewSection == 'signal' && (width > '1' || type == 'Real')"
+          "when": "webviewSection == 'signal' && (width > '1' || type == 'Real')",
+          "group": "0_default@2"
         },
         {
           "command": "vaporview.renderStepped",
-          "when": "webviewSection == 'signal' && (width > '1' || type == 'Real')"
+          "when": "webviewSection == 'signal' && (width > '1' || type == 'Real')",
+          "group": "0_default@3"
         }
       ],
       "vaporview.waveDrom": [

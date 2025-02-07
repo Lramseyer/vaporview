@@ -188,7 +188,7 @@ export class WaveformDataManager {
     this.valueChangeData[signalId].chunkStart[0] = 1;
     this.valueChangeDataTemp[signalId] = undefined;
 
-    this.contentArea.style.height = (40 + (28 * viewerState.displayedSignals.length)) + "px";
+    //this.contentArea.style.height = (40 + (28 * viewerState.displayedSignals.length)) + "px";
 
     netlistIdList.forEach((netlistId: NetlistId) => {
       this.events.dispatch(ActionType.RedrawVariable, netlistId);

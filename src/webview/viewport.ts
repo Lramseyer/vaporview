@@ -773,7 +773,7 @@ export class Viewport {
     const width       = Math.abs(this.highlightEndEvent.pageX - this.highlightStartEvent.pageX);
     const left        = Math.min(this.highlightStartEvent.pageX, this.highlightEndEvent.pageX);
     const elementLeft = left - this.scrollArea.getBoundingClientRect().left;
-    const style       = `left: ${elementLeft}px; width: ${width}px; height: ${this.contentArea.style.height};`;
+    const style       = `left: ${elementLeft}px; width: ${width}px; height: ${this.contentArea.clientHeight};`;
   
     if (width > 5) {viewerState.mouseupEventType = 'highlightZoom';}
   
@@ -833,7 +833,7 @@ export class Viewport {
       waveformColumn.replaceChildren(...children);
     }
     this.updateContentArea(this.leftOffset, this.getBlockNum());
-    this.contentArea.style.height = (40 + (28 * viewerState.displayedSignals.length)) + "px";
+    //this.contentArea.style.height = (40 + (28 * viewerState.displayedSignals.length)) + "px";
   }
 
   handleMarkerSet(time: number, markerType: number) {
@@ -983,7 +983,7 @@ export class Viewport {
 
     if (updateFlag) {
       this.updatePending  = true;
-      this.contentArea.style.height = (40 + (28 * viewerState.displayedSignals.length)) + "px";
+      //this.contentArea.style.height = (40 + (28 * viewerState.displayedSignals.length)) + "px";
       this.updateContentArea(this.leftOffset, this.getBlockNum());
     }
   }

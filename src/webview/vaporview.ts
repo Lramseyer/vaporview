@@ -395,7 +395,7 @@ class VaporviewWebview {
     viewerState.displayedSignals    = [];
     dataManager.unload();
 
-    this.contentArea.style.height = '40px';
+    //this.contentArea.style.height = '40px';
     this.viewport.updateContentArea(0, [0, 0]);
     this.events.dispatch(ActionType.Zoom, 1, 0, 0);
     labelsPanel.renderLabelsPanels();

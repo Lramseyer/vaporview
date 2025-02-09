@@ -246,9 +246,15 @@ export class Viewport {
       max: data.max,
     };
 
+    // I should probably move this functionally into the data manager
     if (netlistData.encoding !== "Real") {
-      valueChangeChunk.min = 0;
-      valueChangeChunk.max = Math.min(Math.pow(2, netlistData.signalWidth) - 1, 255);
+      if (netlistData.renderType.id === 'steppedSigned' || netlistData.renderType.id === 'linearSigned') {
+        valueChangeChunk.min = Math.max(-Math.pow(2, netlistData.signalWidth - 1), -128);
+        valueChangeChunk.max = Math.min(Math.pow(2, netlistData.signalWidth - 1) - 1, 127);
+      } else {
+        valueChangeChunk.min = 0;
+        valueChangeChunk.max = Math.min(Math.pow(2, netlistData.signalWidth) - 1, 255);
+      }
     }
 
     const viewportSpecs = {

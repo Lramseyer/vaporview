@@ -391,8 +391,6 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
     interpolatedInitialValue = (((firstValue - evalCoordinates(initialValue)) / (firstTime - initialTime)) * (-1 * initialTime)) + evalCoordinates(initialValue);
     interpolatedPostState    = (((lastValue - evalCoordinates(postState[1])) / (postState[0] - lastTime)) * (postState[0] - viewportSpecs.columnTime)) + evalCoordinates(postState[1]);
     accumulatedPath = " 0 " + interpolatedInitialValue;
-
-    console.log("initialValue: " + evalCoordinates(initialValue) + " initialTime: " + initialTime + " firstTime: " + firstTime + " firstValue: " + firstValue);
   } else {
     accumulatedPath = " 0 " + evalCoordinates(initialValue2state);
   }
@@ -513,22 +511,44 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
   //return resultFragment;
 }
 
+const evalBinary8plusSigned = (v: string) => {
+  const n = parseInt(v.slice(0,8), 2) || 0;
+  return n > 127 ? n - 256 : n;
+};
+const evalBinarySigned = (v: string) => {
+  const n = parseInt(v, 2) || 0;
+  return v[0] === '1' ? n - (2 ** v.length) : n;
+};
 const evalBinary8plus = (v: string) => {return parseInt(v.slice(0,8), 2) || 0;};
 const evalBinary = (v: string) => {return parseInt(v, 2) || 0;};
 const evalReal = (v: string) => {return parseFloat(v) || 0;};
 
-function getEval(type: string, width: number) {
-  if (type !== "Real") {
-    if (width > 8) {return evalBinary8plus;}
-    else {return evalBinary;}
-  } else {return evalReal;}
+function getEval(type: string, width: number, signed: boolean) {
+  if (type === "Real") {return evalReal;}
+
+  if (width > 8) {
+    if (signed) {return evalBinary8plusSigned;}
+    else {       return evalBinary8plus;}
+  } else {
+    if (signed) {return evalBinarySigned;}
+    else {       return evalBinary;}
+  }
 }
 
 export const linearWaveformRenderer: WaveformRenderer = {
   id: "linear",
 
   createSvgFromValueChangeChunk(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: any) {
-    const evalCoordinates = getEval(valueChangeChunk.encoding, netlistData.signalWidth);
+    const evalCoordinates = getEval(valueChangeChunk.encoding, netlistData.signalWidth, false);
+    return createSvgWaveform(valueChangeChunk, netlistData, viewportSpecs, false, evalCoordinates);
+  }
+};
+
+export const signedLinearWaveformRenderer: WaveformRenderer = {
+  id: "linearSigned",
+
+  createSvgFromValueChangeChunk(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: any) {
+    const evalCoordinates = getEval(valueChangeChunk.encoding, netlistData.signalWidth, true);
     return createSvgWaveform(valueChangeChunk, netlistData, viewportSpecs, false, evalCoordinates);
   }
 };
@@ -537,7 +557,16 @@ export const steppedrWaveformRenderer: WaveformRenderer = {
   id: "stepped",
 
   createSvgFromValueChangeChunk(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: any) {
-    const evalCoordinates = getEval(valueChangeChunk.encoding, netlistData.signalWidth);
+    const evalCoordinates = getEval(valueChangeChunk.encoding, netlistData.signalWidth, false);
+    return createSvgWaveform(valueChangeChunk, netlistData, viewportSpecs, true, evalCoordinates);
+  }
+};
+
+export const signedSteppedrWaveformRenderer: WaveformRenderer = {
+  id: "steppedSigned",
+
+  createSvgFromValueChangeChunk(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: any) {
+    const evalCoordinates = getEval(valueChangeChunk.encoding, netlistData.signalWidth, true);
     return createSvgWaveform(valueChangeChunk, netlistData, viewportSpecs, true, evalCoordinates);
   }
 };

@@ -1,6 +1,6 @@
 import { NetlistData, SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport } from './vaporview';
 import { formatBinary, formatHex, ValueFormat, formatString, valueFormatList } from './value_format';
-import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer } from './renderer';
+import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer, signedLinearWaveformRenderer, signedSteppedrWaveformRenderer } from './renderer';
 
 const colorKey = [
   "var(--vscode-debugTokenExpression-number)",
@@ -229,10 +229,12 @@ export class WaveformDataManager {
 
     if (message.renderType !== undefined) {
       switch (message.renderType) {
-        case "multiBit": this.netlistData[netlistId].renderType = multiBitWaveformRenderer; break;
-        case "linear":   this.netlistData[netlistId].renderType = linearWaveformRenderer; break;
-        case "stepped":  this.netlistData[netlistId].renderType = steppedrWaveformRenderer; break;
-        default:         this.netlistData[netlistId].renderType = multiBitWaveformRenderer; break;
+        case "multiBit":      this.netlistData[netlistId].renderType = multiBitWaveformRenderer; break;
+        case "linear":        this.netlistData[netlistId].renderType = linearWaveformRenderer; break;
+        case "stepped":       this.netlistData[netlistId].renderType = steppedrWaveformRenderer; break;
+        case "linearSigned":  this.netlistData[netlistId].renderType = signedLinearWaveformRenderer; break;
+        case "steppedSigned": this.netlistData[netlistId].renderType = signedSteppedrWaveformRenderer; break;
+        default:              this.netlistData[netlistId].renderType = multiBitWaveformRenderer; break;
       }
     }
 

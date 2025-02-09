@@ -334,6 +334,16 @@
           "command": "vaporview.renderStepped",
           "when": "webviewSection == 'signal' && (width > '1' || type == 'Real')",
           "group": "0_default@3"
+        },
+        {
+          "command": "vaporview.renderLinearSigned",
+          "when": "webviewSection == 'signal' && (width > '1')",
+          "group": "0_default@4"
+        },
+        {
+          "command": "vaporview.renderSteppedSigned",
+          "when": "webviewSection == 'signal' && (width > '1')",
+          "group": "0_default@5"
         }
       ],
       "vaporview.waveDrom": [
@@ -435,6 +445,14 @@
       {
         "command": "vaporview.renderStepped",
         "title": "Stepped"
+      },
+      {
+        "command": "vaporview.renderLinearSigned",
+        "title": "Linear (Signed)"
+      },
+      {
+        "command": "vaporview.renderSteppedSigned",
+        "title": "Stepped (Signed)"
       },
       {
         "command": "vaporview.defaultColor1",

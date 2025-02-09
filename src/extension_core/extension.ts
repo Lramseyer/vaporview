@@ -89,10 +89,7 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   // Value Format commands
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsBinary', (e, a) => {
-    
-    console.log(e);
-    console.log(a);
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsBinary', (e) => {
     viewerProvider.setValueFormat(e.netlistId, "binary", undefined, undefined);
   }));
 
@@ -127,12 +124,19 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.renderLinear', (e) => {
-    console.log(e);
     viewerProvider.setValueFormat(e.netlistId, undefined, undefined, "linear");
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.renderStepped', (e) => {
     viewerProvider.setValueFormat(e.netlistId, undefined, undefined, "stepped");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.renderLinearSigned', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, undefined, undefined, "linearSigned");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.renderSteppedSigned', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, undefined, undefined, "steppedSigned");
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsBFloat', (e) => {

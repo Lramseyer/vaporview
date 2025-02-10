@@ -1,6 +1,6 @@
 # Change Log
 
-# 1.3.0 - Upcoming Release
+# 1.3.0 - Current Release
 
 - Added:
   - Linear and Stepped waveform Rendering
@@ -20,7 +20,7 @@
   - Terminal links to netlist paths pointing to scope items reveal in netlist view, and won't add anything to the viewer
   - Improved netlist view visibility
 
-## 1.2.6 - Current Release
+## 1.2.6
 
 - Added GHW file support
 - Added Support for Real and String datatypes

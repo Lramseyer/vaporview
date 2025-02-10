@@ -119,9 +119,9 @@ Vaporview can display values in different number formats. To change the value fo
 
 ## Waveform Color
 
-Vaporview supports 8 different waveform colors. The colors are based off the ![semantic token colors](https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide) for VScode text.* There are 4 builtin colors, and 4 custom colors that can be configured in the vaporview settings. To change the color, right click on the waveform, select **Color** -> and select the color you wish to use.
+Vaporview supports 8 different waveform colors. The colors are based off the [semantic token colors](https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide) for VScode text.* There are 4 builtin colors, and 4 custom colors that can be configured in the vaporview settings. To change the color, right click on the waveform, select **Color** -> and select the color you wish to use.
 
-*Unforunately, the VScode API does not make these colors visible to custom webviews yet. It is an ![open issue](https://github.com/microsoft/vscode/issues/32813), so there's a hack in place. The default waveform colors will not follow suit with all color themes, but it should work broadly between light themes and dark themes.
+*Unforunately, the VScode API does not make these colors visible to custom webviews yet. It is an [open issue](https://github.com/microsoft/vscode/issues/32813), so there's a hack in place. The default waveform colors will not follow suit with all color themes, but it should work broadly between light themes and dark themes.
 
 ## Waveform Render Types
 

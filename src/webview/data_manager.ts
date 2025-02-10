@@ -229,6 +229,7 @@ export class WaveformDataManager {
 
     if (message.renderType !== undefined) {
       switch (message.renderType) {
+        case "binary":        this.netlistData[netlistId].renderType = binaryWaveformRenderer; break;
         case "multiBit":      this.netlistData[netlistId].renderType = multiBitWaveformRenderer; break;
         case "linear":        this.netlistData[netlistId].renderType = linearWaveformRenderer; break;
         case "stepped":       this.netlistData[netlistId].renderType = steppedrWaveformRenderer; break;

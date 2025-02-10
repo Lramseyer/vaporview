@@ -117,6 +117,16 @@ Vaporview can display values in different number formats. To change the value fo
 | Decimal        | ❌ No                 |
 | Floating Point | ❌ No                 |
 
+## Waveform Color
+
+Vaporview supports 8 different waveform colors. The colors are based off the ![semantic token colors](https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide) for VScode text.* There are 4 builtin colors, and 4 custom colors that can be configured in the vaporview settings. To change the color, right click on the waveform, select **Color** -> and select the color you wish to use.
+
+*Unforunately, the VScode API does not make these colors visible to custom webviews yet. It is an ![open issue](https://github.com/microsoft/vscode/issues/32813), so there's a hack in place. The default waveform colors will not follow suit with all color themes, but it should work broadly between light themes and dark themes.
+
+## Waveform Render Types
+
+Aside from the binary and multi-bit waveform renderers, Vaporview supports displaying analog signals. Any multi-bit variable or Real type supports this. Analog signals can be displayed wither as a linear or stepped line. In the case of binary vlues, the Y value can be evaluated as either a signed or unsigned value. To change the Render Type, right click on the signal in the viewer and select **Render Type** -> and select the render type you wish to use for the signal.
+
 ## Saving and loading opened signals
 
 VaporView allows you to save and load your signal list. This can be done either by right clicking anywhere in the viewer or netlist and selecting **"Save Vaproview Settings"** or **"Load Vaproview Settings"**. You can also access the command directly by pressing **Ctrl + Shift + P** and Type **">Save Vaproview Settings"** or **">Load Vaproview Settings"** and press **Enter** to slect the command. A dialog box will pop up prompting which file you would like to save/load settings from.
@@ -151,7 +161,7 @@ This extension was designed on Vscode version 1.83
 
 # Development Roadmap
 
-## Upcoming Release 1.3.0
+## Current Release 1.3.0
 
 - Added:
   - Linear and Stepped waveform Rendering

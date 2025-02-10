@@ -72,7 +72,7 @@ function busElement(time: number, deltaTime: number, displayValue: string, spans
 
 
 export const multiBitWaveformRenderer: WaveformRenderer = {
-  id: "Multi Bit",
+  id: "multiBit",
 
   createSvgFromValueChangeChunk(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: any) {
     const transitionData = valueChangeChunk.valueChanges;
@@ -216,7 +216,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
 };
 
 export const binaryWaveformRenderer: WaveformRenderer = {
-  id: "Binary",
+  id: "binary",
 
   createSvgFromValueChangeChunk(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: any) {
     const transitionData = valueChangeChunk.valueChanges;

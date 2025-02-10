@@ -141,6 +141,7 @@ export function sendWebviewContext() {
         name:         data.modulePath + "." + data.signalName,
         numberFormat: data.valueFormat.id,
         colorIndex:   data.colorIndex,
+        renderType:   data.renderType.id,
       };
     })
   });

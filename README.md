@@ -16,7 +16,7 @@ VaporView opens the waveform dump files in an interactive viewer, where you can:
 - Place and move markers
 - Search for values witin a waveform dump
 
-For use of other waveform dump formats such as LXT, VZT, GTKwave offers conversion tools. Proprietery formats such as WLF, VPD, and FSDB can also be used, but require you to compile GTKwave. See the [GTKwave Manual](https://gtkwave.sourceforge.net/gtkwave.pdf) for details - page 16, and 69 for an overview.
+For use of other waveform dump formats such as LXT, VZT, GTKwave offers conversion tools. Proprietery formats such as WLF, VPD, and FSDB can also be converted, but require you to compile GTKwave. See the [GTKwave Manual](https://gtkwave.sourceforge.net/gtkwave.pdf) for details - page 16, and 69 for an overview.
 
 ## Terminal Links
 
@@ -202,7 +202,7 @@ This unfortunately seems to be an issue with the Chromium renderer (which is wha
 
 # About This Extension
 
-I originally built this because I work for an FPGA company. I wanted a good _free_ waveform viewer extension, and I always thought it would be cool to make my own extension.
+I originally built this extension when I worked for an FPGA company. I wanted a good _free_ waveform viewer extension, and I always thought it would be cool to make my own extension.
 
 This is and always will be open source. It's free to use for personal and professional use. There never will be feature regression in favor of a premium tier. In other words, every feature that is currently included, or on the roadmap will be free and open source. Adaptations of the source code completely or even in part for other projects is only allowed _if_ the project is also free and open source. Adaptations of the source code completely or in part for enterprise software is not allowed _unless_ prior written permission is given by the owner of this project. Though I am open to offers.
 

@@ -574,6 +574,7 @@ export class Viewport {
 
     for (let chunkIndex: number = startIndex; chunkIndex < endIndex; chunkIndex+=this.chunksInColumn) {
       //if (!this.dataCache.columns[chunkIndex]) {console.log('chunk ' + chunkIndex + ' is undefined');}
+      if (!this.dataCache.columns[chunkIndex]) {continue;}
       if (!this.dataCache.columns[chunkIndex].element) {
         this.parseHtmlInChunk(chunkIndex);
       }

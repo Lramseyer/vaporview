@@ -2,7 +2,7 @@
   "name": "vaporview",
   "publisher": "lramseyer",
   "displayName": "VaporView",
-  "description": "Digital Waveform Viewer for VS code",
+  "description": "Waveform Viewer for VS code",
   "icon": "media/icon.png",
   "galleryBanner": {
     "color": "#202020",

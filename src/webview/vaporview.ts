@@ -29,6 +29,7 @@ export type NetlistData = {
   renderType: WaveformRenderer;
   colorIndex: number;
   color: string;
+  canvas: HTMLCanvasElement | null;
 };
 
 export type WaveformData = {
@@ -236,7 +237,7 @@ class VaporviewWebview {
       if      (this.viewport.updatePending) {return;}
       const bounds      = this.scrollArea.getBoundingClientRect();
       const pixelLeft   = Math.round(e.pageX - bounds.left);
-      const time        = Math.round((pixelLeft - this.viewport.contentLeft) / this.viewport.zoomRatio) + (this.viewport.chunkTime * this.viewport.dataCache.startIndex);
+      const time        = Math.round((pixelLeft + this.viewport.pseudoScrollLeft) * this.viewport.pixelTime);
 
       // scroll up zooms in (- deltaY), scroll down zooms out (+ deltaY)
       if      (!viewerState.touchpadScrolling && (deltaY > 0)) {this.events.dispatch(ActionType.Zoom, 1, time, pixelLeft);}
@@ -273,7 +274,7 @@ class VaporviewWebview {
     if (e.key === 'd' && e.ctrlKey) {
       console.log(this.viewport.updatePending);
       console.log(viewerState);
-      console.log(this.viewport.dataCache);
+      //console.log(this.viewport.dataCache);
       console.log(dataManager.netlistData);
     }
 
@@ -397,7 +398,7 @@ class VaporviewWebview {
     dataManager.unload();
 
     //this.contentArea.style.height = '40px';
-    this.viewport.updateContentArea(0, [0, 0]);
+    //this.viewport.updateContentArea(0, [0, 0]);
     this.events.dispatch(ActionType.Zoom, 1, 0, 0);
     labelsPanel.renderLabelsPanels();
     this.viewport.init({chunkTime: 128, defaultZoom: 1, timeScale: 1, timeEnd: 0});

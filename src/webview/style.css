@@ -270,7 +270,7 @@ body {
 #contentArea {
   position: relative;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   flex-wrap: nowrap;
   min-width: fit-content;
   height: fit-content;
@@ -315,35 +315,6 @@ body {
   border-top: 1px solid #ddd;
   padding-top: 5px;
   height: 50px;
-}
-
-.tick {
-  position: relative;
-  width: 10px;
-  border-right: 1px solid #ddd;
-  padding-right: 5px;
-  font-size: 12px;
-  text-align: center;
-}
-
-.ruler-chunk {
-  z-index: 30;
-  position: sticky;
-  top: 0;
-  background: var(--vscode-editor-background);
-  max-height: var(--ruler-height);
-  overflow: hidden;
-}
-
-.ruler-svg {
-  font-size:   var(--vscode-editor-font-size);
-  fill:        var(--vscode-editorLineNumber-foreground);
-  font-family: var(--vscode-editor-font-family);
-  user-select: none;
-}
-
-.ruler-svg text {
-  text-anchor: middle;
 }
 
 #waveform-labels {
@@ -425,17 +396,17 @@ body {
   z-index:    9;
 }
 
-.ruler-tick {
-  stroke:       var(--vscode-editorLineNumber-foreground);
-  stroke-dasharray: 1 9;
-  stroke-width:     5px;
+#ruler {
+  height: 40px;
+  z-index: 30;
+  position: sticky;
+  top: 0;
+  background: var(--vscode-editor-background);
+  max-height: var(--ruler-height);
+  overflow: hidden;
 }
 
-.column-chunk {
-  position:  relative;
-}
-
-.waveform-chunk {
+.waveform-container {
   display:     flex;
   position: relative;
   align-items: center;
@@ -446,6 +417,79 @@ body {
 .is-selected{
   border-top: 4px solid var(--vscode-editor-lineHighlightBorder);
   border-bottom: 4px solid var(--vscode-editor-lineHighlightBorder);
+}
+
+.time-marker {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  z-index: 100;
+  overflow: visible;
+  stroke-width: 1px;
+  width: 1px;
+  stroke: var(--vscode-editorLineNumber-activeForeground);
+}
+
+#main-marker {
+  stroke-dasharray: 2 2;
+}
+
+#alt-marker {
+  stroke-dasharray: 6 2 2 2;
+}
+
+
+
+
+
+
+
+
+.tick {
+  position: relative;
+  width: 10px;
+  border-right: 1px solid #ddd;
+  padding-right: 5px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.ruler-chunk {
+  z-index: 30;
+  position: sticky;
+  top: 0;
+  background: var(--vscode-editor-background);
+  max-height: var(--ruler-height);
+  overflow: hidden;
+}
+
+.ruler-svg {
+  font-size:   var(--vscode-editor-font-size);
+  fill:        var(--vscode-editorLineNumber-foreground);
+  font-family: var(--vscode-editor-font-family);
+  user-select: none;
+}
+
+.ruler-svg text {
+  text-anchor: middle;
+}
+
+.ruler-tick {
+  stroke:       var(--vscode-editorLineNumber-foreground);
+  stroke-dasharray: 1 9;
+  stroke-width:     5px;
+}
+
+.waveform-chunk {
+  display:     flex;
+  position: relative;
+  align-items: center;
+  height: var(--waveform-height);
+  box-sizing: border-box;
+}
+
+.column-chunk {
+  position:  relative;
 }
 
 .bus-waveform-value {
@@ -490,23 +534,4 @@ body {
 
 .binary-waveform-svg rect {
   vector-effect: non-scaling-stroke;
-}
-
-.time-marker {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  z-index: 100;
-  overflow: visible;
-  stroke-width: 1px;
-  width: 1px;
-  stroke: var(--vscode-editorLineNumber-activeForeground);
-}
-
-#main-marker {
-  stroke-dasharray: 2 2;
-}
-
-#alt-marker {
-  stroke-dasharray: 6 2 2 2;
 }

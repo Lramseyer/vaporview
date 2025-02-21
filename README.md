@@ -109,13 +109,13 @@ Finding a particular transition or a value in a waveform is done in relation to 
 
 Vaporview can display values in different number formats. To change the value format, right click on the signal in the viewer and select **Format Values** -> and select the value format you wish to display. Note that some values have limitations when displaying values with non-2-state bits in them, and will fall back to displaying the value as Binary. For details see the table below:
 
-| Value Format   | Non-2-state Supported |
-| -------------- | --------------------- |
-| Binary         | ✅ Yes                |
-| Hexadecimal    | ✅ Yes                |
-| Octal          | ✅ Yes                |
-| Decimal        | ❌ No                 |
-| Floating Point | ❌ No                 |
+| Value Format   | Non-2-state Supported | Justify Direction |
+| -------------- | --------------------- | ----------------- |
+| Binary         | ✅ Yes                | Right             |
+| Hexadecimal    | ✅ Yes                | Right             |
+| Octal          | ✅ Yes                | Right             |
+| Decimal        | ❌ No                 | Left              |
+| Floating Point | ❌ No                 | Left              |
 
 ## Waveform Color
 
@@ -161,25 +161,14 @@ This extension was designed on Vscode version 1.83
 
 # Development Roadmap
 
-## Current Release 1.3.0
+## Upcoming Release Release 1.3.1
 
-- Added:
-  - Linear and Stepped waveform Rendering
-  - Number formats:
-    - Signed Integers
-    - Floats: 8, 16, 32, 64, BFloat, TensorFloat
-  - Color option to waveforms
-  - "Show in Netlist view" context menu item
-  - Scrollbar annotation for marker position
-  - File icon for waveform dump files
-  - (tentative) support for VScode web
-- Fixed issues:
-  - Chunks disappear when adding groups of signals already displayed
-  - Number format (and color) are not preserved on reload
-  - Vertical scrolling issues from 1.2.5
-  - Zoom gesture scaling
-  - Terminal links to netlist paths pointing to scope items reveal in netlist view, and won't add anything to the viewer
-  - Improved netlist view visibility
+To do:
+
+- Port pender path to HTML5 canvas (previously used SVGs)
+  - Improves text placement in multi bit-waveform renderer
+  - Greatly improves scrolling/zoom experience
+  - Fixes issue where linear, steppedm and binary waveforms display a gap when zoomed in really far
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

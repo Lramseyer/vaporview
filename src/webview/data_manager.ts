@@ -112,6 +112,7 @@ export class WaveformDataManager {
         renderType:   signal.signalWidth === 1 ? binaryWaveformRenderer : multiBitWaveformRenderer,
         colorIndex:   colorIndex,
         color:        "",
+        canvas:       null,
       };
       this.netlistData[netlistId].vscodeContext = this.setSignalContextAttribute(netlistId);
       this.setColorFromColorIndex(netlistId);
@@ -177,15 +178,15 @@ export class WaveformDataManager {
     };
 
     // Create ChunkStart array
-    this.valueChangeData[signalId].chunkStart = new Array(viewport.chunkCount).fill(transitionData.length);
-    let chunkIndex = 0;
-    for (let i = 0; i < transitionData.length; i++) {
-      while (transitionData[i][0] >= viewport.chunkTime * chunkIndex) {
-        this.valueChangeData[signalId].chunkStart[chunkIndex] = i;
-        chunkIndex++;
-      }
-    }
-    this.valueChangeData[signalId].chunkStart[0] = 1;
+    //this.valueChangeData[signalId].chunkStart = new Array(viewport.chunkCount).fill(transitionData.length);
+    //let chunkIndex = 0;
+    //for (let i = 0; i < transitionData.length; i++) {
+    //  while (transitionData[i][0] >= viewport.chunkTime * chunkIndex) {
+    //    this.valueChangeData[signalId].chunkStart[chunkIndex] = i;
+    //    chunkIndex++;
+    //  }
+    //}
+    //this.valueChangeData[signalId].chunkStart[0] = 1;
     this.valueChangeDataTemp[signalId] = undefined;
 
     //this.contentArea.style.height = (40 + (28 * viewerState.displayedSignals.length)) + "px";
@@ -193,6 +194,18 @@ export class WaveformDataManager {
     netlistIdList.forEach((netlistId: NetlistId) => {
       this.events.dispatch(ActionType.RedrawVariable, netlistId);
     });
+  }
+
+  // binary searches for a value in an array. Will return the index of the value if it exists, or the lower bound if it doesn't
+  binarySearch(array: any[], target: number) {
+    let low  = 0;
+    let high = array.length;
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      if (array[mid][0] < target) {low = mid + 1;}
+      else {high = mid;}
+    }
+    return low;
   }
 
   setColorFromColorIndex(netlistId: NetlistId) {
@@ -264,24 +277,25 @@ export class WaveformDataManager {
 
     if (time === null) {return -1;}
   
-    let endIndex;
-    const data        = this.valueChangeData[signalId];
-    const chunk       = Math.floor(time / viewport.chunkTime);
-    const startIndex  = Math.max(0, data.chunkStart[chunk] - 1);
-    if (chunk === viewport.chunkCount - 1) {
-      endIndex    = data.transitionData.length;
-    } else {
-      endIndex    = data.chunkStart[chunk + 1] + 1;
-    }
-    const searchIndex = data.transitionData.slice(startIndex, endIndex).findIndex(([t, v]) => {return t >= time;});
-    const transitionIndex = startIndex + searchIndex;
+    //let endIndex;
+    const data        = this.valueChangeData[signalId].transitionData;
+    //const chunk       = Math.floor(time / viewport.chunkTime);
+    //const startIndex  = Math.max(0, data.chunkStart[chunk] - 1);
+    //if (chunk === viewport.chunkCount - 1) {
+    //  endIndex    = data.transitionData.length;
+    //} else {
+    //  endIndex    = data.chunkStart[chunk + 1] + 1;
+    //}
+    //const searchIndex = data.transitionData.slice(startIndex, endIndex).findIndex(([t, v]) => {return t >= time;});
+    //const transitionIndex = startIndex + searchIndex;
+    const transitionIndex = this.binarySearch(data, time);
   
-    if (searchIndex === -1) {
+    if (transitionIndex + 1 >= data.length) {
       console.log('search found a -1 index');
       return -1;
     }
   
-    return transitionIndex;
+    return transitionIndex + 1;
   }
 
   getValueAtTime(netlistId: NetlistId, time: number) {

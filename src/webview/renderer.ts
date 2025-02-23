@@ -90,10 +90,10 @@ function busValue(time: number, deltaTime: number, displayValue: string, viewpor
   if (textTime > characterWidthLimit) {
     center = false;
     const charCount = Math.floor(characterWidthLimit / (characterWidth * viewportSpecs.pixelTime)) - 1;
-    if (charCount < 1) {return ["", -100];}
+    if (charCount < 0) {return ["", -100];}
     if (justifydirection === "right") {
       xValue = adjustedTime + adjestedDeltaTime - padding;
-      text = '…' + displayValue.slice(-charCount);
+      text = '…' + displayValue.slice(displayValue.length - charCount);
     } else {
       xValue = adjustedTime + padding;
       text = displayValue.slice(0, charCount) + '…';
@@ -109,13 +109,14 @@ function busValue(time: number, deltaTime: number, displayValue: string, viewpor
 export const multiBitWaveformRenderer: WaveformRenderer = {
   id: "multiBit",
 
-  draw(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: any) {
+  draw(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: Viewport) {
 
     const canvasElement  = netlistData.canvas;
     if (!canvasElement) {return;}
     const ctx            = canvasElement.getContext('2d');
     if (!ctx) {return;}
 
+    
     const transitionData = valueChangeChunk.valueChanges;
     const initialState   = valueChangeChunk.initialState;
     const postState      = valueChangeChunk.postState;
@@ -141,9 +142,9 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     const minTextWidth  = 12 * viewportSpecs.pixelTime;
     const minDrawWidth  = viewportSpecs.pixelTime;
     let leftOverflow    = Math.min(initialState[0], 0);
-    const rightOverflow = Math.max(postState[0] - viewportSpecs.columnTime, 0);
     const drawColor        = netlistData.color;
-    const xzColor          = "var(--vscode-debugTokenExpression-error)";
+    const xzColor          = viewportSpecs.xzColor;
+    const textColor        = viewportSpecs.backgroundColor;
 
     for (let i = 0; i < transitionData.length; i++) {
 
@@ -162,7 +163,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
         xPosition    = (elementWidth / 2) + time;
         yPosition    =  elementWidth * 2;
         if (is4State) {
-          xzPoints.push([time, 0], [xPosition, yPosition], [transitionData[i][0], 0], [xPosition, -yPosition]);
+          xzPoints.push([[time, 0], [xPosition, yPosition], [transitionData[i][0], 0], [xPosition, -yPosition]]);
         } else {
           points.push([xPosition, yPosition]);
           endPoints.push([xPosition, -yPosition]);
@@ -206,7 +207,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
       xPosition    = (elementWidth / 2) + time;
       is4State     = valueIs9State(value);
       if (is4State) {
-        xzPoints.push([time, 0], [xPosition, elementWidth * 2], [postState[0], 0], [xPosition, -elementWidth * 2]);
+        xzPoints.push([[time, 0], [xPosition, elementWidth * 2], [postState[0], 0], [xPosition, -elementWidth * 2]]);
       } else {
         points.push([xPosition, elementWidth * 2]);
         points.push([postState[0], 0]);
@@ -229,7 +230,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(viewportSpecs.viewerWidth, 0);
-    ctx.strokeStyle = 'green';
+    ctx.strokeStyle = drawColor;
     ctx.stroke();
 
     ctx.globalAlpha = 0.8;
@@ -237,7 +238,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(viewportSpecs.viewerWidth, 0);
-    ctx.strokeStyle = 'green';
+    ctx.strokeStyle = drawColor;
     ctx.stroke();
     ctx.moveTo(0, 0);
 
@@ -246,7 +247,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     ctx.save();
     ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, 10);
     //ctx.globalAlpha = 1;
-    ctx.fillStyle = 'green';
+    ctx.fillStyle = drawColor;
     ctx.transform(viewportSpecs.zoomRatio, 0, 0, viewportSpecs.zoomRatio, 0, 0);
     //ctx.transform(1/viewportSpecs.zoomRatio, 0, 0, 1, 0, 0);
     ctx.beginPath();
@@ -254,24 +255,23 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     endPoints.reverse().forEach(([x, y]) => {ctx.lineTo(x, y);});
     ctx.fill();
 
-
     // Draw non-2-state values
-    //ctx.fillStyle = 'red';
-    //xzPoints.forEach(set => {
-    //  ctx.beginPath();
-    //  ctx.moveTo(set[0][0], set[0][1]);
-    //  ctx.lineTo(set[1][0], set[1][1]);
-    //  ctx.lineTo(set[2][0], set[2][1]);
-    //  ctx.lineTo(set[3][0], set[3][1]);
-    //  ctx.fill();
-    //});
+    ctx.fillStyle = xzColor;
+    xzPoints.forEach(set => {
+      ctx.beginPath();
+      ctx.moveTo(set[0][0], set[0][1]);
+      ctx.lineTo(set[1][0], set[1][1]);
+      ctx.lineTo(set[2][0], set[2][1]);
+      ctx.lineTo(set[3][0], set[3][1]);
+      ctx.fill();
+    });
     ctx.restore();
 
     // Draw Text
     ctx.save();
     ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, 10);
-    ctx.font = '12px Menlo';
-    ctx.fillStyle = 'black';
+    ctx.font = viewportSpecs.fontStyle;
+    ctx.fillStyle = viewportSpecs.backgroundColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     textElements.forEach(([text, xValue, center]) => {
@@ -452,7 +452,7 @@ function drawMultiBit(valueChangeChunk: any, netlistData: NetlistData, viewportS
 export const binaryWaveformRenderer: WaveformRenderer = {
   id: "binary",
 
-  draw(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: any) {
+  draw(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: Viewport) {
 
     var style = window.getComputedStyle(document.body);
 
@@ -471,18 +471,17 @@ export const binaryWaveformRenderer: WaveformRenderer = {
     let initialTimeOrStart = Math.max(initialState[0], -10);
     const minDrawWidth     = 1 / viewportSpecs.zoomRatio;
     let xzPath:any         = [];
-    //const drawColor        = style.getPropertyValue(netlistData.color);
-    const drawColor        = 'green';
-    const xzColor          = style.getPropertyValue("var(--vscode-debugTokenExpression-error)");
-    const viewerWidthTime   = viewportSpecs.viewerWidthTime;
-    const timeScrollLeft    = viewportSpecs.timeScrollLeft;
-    const timeScrollRight   = viewportSpecs.timeScrollRight;
+    const drawColor        = netlistData.color;
+    const xzColor          = viewportSpecs.xzColor;
+    const viewerWidthTime  = viewportSpecs.viewerWidthTime;
+    const timeScrollLeft   = viewportSpecs.timeScrollLeft;
+    const timeScrollRight  = viewportSpecs.timeScrollRight;
     const valueIs9State    = netlistData.valueFormat.is9State;
 
     if (valueIs9State(initialValue)) {
       initialValue2state = 0;
     }
-    let accumulatedPath    = [[0, initialValue2state]];
+    let accumulatedPath    = [[0, 0], [0, initialValue2state]];
 
     let value2state    = 0;
     // No Draw Code
@@ -505,7 +504,7 @@ export const binaryWaveformRenderer: WaveformRenderer = {
           initialValue2state = parseInt(initialValue);
           if (valueIs9State(initialValue)) {initialValue2state = 0;}
 
-          noDrawPath.push([lastDrawTime, 0, lastNoDrawTime - lastDrawTime, 1]);
+          noDrawPath.push([lastDrawTime, lastNoDrawTime, 0]);
           accumulatedPath.push([lastDrawTime, 0]);
           accumulatedPath.push([lastNoDrawTime, 0]);
           accumulatedPath.push([lastNoDrawTime, initialValue2state]);
@@ -513,7 +512,7 @@ export const binaryWaveformRenderer: WaveformRenderer = {
         }
 
         if (valueIs9State(initialValue)) {
-          xzPath.push([initialTimeOrStart, 0, time - initialTimeOrStart, 1]);
+          xzPath.push([initialTimeOrStart, time - initialTimeOrStart]);
           //if (initialTimeOrStart >= 0) {
           //  xzPath += `L ${initialTimeOrStart} 0 `;
           //}
@@ -541,7 +540,7 @@ export const binaryWaveformRenderer: WaveformRenderer = {
 
     if (postState[0] - initialTime < minDrawWidth) {
 
-        noDrawPath.push([lastDrawTime, 0, viewerWidthTime - lastDrawTime, 1]);
+        noDrawPath.push([lastDrawTime, timeScrollRight, 1]);
         accumulatedPath.push([lastDrawTime, 0]);
         accumulatedPath.push([timeScrollRight, 0]);
 
@@ -550,7 +549,7 @@ export const binaryWaveformRenderer: WaveformRenderer = {
 
       if (noDrawFlag) {
 
-        noDrawPath.push([lastDrawTime, 0, lastNoDrawTime - lastDrawTime, 1]);
+        noDrawPath.push([lastDrawTime, lastNoDrawTime, 2]);
         accumulatedPath.push([lastDrawTime, 0]);
         accumulatedPath.push([lastNoDrawTime, 0]);
         accumulatedPath.push([lastNoDrawTime, initialValue2state]);
@@ -559,15 +558,16 @@ export const binaryWaveformRenderer: WaveformRenderer = {
       if (valueIs9State(initialValue))  {
 
         if (initialTimeOrStart >= 0) {
-          xzPath.push([initialTimeOrStart, 0, timeScrollRight, 1]);
+          xzPath.push([initialTimeOrStart, timeScrollRight]);
         } else {
-          xzPath.push([initialTimeOrStart, 0, timeScrollRight, 1]);
+          xzPath.push([initialTimeOrStart, timeScrollRight]);
         }
       }
     }
 
     //accumulatedPath += " L " + columnTime + " " + initialValue2state;
-    accumulatedPath.push([timeScrollRight, initialValue2state]);
+    accumulatedPath.push([timeScrollRight + (15 * viewportSpecs.pixelTime), initialValue2state]);
+    accumulatedPath.push([timeScrollRight + (15 * viewportSpecs.pixelTime), 0]);
 
     //console.log(accumulatedPath);
     //console.log(drawColor);
@@ -586,14 +586,54 @@ export const binaryWaveformRenderer: WaveformRenderer = {
     ctx.clearRect(0, 0, viewportSpecs.viewerWidth, svgHeight);
     ctx.save();
     ctx.strokeStyle = drawColor;
+    ctx.fillStyle   = drawColor;
     ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, waveOffset + 0.5);
     ctx.transform(viewportSpecs.zoomRatio, 0, 0, -waveHeight, 0, 0);
     //ctx.transform(1/viewportSpecs.zoomRatio, 0, 0, 1, 0, 0);
     ctx.beginPath();
     accumulatedPath.forEach(([x, y]) => {ctx.lineTo(x, y);});
+    ctx.globalAlpha = 0.1;
+    ctx.fill();
+    ctx.globalAlpha = 1;
     ctx.restore();
     ctx.lineWidth = 1;
     ctx.strokeStyle = drawColor;
+    ctx.stroke();
+
+    // NoDraw Elements
+    ctx.save();
+    ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, waveOffset + 0.5);
+    ctx.transform(viewportSpecs.zoomRatio, 0, 0, -waveHeight, 0, 0);
+    ctx.beginPath();
+    noDrawPath.forEach(([startTime, endTime]) => {
+      ctx.moveTo(startTime, 0);
+      ctx.lineTo(endTime, 0);
+      ctx.lineTo(endTime, 1);
+      ctx.lineTo(startTime, 1);
+      ctx.lineTo(startTime, 0);
+    });
+    ctx.restore();
+    ctx.strokeStyle = drawColor;
+    ctx.fillStyle = drawColor;
+    ctx.lineWidth = 1;
+    ctx.fill();
+    ctx.stroke();
+
+    // Non-2-state values
+    ctx.save();
+    ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, waveOffset + 0.5);
+    ctx.transform(viewportSpecs.zoomRatio, 0, 0, -waveHeight, 0, 0);
+    ctx.beginPath();
+    xzPath.forEach(([startTime, EndTime]) => {
+      ctx.moveTo(startTime, 0);
+      ctx.lineTo(EndTime, 0);
+      ctx.lineTo(EndTime, 1);
+      ctx.lineTo(startTime, 1);
+      ctx.lineTo(startTime, 0);
+    });
+    ctx.restore();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = xzColor;
     ctx.stroke();
 
 

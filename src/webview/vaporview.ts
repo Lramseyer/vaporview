@@ -49,6 +49,7 @@ export enum ActionType {
   RemoveVariable,
   RedrawVariable,
   Resize,
+  updateColorTheme,
 }
 
 let resizeDebounce: any = 0;
@@ -356,7 +357,7 @@ class VaporviewWebview {
   }
 
   handleMarkerSet(time: number, markerType: number) {
-    if (time > this.viewport.timeStop) {return;}
+    if (time > this.viewport.timeStop || time < 0) {return;}
     sendWebviewContext();
   }
 
@@ -448,6 +449,7 @@ class VaporviewWebview {
       case 'setSelectedSignal':     {this.events.dispatch(ActionType.SignalSelect, message.netlistId); break;}
       case 'getContext':            {sendWebviewContext(); break;}
       case 'copyWaveDrom':          {dataManager.copyWaveDrom(); break;}
+      case 'updateColorTheme':      {this.events.dispatch(ActionType.updateColorTheme); break;}
     }
   }
 }

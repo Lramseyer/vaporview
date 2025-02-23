@@ -61,8 +61,17 @@ export class Viewport {
   scrollEventPending: boolean = false;
 
   // Marker variables
-  markerAnnotation: string           = '';
-  valueAtMarker: any                  = {};
+  markerAnnotation: string    = '';
+  valueAtMarker: any          = {};
+
+  // CSS Properties
+  colorKey: string[]          = ['green', 'orange', 'blue', 'purple'];
+  xzColor: string             = 'red';
+  rulerTextColor: string      = 'grey';
+  backgroundColor: string     = 'black';
+  fontFamily: string          = 'Menlo';
+  fontSize: string            = '12px';
+  fontStyle: string           = '12px Menlo';
 
   constructor(
     private events: EventHandler,
@@ -123,6 +132,7 @@ export class Viewport {
     this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
     this.handleAddVariable = this.handleAddVariable.bind(this);
     this.handleRedrawSignal = this.handleRedrawSignal.bind(this);
+    this.handleColorChange = this.handleColorChange.bind(this);
 
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
@@ -132,6 +142,7 @@ export class Viewport {
     this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
     this.events.subscribe(ActionType.RedrawVariable, this.handleRedrawSignal);
     this.events.subscribe(ActionType.Resize, this.updateViewportWidth);
+    this.events.subscribe(ActionType.updateColorTheme, this.handleColorChange);
   }
 
   init(metadata: any) {
@@ -149,6 +160,37 @@ export class Viewport {
     this.updatePending = false;
     this.scrollbarCanvasElement.setAttribute("width",  `${this.viewerWidth}`);
     this.scrollbarCanvasElement.setAttribute("height", `${this.scrollbarContainer.clientHeight}`);
+
+    this.getThemeColors();
+  }
+
+  async getThemeColors() {
+    let style = window.getComputedStyle(document.body)
+    // Token colors
+    this.colorKey[0] = style.getPropertyValue('--vscode-debugTokenExpression-number');
+    this.colorKey[1] = style.getPropertyValue('--vscode-debugTokenExpression-string');
+    this.colorKey[2] = style.getPropertyValue('--vscode-debugView-valueChangedHighlight');
+    this.colorKey[3] = style.getPropertyValue('--vscode-debugTokenExpression-name');
+
+    // Non-2-State Signal Color
+    this.xzColor = style.getPropertyValue('--vscode-debugTokenExpression-error');
+
+    // Ruler Color
+    this.rulerTextColor = style.getPropertyValue('--vscode-editorLineNumber-foreground');
+
+    // Background Color
+    this.backgroundColor = style.getPropertyValue('--vscode-editor-background');
+
+    // Font
+    this.fontSize = style.getPropertyValue('--vscode-editor-font-size');
+    this.fontFamily = style.getPropertyValue('--vscode-editor-font-family');
+    this.fontStyle = this.fontSize + ' ' + this.fontFamily;
+  }
+
+  async handleColorChange() {
+
+    this.getThemeColors();
+    this.redrawViewport();
   }
 
   handleAddVariable(netlistIdList: NetlistId[], updateFlag: boolean) {
@@ -356,9 +398,9 @@ export class Viewport {
     ctx.imageSmoothingEnabled = false;
     ctx.textRendering = 'optimizeLegibility';
     ctx.lineWidth = 1;
-    ctx.strokeStyle = 'grey';
-    ctx.font = '12px Menlo';
-    ctx.fillStyle = 'grey';
+    ctx.strokeStyle = this.rulerTextColor;
+    ctx.font = this.fontStyle;
+    ctx.fillStyle = this.rulerTextColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.clearRect(0, 0, this.viewerWidth, 40);
@@ -403,10 +445,15 @@ export class Viewport {
     if (!data) {return;}
 
     // find the closest timestampt to timeScrollLeft
+    
     const startIndex   = Math.max(dataManager.binarySearch(data.transitionData, this.timeScrollLeft - (2 * this.pixelTime)), 1);
-    const endIndex     = Math.min(dataManager.binarySearch(data.transitionData, this.timeScrollRight) + 1, data.transitionData.length - 1);
+    const endIndex     = dataManager.binarySearch(data.transitionData, this.timeScrollRight);
     const initialState = data.transitionData[startIndex - 1];
-    const postState    = data.transitionData[endIndex];
+    let   postState    = data.transitionData[endIndex];
+
+    if (endIndex >= data.transitionData.length) {
+      postState = [this.viewerWidth * this.pixelTime, ''];
+    }
 
     const valueChangeChunk = {
       valueChanges: data.transitionData.slice(startIndex, endIndex),
@@ -451,7 +498,7 @@ export class Viewport {
   }
 
   handleMarkerSet(time: number, markerType: number) {
-    if (time > this.timeStop) {return;}
+    if (time > this.timeStop || time < 0) {return;}
 
     let element = markerType === 0 ? this.markerElement : this.altMarkerElement;
 
@@ -511,14 +558,22 @@ export class Viewport {
 
     let newZoomRatio  = this.zoomRatio * Math.pow(2, (-1 * amount));
     //this.touchpadScrollCount = 0;
-    
-    if (newZoomRatio > this.maxZoomRatio) {
-      newZoomRatio = this.maxZoomRatio;
 
-      if (newZoomRatio === this.zoomRatio) {
-        console.log('zoom ratio is too high: ' + newZoomRatio + '');
-        return;
-      }
+    let bound = '';
+    if (newZoomRatio > this.maxZoomRatio && amount < 0) {
+      newZoomRatio = this.maxZoomRatio;
+      bound = 'high';
+    }
+
+    const minZoomRatio = this.viewerWidth / (this.timeStop * 2);
+    if (newZoomRatio < minZoomRatio && amount > 0) {
+      newZoomRatio = this.zoomRatio;
+      bound = 'low';
+    }
+
+    if (newZoomRatio === this.zoomRatio) {
+      console.log('zoom ratio is too ' + bound + ': ' + newZoomRatio + '');
+      return;
     }
 
     //console.log('zooming to ' + newZoomRatio + ' from ' + this.zoomRatio + '');
@@ -538,6 +593,14 @@ export class Viewport {
     this.updatePending = false;
   }
 
+  redrawViewport() {
+    this.updatePending = true;
+    this.updateMarker();
+    this.updateRuler();
+    this.renderAllWaveforms();
+    this.updatePending = false;
+  }
+
   handleRedrawSignal(netlistId: NetlistId) {
     //console.log('redrawing signal ' + netlistId + '');
     if (viewerState.markerTime !== null) {
@@ -554,7 +617,6 @@ export class Viewport {
     this.maxScrollLeft   = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth + 10, 0));
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
     this.scrollbarCanvasElement.setAttribute("width",  `${this.viewerWidth}`);
-    //this.maxScrollLeft   = Math.round(Math.max((this.chunkCount * chunkWidth) - this.viewerWidth, 0));
 
     // Update Ruler Canvas Dimensions
     this.rulerCanvasElement.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
@@ -582,12 +644,7 @@ export class Viewport {
 
     if (this.scrollEventPending) {return;}
     this.scrollEventPending = true;
-
-    this.updateMarker();
-    this.updateRuler();
-    this.renderAllWaveforms();
-
-    this.updatePending = false;
+    this.redrawViewport();
     this.scrollEventPending = false;
   }
 }

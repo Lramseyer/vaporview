@@ -32,6 +32,9 @@ export class WaveformDataManager {
     this.contentArea = document.getElementById('contentArea')!;
 
     if (this.contentArea === null) {throw new Error("Could not find contentArea");}
+
+    this.handleColorChange = this.handleColorChange.bind(this);
+    this.events.subscribe(ActionType.updateColorTheme, this.handleColorChange);
   }
 
   unload() {
@@ -115,7 +118,7 @@ export class WaveformDataManager {
         canvas:       null,
       };
       this.netlistData[netlistId].vscodeContext = this.setSignalContextAttribute(netlistId);
-      this.setColorFromColorIndex(netlistId);
+      this.setColorFromColorIndex(this.netlistData[netlistId]);
       netlistIdList.push(netlistId);
 
       if (this.valueChangeData[signalId] !== undefined) {
@@ -208,16 +211,21 @@ export class WaveformDataManager {
     return low;
   }
 
-  setColorFromColorIndex(netlistId: NetlistId) {
-    const data = this.netlistData[netlistId];
-    if (data === undefined) {return;}
-
-    const colorIndex = data.colorIndex;
+  setColorFromColorIndex(netlistData: NetlistData | undefined) {
+    if (netlistData === undefined) {return;}
+    const colorIndex = netlistData.colorIndex;
     if (colorIndex < 4) {
-      data.color = colorKey[colorIndex];
+      netlistData.color = viewport.colorKey[colorIndex];
     } else {
-      data.color = customColorKey[colorIndex - 4];
+      netlistData.color = customColorKey[colorIndex - 4];
     }
+  }
+
+  handleColorChange() {
+    viewport.getThemeColors();
+    this.netlistData.forEach((data) => {
+      this.setColorFromColorIndex(data);
+    });
   }
 
   setDisplayFormat(message: any) {
@@ -235,7 +243,7 @@ export class WaveformDataManager {
     if (message.color !== undefined) {
       customColorKey = message.customColors;
       this.netlistData[netlistId].colorIndex = message.color;
-      this.setColorFromColorIndex(netlistId);
+      this.setColorFromColorIndex(this.netlistData[netlistId]);
     }
 
     console.log(message);
@@ -290,12 +298,12 @@ export class WaveformDataManager {
     //const transitionIndex = startIndex + searchIndex;
     const transitionIndex = this.binarySearch(data, time);
   
-    if (transitionIndex + 1 >= data.length) {
+    if (transitionIndex >= data.length) {
       console.log('search found a -1 index');
       return -1;
     }
   
-    return transitionIndex + 1;
+    return transitionIndex;
   }
 
   getValueAtTime(netlistId: NetlistId, time: number) {
@@ -308,6 +316,11 @@ export class WaveformDataManager {
   
     const transitionData  = data.transitionData;
     const transitionIndex = this.getNearestTransitionIndex(signalId, time);
+
+    console.log(transitionData);
+    console.log(time);
+    console.log(transitionIndex);
+
   
     if (transitionIndex === -1) {return result;}
     if (transitionIndex > 0) {

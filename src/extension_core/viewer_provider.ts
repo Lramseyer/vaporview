@@ -337,6 +337,16 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   //  vscode.window.showInformationMessage('WaveDrom JSON copied to clipboard.');
   //}
 
+  // Send command to all webviews
+  updateColorTheme(e: any) {
+    this.documentCollection.forEach((entry) => {
+      const webview = entry.document.webviewPanel;
+      if (webview) {
+        webview.webview.postMessage({command: 'updateColorTheme'});
+      }
+    });
+  }
+
   handleWebviewMessage(event: any) {
     switch (event.messageType) {
       case 'info':    {vscode.window.showInformationMessage(event.message); break;}

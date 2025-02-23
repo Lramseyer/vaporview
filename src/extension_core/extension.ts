@@ -37,7 +37,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // I want to get semantic tokens for the current theme
   // The API is not available yet, so I'm just going to log the theme
-  //vscode.window.onDidChangeActiveColorTheme((e) => {});
+  vscode.window.onDidChangeActiveColorTheme((e) => {
+    viewerProvider.updateColorTheme(e);
+  });
 
   // Commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.viewVaporViewSidebar', () => {

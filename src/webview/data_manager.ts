@@ -115,7 +115,9 @@ export class WaveformDataManager {
         renderType:   signal.signalWidth === 1 ? binaryWaveformRenderer : multiBitWaveformRenderer,
         colorIndex:   colorIndex,
         color:        "",
+        wasRendered:  false,
         canvas:       null,
+        ctx:          null,
       };
       this.netlistData[netlistId].vscodeContext = this.setSignalContextAttribute(netlistId);
       this.setColorFromColorIndex(this.netlistData[netlistId]);
@@ -317,11 +319,6 @@ export class WaveformDataManager {
     const transitionData  = data.transitionData;
     const transitionIndex = this.getNearestTransitionIndex(signalId, time);
 
-    console.log(transitionData);
-    console.log(time);
-    console.log(transitionIndex);
-
-  
     if (transitionIndex === -1) {return result;}
     if (transitionIndex > 0) {
       result.push(transitionData[transitionIndex - 1][1]);

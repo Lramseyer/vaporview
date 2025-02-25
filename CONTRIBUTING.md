@@ -15,7 +15,7 @@ Since me and my gang of AI ghost writers have (up to this point) have been the b
 
 While not necissarily a priority, I have a list of things that would greatly enhance the usability of this extension, but they're kind of difficult (for me at least) and I might need some help with these:
 
-- Rewriting performance critical components (like the renderer) in Web Assembly
+- ~~Rewriting performance critical components (like the renderer) in Web Assembly~~ It turns out that after porting the renderer to canvas, the Javascript implementation is more than fast enough.
 
 ## Extension overview
 

@@ -1,6 +1,6 @@
 # VaporView
 
-VaporView is an open source waveform viewer extension for Visual Studio Code
+VaporView is an open source waveform viewer extension for Visual Studio Code - [download](https://marketplace.visualstudio.com/items?itemName=lramseyer.vaporview)
 
 ![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/overview.png?raw=true)
 
@@ -161,14 +161,21 @@ This extension was designed on Vscode version 1.83
 
 # Development Roadmap
 
-## Upcoming Release Release 1.3.1
+## Upcoming Release 1.3.1
+
+Updates:
+
+- Limit how far out the viewer can be zoomed out
 
 To do:
 
 - Port pender path to HTML5 canvas (previously used SVGs)
   - Improves text placement in multi bit-waveform renderer
   - Greatly improves scrolling/zoom experience
-  - Fixes issue where linear, steppedm and binary waveforms display a gap when zoomed in really far
+  - Fixes issue where linear, stepped, and binary waveforms display a gap when zoomed in really far
+
+- High DPI monitor support
+- Linear and stepped renderer
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 
@@ -182,12 +189,6 @@ In no particular order of priority, here's a list of features that are on my rad
 - Add support for remote sessions to save on memory
 - Link netlist to RTL tokens so that signals can be connected back to RTL locations - rtlbrowse stems file support (this may require interoperability with another extension)
 - Allow users to link .objdump files to a program counter value for a more integrated debug experience
-
-# Known Issues
-
-### Binary waveforms display a gap when zoomed in really far
-
-This unfortunately seems to be an issue with the Chromium renderer (which is what VScode uses to render everything.) The workaround is to change the Zoom level of VScode itself, or your display scaling settings. To change the VScode Zoom Level, press **Ctrl + "="** or **Ctrl + "-"**
 
 # About This Extension
 

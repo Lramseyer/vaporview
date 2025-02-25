@@ -1,5 +1,20 @@
 # Change Log
 
+# 1.3.1 - Upcoming Release
+
+- Limit how far out the viewer can be zoomed out
+
+To do:
+
+- Port pender path to HTML5 canvas (previously used SVGs)
+  - Improves text placement in multi bit-waveform renderer
+  - Greatly improves scrolling/zoom experience
+  - Fixes issue where linear, stepped, and binary waveforms display a gap when zoomed in really far
+
+- Window Culling
+- High DPI monitor support
+- Port linear and stepped renderer
+
 # 1.3.0 - Current Release
 
 - Added:

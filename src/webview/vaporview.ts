@@ -29,7 +29,9 @@ export type NetlistData = {
   renderType: WaveformRenderer;
   colorIndex: number;
   color: string;
+  wasRendered: boolean;
   canvas: HTMLCanvasElement | null;
+  ctx: CanvasRenderingContext2D | null;
 };
 
 export type WaveformData = {
@@ -375,6 +377,7 @@ class VaporviewWebview {
     this.labelsScroll.scrollTop     = scrollLevel + deltaY;
     this.transitionScroll.scrollTop = scrollLevel + deltaY;
     this.scrollArea.scrollTop       = scrollLevel + deltaY;
+    viewport.renderAllWaveforms(false);
     this.viewport.updatePending     = false;
   }
 
@@ -383,6 +386,7 @@ class VaporviewWebview {
     this.viewport.updatePending     = true;
     this.labelsScroll.scrollTop     = this.scrollArea.scrollTop;
     this.transitionScroll.scrollTop = this.scrollArea.scrollTop;
+    viewport.renderAllWaveforms(false);
     this.viewport.updatePending     = false;
   }
 

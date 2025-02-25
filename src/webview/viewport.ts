@@ -1,6 +1,7 @@
 import { vscode, NetlistData,  WaveformData, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
+import { bool } from "@vscode/wasm-component-model";
 
 const domParser = new DOMParser();
 
@@ -33,6 +34,7 @@ export class Viewport {
   contentLeft: number         = 0;
   leftOffset: number          = 0;
   viewerWidth: number         = 0;
+  viewerHeight: number        = 0;
   halfViewerWidth: number     = 0;
   maxScrollLeft: number       = 0;
   maxScrollbarPosition: number = 0;
@@ -210,6 +212,7 @@ export class Viewport {
       waveformContainer.setAttribute("data-vscode-context", netlistData.vscodeContext);
       this.waveformArea.appendChild(waveformContainer);
       netlistData.canvas = canvas;
+      netlistData.ctx = canvas.getContext('2d');
     });
   }
 
@@ -284,8 +287,8 @@ export class Viewport {
 
       if (nearestTransition === null) {return;}
 
-      const nearestTime       = nearestTransition[0];
-      const pixelDistance     = Math.abs(nearestTime - time) * this.zoomRatio;
+      const nearestTime   = nearestTransition[0];
+      const pixelDistance = Math.abs(nearestTime - time) * this.zoomRatio;
 
       if (pixelDistance < snapToDistance) {snapToTime = nearestTime;}
     }
@@ -431,9 +434,25 @@ export class Viewport {
     }
   }
 
-  renderAllWaveforms() {
-    dataManager.netlistData.forEach((netlistItem) => {
-      this.renderWaveform(netlistItem);
+  renderAllWaveforms(skipRendered: boolean) {
+    const netlistData = dataManager.netlistData;
+    const viewerHeightMinusRuler = this.viewerHeight - 40;
+    const scrollTop = this.scrollArea.scrollTop;
+    const startIndex = Math.floor(scrollTop / 28);
+    const endIndex = Math.ceil((scrollTop + viewerHeightMinusRuler) / 28);
+
+    console.log('rendering waveforms from ' + startIndex + ' to ' + endIndex + '');
+
+    viewerState.displayedSignals.forEach((netlistId, i) => {
+
+      if (!skipRendered && netlistData[netlistId].wasRendered) {return;}
+
+      if (i < startIndex || i >= endIndex) {
+        netlistData[netlistId].wasRendered = false;
+        return;
+      }
+
+      this.renderWaveform(netlistData[netlistId]);
     });
   }
 
@@ -443,9 +462,9 @@ export class Viewport {
     const data     = dataManager.valueChangeData[signalId];
 
     if (!data) {return;}
+    if (!netlistData.ctx) {return;}
 
     // find the closest timestampt to timeScrollLeft
-    
     const startIndex   = Math.max(dataManager.binarySearch(data.transitionData, this.timeScrollLeft - (2 * this.pixelTime)), 1);
     const endIndex     = dataManager.binarySearch(data.transitionData, this.timeScrollRight);
     const initialState = data.transitionData[startIndex - 1];
@@ -478,12 +497,17 @@ export class Viewport {
     }
 
     netlistData.renderType.draw(valueChangeChunk, netlistData, this);
+    netlistData.wasRendered = true;
   }
 
   handleReorderSignals(oldIndex: number, newIndex: number) {
     const children       = Array.from(this.waveformArea.children);
     arrayMove(children, oldIndex, newIndex);
     this.waveformArea.replaceChildren(...children);
+
+    const netlistElement = dataManager.netlistData[viewerState.displayedSignals[newIndex]];
+    if (!netlistElement) {return;}
+    if (!netlistElement.wasRendered) {this.renderWaveform(netlistElement);}
   }
 
   handleRemoveVariable(netlistId: NetlistId) {
@@ -586,18 +610,15 @@ export class Viewport {
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
     this.timeScrollRight  = this.timeScrollLeft + this.viewerWidthTime;
 
-    this.updateRuler();
-    this.renderAllWaveforms();
-    this.updateMarker();
     this.updateScrollbarResize();
-    this.updatePending = false;
+    this.redrawViewport();
   }
 
   redrawViewport() {
     this.updatePending = true;
     this.updateMarker();
     this.updateRuler();
-    this.renderAllWaveforms();
+    this.renderAllWaveforms(true);
     this.updatePending = false;
   }
 
@@ -610,9 +631,12 @@ export class Viewport {
   }
 
   updateViewportWidth() {
+
     this.pixelRatio   = window.devicePixelRatio || 1;
     this.scrollbarCanvasElement.setAttribute("width",  `0`);
-    this.viewerWidth     = this.scrollArea.getBoundingClientRect().width;
+    const bounds      = this.scrollArea.getBoundingClientRect();
+    this.viewerWidth  = bounds.width;
+    this.viewerHeight = bounds.height;
     this.halfViewerWidth = this.viewerWidth / 2;
     this.maxScrollLeft   = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth + 10, 0));
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
@@ -628,7 +652,12 @@ export class Viewport {
     // Update Waveform Canvas Dimensions
     dataManager.netlistData.forEach((netlistItem) => {
       if (!netlistItem.canvas) {return;}
-      netlistItem.canvas.setAttribute('width', `${this.viewerWidth}`);
+      netlistItem.canvas.setAttribute("width",  `${this.viewerWidth}`);
+      //netlistItem.canvas.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
+      //netlistItem.canvas.setAttribute("height", `${28 * this.pixelRatio}`);
+      //netlistItem.canvas.style.width  = `${this.viewerWidth}px`;
+      //netlistItem.canvas.style.height = '28px';
+      //netlistItem.ctx?.scale(this.pixelRatio, this.pixelRatio);
     });
 
     this.updateScrollbarResize();

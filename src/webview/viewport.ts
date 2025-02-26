@@ -651,13 +651,14 @@ export class Viewport {
 
     this.pixelRatio       = window.devicePixelRatio || 1;
     this.scrollbarCanvasElement.setAttribute("width",  `0`);
+    this.scrollbarCanvasElement.style.width  = `0px`;
     const bounds          = this.scrollArea.getBoundingClientRect();
     this.viewerWidth      = bounds.width;
     this.viewerHeight     = bounds.height;
     this.halfViewerWidth  = this.viewerWidth / 2;
     this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth + 10, 0));
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
-    this.scrollbarCanvasElement.setAttribute("width",  `${this.viewerWidth}`);
+    this.scrollbarCanvasElement.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
 
     // Update Ruler Canvas Dimensions
     this.rulerCanvasElement.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);

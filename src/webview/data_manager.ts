@@ -2,13 +2,6 @@ import { NetlistData, SignalId, NetlistId, WaveformData, ValueChange, EventHandl
 import { formatBinary, formatHex, ValueFormat, formatString, valueFormatList } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer, signedLinearWaveformRenderer, signedSteppedrWaveformRenderer } from './renderer';
 
-const colorKey = [
-  "var(--vscode-debugTokenExpression-number)",
-  "var(--vscode-debugTokenExpression-string)",
-  "var(--vscode-debugView-valueChangedHighlight)",
-  "var(--vscode-debugTokenExpression-name)"
-];
-
 // This will be populated when a custom color is set
 let customColorKey = [];
 
@@ -177,24 +170,11 @@ export class WaveformDataManager {
     this.valueChangeData[signalId] = {
       transitionData: transitionData,
       signalWidth:    signalWidth,
-      chunkStart:     [],
       min:            message.min,
       max:            message.max,
     };
 
-    // Create ChunkStart array
-    //this.valueChangeData[signalId].chunkStart = new Array(viewport.chunkCount).fill(transitionData.length);
-    //let chunkIndex = 0;
-    //for (let i = 0; i < transitionData.length; i++) {
-    //  while (transitionData[i][0] >= viewport.chunkTime * chunkIndex) {
-    //    this.valueChangeData[signalId].chunkStart[chunkIndex] = i;
-    //    chunkIndex++;
-    //  }
-    //}
-    //this.valueChangeData[signalId].chunkStart[0] = 1;
     this.valueChangeDataTemp[signalId] = undefined;
-
-    //this.contentArea.style.height = (40 + (28 * viewerState.displayedSignals.length)) + "px";
 
     netlistIdList.forEach((netlistId: NetlistId) => {
       this.events.dispatch(ActionType.RedrawVariable, netlistId);
@@ -368,7 +348,6 @@ export class WaveformDataManager {
     }
 
     const timeWindow   = [viewerState.markerTime, viewerState.altMarkerTime].sort((a, b) => a - b);
-    const chunkWindow  = [Math.floor(timeWindow[0] / viewport.chunkTime), Math.ceil(timeWindow[1] / viewport.chunkTime)];
     let allTransitions: any = [];
   
     // Populate the waveDrom names with the selected signals
@@ -378,8 +357,9 @@ export class WaveformDataManager {
       const signalName      = netlistItem.modulePath + "." + netlistItem.signalName;
       const signalId        = netlistItem.signalId;
       const transitionData  = this.valueChangeData[signalId].transitionData;
-      const chunkStart      = this.valueChangeData[signalId].chunkStart;
-      const signalDataChunk = transitionData.slice(Math.max(0, chunkStart[chunkWindow[0]] - 1), chunkStart[chunkWindow[1]]);
+      const lowerBound      = this.binarySearch(transitionData, timeWindow[0]);
+      const upperBound      = this.binarySearch(transitionData, timeWindow[1]) + 2;
+      const signalDataChunk = transitionData.slice(lowerBound, upperBound);
       let   initialState = "x";
       const json: any       = {name: signalName, wave: ""};
       const signalDataTrimmed: any[] = [];
@@ -474,7 +454,7 @@ export class WaveformDataManager {
       result += '  ' + JSON.stringify(signalData) + ',\n';
     });
     result += ']}';
-  
+
     vscode.postMessage({
       command: 'copyWaveDrom',
       waveDromJson: result,

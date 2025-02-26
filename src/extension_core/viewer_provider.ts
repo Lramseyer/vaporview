@@ -136,7 +136,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'setSelectedSignal':   {this.updateStatusBarItems(document, e); break;}
         case 'contextUpdate' :      {this.updateStatusBarItems(document, e); break;}
         case 'fetchTransitionData': {document.wasmApi.getsignaldata(e.signalIdList); break;}
-        //case 'copyWaveDrom':        {this.copyWaveDromToClipboard(e.waveDromJson, e.maxTransitions, e.maxTransitionsFlag); break;}
+        case 'copyWaveDrom':        {this.copyWaveDromToClipboard(e.waveDromJson, e.maxTransitions, e.maxTransitionsFlag); break;}
         case 'copyToClibpoard':     {vscode.env.clipboard.writeText(e.text); break;}
         case 'showMessage':         {this.handleWebviewMessage(e); break;}
         case 'close-webview':       {webviewPanel.dispose(); break;}
@@ -329,13 +329,13 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.activeWebview?.webview.postMessage({command: 'copyWaveDrom'});
   }
 
-  //copyWaveDromToClipboard(waveDromJson: string, maxTransitions: number, maxTransitionsFlag: boolean) {
-  //  if (maxTransitionsFlag) {
-  //    vscode.window.showWarningMessage('The number of transitions exceeds the maximum limit of ' + maxTransitions);
-  //  }
-  //  vscode.env.clipboard.writeText(waveDromJson);
-  //  vscode.window.showInformationMessage('WaveDrom JSON copied to clipboard.');
-  //}
+  copyWaveDromToClipboard(waveDromJson: string, maxTransitions: number, maxTransitionsFlag: boolean) {
+    if (maxTransitionsFlag) {
+      vscode.window.showWarningMessage('The number of transitions exceeds the maximum limit of ' + maxTransitions);
+    }
+    vscode.env.clipboard.writeText(waveDromJson);
+    vscode.window.showInformationMessage('WaveDrom JSON copied to clipboard.');
+  }
 
   // Send command to all webviews
   updateColorTheme(e: any) {

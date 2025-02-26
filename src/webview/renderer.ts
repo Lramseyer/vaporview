@@ -1,22 +1,15 @@
 import { NetlistData } from './vaporview';
 import { Viewport } from './viewport';
 
-// green  var(--vscode-debugTokenExpression-number)
-// orange var(--vscode-debugTokenExpression-string)
-// blue   var(--vscode-debugView-valueChangedHighlight)
-// purple var(--vscode-debugTokenExpression-name)
-
-const characterWidth = 7.69;
-//const characterWidth = 7.22; // for Menlo
 export interface WaveformRenderer {
   id: string;
-  draw(valueChangeChunk: any, netlistData: NetlistData, viewport: Viewport): string;
+  draw(valueChangeChunk: any, netlistData: NetlistData, viewport: Viewport): void;
 }
 
 // This function actually creates the individual bus elements, and has can
 // potentially called thousands of times during a render
 function busValue(time: number, deltaTime: number, displayValue: string, viewportSpecs: any, justifydirection: string, spansChunk: boolean) {
-  let textTime = displayValue.length * characterWidth * viewportSpecs.pixelTime;
+  let textTime = displayValue.length * viewportSpecs.characterWidth * viewportSpecs.pixelTime;
   let padding  = 4 * viewportSpecs.pixelTime;
   let text = displayValue;
   let adjestedDeltaTime = deltaTime;
@@ -33,7 +26,7 @@ function busValue(time: number, deltaTime: number, displayValue: string, viewpor
 
   if (textTime > characterWidthLimit) {
     center = false;
-    const charCount = Math.floor(characterWidthLimit / (characterWidth * viewportSpecs.pixelTime)) - 1;
+    const charCount = Math.floor(characterWidthLimit / (viewportSpecs.characterWidth * viewportSpecs.pixelTime)) - 1;
     if (charCount < 0) {return ["", -100];}
     if (justifydirection === "right") {
       xValue = adjustedTime + adjestedDeltaTime - padding;
@@ -60,6 +53,9 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     const transitionData = valueChangeChunk.valueChanges;
     const initialState   = valueChangeChunk.initialState;
     const postState      = valueChangeChunk.postState;
+    const startIndex     = valueChangeChunk.startIndex;
+    const endIndex       = valueChangeChunk.endIndex;
+
     const signalWidth    = netlistData.signalWidth;
     const parseValue     = netlistData.valueFormat.formatString;
     const valueIs9State  = netlistData.valueFormat.is9State;
@@ -80,13 +76,13 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     let moveCursor      = false;
     let drawBackgroundStrokes = false;
     const minTextWidth  = 12 * viewportSpecs.pixelTime;
-    const minDrawWidth  = viewportSpecs.pixelTime;
+    const minDrawWidth  = viewportSpecs.pixelTime / viewportSpecs.pixelRatio;
     let leftOverflow    = Math.min(initialState[0], 0);
     const drawColor        = netlistData.color;
     const xzColor          = viewportSpecs.xzColor;
     const textColor        = viewportSpecs.backgroundColor;
 
-    for (let i = 0; i < transitionData.length; i++) {
+    for (let i = startIndex; i < endIndex; i++) {
 
       elementWidth = transitionData[i][0] - time;
 
@@ -238,12 +234,14 @@ export const binaryWaveformRenderer: WaveformRenderer = {
     const transitionData = valueChangeChunk.valueChanges;
     const initialState   = valueChangeChunk.initialState;
     const postState      = valueChangeChunk.postState;
+    const startIndex     = valueChangeChunk.startIndex;
+    const endIndex       = valueChangeChunk.endIndex;
 
     let initialValue       = initialState[1];
     let initialValue2state = parseInt(initialValue);
     let initialTime        = initialState[0];
     let initialTimeOrStart = Math.max(initialState[0], -10);
-    const minDrawWidth     = 1 / viewportSpecs.zoomRatio;
+    const minDrawWidth  = viewportSpecs.pixelTime / viewportSpecs.pixelRatio;
     let xzPath:any         = [];
     const drawColor        = netlistData.color;
     const xzColor          = viewportSpecs.xzColor;
@@ -266,7 +264,9 @@ export const binaryWaveformRenderer: WaveformRenderer = {
     let lastDrawValue  = initialValue2state;
     let lastnoDrawValue: any = null;
 
-    transitionData.forEach(([time, value]) => {
+    for (let i = startIndex; i < endIndex; i++) {
+      const time  = transitionData[i][0];
+      const value = transitionData[i][1];
 
       if (time - initialTime < minDrawWidth) {
         noDrawFlag     = true;
@@ -304,7 +304,7 @@ export const binaryWaveformRenderer: WaveformRenderer = {
       initialValue       = value;
       initialTimeOrStart = time;
       initialTime        = time;
-    });
+    }
 
     initialValue2state = parseInt(initialValue);
     if (valueIs9State(initialValue)) {initialValue2state = 0;}
@@ -404,13 +404,15 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
   const transitionData   = valueChangeChunk.valueChanges;
   const initialState     = valueChangeChunk.initialState;
   const postState        = valueChangeChunk.postState;
+  const startIndex     = valueChangeChunk.startIndex;
+  const endIndex       = valueChangeChunk.endIndex;
   const min              = valueChangeChunk.min;
   const max              = valueChangeChunk.max;
   let initialValue       = initialState[1];
   let initialValue2state = initialValue;
   let initialTime        = initialState[0];
   let initialTimeOrStart = Math.max(initialState[0], -10);
-  const minDrawWidth     = 0.25 / viewportSpecs.zoomRatio;
+  const minDrawWidth  = viewportSpecs.pixelTime / (viewportSpecs.pixelRatio * 4);
   let xzPath: any        = [];
   const valueIs9State    = netlistData.valueFormat.is9State;
 
@@ -432,7 +434,9 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
   let lastDrawValue  = initialValue2state;
   let lastnoDrawValue: any = null;
 
-  transitionData.forEach(([time, value]) => {
+  for (let i = startIndex; i < endIndex; i++) {
+    const time  = transitionData[i][0];
+    const value = transitionData[i][1];
 
     if (time - initialTime < minDrawWidth) {
       noDrawFlag     = true;
@@ -468,25 +472,21 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
       lastDrawTime       = time;
       initialValue2state = value2state;
     }
-
     initialValue       = value;
     initialTimeOrStart = time;
     initialTime        = time;
-  });
+  }
 
   initialValue2state = initialValue;
   if (valueIs9State(initialValue)) {initialValue2state = '0';}
 
   if (postState[0] - initialTime < minDrawWidth) {
-
-      noDrawPath.push([lastDrawTime, viewportSpecs.timeScrollRight]);
-      accumulatedPath.push([lastDrawTime, 0]);
-      accumulatedPath.push([viewportSpecs.timeScrollRight, 0]);
-
+    noDrawPath.push([lastDrawTime, viewportSpecs.timeScrollRight]);
+    accumulatedPath.push([lastDrawTime, 0]);
+    accumulatedPath.push([viewportSpecs.timeScrollRight, 0]);
   } else {
 
     if (noDrawFlag) {
-
       noDrawPath.push([lastDrawTime, lastNoDrawTime]);
       accumulatedPath.push([lastDrawTime, 0]);
       accumulatedPath.push([lastNoDrawTime, 0]);

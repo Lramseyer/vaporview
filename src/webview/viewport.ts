@@ -2,6 +2,7 @@ import { vscode, NetlistData,  WaveformData, arrayMove, sendWebviewContext, Netl
 import { ValueFormat } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { bool } from "@vscode/wasm-component-model";
+import { labelsPanel } from "./vaporview";
 
 const domParser = new DOMParser();
 
@@ -41,7 +42,6 @@ export class Viewport {
   scrollbarWidth: number      = 17;
   scrollbarPosition: number   = 0;
   scrollbarHidden: boolean    = true;
-
   timeScrollLeft: number      = 0;
   viewerWidthTime: number     = 0;
   timeScrollRight: number     = 0;
@@ -57,23 +57,19 @@ export class Viewport {
   maxZoomRatio: number        = 64;
   timeStop: number            = 0;
   pixelRatio: number          = 1;
-
-  // Clusterize variables
   updatePending: boolean      = false;
   scrollEventPending: boolean = false;
-
-  // Marker variables
-  markerAnnotation: string    = '';
-  valueAtMarker: any          = {};
 
   // CSS Properties
   colorKey: string[]          = ['green', 'orange', 'blue', 'purple'];
   xzColor: string             = 'red';
   rulerTextColor: string      = 'grey';
+  markerAnnotation: string    = '';
   backgroundColor: string     = 'black';
   fontFamily: string          = 'Menlo';
   fontSize: string            = '12px';
   fontStyle: string           = '12px Menlo';
+  characterWidth: number      = 7.69;
 
   constructor(
     private events: EventHandler,
@@ -102,20 +98,17 @@ export class Viewport {
       throw new Error('Canvas context not found');
     }
 
-    this.scrollArea = scrollArea;
-    this.contentArea = contentArea;
-    this.waveformArea = waveformArea;
-    this.scrollbar = scrollbar;
-    this.markerElement = markerElement;
-    this.altMarkerElement = altMarkerElement;
-    this.scrollbarContainer = scrollbarContainer;
+    this.scrollArea             = scrollArea;
+    this.contentArea            = contentArea;
+    this.waveformArea           = waveformArea;
+    this.scrollbar              = scrollbar;
+    this.markerElement          = markerElement;
+    this.altMarkerElement       = altMarkerElement;
+    this.scrollbarContainer     = scrollbarContainer;
     this.scrollbarCanvasElement = scrollbarCanvas;
-    this.scrollbarCanvas = canvasContext;
-    this.rulerCanvasElement = rulerCanvas;
-    this.rulerCanvas = rulerCanvasCtx;
-
-    // I calculated this as 174, 176, 173 @ 10% opacity in the default theme, but there was no CSS color that matched
-    this.markerAnnotation = document.documentElement.style.getPropertyValue('--vscode-editorOverviewRuler-selectionHighlightForeground');
+    this.scrollbarCanvas        = canvasContext;
+    this.rulerCanvasElement     = rulerCanvas;
+    this.rulerCanvas            = rulerCanvasCtx;
 
     // click handler to handle clicking inside the waveform viewer
     // gets the absolute x position of the click relative to the scrollable content
@@ -148,22 +141,19 @@ export class Viewport {
   }
 
   init(metadata: any) {
-    this.pixelRatio    = window.devicePixelRatio || 1;
     document.title     = metadata.filename;
+    this.pixelRatio    = window.devicePixelRatio || 1;
     this.zoomRatio     = metadata.defaultZoom;
     this.pixelTime     = 1 / this.zoomRatio;
     this.timeScale     = metadata.timeScale;
     this.timeStop      = metadata.timeEnd;
     this.maxZoomRatio  = this.zoomRatio * 64;
-    this.valueAtMarker = {};
     this.updatePending = true;
     this.updateViewportWidth();
     this.updateRuler();
-    this.updatePending = false;
-    this.scrollbarCanvasElement.setAttribute("width",  `${this.viewerWidth}`);
-    this.scrollbarCanvasElement.setAttribute("height", `${this.scrollbarContainer.clientHeight}`);
-
+    this.updateScrollbarResize();
     this.getThemeColors();
+    this.updatePending = false;
   }
 
   async getThemeColors() {
@@ -180,6 +170,9 @@ export class Viewport {
     // Ruler Color
     this.rulerTextColor = style.getPropertyValue('--vscode-editorLineNumber-foreground');
 
+    // I calculated this as 174, 176, 173 @ 10% opacity in the default theme, but there was no CSS color that matched
+    this.markerAnnotation = document.documentElement.style.getPropertyValue('--vscode-editorOverviewRuler-selectionHighlightForeground');
+
     // Background Color
     this.backgroundColor = style.getPropertyValue('--vscode-editor-background');
 
@@ -187,10 +180,31 @@ export class Viewport {
     this.fontSize = style.getPropertyValue('--vscode-editor-font-size');
     this.fontFamily = style.getPropertyValue('--vscode-editor-font-family');
     this.fontStyle = this.fontSize + ' ' + this.fontFamily;
+
+    // Look through all of the fonts in the fontFamily to see which font was used
+    const fontList = this.fontFamily.split(',').map((font) => font.trim());
+    let usedFont = '';
+    for (let i = 0; i < fontList.length; i++) {
+      let font = fontList[i];
+      if (document.fonts.check('12px ' + font)) {
+        usedFont = fontList[i];
+        break;
+      }
+    }
+
+    // Somebody help me with this, because I don't have all of these fonts
+    switch (usedFont) {
+      case 'Monaco':          this.characterWidth = 7.20; break;
+      case 'Menlo':           this.characterWidth = 7.22; break;
+      case 'Consolas':        this.characterWidth = 7.69; break;
+      case 'Droid Sans Mono': this.characterWidth = 7.69; break;
+      case 'Inconsolata':     this.characterWidth = 7.69; break;
+      case 'Courier New':     this.characterWidth = 7.69; break;
+      default:                this.characterWidth = 7.69; break;
+    }
   }
 
   async handleColorChange() {
-
     this.getThemeColors();
     this.redrawViewport();
   }
@@ -216,6 +230,7 @@ export class Viewport {
       netlistData.canvas = canvas;
       netlistData.ctx = canvas.getContext('2d');
       netlistData.ctx?.scale(this.pixelRatio, this.pixelRatio);
+      if (updateFlag) {this.renderWaveform(netlistData);}
     });
   }
 
@@ -302,8 +317,16 @@ export class Viewport {
   updateScrollbarResize() {
     this.scrollbarWidth        = Math.max(Math.round((this.viewerWidth ** 2) / (this.timeStop * this.zoomRatio)), 17);
     this.maxScrollbarPosition  = Math.max(this.viewerWidth - this.scrollbarWidth, 0);
+
     this.updateScrollBarPosition();
-    this.scrollbar.style.width = this.scrollbarWidth + 'px';
+    this.scrollbar.style.width  = this.scrollbarWidth + 'px';
+    this.scrollbar.style.height = 10 + 'px';
+
+    this.scrollbarCanvasElement.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
+    this.scrollbarCanvasElement.setAttribute("height", `${10 * this.pixelRatio}`);
+    this.scrollbarCanvasElement.style.width  = `${this.viewerWidth}px`;
+    this.scrollbarCanvasElement.style.height = '10px';
+    this.scrollbarCanvas?.scale(this.pixelRatio, this.pixelRatio);
     this.updateScrollContainer();
   }
 
@@ -365,11 +388,6 @@ export class Viewport {
   
     if (!this.highlightElement) {
       this.highlightElement = domParser.parseFromString(`<div id="highlight-zoom" style="${style}"></div>`, 'text/html').body.firstChild;
-      //this.highlightElement = document.createElement('div');
-      //this.highlightElement.setAttribute('id', 'highlight-zoom');
-      //this.highlightElement.style.width = width + 'px';
-      //this.highlightElement.style.left  = elementLeft + 'px';
-
       this.scrollArea.appendChild(this.highlightElement);
 
     } else {
@@ -408,11 +426,11 @@ export class Viewport {
     ctx.font = this.fontStyle;
     ctx.fillStyle = this.rulerTextColor;
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
+    ctx.textBaseline = 'middle';
     ctx.clearRect(0, 0, this.viewerWidth, 40);
 
-    ctx.beginPath();
     // Draw the Ticks
+    ctx.beginPath();
     while (tickX <= this.viewerWidth) {
       ctx.moveTo(tickX, 27.5);
       ctx.lineTo(tickX, 32.5);
@@ -422,7 +440,7 @@ export class Viewport {
 
     // Draw the Numbers
     while (numberX <= this.viewerWidth) {
-      ctx.fillText((number * this.timeScale).toString(), numberX, 20);
+      ctx.fillText((number * this.timeScale).toString(), numberX, 15);
       numberX += this.rulerNumberSpacing;
       number += numberIncrement;
     }
@@ -440,11 +458,9 @@ export class Viewport {
   renderAllWaveforms(skipRendered: boolean) {
     const netlistData = dataManager.netlistData;
     const viewerHeightMinusRuler = this.viewerHeight - 40;
-    const scrollTop = this.scrollArea.scrollTop;
-    const startIndex = Math.floor(scrollTop / 28);
-    const endIndex = Math.ceil((scrollTop + viewerHeightMinusRuler) / 28);
-
-    console.log('rendering waveforms from ' + startIndex + ' to ' + endIndex + '');
+    const scrollTop   = this.scrollArea.scrollTop;
+    const startIndex  = Math.floor(scrollTop / 28);
+    const endIndex    = Math.ceil((scrollTop + viewerHeightMinusRuler) / 28);
 
     viewerState.displayedSignals.forEach((netlistId, i) => {
 
@@ -468,17 +484,20 @@ export class Viewport {
     if (!netlistData.ctx) {return;}
 
     // find the closest timestampt to timeScrollLeft
-    const startIndex   = Math.max(dataManager.binarySearch(data.transitionData, this.timeScrollLeft - (2 * this.pixelTime)), 1);
-    const endIndex     = dataManager.binarySearch(data.transitionData, this.timeScrollRight);
-    const initialState = data.transitionData[startIndex - 1];
-    let   postState    = data.transitionData[endIndex];
+    const valueChanges = data.transitionData;
+    const startIndex   = Math.max(dataManager.binarySearch(valueChanges, this.timeScrollLeft - (2 * this.pixelTime)), 1);
+    const endIndex     = dataManager.binarySearch(valueChanges, this.timeScrollRight);
+    const initialState = valueChanges[startIndex - 1];
+    let   postState    = valueChanges[endIndex];
 
-    if (endIndex >= data.transitionData.length) {
+    if (endIndex >= valueChanges.length) {
       postState = [this.viewerWidth * this.pixelTime, ''];
     }
 
     const valueChangeChunk = {
-      valueChanges: data.transitionData.slice(startIndex, endIndex),
+      valueChanges: valueChanges,
+      startIndex: startIndex,
+      endIndex: endIndex,
       initialState: initialState,
       postState: postState,
       encoding: netlistData.encoding,
@@ -486,7 +505,6 @@ export class Viewport {
       min: data.min,
       max: data.max,
     };
-    //console.log(valueChangeChunk);
   
     // I should probably move this functionally into the data manager
     if (netlistData.encoding !== "Real") {
@@ -555,25 +573,23 @@ export class Viewport {
   annotateScrollContainer(color, time) {
 
     if (time === null) {return;}
-    const xOffset = (time / this.timeStop) * this.scrollbarCanvas.canvas.width;
-    this.scrollbarCanvas.lineWidth   = 1.5;
+    const xOffset = (time / this.timeStop) * this.viewerWidth;
+    this.scrollbarCanvas.lineWidth   = 2;
     this.scrollbarCanvas.strokeStyle = color;
     this.scrollbarCanvas.beginPath();
     this.scrollbarCanvas.moveTo(xOffset, 0);
-    this.scrollbarCanvas.lineTo(xOffset, this.scrollbarCanvas.canvas.height);
+    this.scrollbarCanvas.lineTo(xOffset, this.viewerWidth);
     this.scrollbarCanvas.stroke();
   }
 
   handleSignalSelect(netlistId: NetlistId | null) {
 
     if (netlistId === null) {return;}
-    console.log('selected signal: ' + netlistId + '');
 
     let element = document.getElementById('waveform-' + viewerState.selectedSignal);
     if (element && viewerState.selectedSignal !== null) {element.classList.remove('is-selected');}
     element = document.getElementById('waveform-' + netlistId);
     if (element) {element.classList.add('is-selected');}
-    //console.log(element);
   }
 
   // Event handler helper functions
@@ -603,7 +619,6 @@ export class Viewport {
       return;
     }
 
-    //console.log('zooming to ' + newZoomRatio + ' from ' + this.zoomRatio + '');
     this.updatePending    = true;
     this.zoomRatio        = newZoomRatio;
     this.pixelTime        = 1 / this.zoomRatio;
@@ -626,22 +641,21 @@ export class Viewport {
   }
 
   handleRedrawSignal(netlistId: NetlistId) {
-    //console.log('redrawing signal ' + netlistId + '');
     if (viewerState.markerTime !== null) {
-      this.valueAtMarker[netlistId] = dataManager.getValueAtTime(netlistId, viewerState.markerTime);
+      labelsPanel.valueAtMarker[netlistId] = dataManager.getValueAtTime(netlistId, viewerState.markerTime);
     }
     this.renderWaveform(dataManager.netlistData[netlistId]);
   }
 
   updateViewportWidth() {
 
-    this.pixelRatio   = window.devicePixelRatio || 1;
+    this.pixelRatio       = window.devicePixelRatio || 1;
     this.scrollbarCanvasElement.setAttribute("width",  `0`);
-    const bounds      = this.scrollArea.getBoundingClientRect();
-    this.viewerWidth  = bounds.width;
-    this.viewerHeight = bounds.height;
-    this.halfViewerWidth = this.viewerWidth / 2;
-    this.maxScrollLeft   = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth + 10, 0));
+    const bounds          = this.scrollArea.getBoundingClientRect();
+    this.viewerWidth      = bounds.width;
+    this.viewerHeight     = bounds.height;
+    this.halfViewerWidth  = this.viewerWidth / 2;
+    this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth + 10, 0));
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
     this.scrollbarCanvasElement.setAttribute("width",  `${this.viewerWidth}`);
 

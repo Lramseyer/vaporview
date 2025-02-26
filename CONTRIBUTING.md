@@ -174,7 +174,7 @@ As you might imagine, a waveform viewer requires a lot of custom UI elements tha
 3. It needs to follow suit with the VScode design language where posible
 4. It needs look and feel familiar to both VScode and other waveform viewers (like Surfer, GTKwave, or Verdi)
 
-for pretty much everything, I used the same colors and fonts as per the VScode theme so that it adapts to changing color themes. Since some themes have colors for things that other themes don't (like high contrast themes) it was actually surprisingly difficult to find the right color for everything. Annoyingly enough, the color thme token colors are not defined in the CSS, and I wasn't able to find out how to grab them. I know how to use an `onDIdChangeActiveColorTheme()` event, but not how to actually get the token colors. If anyone knows how to get them, let me know! I wanted to use the numerical value color (that pastel green on the default theme) as the color of the waveforms. It looks good, but I want it to follow the color theme (which it doesn't quite do.)
+For pretty much everything, I used the same colors and fonts as per the VScode theme so that it adapts to changing color themes. Since some themes have colors for things that other themes don't (like high contrast themes) it was actually surprisingly difficult to find the right color for everything. Annoyingly enough, the color thme token colors are not defined in the CSS, and I wasn't able to find out how to grab them. I know how to use an `onDIdChangeActiveColorTheme()` event, but not how to actually get the token colors. If anyone knows how to get them, let me know! I wanted to use the numerical value color (that pastel green on the default theme) as the color of the waveforms. It looks good, but I want it to follow the color theme (which it doesn't quite do.)
 
 ## How it all gets rendered
 
@@ -189,6 +189,8 @@ The `transition-display-container` really just updates to the signal values ever
 The `scrollArea` is where most of the complexity lies, and will have it's own section...
 
 ## How waveforms are rendered
+
+Originally, I went with an SVG chunk implementation, where SVG chunks would dynamically get rendered, and swapped in and out. However, in 1.3.1, I ported it all to canvas, so the next parts are largely irrelevant.
 
 As alluded to earlier in the data structures overview, the waveforms are rendered in chunks. In fact the entire `scrollArea` is rendered in chunks. Since it didn't make sense to store all of the rendered (svg versions) of the waveform data in memory for all zoom levels, I used [clusterize.js](https://clusterize.js.org/). What this essentially does, is allow you to have a lot of rows in a scrollable element without the need for the DOM to track all of them (because otherwise you get a really laggy page) It does this by dynamically swapping rows in and out and inserting dummy spacer elements on the top and bottom. Since it was designed for rows, I modified it to use columns instead. It also assumes that all of the content is stored in memory, so I modified it to dynamically build the element as it is rendered. It also has a weird way of discerning which chunk needs to be rendered. So I modified that to fit my needs. Then I removed all of the code that did all of the unnecissary safety checks that I wouldn't be needing for my specific application. Since it shared a lot of state variables with the main vaporview.js file, I moved the code into the main file, merged state variables, and callback syntax to be cleaner and more concise.
 

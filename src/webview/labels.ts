@@ -67,6 +67,7 @@ export class LabelsPanels {
   pointerStartX: any         = null;
   pointerStartY: any         = null;
   resizeIndex: any           = null;
+  valueAtMarker: any         = {};
 
   constructor(events: EventHandler) {
     this.events = events;
@@ -128,7 +129,7 @@ export class LabelsPanels {
     viewerState.displayedSignals.forEach((netlistId, index) => {
       const isSelected  = (netlistId === viewerState.selectedSignal);
       this.labelsList.push(createLabel(netlistId, isSelected));
-      transitions.push(createValueDisplayElement(netlistId, viewport.valueAtMarker[netlistId], isSelected));
+      transitions.push(createValueDisplayElement(netlistId, this.valueAtMarker[netlistId], isSelected));
     });
     this.labels.innerHTML            = this.labelsList.join('');
     this.transitionDisplay.innerHTML = transitions.join('');
@@ -304,7 +305,7 @@ export class LabelsPanels {
 
     if (markerType === 0) {
       viewerState.displayedSignals.forEach((netlistId) => {
-        viewport.valueAtMarker[netlistId] = dataManager.getValueAtTime(netlistId, time);
+        this.valueAtMarker[netlistId] = dataManager.getValueAtTime(netlistId, time);
       });
 
       this.renderLabelsPanels();

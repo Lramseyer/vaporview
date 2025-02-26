@@ -36,7 +36,6 @@ export type NetlistData = {
 
 export type WaveformData = {
   transitionData: any[];
-  chunkStart: number[];
   signalWidth: number;
   min: number;
   max: number;

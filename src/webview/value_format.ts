@@ -390,3 +390,17 @@ export const valueFormatList: ValueFormat[] = [
   formatTensorFloat32,
   formatString
 ];
+
+// Profiling code:
+//let vectors = []
+//for (let i = 0; i < 1; i++) {
+//    let s = ""; 
+//    for (let i = 0; i < 64; i++) {
+//        s += Math.round(Math.random()).toString();
+//    }
+//    vectors.push(s);
+//}
+//
+//a = performance.now();
+//vectors.forEach(v => {formatString(v, 64, true)});
+//performance.now() - a

@@ -210,23 +210,21 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     // Draw Text
     ctx.save();
     ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, 10);
-    ctx.font = viewportSpecs.fontStyle;
+    ctx.font = 'bold ' + viewportSpecs.fontStyle;
     ctx.fillStyle = viewportSpecs.backgroundColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    //ctx.imageSmoothingEnabled = false;
-    //ctx.textRendering = 'optimizeLegibility';
+    ctx.imageSmoothingEnabled = false;
+    ctx.textRendering = 'optimizeLegibility';
     textElements.forEach(([text, xValue, center]) => {
-      if (center) {ctx.fillText(text, xValue * viewportSpecs.zoomRatio, 0)};
+      if (center) {ctx.fillText(text, xValue * viewportSpecs.zoomRatio, 1)};
     });
     ctx.textAlign = justifydirection;
     textElements.forEach(([text, xValue, center]) => {
-      if (!center) {ctx.fillText(text, xValue * viewportSpecs.zoomRatio, 0)};
+      if (!center) {ctx.fillText(text, xValue * viewportSpecs.zoomRatio, 1)};
     });
 
     ctx.restore();
-
-    return 'result';
   },
 };
 
@@ -235,12 +233,8 @@ export const binaryWaveformRenderer: WaveformRenderer = {
 
   draw(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: Viewport) {
 
-    //const canvasElement  = netlistData.canvas;
-    //if (!canvasElement) {return;}
-    //const ctx            = canvasElement.getContext('2d');
-    const ctx           = netlistData.ctx;
+    const ctx            = netlistData.ctx;
     if (!ctx) {return;}
-
     const transitionData = valueChangeChunk.valueChanges;
     const initialState   = valueChangeChunk.initialState;
     const postState      = valueChangeChunk.postState;
@@ -418,8 +412,6 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
   let initialTimeOrStart = Math.max(initialState[0], -10);
   const minDrawWidth     = 0.25 / viewportSpecs.zoomRatio;
   let xzPath: any        = [];
-  const drawColor        = netlistData.color;
-  const xzColor          = "var(--vscode-debugTokenExpression-error)";
   const valueIs9State    = netlistData.valueFormat.is9State;
 
   if (valueIs9State(initialValue)) {
@@ -427,7 +419,9 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
   }
 
   let accumulatedPath: any = [[0, 0]];
-  accumulatedPath.push([0, evalCoordinates(initialValue2state)]);
+
+
+  accumulatedPath.push([initialTime, evalCoordinates(initialValue2state)]);
 
   let value2state    = "0";
   // No Draw Code
@@ -505,38 +499,18 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
   }
 
   if (stepped) {
-    accumulatedPath.push([postState[0], evalCoordinates(initialValue2state)]);
-  } else {
-    accumulatedPath.push([postState[0], evalCoordinates(initialValue2state)]);
+    accumulatedPath.push([viewportSpecs.timeScrollRight + (15 * viewportSpecs.pixelTime), evalCoordinates(initialValue2state)]);
   }
 
-//  // Polylines
-//  const polyline     = `<path d="M ` + accumulatedPath + `" stroke="${drawColor}"/>`;
-//  const noDraw       = `<path d="${noDrawPath}" stroke="${drawColor}" fill="${drawColor}"/>`;
-//  const shadedArea   = `<path d="M 0 0 L ${accumulatedPath} L ${columnTime} 0" stroke="none" fill="${drawColor}" fill-opacity="0.1"/>`;
-//  const xzPolylines  = xzPath ? `<path d="${xzPath}" stroke="${xzColor}"/>` : '';
-//
-//  // SVG element
-//  const svgHeight  = 20;
-//  const waveHeight = 16;
-//  const yScale     = waveHeight / (max - min);
-//  const waveOffset = waveHeight + (svgHeight - waveHeight) / 2;
-//  const translateY = 0.5 + (max / (max - min)) * waveOffset;
-//  const gAttributes = `fill="none" transform="translate(0.5 ${translateY}) scale(${viewportSpecs.zoomRatio} -${yScale})"`;
-//  let result = '';
-//  result += `<svg height="${svgHeight}" width="${viewportSpecs.columnWidth}" viewbox="0 0 ${viewportSpecs.columnWidth} ${svgHeight}" class="binary-waveform-svg">`;
-//  result += `<g ${gAttributes}>`;
-//  result += polyline + shadedArea + noDraw + xzPolylines;
-//  result += `</g></svg>`;
-//  return result;
+  accumulatedPath.push([viewportSpecs.timeScrollRight + (15 * viewportSpecs.pixelTime), 0]);
 
+  const drawColor  = netlistData.color;
+  const xzColor    = viewportSpecs.xzColor;
   const svgHeight  = 20;
   const waveHeight = 16;
   const waveOffset = waveHeight + (svgHeight - waveHeight) / 2;
   const yScale     = waveHeight / (max - min);
   const translateY = 0.5 + (max / (max - min)) * waveOffset;
-
-  console.log(accumulatedPath);
 
   ctx.clearRect(0, 0, viewportSpecs.viewerWidth, svgHeight);
   ctx.save();
@@ -560,11 +534,11 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
   ctx.transform(viewportSpecs.zoomRatio, 0, 0, -yScale, 0, 0);
   ctx.beginPath();
   noDrawPath.forEach(([startTime, endTime]) => {
-    ctx.moveTo(startTime, 0);
-    ctx.lineTo(endTime, 0);
-    ctx.lineTo(endTime, 1);
-    ctx.lineTo(startTime, 1);
-    ctx.lineTo(startTime, 0);
+    ctx.moveTo(startTime, min);
+    ctx.lineTo(endTime, min);
+    ctx.lineTo(endTime, max);
+    ctx.lineTo(startTime, max);
+    ctx.lineTo(startTime, min);
   });
   ctx.restore();
   ctx.strokeStyle = drawColor;
@@ -579,20 +553,16 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
   ctx.transform(viewportSpecs.zoomRatio, 0, 0, -yScale, 0, 0);
   ctx.beginPath();
   xzPath.forEach(([startTime, EndTime]) => {
-    ctx.moveTo(startTime, 0);
-    ctx.lineTo(EndTime, 0);
-    ctx.lineTo(EndTime, 1);
-    ctx.lineTo(startTime, 1);
-    ctx.lineTo(startTime, 0);
+    ctx.moveTo(startTime, min);
+    ctx.lineTo(EndTime, min);
+    ctx.lineTo(EndTime, max);
+    ctx.lineTo(startTime, max);
+    ctx.lineTo(startTime, min);
   });
   ctx.restore();
   ctx.lineWidth = 1;
   ctx.strokeStyle = xzColor;
   ctx.stroke();
-
-  //const resultFragment = document.createDocumentFragment();
-  //resultFragment.replaceChildren(...domParser.parseFromString(result, 'text/html').body.childNodes);
-  //return resultFragment;
 }
 
 const evalBinary8plusSigned = (v: string) => {

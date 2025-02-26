@@ -165,17 +165,13 @@ This extension was designed on Vscode version 1.83
 
 Updates:
 
-- Limit how far out the viewer can be zoomed out
-
-To do:
-
-- Port pender path to HTML5 canvas (previously used SVGs)
+- Ported pender path to HTML5 canvas (previously used SVGs)
   - Improves text placement in multi bit-waveform renderer
   - Greatly improves scrolling/zoom experience
   - Fixes issue where linear, stepped, and binary waveforms display a gap when zoomed in really far
+- Limit how far out the viewer can be zoomed out
 
-- High DPI monitor support
-- Linear and stepped renderer
+- Fix WaveDrom
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

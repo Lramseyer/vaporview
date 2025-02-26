@@ -203,8 +203,10 @@ export class Viewport {
       const canvas = document.createElement('canvas');
       canvas.setAttribute('id', 'waveform-canvas-' + netlistId);
       canvas.classList.add('waveform-canvas');
-      canvas.setAttribute('width', `${this.viewerWidth}`);
-      canvas.setAttribute('height', '20');
+      canvas.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
+      canvas.setAttribute("height", `${20 * this.pixelRatio}`);
+      canvas.style.width  = `${this.viewerWidth}px`;
+      canvas.style.height = '20px';
       const waveformContainer = document.createElement('div');
       waveformContainer.setAttribute('id', 'waveform-' + netlistId);
       waveformContainer.classList.add('waveform-container');
@@ -213,6 +215,7 @@ export class Viewport {
       this.waveformArea.appendChild(waveformContainer);
       netlistData.canvas = canvas;
       netlistData.ctx = canvas.getContext('2d');
+      netlistData.ctx?.scale(this.pixelRatio, this.pixelRatio);
     });
   }
 
@@ -652,12 +655,12 @@ export class Viewport {
     // Update Waveform Canvas Dimensions
     dataManager.netlistData.forEach((netlistItem) => {
       if (!netlistItem.canvas) {return;}
-      netlistItem.canvas.setAttribute("width",  `${this.viewerWidth}`);
-      //netlistItem.canvas.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
-      //netlistItem.canvas.setAttribute("height", `${28 * this.pixelRatio}`);
-      //netlistItem.canvas.style.width  = `${this.viewerWidth}px`;
-      //netlistItem.canvas.style.height = '28px';
-      //netlistItem.ctx?.scale(this.pixelRatio, this.pixelRatio);
+      //netlistItem.canvas.setAttribute("width",  `${this.viewerWidth}`);
+      netlistItem.canvas.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
+      netlistItem.canvas.setAttribute("height", `${20 * this.pixelRatio}`);
+      netlistItem.canvas.style.width  = `${this.viewerWidth}px`;
+      netlistItem.canvas.style.height = '20px';
+      netlistItem.ctx?.scale(this.pixelRatio, this.pixelRatio);
     });
 
     this.updateScrollbarResize();

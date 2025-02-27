@@ -36,7 +36,7 @@ const extensionConfig = {
   format: 'cjs',
   platform: 'node',
   outfile: 'dist/extension.js',
-  external: ['vscode'], // Only external we actually need
+  external: ['vscode', '../build/Release/fsdb_reader.node'],
   plugins: [esbuildProblemMatcherPlugin],
 };
 

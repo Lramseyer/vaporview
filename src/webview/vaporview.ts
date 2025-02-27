@@ -29,6 +29,8 @@ export type NetlistData = {
   renderType: WaveformRenderer;
   colorIndex: number;
   color: string;
+  formattedValues: string[];
+  formatValid: boolean;
   wasRendered: boolean;
   canvas: HTMLCanvasElement | null;
   ctx: CanvasRenderingContext2D | null;

@@ -8,10 +8,6 @@
   - Fixes issue where linear, stepped, and binary waveforms display a gap when zoomed in really far
 - Limit how far out the viewer can be zoomed out
 
-To Do:
-
-- Look into pre-computing value formatted values
-
 # 1.3.0 - Current Release
 
 - Added:

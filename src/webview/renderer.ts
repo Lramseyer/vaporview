@@ -17,11 +17,11 @@ function busValue(time: number, deltaTime: number, displayValue: string, viewpor
   let xValue;
   let center = true;
 
-  if (spansChunk) {
-    adjustedTime = Math.max(time, viewportSpecs.timeScrollLeft);
-    adjestedDeltaTime = Math.min(time + deltaTime, viewportSpecs.timeScrollRight) - adjustedTime;
-  }
+  //if (spansChunk) {
+  //}
 
+  adjustedTime = Math.max(time, viewportSpecs.timeScrollLeft);
+  adjestedDeltaTime = Math.min(time + deltaTime, viewportSpecs.timeScrollRight - (10 * viewportSpecs.pixelTime)) - adjustedTime;
   let characterWidthLimit = adjestedDeltaTime - (2 * padding);
 
   if (textTime > characterWidthLimit) {
@@ -77,10 +77,9 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     let drawBackgroundStrokes = false;
     const minTextWidth  = 12 * viewportSpecs.pixelTime;
     const minDrawWidth  = viewportSpecs.pixelTime / viewportSpecs.pixelRatio;
-    let leftOverflow    = Math.min(initialState[0], 0);
     const drawColor        = netlistData.color;
     const xzColor          = viewportSpecs.xzColor;
-    const textColor        = viewportSpecs.backgroundColor;
+    let parsedValue;
 
     for (let i = startIndex; i < endIndex; i++) {
 
@@ -112,7 +111,12 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
         // We group the empty text elements that are too small to render together to
         // reduce the number of DOM operations
         if (elementWidth > minTextWidth) {
-          const parsedValue = parseValue(value, signalWidth, !is4State);
+          //if (netlistData.formatValid) {
+          //  parsedValue = netlistData.formattedValues[i - 1];
+          //} else {
+          //  parsedValue = parseValue(value, signalWidth, !is4State);
+          //}
+          parsedValue = parseValue(value, signalWidth, !is4State);
           spansChunk = spansChunk || (transitionData[i][0] > viewportSpecs.timeScrollRight);
           textElements.push(busValue(time, elementWidth, parsedValue, viewportSpecs, justifydirection, spansChunk));
         }
@@ -127,7 +131,6 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
       time         = transitionData[i][0];
       value        = transitionData[i][1];
       spansChunk   = false;
-      leftOverflow = 0;
     }
 
     elementWidth = postState[0] - time;

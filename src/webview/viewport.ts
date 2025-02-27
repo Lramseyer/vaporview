@@ -439,7 +439,7 @@ export class Viewport {
     ctx.stroke();
 
     // Draw the Numbers
-    while (numberX <= this.viewerWidth) {
+    while (numberX <= this.viewerWidth + 50) {
       ctx.fillText((number * this.timeScale).toString(), numberX, 15);
       numberX += this.rulerNumberSpacing;
       number += numberIncrement;

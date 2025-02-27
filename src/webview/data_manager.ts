@@ -109,6 +109,8 @@ export class WaveformDataManager {
         colorIndex:   colorIndex,
         color:        "",
         wasRendered:  false,
+        formattedValues: [],
+        formatValid:  false,
         canvas:       null,
         ctx:          null,
       };
@@ -119,6 +121,7 @@ export class WaveformDataManager {
       if (this.valueChangeData[signalId] !== undefined) {
         selectedSignal = netlistId;
         updateFlag     = true;
+        this.cacheValueFormat(this.netlistData[netlistId]);
       } else if (this.valueChangeDataTemp[signalId] !== undefined) {
         this.valueChangeDataTemp[signalId].netlistIdList.push(netlistId);
       } else if (this.valueChangeDataTemp[signalId] === undefined) {
@@ -178,6 +181,7 @@ export class WaveformDataManager {
 
     netlistIdList.forEach((netlistId: NetlistId) => {
       this.events.dispatch(ActionType.RedrawVariable, netlistId);
+      this.cacheValueFormat(this.netlistData[netlistId]);
     });
   }
 
@@ -210,35 +214,58 @@ export class WaveformDataManager {
     });
   }
 
+  async cacheValueFormat(netlistData: NetlistData) {
+    return new Promise<void>((resolve) => {
+      const valueChangeData = this.valueChangeData[netlistData.signalId];
+      if (valueChangeData === undefined)            {resolve(); return;}
+      if (netlistData.renderType.id !== "multiBit") {resolve(); return;}
+      if (netlistData.formatValid)                  {resolve(); return;}
+
+      netlistData.formattedValues = valueChangeData.transitionData.map(([, value]) => {
+        const is9State = netlistData.valueFormat.is9State(value);
+        return netlistData.valueFormat.formatString(value, netlistData.signalWidth, !is9State);
+      });
+      netlistData.formatValid = true;
+      resolve();
+      return;
+    });
+  }
+
   setDisplayFormat(message: any) {
 
     const netlistId = message.netlistId;
     if (message.netlistId === undefined) {return;}
     if (this.netlistData[netlistId] === undefined) {return;}
+    const netlistData = this.netlistData[netlistId];
 
     if (message.numberFormat !== undefined) {
       let valueFormat = valueFormatList.find((format) => format.id === message.numberFormat);
       if (valueFormat === undefined) {valueFormat = formatBinary;}
-      this.netlistData[netlistId].valueFormat   = valueFormat;
+      netlistData.formatValid = false;
+      netlistData.formattedValues = [];
+      netlistData.valueFormat = valueFormat;
+      this.cacheValueFormat(netlistData);
     }
 
     if (message.color !== undefined) {
       customColorKey = message.customColors;
-      this.netlistData[netlistId].colorIndex = message.color;
-      this.setColorFromColorIndex(this.netlistData[netlistId]);
+      netlistData.colorIndex = message.color;
+      this.setColorFromColorIndex(netlistData);
     }
-
-    console.log(message);
 
     if (message.renderType !== undefined) {
       switch (message.renderType) {
-        case "binary":        this.netlistData[netlistId].renderType = binaryWaveformRenderer; break;
-        case "multiBit":      this.netlistData[netlistId].renderType = multiBitWaveformRenderer; break;
-        case "linear":        this.netlistData[netlistId].renderType = linearWaveformRenderer; break;
-        case "stepped":       this.netlistData[netlistId].renderType = steppedrWaveformRenderer; break;
-        case "linearSigned":  this.netlistData[netlistId].renderType = signedLinearWaveformRenderer; break;
-        case "steppedSigned": this.netlistData[netlistId].renderType = signedSteppedrWaveformRenderer; break;
-        default:              this.netlistData[netlistId].renderType = multiBitWaveformRenderer; break;
+        case "binary":        netlistData.renderType = binaryWaveformRenderer; break;
+        case "multiBit":      netlistData.renderType = multiBitWaveformRenderer; break;
+        case "linear":        netlistData.renderType = linearWaveformRenderer; break;
+        case "stepped":       netlistData.renderType = steppedrWaveformRenderer; break;
+        case "linearSigned":  netlistData.renderType = signedLinearWaveformRenderer; break;
+        case "steppedSigned": netlistData.renderType = signedSteppedrWaveformRenderer; break;
+        default:              netlistData.renderType = multiBitWaveformRenderer; break;
+      }
+
+      if (netlistData.renderType.id === "multiBit") {
+        this.cacheValueFormat(netlistData);
       }
     }
 

@@ -137,7 +137,7 @@ export class WaveformDataManager {
     this.events.dispatch(ActionType.SignalSelect, selectedSignal);
   }
 
-  udpateWaveformChunk(message: any) {
+  updateWaveformChunk(message: any) {
 
     const signalId = message.signalId;
     if (this.valueChangeDataTemp[signalId].totalChunks === 0) {
@@ -156,12 +156,24 @@ export class WaveformDataManager {
 
     this.receive(signalId);
 
+    const transitionData = JSON.parse(this.valueChangeDataTemp[signalId].chunkData.join(""));
+    this.updateWaveform(signalId, transitionData, message.min, message.max);
+  }
+
+  updateWaveformFsdb(message: any) {
+    const signalId = message.signalId;
+    this.receive(signalId);
+
+    const transitionData = message.transitionData;
+    this.updateWaveform(signalId, transitionData, message.min, message.max);
+  }
+
+  updateWaveform(signalId: SignalId, transitionData: any[], min: number, max: number) {
     const netlistIdList = this.valueChangeDataTemp[signalId].netlistIdList;
     const netlistId     = netlistIdList[0];
     if (netlistId ===  undefined) {console.log('netlistId not found for signalId ' + signalId); return;}
     const signalWidth  = this.netlistData[netlistId].signalWidth;
     const nullValue = "x".repeat(signalWidth);
-    const transitionData = JSON.parse(this.valueChangeDataTemp[signalId].chunkData.join(""));
     if (transitionData[0][0] !== 0) {
       transitionData.unshift([0, nullValue]);
     }
@@ -172,8 +184,8 @@ export class WaveformDataManager {
       transitionData: transitionData,
       signalWidth:    signalWidth,
       chunkStart:     [],
-      min:            message.min,
-      max:            message.max,
+      min:            min,
+      max:            max,
     };
 
     // Create ChunkStart array

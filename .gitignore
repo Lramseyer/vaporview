@@ -1,9 +1,11 @@
 out
 dist/
+build/
 node_modules
 .vscode-test-web/
 *.vsix
 *.vcd
+*.fsdb
 target/
 src/extension_core/filehandler.ts
 *.tsbuildinfo

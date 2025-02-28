@@ -8,7 +8,9 @@ VaporView is an open source waveform viewer extension for Visual Studio Code - [
 
 ## Waveform Viewer
 
-Supports VCD, FST, and GHW waveform dump formats
+Natively supports VCD, FST, and GHW waveform dump formats
+
+Also supports FSDB files where external libraries are present.
 
 VaporView opens the waveform dump files in an interactive viewer, where you can:
 - Add, remove, and rearrange signals

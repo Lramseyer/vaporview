@@ -75,15 +75,15 @@ export class WaveformDataManager {
 
     if (signalList.length === 0) {return;}
 
-    let updateFlag      = false;
-    let selectedSignal  = viewerState.selectedSignal;
+    let updateFlag     = false;
+    let selectedSignal = viewerState.selectedSignal;
 
-    const signalIdList: any   = [];
+    const signalIdList: any  = [];
     const netlistIdList: any = [];
     signalList.forEach((signal: any) => {
 
-      const netlistId      = signal.netlistId;
-      const signalId       = signal.signalId;
+      const netlistId = signal.netlistId;
+      const signalId  = signal.signalId;
 
       let valueFormat;
       let colorIndex = 0;
@@ -114,6 +114,7 @@ export class WaveformDataManager {
         canvas:       null,
         ctx:          null,
       };
+
       this.netlistData[netlistId].vscodeContext = this.setSignalContextAttribute(netlistId);
       this.setColorFromColorIndex(this.netlistData[netlistId]);
       netlistIdList.push(netlistId);

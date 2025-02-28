@@ -18,7 +18,7 @@ VaporView opens the waveform dump files in an interactive viewer, where you can:
 - Place and move markers
 - Search for values witin a waveform dump
 
-For use of other waveform dump formats such as LXT, VZT, GTKwave offers conversion tools. Proprietery formats such as WLF, VPD, and FSDB can also be converted, but require you to compile GTKwave. See the [GTKwave Manual](https://gtkwave.sourceforge.net/gtkwave.pdf) for details - page 16, and 69 for an overview.
+For use of other waveform dump formats such as LXT, VZT, GTKwave offers conversion tools. Proprietery formats such as WLF and VPD can also be converted, but require you to compile GTKwave. See the [GTKwave Manual](https://gtkwave.sourceforge.net/gtkwave.pdf) for details - page 16, and 69 for an overview.
 
 ## Terminal Links
 

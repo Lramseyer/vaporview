@@ -1,6 +1,6 @@
 # Change Log
 
-# 1.3.1 - Upcoming Release
+# 1.3.1 - Current Release
 
 - Port pender path to HTML5 canvas (previously used SVGs)
   - Improves text placement in multi bit-waveform renderer
@@ -8,7 +8,7 @@
   - Fixes issue where linear, stepped, and binary waveforms display a gap when zoomed in really far
 - Limit how far out the viewer can be zoomed out
 
-# 1.3.0 - Current Release
+# 1.3.0
 
 - Added:
   - Linear and Stepped waveform Rendering
@@ -76,7 +76,7 @@
 - Allow for number format to be changed on a per-signal basis
 - Added netlist path to context menu events in case other extension developers want to integrate with VaporView
 
-# 1.0.0
+# 1.0.0 - First VScode Marketplace Release
 
 - Small documentation updates in preparation for marketplace release
 - Commented out debug statements

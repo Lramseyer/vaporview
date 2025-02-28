@@ -161,7 +161,7 @@ This extension was designed on Vscode version 1.83
 
 # Development Roadmap
 
-## Upcoming Release 1.3.1
+## Current Release 1.3.1
 
 - Ported pender path to HTML5 canvas (previously used SVGs)
   - Improves text placement in multi bit-waveform renderer

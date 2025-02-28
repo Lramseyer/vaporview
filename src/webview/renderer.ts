@@ -111,12 +111,11 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
         // We group the empty text elements that are too small to render together to
         // reduce the number of DOM operations
         if (elementWidth > minTextWidth) {
-          //if (netlistData.formatValid) {
-          //  parsedValue = netlistData.formattedValues[i - 1];
-          //} else {
-          //  parsedValue = parseValue(value, signalWidth, !is4State);
-          //}
-          parsedValue = parseValue(value, signalWidth, !is4State);
+          if (netlistData.formatValid) {
+            parsedValue = netlistData.formattedValues[i - 1];
+          } else {
+            parsedValue = parseValue(value, signalWidth, !is4State);
+          }
           spansChunk = spansChunk || (transitionData[i][0] > viewportSpecs.timeScrollRight);
           textElements.push(busValue(time, elementWidth, parsedValue, viewportSpecs, justifydirection, spansChunk));
         }
@@ -155,7 +154,11 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     }
 
     if (elementWidth > minTextWidth) {
-      const parsedValue = parseValue(value, signalWidth, !is4State);
+      if (netlistData.formatValid) {
+        parsedValue = netlistData.formattedValues[endIndex - 1];
+      } else {
+        parsedValue = parseValue(value, signalWidth, !is4State);
+      }
       textElements.push(busValue(time, elementWidth, parsedValue, viewportSpecs, justifydirection, true));
     }
 

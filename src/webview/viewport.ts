@@ -149,6 +149,7 @@ export class Viewport {
     this.timeStop      = metadata.timeEnd;
     this.maxZoomRatio  = this.zoomRatio * 64;
     this.updatePending = true;
+    this.waveformArea.innerHTML = '';
     this.updateViewportWidth();
     this.updateRuler();
     this.updateScrollbarResize();

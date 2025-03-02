@@ -450,7 +450,7 @@ class VaporviewWebview {
       case 'setDisplayFormat':      {dataManager.setDisplayFormat(message); break;}
       case 'setWaveDromClock':      {dataManager.waveDromClock = {netlistId: message.netlistId, edge:  message.edge,}; break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
-      case 'setMarker':             {this.events.dispatch(ActionType.MarkerSet, message.time, 0); break;}
+      case 'setMarker':             {this.events.dispatch(ActionType.MarkerSet, message.time, message.markerType); break;}
       case 'setSelectedSignal':     {this.events.dispatch(ActionType.SignalSelect, message.netlistId); break;}
       case 'getContext':            {sendWebviewContext(); break;}
       case 'copyWaveDrom':          {dataManager.copyWaveDrom(); break;}

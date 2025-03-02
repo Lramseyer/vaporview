@@ -52,7 +52,7 @@ export class TimestampLinkProvider implements vscode.TerminalLinkProvider {
       case 'uvm-timestamp': {
         const time = parseInt([...link.data.matchAll(this.uvmTimestampRegex)][0][1]);
         //console.log("UVM Timestamp link clicked: " + time);
-        this.viewerProvider.setMarkerAtTime(time);
+        this.viewerProvider.setMarkerAtTime(time, 0);
         break;
       }
       case 'timestamp-with-units': {

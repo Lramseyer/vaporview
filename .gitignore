@@ -4,6 +4,7 @@ node_modules
 .vscode-test-web/
 *.vsix
 *.vcd
+.DS_Store
 target/
 src/extension_core/filehandler.ts
 *.tsbuildinfo

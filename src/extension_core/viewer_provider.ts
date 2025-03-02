@@ -281,7 +281,16 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
 
     if (settings.markerTime || settings.markerTime === 0) {
-      this.setMarkerAtTime(settings.markerTime);
+      this.setMarkerAtTime(settings.markerTime, 0);
+    }
+    if (settings.altMarkerTime || settings.altMarkerTime === 0) {
+      this.setMarkerAtTime(settings.altMarkerTime, 1);
+    }
+
+    console.log(missingSignals);
+    this.filterAddSignalsInNetlist(foundSignals, true);
+    for (const signalInfo of settings.displayedSignals) {
+      this.setValueFormat(signalInfo.netlistId, signalInfo.numberFormat, signalInfo.colorIndex, signalInfo.renderType);
     }
 
     //console.log(settings.selectedSignal);
@@ -295,12 +304,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
           netlistId: netlistIdSelected,
         });
       }
-    }
-
-    console.log(missingSignals);
-    this.filterAddSignalsInNetlist(foundSignals, true);
-    for (const signalInfo of settings.displayedSignals) {
-      this.setValueFormat(signalInfo.netlistId, signalInfo.numberFormat, signalInfo.colorIndex, signalInfo.renderType);
     }
 
     //this.netlistTreeDataProvider.loadDocument(document);
@@ -323,6 +326,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.displayedSignalsTreeDataProvider.hide();
     await document.reload();
     this.applySettings(settings, this.activeDocument);
+
+    //console.log(settings);
   }
 
   copyWaveDrom() {
@@ -389,10 +394,10 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     const scaleFactor = this.scaleFromUnits(unit) / (timeUnit * timeScale);
 
-    this.setMarkerAtTime(Math.round(time * scaleFactor));
+    this.setMarkerAtTime(Math.round(time * scaleFactor), 0);
   }
 
-  setMarkerAtTime(time: number) {
+  setMarkerAtTime(time: number, altMarker: number) {
 
     if (!this.lastActiveWebview) {return;}
     if (!this.lastActiveDocument) {return;}
@@ -403,7 +408,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (!chunkCount || !chunkTime) {return;}
     if (time < 0 || time > (chunkCount * chunkTime)) {return;}
 
-    this.lastActiveWebview.webview.postMessage({command: 'setMarker', time: time});
+    this.lastActiveWebview.webview.postMessage({command: 'setMarker', time: time, markerType: altMarker});
   }
 
   updateStatusBarItems(document: VaporviewDocument, event: any) {

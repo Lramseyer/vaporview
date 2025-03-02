@@ -3,6 +3,7 @@ target/release/**
 target/wasm32-unknown-unknown/debug/**
 .vscode/**
 .gitignore
+.DS_Store
 node_modules/**
 !node_modules/@vscode/codicons/**
 out/**/*.map

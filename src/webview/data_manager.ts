@@ -1,4 +1,4 @@
-import { NetlistData, SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport } from './vaporview';
+import { NetlistData, SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext } from './vaporview';
 import { formatBinary, formatHex, ValueFormat, formatString, valueFormatList } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer, signedLinearWaveformRenderer, signedSteppedrWaveformRenderer } from './renderer';
 
@@ -138,6 +138,8 @@ export class WaveformDataManager {
     viewerState.displayedSignals = viewerState.displayedSignals.concat(netlistIdList);
     this.events.dispatch(ActionType.AddVariable, netlistIdList, updateFlag);
     this.events.dispatch(ActionType.SignalSelect, selectedSignal);
+
+    sendWebviewContext();
   }
 
   udpateWaveformChunk(message: any) {

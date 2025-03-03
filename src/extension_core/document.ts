@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import { promisify } from 'util';
 import { Worker } from 'worker_threads';
+import { fork } from 'child_process';
+import * as path from 'path';
 import * as fs from 'fs';
 declare function requirefs(_name: "fs"): typeof fs;
 
@@ -38,6 +40,17 @@ interface fsWrapper {
   loadFile: (uri: vscode.Uri, fileType: string) => void;
   readSlice: (fd: number, buffer: Uint8Array, offset: number, length: number, position: number) => number;
   close: (fd: number) => void;
+}
+
+type FsdbWorkerMessage = {
+  id: string;
+  result: any;
+}
+
+type FsdbWaveformData = {
+  valueChanges: [number, string][];
+  min: number;
+  max: number;
 }
 
 // Scopes
@@ -243,9 +256,10 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public wasmApi: any;
   private fileBuffer: Uint8Array;
   // Fsdb
+  public fsdbWorker: any;
   public isFsdb: boolean = false;
-  private fsdbAddon: any;
   private fsdbTopModuleCount: number = 0;
+  private fsdbCurrentScope: NetlistItem | undefined = undefined;
   // Webview
   public webviewPanel: vscode.WebviewPanel | undefined = undefined;
   private _webviewInitialized: boolean = false;
@@ -330,26 +344,114 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     await this._readBody(fileType);
   }
 
-  // Load FSDB using node-addon-api
   private async loadFsdb() {
-    // Lazy load the node-addon
-    try {
-      this.fsdbAddon = await require("../build/Release/fsdb_reader.node");
-    } catch (error) {
-      vscode.window.showErrorMessage("Failed to load FSDB reader, is LD_LIBRARY_PATH properly set? (" + error + ")");
-      return;
-    }
+    // Create FSDB worker that loads FSDB using node-addon-api
+    const fsdbReaderLibsPath = vscode.workspace.getConfiguration('vaporview').get('fsdbReaderLibsPath');
+    this.fsdbWorker = fork(path.resolve(__dirname, 'fsdb_worker.js'), {
+      env: {
+        ...process.env,
+        LD_LIBRARY_PATH: `${process.env.LD_LIBRARY_PATH ? process.env.LD_LIBRARY_PATH + ':' : ''}${fsdbReaderLibsPath}`
+      }
+    });
+    this.fsdbWorker.setMaxListeners(50);
+    this.setupFsdbWorkerListeners();
 
-    await this.fsdbAddon.openFsdb(this.uri.fsPath);
+    await this.callFsdbWorkerTask({
+      command: 'openFsdb',
+      fsdbPath: this.uri.fsPath
+    });
+
     await vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification,
       title: "Reading Scopes for " + this.uri.fsPath,
       cancellable: false
     }, async () => {
-      await this.fsdbAddon.readScopes(this);
-      await this.fsdbAddon.readMetadata(this);
+      await this.callFsdbWorkerTask({
+        command: 'readScopes'
+      });
     });
+
+    await vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: "Reading Metadata for " + this.uri.fsPath,
+      cancellable: false
+    }, async () => {
+      await this.callFsdbWorkerTask({
+        command: 'readMetadata'
+      });
+    });
+
     this._delegate.updateViews(this.uri);
+  }
+
+  private setupFsdbWorkerListeners(): void {
+    if (!this.fsdbWorker) return;
+    this.fsdbWorker.on('online', () => {
+      console.log('FSDB worker is online.');
+    });
+
+    this.fsdbWorker.on('error', (err: Error) => {
+      console.error('FSDB worker error:', err);
+    });
+
+    this.fsdbWorker.on('exit', (code: any, signal: any) => {
+      if (code !== 0) {
+        console.error(`Child process exited with error code ${code} (signal: ${signal})`);
+      }
+    });
+
+    this.fsdbWorker.on('message', (msg: any) => {
+      // console.log('Main thread received:', JSON.stringify(msg, null, 2));
+      this.handleMessage(msg);
+    });
+  }
+
+  private handleMessage(message: any) {
+    switch (message.command) {
+      case 'require-failed': {
+        vscode.window.showErrorMessage("Failed to load FSDB reader, is vaporview.fsdbReaderLibsPath properly set? (" + message.error.code + ")");
+        break;
+      }
+      case 'fsdb-scope-callback': { this.fsdbScopeCallback(message.name, message.type, message.path, message.netlistId, message.scopeOffsetIdx); break; }
+      case 'fsdb-upscope-callback': { this.fsdbUpscopeCallback(); break; }
+      case 'setMetadata': { this.setMetadata(message.scopecount, message.varcount, message.timescale, message.timeunit); break; }
+      case 'setChunkSize': { this.setChunkSize(message.chunksize, message.timeend); break; }
+      case 'fsdb-var-callback': {
+        this.fsdbVarCallback(
+          message.name, message.type, message.encoding, message.path, message.netlistId, message.signalId, message.width, message.msb, message.lsb);
+        break;
+      }
+      case 'fsdb-array-begin-callback': { this.fsdbArrayBeginCallback(message.name, message.path, message.netlistId); break; }
+      case 'fsdb-array-end-callback': { this.fsdbArrayEndCallback(message.size); break; }
+    }
+  }
+
+  callFsdbWorkerTask(message: any) {
+    if (!this.fsdbWorker) return Promise.resolve([]);
+    return new Promise((resolve, reject) => {
+      // try {
+      //   console.log("callFsdbWorkerTask, message: " + JSON.stringify(message));
+      // } catch (e) {
+      //   console.error('Data is not serializable:', e);
+      // }
+      const id = Math.random().toString(36).substring(2, 9);
+      message.id = id;
+
+      const messageHandler = (message: any) => {
+        if (message.id === id) {
+          this.fsdbWorker!.off('message', messageHandler);
+          if (message.error) {
+            console.log(message.error);
+            return reject(new Error(message.error));
+          }
+          resolve(message);
+        }
+      };
+
+      this.fsdbWorker!.on('message', messageHandler);
+
+      this.fsdbWorker!.send(message);
+    });
   }
 
   public readonly service: filehandler.Imports.Promisified = {
@@ -559,12 +661,24 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
    });
   }
 
+  async fsdbReadVars(element: NetlistItem | undefined) {
+    if (!element) return;
+    // Only one scope is allowed to be reading vars at a time
+    this.fsdbCurrentScope = element;
+    await this.callFsdbWorkerTask({
+      command: 'readVars',
+      modulePath: element.modulePath,
+      scopeOffsetIdx: element.scopeOffsetIdx
+    });
+    // TODO(heyfey): Wait for all callbacks finish
+  }
+
   async getChildrenExternal(element: NetlistItem | undefined) {
 
     if (!element) {return Promise.resolve(this.treeData);} // Return the top-level netlist items
     if (this.isFsdb) {
       if (element.fsdbVarLoaded) {return Promise.resolve(element.children);}
-      await this.fsdbAddon.readVars(element, this.netlistIdTable);
+      await this.fsdbReadVars(element);
       element.fsdbVarLoaded = true;
       return Promise.resolve(element.children);
     }
@@ -650,19 +764,31 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       title: "Loading signals",
       cancellable: false
     }, async () => {
-      await this.fsdbAddon.loadSignals(signalIdList);
+      await this.callFsdbWorkerTask({
+        command: 'loadSignals',
+        signalIdList: signalIdList
+      });
     });
 
     signalIdList.forEach(async (signalId) => {
-      const result = await this.fsdbAddon.getValueChanges(signalId);
+      const result = await this.callFsdbWorkerTask({
+        command: 'getValueChanges',
+        signalId: signalId
+      });
+      const message = result as FsdbWorkerMessage;
+      const data = message.result as FsdbWaveformData;
       this.webviewPanel?.webview.postMessage({
         command: 'update-waveform-fsdb',
         signalId: signalId,
-        transitionData: result.valueChanges,
-        min: result.min,
-        max: result.max
+        transitionData: data.valueChanges,
+        min: data.min,
+        max: data.max
       });
-      this.fsdbAddon.unloadSignal(signalId);
+
+      this.callFsdbWorkerTask({
+        command: 'unloadSignal',
+        signalId: signalId
+      });
     });
   }
 
@@ -672,11 +798,12 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this.displayedSignals = [];
     this._netlistIdTable  = [];
     if (this.isFsdb) {
-      // TODO(heyfey): Bug: displayed signals not reset on reload
-      await this.fsdbAddon.unload();
-      this.fsdbAddon = null;
+      await this.callFsdbWorkerTask({ command: 'unload' });
+      await this.fsdbWorker.disconnect();
+      this.fsdbWorker = undefined;
       this.isFsdb = false;
       this.fsdbTopModuleCount = 0;
+      this.fsdbCurrentScope = undefined;
     } else {
       this.fileReader.close(this.fileReader.fd);
       await this.wasmApi.unload();
@@ -710,7 +837,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   /**
-   * Called by fsdbAddon when traversing a scope.
+   * Called by fsdbWorker when traversing a scope.
    * fsdbScopeCallback and fsdbUpscopeCallback work as a pair and operate treeData as a stack.
    */
   fsdbScopeCallback(name: string, type: string, path: string, netlistId: number, scopeOffsetIdx: number) {
@@ -718,7 +845,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   /**
-   * Called by fsdbAddon when finished traversing a scope. Must be paired with a fsdbScopeCallback.
+   * Called by fsdbWorker when finished traversing a scope. Must be paired with a fsdbScopeCallback.
    */
   fsdbUpscopeCallback() {
     // Operate treeData as a stack
@@ -731,6 +858,34 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       this.treeData[this.treeData.length - 1].children.push(scope);
     }
   }
+
+  /**
+  * Called by fsdbWorker when traversing a var.
+  */
+  fsdbVarCallback(name: string, type: string, encoding: string, path: string, netlistId: NetlistId, signalId: SignalId, width: number, msb: number, lsb: number) {
+    const varItem = createVar(name, type, encoding, path, netlistId, signalId, width, msb, lsb, true /*isFsdb*/);
+    this.fsdbCurrentScope!.children.push(varItem);
+
+    this.netlistIdTable[varItem.netlistId] = { netlistItem: varItem, displayedItem: undefined, signalId: varItem.signalId };
+  }
+
+  fsdbArrayBeginCallback(name: string, path: string, netlistId: number) {
+    this.fsdbCurrentScope!.children.push(createScope(name, "vhdlarray", path, netlistId, -1));
+  }
+
+  fsdbArrayEndCallback(size: number) {
+    const arrayElements = [];
+    for (let i = 0; i < size; i++) {
+      const element = this.fsdbCurrentScope!.children.pop()!;
+      arrayElements.push(element);
+    }
+    // const array = this.children[this.children.length - 1];
+    const array = this.fsdbCurrentScope!.children.pop()!; // The last item would be the scope item for the array
+    array.children.push(...arrayElements.reverse());
+    array.fsdbVarLoaded = true;
+    this.fsdbCurrentScope!.children.unshift(array); // Move to front to align with wellen
+  }
+
 }
 
 // #region WebviewCollection
@@ -952,32 +1107,4 @@ export class NetlistItem extends vscode.TreeItem {
     this._onDidChangeCheckboxState.fire(this);
   }
 
-  /**
-   * Called by fsdbAddon when traversing a var.
-   */
-  fsdbVarCallback(netlistIdTable: NetlistIdTable, name: string, type: string, encoding: string, path: string, netlistId: NetlistId, signalId: SignalId, width: number, msb: number, lsb: number) {
-    const varItem = createVar(name, type, encoding, path, netlistId, signalId, width, msb, lsb, true /*isFsdb*/);
-    this.children.push(varItem);
-
-    // netlistIdTable is actually document.netlistIdTable object, which is passed to
-    // fsdbAddon in getChildrenExternal, then later passed to this function from fsdbAddon
-    netlistIdTable[varItem.netlistId] = { netlistItem: varItem, displayedItem: undefined, signalId: varItem.signalId };
-  }
-
-  fsdbArrayBeginCallback(name: string, path: string, netlistId: number) {
-    this.children.push(createScope(name, "vhdlarray", path, netlistId, -1));
-  }
-
-  fsdbArrayEndCallback(size: number) {
-    const arrayElements = [];
-    for (let i = 0; i < size; i++) {
-      const element = this.children.pop()!;
-      arrayElements.push(element);
-    }
-    // const array = this.children[this.children.length - 1];
-    const array = this.children.pop()!; // The last item would be the scope item for the array
-    array.children.push(...arrayElements.reverse());
-    array.fsdbVarLoaded = true;
-    this.children.unshift(array); // Move to front to align with wellen
-  }
 }

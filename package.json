@@ -127,6 +127,11 @@
           "default": "#9cdcfe",
           "scope": "application",
           "description": "Custom Color in CSS format ie '#C0FFEE' or 'rgb(192, 255, 238)' or 'blue'"
+        },
+        "vaporview.fsdbReaderLibsPath": {
+          "type": "string",
+          "scope": "application",
+          "description": "Path to find FSDB reader shared libraries (e.g. libnffr.so, libnsys.so for Linux) for your platform. This is needed for FSDB reading. Example: /home/heyfey/verdi/2022.06/share/FsdbReader/linux64"
         }
       }
     },

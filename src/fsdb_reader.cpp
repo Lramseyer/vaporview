@@ -49,15 +49,12 @@ unsigned int netlistId = 0;
 Napi::Env env_global = nullptr;
 
 // Object from node.js area
-Napi::Object document;
-Napi::Function document_fsdbScopeCallback;
-Napi::Function document_fsdbUpscopeCallback;
-Napi::Array document_NetlistIdTable;
+Napi::Function fsdbScopeCallback;
+Napi::Function fsdbUpscopeCallback;
+Napi::Function fsdbVarCallback;
+Napi::Function fsdbArrayBeginCallback;
+Napi::Function fsdbArrayEndCallback;
 
-Napi::Object netlistItem;
-Napi::Function netlistItem_fsdbVarCallback;
-Napi::Function netlistItem_fsdbArrayBeginCallback;
-Napi::Function netlistItem_fsdbArrayEndCallback;
 
 void openFsdb(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
@@ -101,21 +98,13 @@ void readScopes(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
   env_global = env;
 
-  if (info.Length() < 1 || !info[0].IsObject()) {
-    Napi::TypeError::New(env, "Expected object").ThrowAsJavaScriptException();
-    return;
-  }
-  document = info[0].As<Napi::Object>();
-
-  Napi::Value scopeCallback = document.Get("fsdbScopeCallback");
-  Napi::Value upscopeCallback = document.Get("fsdbUpscopeCallback");
-  if (!scopeCallback.IsFunction() || !upscopeCallback.IsFunction()) {
-    Napi::TypeError::New(env, "Property is not a function")
+  if (info.Length() < 2 || !info[0].IsFunction() || !info[1].IsFunction()) {
+    Napi::TypeError::New(env, "Expected (function, function)")
         .ThrowAsJavaScriptException();
     return;
   }
-  document_fsdbScopeCallback = scopeCallback.As<Napi::Function>();
-  document_fsdbUpscopeCallback = upscopeCallback.As<Napi::Function>();
+  fsdbScopeCallback = info[0].As<Napi::Function>();
+  fsdbUpscopeCallback = info[1].As<Napi::Function>();
 
   fsdb_obj->ffrSetTreeCBFunc(MyTreeCB, NULL);
   fsdb_obj->ffrReadScopeTree();
@@ -128,20 +117,13 @@ ulong_T combineTime(uint_T H, uint_T L) {
 void readMetadata(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
 
-  if (info.Length() < 1 || !info[0].IsObject()) {
-    Napi::TypeError::New(env, "Expected object").ThrowAsJavaScriptException();
-    return;
-  }
-
-  // set metadata for document
-  document = info[0].As<Napi::Object>();
-  Napi::Value setMetadata = document.Get("setMetadata");
-  if (!setMetadata.IsFunction()) {
-    Napi::TypeError::New(env, "Property is not a function")
+  if (info.Length() < 2 || !info[0].IsFunction() || !info[1].IsFunction()) {
+    Napi::TypeError::New(env, "Expected (function, function)")
         .ThrowAsJavaScriptException();
     return;
   }
-  Napi::Function document_setMetadata = setMetadata.As<Napi::Function>();
+  Napi::Function setMetadata = info[0].As<Napi::Function>();
+  Napi::Function setChunkSize = info[1].As<Napi::Function>();
 
   uint_T digit;
   char *unit;
@@ -155,17 +137,7 @@ void readMetadata(const Napi::CallbackInfo &info) {
   args.push_back(Napi::Number::New(env, 0));
   args.push_back(Napi::Number::New(env, digit));  // timescale: number
   args.push_back(Napi::String::New(env, unit));   // timeunit: string
-  document_setMetadata.Call(document, args);
-
-  // set chunksize for document
-  Napi::Value setChunkSize = document.Get("setChunkSize");
-  if (!setChunkSize.IsFunction()) {
-    Napi::TypeError::New(env, "Property is not a function")
-        .ThrowAsJavaScriptException();
-    return;
-  }
-
-  Napi::Function document_SetChunkSize = setChunkSize.As<Napi::Function>();
+  setMetadata.Call(args);
 
   fsdbTag64 max_time;
   if (FSDB_RC_FAILURE == fsdb_obj->ffrGetMaxFsdbTag64(&max_time)) {
@@ -175,76 +147,53 @@ void readMetadata(const Napi::CallbackInfo &info) {
   }
   ulong_T end_time = combineTime(max_time.H, max_time.L);
 
+  // NOTE: traverse flush session is slow in some case.
+  //
   // The FSDB Writer writes out value changes when buffer is full and this is
   // called a flush session. This is heuristic to make each chunk contains at
   // least 1/10 of value changes in a flush session.
-  ulong_T min_session_length = 9999999;
-  ffrSessionInfo *session_info;
-  do {
-    session_info = fsdb_obj->ffrGetSessionListInfo();
-    ulong_T close_time = combineTime(session_info->close_xtag.hltag.H,
-                                     session_info->close_xtag.hltag.L);
-    ulong_T start_time = combineTime(session_info->start_xtag.hltag.H,
-                                     session_info->start_xtag.hltag.L);
-    min_session_length = std::min(min_session_length, close_time - start_time);
-    session_info = session_info->next;
-  } while (session_info != NULL);
-  ulong_T chunk_size = min_session_length / 10;
+  // ulong_T min_session_length = 9999999;
+  // ffrSessionInfo *session_info;
+  // do {
+  //   session_info = fsdb_obj->ffrGetSessionListInfo();
+  //   ulong_T close_time = combineTime(session_info->close_xtag.hltag.H,
+  //                                    session_info->close_xtag.hltag.L);
+  //   ulong_T start_time = combineTime(session_info->start_xtag.hltag.H,
+  //                                    session_info->start_xtag.hltag.L);
+  //   min_session_length = std::min(min_session_length, close_time -
+  //   start_time); session_info = session_info->next;
+  // } while (session_info != NULL);
+  // ulong_T chunk_size = min_session_length / 10;
 
   std::vector<Napi::Value> args2;
-  args2.push_back(Napi::Number::New(env, chunk_size));
+  // args2.push_back(Napi::Number::New(env, chunk_size));
+  // chunk_size is not used in the new canvas renderer, just give it random
+  // number (500)
+  args2.push_back(Napi::Number::New(env, 500));
   args2.push_back(Napi::Number::New(env, end_time));
-  document_SetChunkSize.Call(document, args2);
+  setChunkSize.Call(args2);
 }
 
 void readVars(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
   env_global = env;
 
-  if (info.Length() < 2 || !info[0].IsObject() || !info[1].IsArray()) {
-    Napi::TypeError::New(env, "Expected (object, array)")
-        .ThrowAsJavaScriptException();
-    return;
-  }
-  netlistItem = info[0].As<Napi::Object>();
-  document_NetlistIdTable = info[1].As<Napi::Array>();
-
-  Napi::Value modulePath = netlistItem.Get("modulePath");
-  if (!modulePath.IsString()) {
-    Napi::TypeError::New(env, "Property is not a string")
-        .ThrowAsJavaScriptException();
-    return;
-  }
-  module_path = modulePath.As<Napi::String>();
-
-  Napi::Value varCallback = netlistItem.Get("fsdbVarCallback");
-  if (!varCallback.IsFunction()) {
-    Napi::TypeError::New(env, "Property is not a function")
-        .ThrowAsJavaScriptException();
-    return;
-  }
-  netlistItem_fsdbVarCallback = varCallback.As<Napi::Function>();
-
-  Napi::Value arrayBeginCallback = netlistItem.Get("fsdbArrayBeginCallback");
-  Napi::Value arrayEndCallback = netlistItem.Get("fsdbArrayEndCallback");
-  if (!arrayBeginCallback.IsFunction() || !arrayEndCallback.IsFunction()) {
-    Napi::TypeError::New(env, "Property is not a function")
-        .ThrowAsJavaScriptException();
-    return;
-  }
-  netlistItem_fsdbArrayBeginCallback = arrayBeginCallback.As<Napi::Function>();
-  netlistItem_fsdbArrayEndCallback = arrayEndCallback.As<Napi::Function>();
-
-  Napi::Value scopeOffsetIdx = netlistItem.Get("scopeOffsetIdx");
-  if (!scopeOffsetIdx.IsNumber()) {
-    Napi::TypeError::New(env, "Property is not a number")
+  if (info.Length() < 5 || !info[0].IsString() || !info[1].IsNumber() ||
+      !info[2].IsFunction() || !info[3].IsFunction() || !info[4].IsFunction()) {
+    Napi::TypeError::New(
+        env, "Expected (string, number, function, function, function)")
         .ThrowAsJavaScriptException();
     return;
   }
 
-  size_t index =
-      static_cast<size_t>(scopeOffsetIdx.As<Napi::Number>().Uint32Value());
-  if (FSDB_RC_FAILURE == fsdb_obj->ffrReadVarByLogUOff(&scope_offset[index])) {
+  module_path = info[0].As<Napi::String>();
+  size_t scopeOffsetIdx =
+      static_cast<size_t>(info[1].As<Napi::Number>().Uint32Value());
+  fsdbVarCallback = info[2].As<Napi::Function>();
+  fsdbArrayBeginCallback = info[3].As<Napi::Function>();
+  fsdbArrayEndCallback = info[4].As<Napi::Function>();
+
+  if (FSDB_RC_FAILURE == fsdb_obj->ffrReadVarByLogUOff(&scope_offset[scopeOffsetIdx])) {
     Napi::TypeError::New(env, "ffrReadVarByLogUOff failed")
         .ThrowAsJavaScriptException();
     return;
@@ -285,7 +234,8 @@ static bool_T MyTreeCB(fsdbTreeCBType cb_type, void *client_data,
       // pUpscope = (fsdbTreeCBDataUpscope *)tree_cb_data;
       // scope_offset.push_back(pUpscope->var_start_log_uoff);
       // fprintf(stderr, "<Upscope>\n");
-      document_fsdbUpscopeCallback.Call(document, std::vector<Napi::Value>());
+
+      fsdbUpscopeCallback.Call(std::vector<Napi::Value>());
       module_path_stack.pop_back();
       break;
 
@@ -399,7 +349,7 @@ static void __DumpScope(fsdbTreeCBDataScope *scope) {
   args.push_back(Napi::String::New(env_global, path));
   args.push_back(Napi::Number::New(env_global, netlistId));
   args.push_back(Napi::Number::New(env_global, scope_offset.size() - 1));
-  document_fsdbScopeCallback.Call(document, args);
+  fsdbScopeCallback.Call(args);
   netlistId++;
 }
 
@@ -550,7 +500,6 @@ static void __DumpVar(fsdbTreeCBDataVar *var) {
   // var->dtidcode, bpb);
 
   std::vector<Napi::Value> args;
-  args.push_back(document_NetlistIdTable);
   args.push_back(Napi::String::New(env_global, var->name));
   args.push_back(Napi::String::New(env_global, type));
   args.push_back(Napi::String::New(env_global, encoding));
@@ -561,7 +510,7 @@ static void __DumpVar(fsdbTreeCBDataVar *var) {
       env_global, abs(var->lbitnum - var->rbitnum) + 1));       // width
   args.push_back(Napi::Number::New(env_global, var->lbitnum));  // msb
   args.push_back(Napi::Number::New(env_global, var->rbitnum));  // lsb
-  netlistItem_fsdbVarCallback.Call(netlistItem, args);
+  fsdbVarCallback.Call(args);
   netlistId++;
 }
 
@@ -575,7 +524,7 @@ void __DumpArray(fsdbTreeCBDataArrayBegin *array) {
   args.push_back(Napi::String::New(env_global, name));
   args.push_back(Napi::String::New(env_global, module_path));
   args.push_back(Napi::Number::New(env_global, netlistId));
-  netlistItem_fsdbArrayBeginCallback.Call(netlistItem, args);
+  fsdbArrayBeginCallback.Call(args);
   netlistId++;
 }
 
@@ -590,7 +539,7 @@ void __EndArray() {
   arraysize_stack.pop();
   std::vector<Napi::Value> args;
   args.push_back(Napi::Number::New(env_global, size));
-  netlistItem_fsdbArrayEndCallback.Call(netlistItem, args);
+  fsdbArrayEndCallback.Call(args);
 }
 
 void loadSignals(const Napi::CallbackInfo &info) {
@@ -683,7 +632,7 @@ void unloadSignal(const Napi::CallbackInfo &info) {
 #else
   fsdbVarIdcode var_idcode = info[0].As<Napi::Number>().Int64Value();
 #endif
-  
+
   fsdb_obj->ffrUnloadSignals(var_idcode);
 }
 

@@ -56,13 +56,51 @@ Napi::Function fsdbArrayBeginCallback;
 Napi::Function fsdbArrayEndCallback;
 
 
+bool CHECK_LENGTH(const Napi::Env& env, const Napi::CallbackInfo &info, size_t size) {
+  if (info.Length() < size) {
+    Napi::TypeError::New(env, "Incorrect number of arguments")
+        .ThrowAsJavaScriptException();
+    return false;
+  }
+  return true;
+}
+
+bool CHECK_STRING(const Napi::Env& env, const Napi::Value &value) {
+  if (!value.IsString()) {
+    Napi::TypeError::New(env, "Expected string").ThrowAsJavaScriptException();
+    return false;
+  }
+  return true;
+}
+
+bool CHECK_NUMBER(const Napi::Env& env, const Napi::Value &value) {
+  if (!value.IsNumber()) {
+    Napi::TypeError::New(env, "Expected number").ThrowAsJavaScriptException();
+    return false;
+  }
+  return true;
+}
+
+bool CHECK_FUNCTION(const Napi::Env& env, const Napi::Value &value) {
+  if (!value.IsFunction()) {
+    Napi::TypeError::New(env, "Expected function").ThrowAsJavaScriptException();
+    return false;
+  }
+  return true;
+}
+
+bool CHECK_ARRAY(const Napi::Env& env, const Napi::Value &value) {
+  if (!value.IsArray()) {
+    Napi::TypeError::New(env, "Expected array").ThrowAsJavaScriptException();
+    return false;
+  }
+  return true;
+}
+
 void openFsdb(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
-
-  if (info.Length() < 1 || !info[0].IsString()) {
-    Napi::TypeError::New(env, "Expected string").ThrowAsJavaScriptException();
-    return;
-  }
+  if (!CHECK_LENGTH(env, info, 1)) return;
+  if (!CHECK_STRING(env, info[0])) return;
 
   fsdb_name = info[0].As<Napi::String>();
   char *buffer = fsdb_name.data();
@@ -97,12 +135,10 @@ void openFsdb(const Napi::CallbackInfo &info) {
 void readScopes(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
   env_global = env;
+  if (!CHECK_LENGTH(env, info, 2)) return;
+  if (!CHECK_FUNCTION(env, info[0])) return;
+  if (!CHECK_FUNCTION(env, info[1])) return;
 
-  if (info.Length() < 2 || !info[0].IsFunction() || !info[1].IsFunction()) {
-    Napi::TypeError::New(env, "Expected (function, function)")
-        .ThrowAsJavaScriptException();
-    return;
-  }
   fsdbScopeCallback = info[0].As<Napi::Function>();
   fsdbUpscopeCallback = info[1].As<Napi::Function>();
 
@@ -116,12 +152,10 @@ ulong_T combineTime(uint_T H, uint_T L) {
 
 void readMetadata(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
+  if (!CHECK_LENGTH(env, info, 2)) return;
+  if (!CHECK_FUNCTION(env, info[0])) return;
+  if (!CHECK_FUNCTION(env, info[1])) return;
 
-  if (info.Length() < 2 || !info[0].IsFunction() || !info[1].IsFunction()) {
-    Napi::TypeError::New(env, "Expected (function, function)")
-        .ThrowAsJavaScriptException();
-    return;
-  }
   Napi::Function setMetadata = info[0].As<Napi::Function>();
   Napi::Function setChunkSize = info[1].As<Napi::Function>();
 
@@ -177,14 +211,12 @@ void readMetadata(const Napi::CallbackInfo &info) {
 void readVars(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
   env_global = env;
-
-  if (info.Length() < 5 || !info[0].IsString() || !info[1].IsNumber() ||
-      !info[2].IsFunction() || !info[3].IsFunction() || !info[4].IsFunction()) {
-    Napi::TypeError::New(
-        env, "Expected (string, number, function, function, function)")
-        .ThrowAsJavaScriptException();
-    return;
-  }
+  if (!CHECK_LENGTH(env, info, 5)) return;
+  if (!CHECK_STRING(env, info[0])) return;
+  if (!CHECK_NUMBER(env, info[1])) return;
+  if (!CHECK_FUNCTION(env, info[2])) return;
+  if (!CHECK_FUNCTION(env, info[3])) return;
+  if (!CHECK_FUNCTION(env, info[4])) return;
 
   module_path = info[0].As<Napi::String>();
   size_t scopeOffsetIdx =
@@ -193,7 +225,8 @@ void readVars(const Napi::CallbackInfo &info) {
   fsdbArrayBeginCallback = info[3].As<Napi::Function>();
   fsdbArrayEndCallback = info[4].As<Napi::Function>();
 
-  if (FSDB_RC_FAILURE == fsdb_obj->ffrReadVarByLogUOff(&scope_offset[scopeOffsetIdx])) {
+  if (FSDB_RC_FAILURE ==
+      fsdb_obj->ffrReadVarByLogUOff(&scope_offset[scopeOffsetIdx])) {
     Napi::TypeError::New(env, "ffrReadVarByLogUOff failed")
         .ThrowAsJavaScriptException();
     return;
@@ -544,11 +577,9 @@ void __EndArray() {
 
 void loadSignals(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
+  if (!CHECK_LENGTH(env, info, 1)) return;
+  if (!CHECK_ARRAY(env, info[0])) return;
 
-  if (info.Length() < 1 || !info[0].IsArray()) {
-    Napi::TypeError::New(env, "Expected array").ThrowAsJavaScriptException();
-    return;
-  }
   Napi::Array signalIdList = info[0].As<Napi::Array>();
 
   uint32_t len = signalIdList.Length();
@@ -575,19 +606,17 @@ Napi::Object getValueChanges(const Napi::CallbackInfo &info) {
   Napi::Array valueChanges = Napi::Array::New(env);
   result.Set("valueChanges", valueChanges);
 
-  double _min = 0.0;
-  double _max = 0.0;
-
-  if (info.Length() < 1 || !info[0].IsNumber()) {
-    Napi::TypeError::New(env, "Expected number").ThrowAsJavaScriptException();
-    return result;
-  }
+  if (!CHECK_LENGTH(env, info, 1)) return result;
+  if (!CHECK_NUMBER(env, info[0])) return result;
 
 #ifdef FSDB_USE_32B_IDCODE
   fsdbVarIdcode var_idcode = info[0].As<Napi::Number>().Int32Value();
 #else
   fsdbVarIdcode var_idcode = info[0].As<Napi::Number>().Int64Value();
 #endif
+
+  double _min = 0.0;
+  double _max = 0.0;
 
   fsdbTag64 time;
   ffrVCTrvsHdl vc_trvs_hdl = fsdb_obj->ffrCreateVCTraverseHandle(var_idcode);
@@ -621,11 +650,8 @@ Napi::Object getValueChanges(const Napi::CallbackInfo &info) {
 
 void unloadSignal(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
-
-  if (info.Length() < 1 || !info[0].IsNumber()) {
-    Napi::TypeError::New(env, "Expected number").ThrowAsJavaScriptException();
-    return;
-  }
+  if (!CHECK_LENGTH(env, info, 1)) return;
+  if (!CHECK_NUMBER(env, info[0])) return;
 
 #ifdef FSDB_USE_32B_IDCODE
   fsdbVarIdcode var_idcode = info[0].As<Napi::Number>().Int32Value();

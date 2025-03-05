@@ -373,8 +373,8 @@ static void __DumpScope(fsdbTreeCBDataScope *scope) {
 
   // fprintf(stderr, "<Scope> name:%s  type:%s\n", scope->name, type);
 
-  module_path_stack.push_back(scope->name);
   std::string path = joinModulePath(module_path_stack);
+  module_path_stack.push_back(scope->name);
 
   std::vector<Napi::Value> args;
   args.push_back(Napi::String::New(env_global, scope->name));

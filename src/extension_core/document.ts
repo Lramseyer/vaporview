@@ -470,7 +470,7 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
     wasmWorker: Worker,
     wasmModule: WebAssembly.Module,
     delegate: VaporviewDocumentDelegate,
-  ): Promise<VaporviewDocument | PromiseLike<VaporviewDocument>> {
+  ): Promise<VaporviewDocumentWasm | PromiseLike<VaporviewDocumentWasm>> {
 
     const fsWrapper = await getFsWrapper(uri);
     const document  = new VaporviewDocumentWasm(uri, fsWrapper, wasmWorker, delegate);
@@ -820,9 +820,13 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
     if (!element) return;
     // Only one scope is allowed to be reading vars at a time
     this.fsdbCurrentScope = element;
+
+    let modulePath = "";
+    if (element.modulePath !== "") {modulePath += element.modulePath + ".";}
+    modulePath += element.name;
     await this.callFsdbWorkerTask({
       command: 'readVars',
-      modulePath: element.modulePath,
+      modulePath: modulePath,
       scopeOffsetIdx: element.scopeOffsetIdx
     });
     // TODO(heyfey): Wait for all callbacks finish
@@ -849,7 +853,8 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
       });
     });
 
-    signalIdList.forEach(async (signalId) => {
+    // Map each signalId to a promise for handling its task.
+    const tasks = signalIdList.map(async (signalId) => {
       const result = await this.callFsdbWorkerTask({
         command: 'getValueChanges',
         signalId: signalId
@@ -869,6 +874,8 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
         signalId: signalId
       });
     });
+    // Run all tasks concurrently and wait for them to complete.
+    // await Promise.all(tasks);
   }
 
   public async unload() {

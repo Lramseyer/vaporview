@@ -196,19 +196,24 @@
           "group": "0_default@6"
         },
         {
+          "command": "vaporview.copyFullName",
+          "when": "view == 'netlistContainer' || view == 'displaylistContainer'",
+          "group": "1_misc"
+        },
+        {
           "command": "vaporview.saveViewerSettings",
           "when": "view == 'netlistContainer' || view == 'displaylistContainer'",
-          "group": "1_saveLoad@1"
+          "group": "2_saveLoad@1"
         },
         {
           "command": "vaporview.loadViewerSettings",
           "when": "view == 'netlistContainer' || view == 'displaylistContainer'",
-          "group": "1_saveLoad@2"
+          "group": "2_saveLoad@2"
         },
         {
           "command": "vaporview.reloadFile",
           "when": "view == 'netlistContainer' || view == 'displaylistContainer'",
-          "group": "2_reload"
+          "group": "3_reload"
         }
       ],
       "webview/context": [
@@ -238,17 +243,22 @@
           "group": "0_default@6"
         },
         {
+          "command": "vaporview.copyFullName",
+          "when": "webviewSection == 'signal'",
+          "group": "1_misc"
+        },
+        {
           "command": "vaporview.saveViewerSettings",
-          "group": "1_saveLoad@1"
+          "group": "2_saveLoad@1"
         },
         {
           "command": "vaporview.loadViewerSettings",
-          "group": "1_saveLoad@2"
+          "group": "2_saveLoad@2"
         },
         {
           "submenu": "vaporview.waveDrom",
           "when": "webviewSection == 'signal'",
-          "group": "2_waveDrom"
+          "group": "3_waveDrom"
         }
       ],
       "vaporview.valueFormat": [
@@ -521,6 +531,10 @@
       {
         "command": "vaporview.viewVaporViewSidebar",
         "title": "View VaporView Sidebar"
+      },
+      {
+        "command": "vaporview.copyFullName",
+        "title": "Copy Full Name"
       },
       {
         "command": "vaporview.saveViewerSettings",

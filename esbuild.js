@@ -36,7 +36,7 @@ const extensionConfig = {
   format: 'cjs',
   platform: 'node',
   outfile: 'dist/extension.js',
-  external: ['vscode', '../build/Release/fsdb_reader.node'],
+  external: ['vscode'], // Only external we actually need
   plugins: [esbuildProblemMatcherPlugin],
 };
 
@@ -46,6 +46,17 @@ const workerConfig = {
   format: 'iife', // Self-executing function for worker scope
   platform: 'node',
   outfile: 'dist/worker.js',
+  plugins: [esbuildProblemMatcherPlugin],
+  target: 'es2020', // Modern browsers support WASM
+};
+
+const fsdbWorkerConfig = {
+  ...commonConfig,
+  entryPoints: ['src/extension_core/fsdb_worker.ts'],
+  format: 'iife', // Self-executing function for worker scope
+  platform: 'node',
+  outfile: 'dist/fsdb_worker.js',
+  external: ['../build/Release/fsdb_reader.node'],
   plugins: [esbuildProblemMatcherPlugin],
   target: 'es2020', // Modern browsers support WASM
 };
@@ -68,17 +79,20 @@ async function main() {
       const extensionCtx = await esbuild.context(extensionConfig);
       const webviewCtx = await esbuild.context(webviewConfig);
       const workerCtx = await esbuild.context(workerConfig);
+      const fsdbWorkerCtx = await esbuild.context(fsdbWorkerConfig);
 
       await Promise.all([
         extensionCtx.watch(),
         webviewCtx.watch(),
-        workerCtx.watch()
+        workerCtx.watch(),
+        fsdbWorkerCtx.watch()
       ]);
     } else {
       await Promise.all([
         esbuild.build(extensionConfig),
         esbuild.build(webviewConfig),
-        esbuild.build(workerConfig)
+        esbuild.build(workerConfig),
+        esbuild.build(fsdbWorkerConfig)
       ]);
     }
   } catch (err) {

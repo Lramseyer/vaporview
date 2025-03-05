@@ -163,7 +163,7 @@ export class WaveformDataManager {
     this.updateWaveform(signalId, transitionData, message.min, message.max);
   }
 
-  updateWaveformFsdb(message: any) {
+  updateWaveformFull(message: any) {
     const signalId = message.signalId;
     this.receive(signalId);
 

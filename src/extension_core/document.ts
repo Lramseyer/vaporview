@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import { promisify } from 'util';
 import { Worker } from 'worker_threads';
+import { ChildProcess, fork } from 'child_process';
+import * as path from 'path';
 import * as fs from 'fs';
 declare function requirefs(_name: "fs"): typeof fs;
 
@@ -38,6 +40,17 @@ interface fsWrapper {
   loadFile: (uri: vscode.Uri, fileType: string) => void;
   readSlice: (fd: number, buffer: Uint8Array, offset: number, length: number, position: number) => number;
   close: (fd: number) => void;
+}
+
+type FsdbWorkerMessage = {
+  id: string;
+  result: any;
+}
+
+type FsdbWaveformData = {
+  valueChanges: [number, string][];
+  min: number;
+  max: number;
 }
 
 // Scopes
@@ -229,23 +242,14 @@ const getFsWrapper = async (uri: vscode.Uri): Promise<fsWrapper> => {
 };
 
 // #region VaporviewDocument
-export class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocument {
+export abstract class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocument {
 
   private readonly _uri: vscode.Uri;
-  private fileReader: fsWrapper;
   // Hierarchy
   public treeData:         NetlistItem[] = [];
   public displayedSignals: NetlistItem[] = [];
-  private _netlistIdTable: NetlistIdTable = [];
-  // Wasm
-  private readonly _delegate: VaporviewDocumentDelegate;
-  public _wasmWorker: Worker;
-  public wasmApi: any;
-  private fileBuffer: Uint8Array;
-  // Fsdb
-  public isFsdb: boolean = false;
-  private fsdbAddon: any;
-  private fsdbTopModuleCount: number = 0;
+  protected _netlistIdTable: NetlistIdTable = [];
+  protected readonly _delegate: VaporviewDocumentDelegate;
   // Webview
   public webviewPanel: vscode.WebviewPanel | undefined = undefined;
   private _webviewInitialized: boolean = false;
@@ -271,153 +275,15 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     numberFormat: "hexadecimal",
   };
 
-  static async create(
-    uri: vscode.Uri,
-    backupId: string | undefined,
-    wasmWorker: Worker,
-    wasmModule: WebAssembly.Module,
-    delegate: VaporviewDocumentDelegate,
-  ): Promise<VaporviewDocument | PromiseLike<VaporviewDocument>> {
-
-    const fsWrapper = await getFsWrapper(uri);
-    const document  = new VaporviewDocument(uri, fsWrapper, wasmWorker, delegate);
-    await document.createWasmApi(wasmModule);
-    document.load();
-    return document;
-  }
-
-  private constructor(
-    uri: vscode.Uri,
-    fileReader: fsWrapper,
-    _wasmWorker: Worker,
-    delegate: VaporviewDocumentDelegate,
-  ) {
+  constructor(uri: vscode.Uri, delegate: VaporviewDocumentDelegate) {
     super(() => this.dispose());
-    this._uri        = uri;
-    this._wasmWorker = _wasmWorker;
-    this._delegate   = delegate;
-    this.fileBuffer  = new Uint8Array(65536);
-    this.fileReader = fileReader;
+    this._uri = uri;
+    this._delegate = delegate;
   }
-
-  private async load() {
-
-    const fileType = this.uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
-    if (fileType === 'fsdb') {
-      if (process.platform !== 'linux') {
-        vscode.window.showErrorMessage("FSDB support is currently available on Linux only.");
-        return;
-      }
-      this.isFsdb = true;
-      this.loadFsdb();
-    } else {
-      this._load(fileType);
-    }
-  }
-
-  // Load VCD, FST, GHW files using WASM
-  private async _load(fileType: string) {
-    await this.fileReader.loadFile(this.uri, fileType);
-    await vscode.window.withProgress({
-      location: vscode.ProgressLocation.Notification,
-      title: "Parsing Netlist for " + this.uri.fsPath,
-      cancellable: false
-    }, async () => {
-      await this.wasmApi.loadfile(BigInt(this.fileReader.fileSize), this.fileReader.fd, this.fileReader.loadStatic, this.fileReader.bufferSize);
-    });
-
-    this._delegate.updateViews(this.uri);
-    await this._readBody(fileType);
-  }
-
-  // Load FSDB using node-addon-api
-  private async loadFsdb() {
-    // Lazy load the node-addon
-    try {
-      this.fsdbAddon = await require("../build/Release/fsdb_reader.node");
-    } catch (error) {
-      vscode.window.showErrorMessage("Failed to load FSDB reader, is LD_LIBRARY_PATH properly set? (" + error + ")");
-      return;
-    }
-
-    await this.fsdbAddon.openFsdb(this.uri.fsPath);
-    await vscode.window.withProgress({
-      location: vscode.ProgressLocation.Notification,
-      title: "Reading Scopes for " + this.uri.fsPath,
-      cancellable: false
-    }, async () => {
-      await this.fsdbAddon.readScopes(this);
-      await this.fsdbAddon.readMetadata(this);
-    });
-    this._delegate.updateViews(this.uri);
-  }
-
-  public readonly service: filehandler.Imports.Promisified = {
-
-    log: (msg: string) => {console.log(msg);},
-    fsread: (fd: number, offset: bigint, length: number): Uint8Array => {
-
-      const bytesRead = this.fileReader.readSlice(fd, this.fileBuffer, 0, length, Number(offset));
-      return this.fileBuffer.subarray(0, bytesRead);
-    },
-    getsize: (fd: number): bigint => {
-      //const stats = fs.fstatSync(fd);
-      return BigInt(this.fileReader.fileSize);
-    },
-    setscopetop: (name: string, id: number, tpe: string) => {
-
-      const scope = createScope(name, tpe, "", id, -1);
-      this.treeData.push(scope);
-      this._netlistIdTable[id] = {netlistItem: scope, displayedItem: undefined, signalId: 0};
-    },
-    setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number) => {
-
-      const varItem = createVar(name, tpe, encoding, "", id, signalid, width, msb, lsb, this.isFsdb);
-      this.treeData.push(varItem);
-      this._netlistIdTable[id] = {netlistItem: varItem, displayedItem: undefined, signalId: signalid};
-    },
-    setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
-      this.setMetadata(scopecount, varcount, timescale, timeunit);
-    },
-    setchunksize: (chunksize: bigint, timeend: bigint) => {
-      this.setChunkSize(chunksize, timeend);
-    },
-    sendtransitiondatachunk: (signalid: number, totalchunks: number, chunknum: number, min: number, max: number ,transitionData: string) => {
-
-      this.webviewPanel?.webview.postMessage({
-        command: 'update-waveform-chunk',
-        signalId: signalid,
-        transitionDataChunk: transitionData,
-        totalChunks: totalchunks,
-        chunkNum: chunknum,
-        min: min,
-        max: max
-      });
-    }
-  };
-  // The implementation of the log function that is called from WASM
 
   public get uri() { return this._uri; }
   public get netlistIdTable(): NetlistIdTable { return this._netlistIdTable; }
   public get webviewInitialized(): boolean { return this._webviewInitialized; }
-
-  public async createWasmApi(wasmModule: WebAssembly.Module) {
-    this.wasmApi = await filehandler._.bind(this.service, wasmModule, this._wasmWorker);
-  }
-
-  private async _readBody(fileType: string | undefined) {
-    if (fileType === 'vcd') {
-      vscode.window.withProgress({
-        location: vscode.ProgressLocation.Notification,
-        title: "Parsing Waveforms for " + this.uri.fsPath,
-        cancellable: false
-      }, async (progress) => {
-        await this.wasmApi.readbody();
-      });
-    } else {
-      await this.wasmApi.readbody();
-    }
-  }
 
   public onWebviewReady(webviewPanel: vscode.WebviewPanel) {
     //console.log("Webview Ready");
@@ -544,7 +410,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     // Render the signal with the provided ID
     if (!this.webviewPanel) {return;}
 
-    this.webviewPanel.webview.postMessage({ 
+    this.webviewPanel.webview.postMessage({
       command: 'setSelectedSignal',
       netlistId: netlistId
     });
@@ -553,21 +419,161 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public removeSignalFromWebview(netlistId: NetlistId) {
     if (!this.webviewPanel) {return;}
 
-    this.webviewPanel.webview.postMessage({ 
+    this.webviewPanel.webview.postMessage({
       command: 'remove-signal',
       netlistId: netlistId
    });
   }
 
+  public async unloadTreeData() {
+    this.treeData         = [];
+    this.displayedSignals = [];
+    this._netlistIdTable  = [];
+  }
+
+  public async unloadWebview() {
+    this._webviewInitialized = false;
+    //console.log("Unloading webview");
+    this.webviewPanel?.webview.postMessage({command: 'unload'});
+  }
+
+  public async reload() {
+    await this.unload();
+    await this.load();
+  }
+
+  public abstract getChildrenExternal(element: NetlistItem | undefined): Promise<NetlistItem[]>;
+  public abstract getSignalData(signalIdList: SignalId[]): Promise<void>;
+  protected abstract load(): Promise<void>;
+  public abstract unload(): Promise<void>;
+  public abstract dispose(): void;
+
+  //private readonly _onDidDispose = this._register(new vscode.EventEmitter<void>());
+  /**
+   * Fired when the document is disposed of.
+   */
+  //public readonly onDidDispose = this._onDidDispose.event;
+
+}
+
+// #region VaporviewDocumentWasm
+export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.CustomDocument {
+  private fileReader: fsWrapper;
+  // Wasm
+  public _wasmWorker: Worker;
+  public wasmApi: any;
+  private fileBuffer: Uint8Array;
+
+  static async create(
+    uri: vscode.Uri,
+    backupId: string | undefined,
+    wasmWorker: Worker,
+    wasmModule: WebAssembly.Module,
+    delegate: VaporviewDocumentDelegate,
+  ): Promise<VaporviewDocument | PromiseLike<VaporviewDocument>> {
+
+    const fsWrapper = await getFsWrapper(uri);
+    const document  = new VaporviewDocumentWasm(uri, fsWrapper, wasmWorker, delegate);
+    await document.createWasmApi(wasmModule);
+    document.load();
+    return document;
+  }
+
+  constructor(
+    uri: vscode.Uri,
+    fileReader: fsWrapper,
+    _wasmWorker: Worker,
+    delegate: VaporviewDocumentDelegate,
+  ) {
+    super(uri, delegate);
+    this._wasmWorker = _wasmWorker;
+    this.fileBuffer  = new Uint8Array(65536);
+    this.fileReader = fileReader;
+  }
+
+  // Load VCD, FST, GHW files using WASM
+  protected async load() {
+
+    const fileType = this.uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
+    await this.fileReader.loadFile(this.uri, fileType);
+    await vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: "Parsing Netlist for " + this.uri.fsPath,
+      cancellable: false
+    }, async () => {
+      await this.wasmApi.loadfile(BigInt(this.fileReader.fileSize), this.fileReader.fd, this.fileReader.loadStatic, this.fileReader.bufferSize);
+    });
+
+    this._delegate.updateViews(this.uri);
+    await this._readBody(fileType);
+  }
+
+  public readonly service: filehandler.Imports.Promisified = {
+
+    log: (msg: string) => {console.log(msg);},
+    fsread: (fd: number, offset: bigint, length: number): Uint8Array => {
+
+      const bytesRead = this.fileReader.readSlice(fd, this.fileBuffer, 0, length, Number(offset));
+      return this.fileBuffer.subarray(0, bytesRead);
+    },
+    getsize: (fd: number): bigint => {
+      //const stats = fs.fstatSync(fd);
+      return BigInt(this.fileReader.fileSize);
+    },
+    setscopetop: (name: string, id: number, tpe: string) => {
+
+      const scope = createScope(name, tpe, "", id, -1);
+      this.treeData.push(scope);
+      this._netlistIdTable[id] = {netlistItem: scope, displayedItem: undefined, signalId: 0};
+    },
+    setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number) => {
+
+      const varItem = createVar(name, tpe, encoding, "", id, signalid, width, msb, lsb, false /*isFsdb*/);
+      this.treeData.push(varItem);
+      this._netlistIdTable[id] = {netlistItem: varItem, displayedItem: undefined, signalId: signalid};
+    },
+    setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
+      this.setMetadata(scopecount, varcount, timescale, timeunit);
+    },
+    setchunksize: (chunksize: bigint, timeend: bigint) => {
+      this.setChunkSize(chunksize, timeend);
+    },
+    sendtransitiondatachunk: (signalid: number, totalchunks: number, chunknum: number, min: number, max: number ,transitionData: string) => {
+
+      this.webviewPanel?.webview.postMessage({
+        command: 'update-waveform-chunk',
+        signalId: signalid,
+        transitionDataChunk: transitionData,
+        totalChunks: totalchunks,
+        chunkNum: chunknum,
+        min: min,
+        max: max
+      });
+    }
+  };
+  // The implementation of the log function that is called from WASM
+
+  public async createWasmApi(wasmModule: WebAssembly.Module) {
+    this.wasmApi = await filehandler._.bind(this.service, wasmModule, this._wasmWorker);
+  }
+
+  private async _readBody(fileType: string | undefined) {
+    if (fileType === 'vcd') {
+      vscode.window.withProgress({
+        location: vscode.ProgressLocation.Notification,
+        title: "Parsing Waveforms for " + this.uri.fsPath,
+        cancellable: false
+      }, async (progress) => {
+        await this.wasmApi.readbody();
+      });
+    } else {
+      await this.wasmApi.readbody();
+    }
+  }
+
   async getChildrenExternal(element: NetlistItem | undefined) {
 
     if (!element) {return Promise.resolve(this.treeData);} // Return the top-level netlist items
-    if (this.isFsdb) {
-      if (element.fsdbVarLoaded) {return Promise.resolve(element.children);}
-      await this.fsdbAddon.readVars(element, this.netlistIdTable);
-      element.fsdbVarLoaded = true;
-      return Promise.resolve(element.children);
-    }
     if (!this.wasmApi) {return Promise.resolve([]);}
     if (element.children.length > 0) {return Promise.resolve(element.children);}
 
@@ -644,73 +650,255 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     return Promise.resolve(element.children);
   }
 
-  public async getSignalDataFsdb(signalIdList: SignalId[]) {
-    await vscode.window.withProgress({
-      location: vscode.ProgressLocation.Notification,
-      title: "Loading signals",
-      cancellable: false
-    }, async () => {
-      await this.fsdbAddon.loadSignals(signalIdList);
-    });
-
-    signalIdList.forEach(async (signalId) => {
-      const result = await this.fsdbAddon.getValueChanges(signalId);
-      this.webviewPanel?.webview.postMessage({
-        command: 'update-waveform-fsdb',
-        signalId: signalId,
-        transitionData: result.valueChanges,
-        min: result.min,
-        max: result.max
-      });
-      this.fsdbAddon.unloadSignal(signalId);
-    });
+  public async getSignalData(signalIdList: SignalId[]) {
+    this.wasmApi.getsignaldata(signalIdList);
   }
 
   public async unload() {
     //console.log("Reloading document");
-    this.treeData         = [];
-    this.displayedSignals = [];
-    this._netlistIdTable  = [];
-    if (this.isFsdb) {
-      // TODO(heyfey): Bug: displayed signals not reset on reload
-      await this.fsdbAddon.unload();
-      this.fsdbAddon = null;
-      this.isFsdb = false;
-      this.fsdbTopModuleCount = 0;
-    } else {
-      this.fileReader.close(this.fileReader.fd);
-      await this.wasmApi.unload();
-    }
+    this.unloadTreeData();
+
+    this.fileReader.close(this.fileReader.fd);
+    await this.wasmApi.unload();
+
     this.metadata.timeTableLoaded = false;
-    this._webviewInitialized = false;
-    //console.log("Unloading webview");
-    this.webviewPanel?.webview.postMessage({command: 'unload'});
+    this.unloadWebview();
   }
 
-  public async reload() {
-    await this.unload();
-    await this.load();
-  }
-
-  //private readonly _onDidDispose = this._register(new vscode.EventEmitter<void>());
   /**
-   * Fired when the document is disposed of.
-   */
-  //public readonly onDidDispose = this._onDidDispose.event;
-
-  /**
-   * Called by VS Code when there are no more references to the document.
-   * This happens when all editors for it have been closed.
-   */
+  * Called by VS Code when there are no more references to the document.
+  * This happens when all editors for it have been closed.
+  */
   dispose(): void {
     this.unload();
     this._wasmWorker.terminate();
     this._delegate.updateViews(this.uri);
     this._delegate.removeFromCollection(this.uri, this);
   }
+}
+
+// #region VaporviewDocumentFsdb
+export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.CustomDocument {
+  // Fsdb
+  public fsdbWorker: ChildProcess | undefined = undefined;
+  private fsdbTopModuleCount: number = 0;
+  private fsdbCurrentScope: NetlistItem | undefined = undefined;
+
+  static async create(
+    uri: vscode.Uri,
+    backupId: string | undefined,
+    delegate: VaporviewDocumentDelegate,
+  ): Promise<VaporviewDocumentFsdb | PromiseLike<VaporviewDocumentFsdb>> {
+
+    const document = new VaporviewDocumentFsdb(uri, delegate);
+    document.load();
+    return document;
+  }
+
+  constructor(
+    uri: vscode.Uri,
+    delegate: VaporviewDocumentDelegate,
+  ) {
+    super(uri, delegate);
+  }
+
+  protected async load() {
+    if (process.platform !== 'linux') {
+      vscode.window.showErrorMessage("FSDB support is currently available on Linux only.");
+      return;
+    }
+    // Create FSDB worker that loads FSDB using node-addon-api
+    const fsdbReaderLibsPath = vscode.workspace.getConfiguration('vaporview').get('fsdbReaderLibsPath');
+    this.fsdbWorker = fork(path.resolve(__dirname, 'fsdb_worker.js'), {
+      env: {
+        ...process.env,
+        LD_LIBRARY_PATH: `${process.env.LD_LIBRARY_PATH ? process.env.LD_LIBRARY_PATH + ':' : ''}${fsdbReaderLibsPath}`
+      }
+    });
+    this.fsdbWorker.setMaxListeners(50);
+    this.setupFsdbWorkerListeners();
+
+    await this.callFsdbWorkerTask({
+      command: 'openFsdb',
+      fsdbPath: this.uri.fsPath
+    });
+
+    await vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: "Reading Scopes for " + this.uri.fsPath,
+      cancellable: false
+    }, async () => {
+      await this.callFsdbWorkerTask({
+        command: 'readScopes'
+      });
+    });
+
+    await vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: "Reading Metadata for " + this.uri.fsPath,
+      cancellable: false
+    }, async () => {
+      await this.callFsdbWorkerTask({
+        command: 'readMetadata'
+      });
+    });
+
+    this._delegate.updateViews(this.uri);
+  }
+
+  private setupFsdbWorkerListeners(): void {
+    if (!this.fsdbWorker) return;
+    this.fsdbWorker.on('online', () => {
+      console.log('FSDB worker is online.');
+    });
+
+    this.fsdbWorker.on('error', (err: Error) => {
+      console.error('FSDB worker error:', err);
+    });
+
+    this.fsdbWorker.on('exit', (code: any, signal: any) => {
+      if (code !== 0) {
+        console.error(`Child process exited with error code ${code} (signal: ${signal})`);
+      }
+    });
+
+    this.fsdbWorker.on('message', (msg: any) => {
+      // console.log('Main thread received:', JSON.stringify(msg, null, 2));
+      this.handleMessage(msg);
+    });
+  }
+
+  private handleMessage(message: any) {
+    switch (message.command) {
+      case 'require-failed': {
+        vscode.window.showErrorMessage("Failed to load FSDB reader, is vaporview.fsdbReaderLibsPath properly set? (" + message.error.code + ")");
+        break;
+      }
+      case 'fsdb-scope-callback': { this.fsdbScopeCallback(message.name, message.type, message.path, message.netlistId, message.scopeOffsetIdx); break; }
+      case 'fsdb-upscope-callback': { this.fsdbUpscopeCallback(); break; }
+      case 'setMetadata': { this.setMetadata(message.scopecount, message.varcount, message.timescale, message.timeunit); break; }
+      case 'setChunkSize': { this.setChunkSize(message.chunksize, message.timeend); break; }
+      case 'fsdb-var-callback': {
+        this.fsdbVarCallback(
+          message.name, message.type, message.encoding, message.path, message.netlistId, message.signalId, message.width, message.msb, message.lsb);
+        break;
+      }
+      case 'fsdb-array-begin-callback': { this.fsdbArrayBeginCallback(message.name, message.path, message.netlistId); break; }
+      case 'fsdb-array-end-callback': { this.fsdbArrayEndCallback(message.size); break; }
+    }
+  }
+
+  private callFsdbWorkerTask(message: any) {
+    if (this.fsdbWorker === undefined) return Promise.resolve([]);
+    return new Promise((resolve, reject) => {
+      // try {
+      //   console.log("callFsdbWorkerTask, message: " + JSON.stringify(message));
+      // } catch (e) {
+      //   console.error('Data is not serializable:', e);
+      // }
+      const id = Math.random().toString(36).substring(2, 9);
+      message.id = id;
+
+      const messageHandler = (message: any) => {
+        if (message.id === id) {
+          this.fsdbWorker!.off('message', messageHandler);
+          if (message.error) {
+            console.log(message.error);
+            return reject(new Error(message.error));
+          }
+          resolve(message);
+        }
+      };
+
+      this.fsdbWorker!.on('message', messageHandler);
+
+      this.fsdbWorker!.send(message);
+    });
+  }
+
+  private async fsdbReadVars(element: NetlistItem | undefined) {
+    if (!element) return;
+    // Only one scope is allowed to be reading vars at a time
+    this.fsdbCurrentScope = element;
+    await this.callFsdbWorkerTask({
+      command: 'readVars',
+      modulePath: element.modulePath,
+      scopeOffsetIdx: element.scopeOffsetIdx
+    });
+    // TODO(heyfey): Wait for all callbacks finish
+  }
+
+  async getChildrenExternal(element: NetlistItem | undefined) {
+
+    if (!element) { return Promise.resolve(this.treeData); } // Return the top-level netlist items
+    if (element.fsdbVarLoaded) { return Promise.resolve(element.children); }
+    await this.fsdbReadVars(element);
+    element.fsdbVarLoaded = true;
+    return Promise.resolve(element.children);
+  }
+
+  public async getSignalData(signalIdList: SignalId[]) {
+    await vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: "Loading signals",
+      cancellable: false
+    }, async () => {
+      await this.callFsdbWorkerTask({
+        command: 'loadSignals',
+        signalIdList: signalIdList
+      });
+    });
+
+    signalIdList.forEach(async (signalId) => {
+      const result = await this.callFsdbWorkerTask({
+        command: 'getValueChanges',
+        signalId: signalId
+      });
+      const message = result as FsdbWorkerMessage;
+      const data = message.result as FsdbWaveformData;
+      this.webviewPanel?.webview.postMessage({
+        command: 'update-waveform-full',
+        signalId: signalId,
+        transitionData: data.valueChanges,
+        min: data.min,
+        max: data.max
+      });
+
+      this.callFsdbWorkerTask({
+        command: 'unloadSignal',
+        signalId: signalId
+      });
+    });
+  }
+
+  public async unload() {
+    //console.log("Reloading document");
+    this.unloadTreeData();
+
+    await this.callFsdbWorkerTask({ command: 'unload' });
+    if (this.fsdbWorker !== undefined) {
+      this.fsdbWorker.disconnect();
+      this.fsdbWorker = undefined;
+    }
+    this.fsdbTopModuleCount = 0;
+    this.fsdbCurrentScope = undefined;
+
+    this.metadata.timeTableLoaded = false;
+    this.unloadWebview();
+  }
 
   /**
-   * Called by fsdbAddon when traversing a scope.
+  * Called by VS Code when there are no more references to the document.
+  * This happens when all editors for it have been closed.
+  */
+  dispose(): void {
+    this.unload();
+    this._delegate.updateViews(this.uri);
+    this._delegate.removeFromCollection(this.uri, this);
+  }
+
+  /**
+   * Called by fsdbWorker when traversing a scope.
    * fsdbScopeCallback and fsdbUpscopeCallback work as a pair and operate treeData as a stack.
    */
   fsdbScopeCallback(name: string, type: string, path: string, netlistId: number, scopeOffsetIdx: number) {
@@ -718,7 +906,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   /**
-   * Called by fsdbAddon when finished traversing a scope. Must be paired with a fsdbScopeCallback.
+   * Called by fsdbWorker when finished traversing a scope. Must be paired with a fsdbScopeCallback.
    */
   fsdbUpscopeCallback() {
     // Operate treeData as a stack
@@ -730,6 +918,33 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     } else {
       this.treeData[this.treeData.length - 1].children.push(scope);
     }
+  }
+
+  /**
+  * Called by fsdbWorker when traversing a var.
+  */
+  fsdbVarCallback(name: string, type: string, encoding: string, path: string, netlistId: NetlistId, signalId: SignalId, width: number, msb: number, lsb: number) {
+    const varItem = createVar(name, type, encoding, path, netlistId, signalId, width, msb, lsb, true /*isFsdb*/);
+    this.fsdbCurrentScope!.children.push(varItem);
+
+    this.netlistIdTable[varItem.netlistId] = { netlistItem: varItem, displayedItem: undefined, signalId: varItem.signalId };
+  }
+
+  fsdbArrayBeginCallback(name: string, path: string, netlistId: number) {
+    this.fsdbCurrentScope!.children.push(createScope(name, "vhdlarray", path, netlistId, -1));
+  }
+
+  fsdbArrayEndCallback(size: number) {
+    const arrayElements = [];
+    for (let i = 0; i < size; i++) {
+      const element = this.fsdbCurrentScope!.children.pop()!;
+      arrayElements.push(element);
+    }
+    // const array = this.children[this.children.length - 1];
+    const array = this.fsdbCurrentScope!.children.pop()!; // The last item would be the scope item for the array
+    array.children.push(...arrayElements.reverse());
+    array.fsdbVarLoaded = true;
+    this.fsdbCurrentScope!.children.unshift(array); // Move to front to align with wellen
   }
 }
 
@@ -952,32 +1167,4 @@ export class NetlistItem extends vscode.TreeItem {
     this._onDidChangeCheckboxState.fire(this);
   }
 
-  /**
-   * Called by fsdbAddon when traversing a var.
-   */
-  fsdbVarCallback(netlistIdTable: NetlistIdTable, name: string, type: string, encoding: string, path: string, netlistId: NetlistId, signalId: SignalId, width: number, msb: number, lsb: number) {
-    const varItem = createVar(name, type, encoding, path, netlistId, signalId, width, msb, lsb, true /*isFsdb*/);
-    this.children.push(varItem);
-
-    // netlistIdTable is actually document.netlistIdTable object, which is passed to
-    // fsdbAddon in getChildrenExternal, then later passed to this function from fsdbAddon
-    netlistIdTable[varItem.netlistId] = { netlistItem: varItem, displayedItem: undefined, signalId: varItem.signalId };
-  }
-
-  fsdbArrayBeginCallback(name: string, path: string, netlistId: number) {
-    this.children.push(createScope(name, "vhdlarray", path, netlistId, -1));
-  }
-
-  fsdbArrayEndCallback(size: number) {
-    const arrayElements = [];
-    for (let i = 0; i < size; i++) {
-      const element = this.children.pop()!;
-      arrayElements.push(element);
-    }
-    // const array = this.children[this.children.length - 1];
-    const array = this.children.pop()!; // The last item would be the scope item for the array
-    array.children.push(...arrayElements.reverse());
-    array.fsdbVarLoaded = true;
-    this.children.unshift(array); // Move to front to align with wellen
-  }
 }

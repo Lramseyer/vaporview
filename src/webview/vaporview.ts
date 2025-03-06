@@ -168,7 +168,6 @@ class VaporviewWebview {
 
   // event handler variables
   events: EventHandler;
-  scrollcountTimeout: any = null;
 
   constructor(
     events: EventHandler, 
@@ -211,7 +210,6 @@ class VaporviewWebview {
     this.labelsScroll.addEventListener(    'wheel', (e) => {this.syncVerticalScroll(e, labelsScroll.scrollTop);});
     this.transitionScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, transitionScroll.scrollTop);});
 
-    this.resetTouchpadScrollCount = this.resetTouchpadScrollCount.bind(this);
     this.handleMarkerSet          = this.handleMarkerSet.bind(this);
     this.handleSignalSelect       = this.handleSignalSelect.bind(this);
     this.reorderSignals           = this.reorderSignals.bind(this);
@@ -219,9 +217,6 @@ class VaporviewWebview {
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
     this.events.subscribe(ActionType.ReorderSignals, this.reorderSignals);
-    this.events.subscribe(ActionType.Zoom, (direction: number, time: number, pixelLeft: number) => {
-      this.resetTouchpadScrollCount();
-    });
   }
 
   scrollHandler(e: any) {
@@ -230,8 +225,11 @@ class VaporviewWebview {
     //console.log(event);
 
     if (!viewerState.touchpadScrolling) {e.preventDefault();}
+
     const deltaY = e.deltaY;
     const deltaX = e.deltaX;
+    const touchpadScrollDivisor = 12;
+
     if (e.shiftKey && !viewerState.touchpadScrolling) {
       e.stopPropagation();
       this.scrollArea.scrollTop      += deltaY || deltaX;
@@ -249,13 +247,7 @@ class VaporviewWebview {
 
       // Handle zooming with touchpad since we apply scroll attenuation
       else if (viewerState.touchpadScrolling) {
-        const touchpadScrollDivisor = 12;
-        this.viewport.touchpadScrollCount += deltaY;
-        clearTimeout(this.scrollcountTimeout);
-        this.scrollcountTimeout = setTimeout(this.resetTouchpadScrollCount, 1000);
-        if (this.viewport.touchpadScrollCount > touchpadScrollDivisor || this.viewport.touchpadScrollCount < -touchpadScrollDivisor) {
-          this.events.dispatch(ActionType.Zoom, Math.round(this.viewport.touchpadScrollCount / touchpadScrollDivisor), time, pixelLeft);
-        }
+        this.events.dispatch(ActionType.Zoom, deltaY / touchpadScrollDivisor, time, pixelLeft);
       }
 
     } else {
@@ -278,7 +270,6 @@ class VaporviewWebview {
     if (e.key === 'd' && e.ctrlKey) {
       console.log(this.viewport.updatePending);
       console.log(viewerState);
-      //console.log(this.viewport.dataCache);
       console.log(dataManager.netlistData);
     }
 
@@ -389,10 +380,6 @@ class VaporviewWebview {
     this.transitionScroll.scrollTop = this.scrollArea.scrollTop;
     viewport.renderAllWaveforms(false);
     this.viewport.updatePending     = false;
-  }
-
-  resetTouchpadScrollCount() {
-    this.viewport.touchpadScrollCount = 0;
   }
 
   unload() {

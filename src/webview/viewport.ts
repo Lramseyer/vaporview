@@ -26,10 +26,6 @@ export class Viewport {
   highlightListenerSet      = false;
   highlightDebounce: any    = null;
 
-  // UI preferences
-  rulerNumberSpacing: number = 100;
-  rulerTickSpacing: number   = 10;
-
   // Scroll handler variables
   pseudoScrollLeft: number    = 0;
   contentLeft: number         = 0;
@@ -45,17 +41,22 @@ export class Viewport {
   timeScrollLeft: number      = 0;
   viewerWidthTime: number     = 0;
   timeScrollRight: number     = 0;
+  timeScale: number           = 1;
+  timeStop: number            = 0;
 
-  touchpadScrollCount: number = 0;
   scrollbarMoved: boolean     = false;
   scrollbarStartX: number     = 0;
 
   // Zoom level variables
-  timeScale: number           = 1;
   zoomRatio: number           = 1;
+  defaultZoom: number         = 1;
   pixelTime: number           = 1;
   maxZoomRatio: number        = 64;
-  timeStop: number            = 0;
+  minZoomRatio: number        = 1 / 64;
+  rulerNumberSpacing: number  = 100;
+  rulerTickSpacing: number    = 10;
+  rulerNumberIncrement: number = 100;
+
   pixelRatio: number          = 1;
   updatePending: boolean      = false;
   scrollEventPending: boolean = false;
@@ -143,18 +144,20 @@ export class Viewport {
   init(metadata: any) {
     document.title     = metadata.filename;
     this.pixelRatio    = window.devicePixelRatio || 1;
+    this.defaultZoom   = metadata.defaultZoom;
     this.zoomRatio     = metadata.defaultZoom;
     this.pixelTime     = 1 / this.zoomRatio;
     this.timeScale     = metadata.timeScale;
     this.timeStop      = metadata.timeEnd;
     this.maxZoomRatio  = this.zoomRatio * 64;
-    this.updatePending = true;
+    //this.updatePending = true;
     this.waveformArea.innerHTML = '';
-    this.updateViewportWidth();
-    this.updateRuler();
-    this.updateScrollbarResize();
     this.getThemeColors();
-    this.updatePending = false;
+    this.updateViewportWidth();
+    this.handleZoom(1, 0, 0);
+    //this.updateRuler();
+    //this.updateScrollbarResize();
+    //this.updatePending = false;
   }
 
   async getThemeColors() {
@@ -238,7 +241,6 @@ export class Viewport {
   getTimeFromClick(event: MouseEvent) {
     const bounds    = this.scrollArea.getBoundingClientRect();
     const pixelLeft = Math.round(event.pageX - bounds.left);
-    //return Math.round(pixelLeft * this.pixelTime) + (this.chunkTime * this.dataCache.startIndex);
     return Math.round((pixelLeft + this.pseudoScrollLeft) * this.pixelTime);
   }
 
@@ -367,7 +369,7 @@ export class Viewport {
     const timeEnd   = this.getTimeFromClick(this.highlightEndEvent);
     const time      = Math.round((timeStart + timeEnd) / 2);
     const width     = Math.abs(this.highlightStartEvent.pageX - this.highlightEndEvent.pageX);
-    const amount    = Math.ceil(Math.log2(width / this.viewerWidth));
+    const amount    = Math.log2(width / this.viewerWidth);
 
     if (this.highlightElement) {
       this.highlightElement.remove();
@@ -412,39 +414,6 @@ export class Viewport {
     this.scrollbarStartX = e.clientX;
     const newScrollLeft = Math.round((newPosition / this.maxScrollbarPosition) * this.maxScrollLeft);
     this.handleScrollEvent(newScrollLeft);
-  }
-
-  updateRuler() {
-    let tickX = 10 - (this.pseudoScrollLeft % this.rulerTickSpacing) - 10.5;
-    let numberX = -1 * (this.pseudoScrollLeft % this.rulerNumberSpacing);
-    let numberIncrement = this.rulerNumberSpacing * this.pixelTime;
-    let number = (this.pseudoScrollLeft + numberX) * this.pixelTime;
-    const ctx = this.rulerCanvas;
-    ctx.imageSmoothingEnabled = false;
-    ctx.textRendering = 'optimizeLegibility';
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = this.rulerTextColor;
-    ctx.font = this.fontStyle;
-    ctx.fillStyle = this.rulerTextColor;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.clearRect(0, 0, this.viewerWidth, 40);
-
-    // Draw the Ticks
-    ctx.beginPath();
-    while (tickX <= this.viewerWidth) {
-      ctx.moveTo(tickX, 27.5);
-      ctx.lineTo(tickX, 32.5);
-      tickX += this.rulerTickSpacing;
-    }
-    ctx.stroke();
-
-    // Draw the Numbers
-    while (numberX <= this.viewerWidth + 50) {
-      ctx.fillText((number * this.timeScale).toString(), numberX, 15);
-      numberX += this.rulerNumberSpacing;
-      number += numberIncrement;
-    }
   }
 
   updateMarker() {
@@ -593,7 +562,40 @@ export class Viewport {
     if (element) {element.classList.add('is-selected');}
   }
 
-  // Event handler helper functions
+  updateRuler() {
+    let tickX = this.rulerTickSpacing - (this.pseudoScrollLeft % this.rulerTickSpacing) - (this.rulerTickSpacing + 0.5);
+    let numberX = -1 * (this.pseudoScrollLeft % this.rulerNumberSpacing);
+    let numberDirty = (this.pseudoScrollLeft + numberX) * this.pixelTime;
+    let number = Math.round(numberDirty / this.rulerNumberIncrement) * this.rulerNumberIncrement;
+
+    const ctx = this.rulerCanvas;
+    ctx.imageSmoothingEnabled = false;
+    ctx.textRendering = 'optimizeLegibility';
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = this.rulerTextColor;
+    ctx.font = this.fontStyle;
+    ctx.fillStyle = this.rulerTextColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.clearRect(0, 0, this.viewerWidth, 40);
+
+    // Draw the Ticks
+    ctx.beginPath();
+    while (tickX <= this.viewerWidth) {
+      ctx.moveTo(tickX, 27.5);
+      ctx.lineTo(tickX, 32.5);
+      tickX += this.rulerTickSpacing;
+    }
+    ctx.stroke();
+
+    // Draw the Numbers
+    while (numberX <= this.viewerWidth + 50) {
+      ctx.fillText((number * this.timeScale).toString(), numberX, 15);
+      numberX += this.rulerNumberSpacing;
+      number += this.rulerNumberIncrement;
+    }
+  }
+
   handleZoom(amount: number, zoomOrigin: number, screenPosition: number) {
     // -1 zooms in, +1 zooms out
     // zoomRatio is in pixels per time unit
@@ -601,24 +603,14 @@ export class Viewport {
     if (amount === 0) {return;}
 
     let newZoomRatio  = this.zoomRatio * Math.pow(2, (-1 * amount));
-    //this.touchpadScrollCount = 0;
 
-    let bound = '';
     if (newZoomRatio > this.maxZoomRatio && amount < 0) {
       newZoomRatio = this.maxZoomRatio;
-      bound = 'high';
+    } else if (newZoomRatio < this.minZoomRatio && amount > 0) {
+      newZoomRatio = this.minZoomRatio;
     }
 
-    const minZoomRatio = this.viewerWidth / (this.timeStop * 2);
-    if (newZoomRatio < minZoomRatio && amount > 0) {
-      newZoomRatio = this.zoomRatio;
-      bound = 'low';
-    }
-
-    if (newZoomRatio === this.zoomRatio) {
-      console.log('zoom ratio is too ' + bound + ': ' + newZoomRatio + '');
-      return;
-    }
+    if (newZoomRatio === this.zoomRatio) {return;}
 
     this.updatePending    = true;
     this.zoomRatio        = newZoomRatio;
@@ -628,6 +620,13 @@ export class Viewport {
     this.timeScrollLeft   = this.pseudoScrollLeft * this.pixelTime;
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
     this.timeScrollRight  = this.timeScrollLeft + this.viewerWidthTime;
+    const zoomOffset      = Math.log2(this.zoomRatio / this.defaultZoom);
+    const baseZoom        = (2 ** Math.floor(zoomOffset)) * this.defaultZoom;
+    const spacingRatio    = 2 ** (zoomOffset - Math.floor(zoomOffset));
+    this.rulerTickSpacing = 10 * spacingRatio;
+    this.rulerNumberSpacing = 100 * spacingRatio;
+    this.rulerNumberIncrement = 100 / baseZoom;
+    //console.log('zoom ratio: ' + this.zoomRatio + ' zoom offset: ' + zoomOffset + ' base zoom: ' + baseZoom);
 
     this.updateScrollbarResize();
     this.redrawViewport();
@@ -659,7 +658,9 @@ export class Viewport {
     this.halfViewerWidth  = this.viewerWidth / 2;
     this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth + 10, 0));
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
+    this.timeScrollRight  = this.timeScrollLeft + this.viewerWidthTime;
     this.scrollbarCanvasElement.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
+    this.minZoomRatio     = (this.viewerWidth - 10) / this.timeStop;
 
     // Update Ruler Canvas Dimensions
     this.rulerCanvasElement.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);

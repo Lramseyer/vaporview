@@ -66,6 +66,13 @@ const interfaceIcon = new vscode.ThemeIcon('debug-disconnect', new vscode.ThemeC
 const packageIcon   = new vscode.ThemeIcon('package',          new vscode.ThemeColor('charts.purple'));
 const scopeIcon     = new vscode.ThemeIcon('symbol-module',    new vscode.ThemeColor('charts.purple'));
 
+export function getFullPath(modulePath: string, name: string) {
+  let fullPath = "";
+  if (modulePath !== "") {fullPath += modulePath + ".";}
+  fullPath += name;
+  return fullPath;
+}
+
 export function createScope(name: string, type: string, path: string, netlistId: number, scopeOffsetIdx: number) {
   
   let icon = scopeIcon;
@@ -99,6 +106,9 @@ export function createScope(name: string, type: string, path: string, netlistId:
 
   const module    = new NetlistItem(name, 'module', 'none', 0, 0, netlistId, name, path, 0, 0, scopeOffsetIdx, [], vscode.TreeItemCollapsibleState.Collapsed);
   module.iconPath = icon;
+
+  const fullPath = getFullPath(path, name);
+  module.tooltip = `${fullPath}\nType: ${type}`;
 
   return module;
 }
@@ -173,6 +183,10 @@ export function createVar(name: string, type: string, encoding: string, path: st
     if (width > 1) {variable.iconPath = regIcon;}
     else           {variable.iconPath = wireIcon;}
   }
+
+  const bits = Math.abs(msb - lsb) + 1;
+  const fullPath = getFullPath(path, name);
+  variable.tooltip = `${fullPath}\nNum bits: ${bits}\nType: ${type}`;
 
   return variable;
 }
@@ -577,9 +591,7 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
     if (!this.wasmApi) {return Promise.resolve([]);}
     if (element.children.length > 0) {return Promise.resolve(element.children);}
 
-    let modulePath = "";
-    if (element.modulePath !== "") {modulePath += element.modulePath + ".";}
-    modulePath += element.name;
+    const modulePath = getFullPath(element.modulePath, element.name);
     let itemsRemaining = Infinity;
     let startIndex     = 0;
     const result: NetlistItem[] = [];
@@ -821,9 +833,7 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
     // Only one scope is allowed to be reading vars at a time
     this.fsdbCurrentScope = element;
 
-    let modulePath = "";
-    if (element.modulePath !== "") {modulePath += element.modulePath + ".";}
-    modulePath += element.name;
+    const modulePath = getFullPath(element.modulePath, element.name);
     await this.callFsdbWorkerTask({
       command: 'readVars',
       modulePath: modulePath,
@@ -1071,6 +1081,9 @@ export class DisplayedSignalsViewProvider implements vscode.TreeDataProvider<Net
     const n = netlistItem;
     const displayedItem = new NetlistItem(n.label, n.type, n.encoding, n.width, n.signalId, n.netlistId, n.name, n.modulePath, n.msb, n.lsb, -1, n.children, vscode.TreeItemCollapsibleState.None, n.checkboxState);
     displayedItem.iconPath = n.iconPath;
+    const bits = Math.abs(n.msb - n.lsb) + 1;
+    const fullPath = getFullPath(n.modulePath, n.name);
+    displayedItem.tooltip = `${fullPath}\nNum bits: ${bits}\nType: ${n.type}`;
     this.treeData.push(displayedItem);
     this._onDidChangeTreeData.fire(undefined); // Trigger a refresh of the Netlist view
     return displayedItem;

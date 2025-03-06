@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 
 import { TimestampLinkProvider, NetlistLinkProvider } from './terminal_links';
 import { WaveformViewerProvider } from './viewer_provider';
+import { getFullPath } from './document';
 
 const wasmDebug   = 'debug';
 const wasmRelease = 'release';
@@ -92,13 +93,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.copyFullName', (e) => {
     if (e.netlistId !== undefined) {
-      let modulePath = "";
-      if (e.modulePath !== "") {modulePath += e.modulePath + ".";}
-      if (e.name !== undefined) {
-        vscode.env.clipboard.writeText(modulePath + e.name);
-      } else {
-        vscode.env.clipboard.writeText(modulePath + e.signalName);
-      }
+      const path = getFullPath(e.modulePath, e.name !== undefined ? e.name : e.signalName);
+      vscode.env.clipboard.writeText(path);
     }
   }));
 

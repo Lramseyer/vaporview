@@ -88,6 +88,12 @@ export class ControlBar {
     this.events.subscribe(ActionType.RedrawVariable, this.handleRedrawVariable);
   }
 
+  setTimeOnSearchBar(time: number) {
+    if (this.searchState == 0) {
+      this.searchBar.value = time;
+    }
+  }
+
   goToNextTransition(direction: number, edge: string | undefined = undefined) {
     if (viewerState.selectedSignal === null) {
       //handleMarkerSet(markerTime + direction, 0);
@@ -123,6 +129,7 @@ export class ControlBar {
   
     //this.handleMarkerSet(data.transitionData[timeIndex][0], 0);
     this.events.dispatch(ActionType.MarkerSet, data.transitionData[timeIndex][0], 0);
+    this.setTimeOnSearchBar(viewerState.markerTime);
   }
 
   handleTouchScroll() {

@@ -287,12 +287,12 @@ class VaporviewWebview {
 
     if ((e.key === 'ArrowRight') && (viewerState.markerTime !== null)) {
       if (e.ctrlKey || e.altKey) {controlBar.goToNextTransition(1);}
-      else if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, this.viewport.timeStop, 0);}
-      else                {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime + 1, 0);}
+      else if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, this.viewport.timeStop, 0); this.setTimeOnControlBar(this.viewport.timeStop);}
+      else                {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime + 1, 0); this.setTimeOnControlBar(viewerState.markerTime + 1);}
     } else if ((e.key === 'ArrowLeft') && (viewerState.markerTime !== null)) {
       if (e.ctrlKey || e.altKey) {controlBar.goToNextTransition(-1);}
-      else if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, 0, 0);}
-      else                {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime - 1, 0);}
+      else if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, 0, 0); this.setTimeOnControlBar(0);}
+      else                {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime - 1, 0); this.setTimeOnControlBar(viewerState.markerTime - 1);}
 
     // up and down arrow keys move the selected signal
     // alt + up and down arrow keys reorder the selected signal up and down
@@ -307,8 +307,8 @@ class VaporviewWebview {
     }
 
     // handle Home and End keys to move to the start and end of the waveform
-    else if (e.key === 'Home') {this.events.dispatch(ActionType.MarkerSet, 0, 0);}
-    else if (e.key === 'End')  {this.events.dispatch(ActionType.MarkerSet, this.viewport.timeStop, 0);}
+    else if (e.key === 'Home') {this.events.dispatch(ActionType.MarkerSet, 0, 0); this.setTimeOnControlBar(0);}
+    else if (e.key === 'End')  {this.events.dispatch(ActionType.MarkerSet, this.viewport.timeStop, 0); this.setTimeOnControlBar(this.viewport.timeStop);}
 
     // "N" and Shoft + "N" go to the next transition
     else if (e.key === 'n') {controlBar.goToNextTransition(1);}
@@ -367,6 +367,10 @@ class VaporviewWebview {
   handleSignalSelect(netlistId: NetlistId | null) {
     if (netlistId === null) {return;}
     sendWebviewContext();
+  }
+
+  setTimeOnControlBar(time: number) {
+    this.controlBar.setTimeOnSearchBar(time);
   }
 
 // #region Helper Functions
@@ -451,7 +455,7 @@ class VaporviewWebview {
       case 'setDisplayFormat':      {dataManager.setDisplayFormat(message); break;}
       case 'setWaveDromClock':      {dataManager.waveDromClock = {netlistId: message.netlistId, edge:  message.edge,}; break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
-      case 'setMarker':             {this.events.dispatch(ActionType.MarkerSet, message.time, 0); break;}
+      case 'setMarker':             {this.events.dispatch(ActionType.MarkerSet, message.time, 0); this.setTimeOnControlBar(message.time); break;}
       case 'setSelectedSignal':     {this.events.dispatch(ActionType.SignalSelect, message.netlistId); break;}
       case 'getContext':            {sendWebviewContext(); break;}
       case 'copyWaveDrom':          {dataManager.copyWaveDrom(); break;}

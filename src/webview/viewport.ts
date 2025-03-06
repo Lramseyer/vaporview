@@ -1,4 +1,4 @@
-import { vscode, NetlistData,  WaveformData, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager } from "./vaporview";
+import { vscode, NetlistData,  WaveformData, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, controlBar } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { bool } from "@vscode/wasm-component-model";
@@ -312,6 +312,7 @@ export class Viewport {
     }
 
     this.events.dispatch(ActionType.MarkerSet, snapToTime, button);
+    controlBar.setTimeOnSearchBar(snapToTime);
   }
 
   updateScrollbarResize() {

@@ -2,7 +2,8 @@ import * as vscode from 'vscode';
 import { Worker } from 'worker_threads';
 import * as fs from 'fs';
 
-import { NetlistTreeDataProvider, DisplayedSignalsViewProvider, NetlistItem, VaporviewDocument, VaporviewDocumentFsdb, VaporviewDocumentWasm, WebviewCollection } from './document';
+import { VaporviewDocument, VaporviewDocumentFsdb, VaporviewDocumentWasm } from './document';
+import { NetlistTreeDataProvider, DisplayedSignalsViewProvider, NetlistItem, WebviewCollection } from './tree_view';
 
 export type NetlistId = number;
 export type SignalId  = number;

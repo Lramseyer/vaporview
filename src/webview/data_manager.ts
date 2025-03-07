@@ -163,13 +163,13 @@ export class WaveformDataManager {
     this.updateWaveform(signalId, transitionData, message.min, message.max);
   }
 
-  updateWaveformFull(message: any) {
-    const signalId = message.signalId;
-    this.receive(signalId);
-
-    const transitionData = message.transitionData;
-    this.updateWaveform(signalId, transitionData, message.min, message.max);
-  }
+  //updateWaveformFull(message: any) {
+  //  const signalId = message.signalId;
+  //  this.receive(signalId);
+//
+  //  const transitionData = message.transitionData;
+  //  this.updateWaveform(signalId, transitionData, message.min, message.max);
+  //}
 
   updateWaveform(signalId: SignalId, transitionData: any[], min: number, max: number) {
     const netlistIdList = this.valueChangeDataTemp[signalId].netlistIdList;

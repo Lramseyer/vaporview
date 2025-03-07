@@ -84,7 +84,7 @@ export function createScope(name: string, type: string, path: string, netlistId:
     case 'vhdlarray':        {icon = scopeIcon; break;}
   }
 
-  const module    = new NetlistItem(name, 'module', 'none', 0, 0, netlistId, name, path, 0, 0, [], vscode.TreeItemCollapsibleState.Collapsed);
+  const module    = new NetlistItem(name, typename, 'none', 0, 0, netlistId, name, path, 0, 0, [], vscode.TreeItemCollapsibleState.Collapsed);
   module.iconPath = icon;
 
   return module;
@@ -109,8 +109,8 @@ const timeIcon    = new vscode.ThemeIcon('watch',            new vscode.ThemeCol
 
 export function createVar(name: string, type: string, encoding: string, path: string, netlistId: NetlistId, signalId: SignalId, width: number, msb: number, lsb: number) {
   const field = bitRangeString(msb, lsb);
-  const variable = new NetlistItem(name + field, type, encoding, width, signalId, netlistId, name, path, msb, lsb, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked);
   const typename = type.toLocaleLowerCase();
+  const variable = new NetlistItem(name + field, typename, encoding, width, signalId, netlistId, name, path, msb, lsb, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked);
   let icon;
 
   switch (typename) {
@@ -787,10 +787,16 @@ export class NetlistItem extends vscode.TreeItem {
     public collapsibleState: vscode.TreeItemCollapsibleState,
     public checkboxState:    vscode.TreeItemCheckboxState | undefined = undefined // Display preference
   ) {
+    let fullName = "";
+    if (modulePath !== "") {fullName += modulePath + ".";}
+    fullName += label;
+
     super(label, collapsibleState);
     this.numberFormat = "hexadecimal";
+    this.tooltip = "Name" + ": " + fullName + "\n" + "Type" + ": " + type + "\n";
     if (collapsibleState === vscode.TreeItemCollapsibleState.None) {
       this.contextValue = 'netlistVar'; // Set a context value for leaf nodes
+      this.tooltip += "Width" + ": " + width + "\n" + "Encoding" + ": " + encoding;
     } else {
       this.contextValue = 'netlistScope'; // Set a context value for parent nodes
     }

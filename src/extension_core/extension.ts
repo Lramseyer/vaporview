@@ -90,6 +90,19 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.showInViewer', (e) => {
+    console.log(e);
+    viewerProvider.addSignalByNameToDocument(e.modulePath + '.' + e.name);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.copyName', (e) => {
+    let result = "";
+    if (e.modulePath !== "") {result += e.modulePath + ".";}
+    if (e.name) {result += e.name;}
+    if (e.signalName) {result += e.signalName;}
+    vscode.env.clipboard.writeText(result);
+  }));
+
   // Value Format commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsBinary', (e) => {
     viewerProvider.setValueFormat(e.netlistId, "binary", undefined, undefined);

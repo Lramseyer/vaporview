@@ -180,6 +180,15 @@
           "group": "0_default@6"
         },
         {
+          "command": "vaporview.showInViewer",
+          "when": "viewItem == 'netlistVar'",
+          "group": "0_default@7"
+        },
+        {
+          "command": "vaporview.copyName",
+          "group": "0_default@7"
+        },
+        {
           "command": "vaporview.saveViewerSettings",
           "when": "view == 'netlistContainer' || view == 'displaylistContainer'",
           "group": "1_saveLoad@1"
@@ -214,25 +223,30 @@
         {
           "command": "vaporview.showInNetlistView",
           "when": "webviewSection == 'signal'",
-          "group": "0_default@5"
+          "group": "1_default@5"
         },
         {
           "command": "vaporview.removeSignal",
           "when": "webviewSection == 'signal'",
-          "group": "0_default@6"
+          "group": "1_default@6"
+        },
+        {
+          "command": "vaporview.copyName",
+          "when": "webviewSection == 'signal'",
+          "group": "1_default@7"
         },
         {
           "command": "vaporview.saveViewerSettings",
-          "group": "1_saveLoad@1"
+          "group": "2_saveLoad@1"
         },
         {
           "command": "vaporview.loadViewerSettings",
-          "group": "1_saveLoad@2"
+          "group": "2_saveLoad@2"
         },
         {
           "submenu": "vaporview.waveDrom",
           "when": "webviewSection == 'signal'",
-          "group": "2_waveDrom"
+          "group": "3_waveDrom"
         }
       ],
       "vaporview.valueFormat": [
@@ -401,6 +415,14 @@
       {
         "command": "vaporview.showInNetlistView",
         "title": "Show in Netlist View"
+      },
+      {
+        "command": "vaporview.showInViewer",
+        "title": "Show in Viewer"
+      },
+      {
+        "command": "vaporview.copyName",
+        "title": "Copy Name"
       },
       {
         "command": "vaporview.displayAsBinary",

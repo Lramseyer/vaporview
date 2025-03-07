@@ -1,6 +1,15 @@
 # Change Log
 
-# 1.3.1 - Current Release
+## 1.3.2 - Upcoming Release
+
+- Unlocked zooming to allow for smooth zooming on touchpad mode
+- Limited Zoom out distance to timeend
+- Added context Menu items
+  - Copy Name - Copy full path to clipboard
+  - Show in Viewer - Shows signal in viewer
+- Added tooltips to netlist view to show details on netlist elements
+
+## 1.3.1 - Latest Release
 
 - Port pender path to HTML5 canvas (previously used SVGs)
   - Improves text placement in multi bit-waveform renderer

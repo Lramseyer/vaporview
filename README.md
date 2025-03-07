@@ -69,7 +69,7 @@ Scroll wheel scrolls sideways by default. To scroll up or down, either hold Shif
 
 Zooming can be done one of 3 ways:
 
-- Hold **Ctrl**, and **Scroll**
+- Hold **Ctrl**, and **Scroll**, or use the pinch gesture in touchpad mode
 - Use the Zoom in/out buttons on the top right
 - Click and drag over the area you wish to zoom in on
 
@@ -161,13 +161,14 @@ This extension was designed on Vscode version 1.83
 
 # Development Roadmap
 
-## Current Release 1.3.1
+## 1.3.2 - Upcoming Release
 
-- Ported pender path to HTML5 canvas (previously used SVGs)
-  - Improves text placement in multi bit-waveform renderer
-  - Greatly improves scrolling/zoom experience
-  - Fixes issue where linear, stepped, and binary waveforms display a gap when zoomed in really far
-- Limit how far out the viewer can be zoomed out
+- Unlocked zooming to allow for smooth zooming on touchpad mode
+- Limited Zoom out distance to timeend
+- Added context Menu items
+  - Copy Name - Copy full path to clipboard
+  - Show in Viewer - Shows signal in viewer
+- Added tooltips to netlist view to show details on netlist elements
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

@@ -83,14 +83,15 @@ export class ControlBar {
 
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
     this.handleRedrawVariable = this.handleRedrawVariable.bind(this);
+    this.handleMarkerSet = this.handleMarkerSet.bind(this);
 
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
     this.events.subscribe(ActionType.RedrawVariable, this.handleRedrawVariable);
+    this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
   }
 
   goToNextTransition(direction: number, edge: string | undefined = undefined) {
     if (viewerState.selectedSignal === null) {
-      //handleMarkerSet(markerTime + direction, 0);
       return;
     }
 
@@ -121,7 +122,6 @@ export class ControlBar {
     timeIndex = Math.max(timeIndex, 0);
     timeIndex = Math.min(timeIndex, data.transitionData.length - 1);
   
-    //this.handleMarkerSet(data.transitionData[timeIndex][0], 0);
     this.events.dispatch(ActionType.MarkerSet, data.transitionData[timeIndex][0], 0);
   }
 
@@ -243,7 +243,6 @@ export class ControlBar {
     const signalId = dataManager.netlistData[viewerState.selectedSignal].signalId;
   
     if (this.searchState === 0 && direction === 1) {
-      //this.handleMarkerSet(parseInt(this.parsedSearchValue), 0);
       this.events.dispatch(ActionType.MarkerSet, parseInt(this.parsedSearchValue), 0);
     } else {
       const signalWidth      = dataManager.valueChangeData[signalId].signalWidth;
@@ -259,7 +258,6 @@ export class ControlBar {
   
       for (let i = timeIndex + indexOffset; i >= 0; i+=direction) {
         if (data.transitionData[i][1].match(searchRegex)) {
-          //this.handleMarkerSet(data.transitionData[i][0], 0);
           this.events.dispatch(ActionType.MarkerSet, data.transitionData[i][0], 0);
           break;
         }
@@ -292,4 +290,11 @@ export class ControlBar {
       this.valueEqualsSymbol.textContent = dataManager.netlistData[netlistId]?.valueFormat.symbolText;
     }
   }
+
+  handleMarkerSet(time: number, markerType: number) {
+    if (this.searchState === 0) {
+      this.searchBar.value = time;
+    }
+  }
+
 }

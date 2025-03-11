@@ -1,5 +1,11 @@
 import {ActionType, EventHandler, NetlistId, viewerState, viewport, dataManager} from './vaporview';
 
+enum ButtonState {
+  Disabled = 0,
+  Enabled  = 1,
+  Selected = 2
+}
+
 export class ControlBar {
   private zoomInButton: HTMLElement;
   private zoomOutButton: HTMLElement;
@@ -14,7 +20,9 @@ export class ControlBar {
   private valueEqualsSymbol: HTMLElement;
   private previousButton: HTMLElement;
   private nextButton: HTMLElement;
+  private autoScroll: HTMLElement;
   private touchScroll: HTMLElement;
+  private mouseScroll: HTMLElement;
 
   private searchContainer: any;
   private searchBar: any;
@@ -44,7 +52,9 @@ export class ControlBar {
     this.valueEqualsSymbol = document.getElementById('search-symbol')!;
     this.previousButton = document.getElementById('previous-button')!;
     this.nextButton    = document.getElementById('next-button')!;
+    this.autoScroll    = document.getElementById('auto-scroll-button')!;
     this.touchScroll   = document.getElementById('touchpad-scroll-button')!;
+    this.mouseScroll   = document.getElementById('mouse-scroll-button')!;
     this.searchContainer = document.getElementById('search-container');
     this.searchBar     = document.getElementById('search-bar');
     this.valueIconRef  = document.getElementById('value-icon-reference');
@@ -53,8 +63,9 @@ export class ControlBar {
         this.prevPosedge === null || this.nextNegedge === null || this.nextPosedge === null ||
         this.prevEdge === null || this.nextEdge === null || this.timeEquals === null ||
         this.valueEquals === null || this.previousButton === null || this.nextButton === null ||
-        this.touchScroll === null || this.searchContainer === null || this.searchBar === null || 
-        this.valueIconRef === null || this.valueEqualsSymbol === null) {
+        this.touchScroll === null || this.mouseScroll === null || this.autoScroll === null ||
+        this.searchContainer === null || this.searchBar === null || this.valueIconRef === null || 
+        this.valueEqualsSymbol === null) {
       throw new Error("Could not find all required elements");
     }
 
@@ -77,9 +88,14 @@ export class ControlBar {
     this.valueEquals.addEventListener(   'click', (e: any) => {this.handleSearchButtonSelect(1);});
     this.previousButton.addEventListener('click', (e: any) => {this.handleSearchGoTo(-1);});
     this.nextButton.addEventListener(    'click', (e: any) => {this.handleSearchGoTo(1);});
-    this.touchScroll.addEventListener(   'click', (e: any) => {this.handleTouchScroll();});
+  
+    this.autoScroll.addEventListener(   'click', (e: any) => {this.handleAutoScroll();});
+    this.touchScroll.addEventListener(   'click', (e: any) => {this.handleTouchScroll(true);});
+    this.mouseScroll.addEventListener(   'click', (e: any) => {this.handleTouchScroll(false);});
 
-    this.setButtonState(this.previousButton, 0);
+    this.setButtonState(this.previousButton, ButtonState.Disabled);
+    this.setButtonState(this.autoScroll, ButtonState.Selected);
+    this.updateButtonsForSelectedWaveform(null);
 
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
     this.handleRedrawVariable = this.handleRedrawVariable.bind(this);
@@ -125,19 +141,34 @@ export class ControlBar {
     this.events.dispatch(ActionType.MarkerSet, data.transitionData[timeIndex][0], 0);
   }
 
-  handleTouchScroll() {
-    viewerState.touchpadScrolling = !viewerState.touchpadScrolling;
-    this.setButtonState(this.touchScroll, viewerState.touchpadScrolling ? 2 : 1);
+  handleTouchScroll(state: boolean) {
+    viewerState.touchpadScrolling = state;
+    viewerState.autoTouchpadScrolling = false;
+    if (state) {
+      this.setButtonState(this.mouseScroll, ButtonState.Enabled);
+      this.setButtonState(this.touchScroll, ButtonState.Selected);
+    } else {
+      this.setButtonState(this.mouseScroll, ButtonState.Selected);
+      this.setButtonState(this.touchScroll, ButtonState.Enabled);
+    }
+    this.setButtonState(this.autoScroll, ButtonState.Enabled);
+  }
+
+  handleAutoScroll() {
+    viewerState.autoTouchpadScrolling = true;
+    this.setButtonState(this.mouseScroll, ButtonState.Enabled);
+    this.setButtonState(this.touchScroll, ButtonState.Enabled);
+    this.setButtonState(this.autoScroll, ButtonState.Selected);
   }
 
   setButtonState(buttonId: any, state: number) {
     if (state === 0) {
       buttonId.classList.remove('selected-button');
       buttonId.classList.add('disabled-button');
-    } else if (state === 1) {
+    } else if (state === ButtonState.Enabled) {
       buttonId.classList.remove('disabled-button');
       buttonId.classList.remove('selected-button');
-    } else if (state === 2) {
+    } else if (state === ButtonState.Selected) {
       buttonId.classList.remove('disabled-button');
       buttonId.classList.add('selected-button');
     }
@@ -155,16 +186,16 @@ export class ControlBar {
     this.setButtonState(this.nextEdge, selectable);
   }
 
-  updateButtonsForSelectedWaveform(width: number) {
+  updateButtonsForSelectedWaveform(width: number | null) {
     if (width === null) {
-      this.setBinaryEdgeButtons(0);
-      this.setBusEdgeButtons(0);
+      this.setBinaryEdgeButtons(ButtonState.Disabled);
+      this.setBusEdgeButtons(ButtonState.Disabled);
     } else if (width === 1) {
-      this.setBinaryEdgeButtons(1);
-      this.setBusEdgeButtons(1);
+      this.setBinaryEdgeButtons(ButtonState.Enabled);
+      this.setBusEdgeButtons(ButtonState.Enabled);
     } else {
-      this.setBinaryEdgeButtons(0);
-      this.setBusEdgeButtons(1);
+      this.setBinaryEdgeButtons(ButtonState.Disabled);
+      this.setBusEdgeButtons(ButtonState.Enabled);
     }
   }
 
@@ -172,11 +203,11 @@ export class ControlBar {
     this.handleSearchBarInFocus(true);
     this.searchState = button;
     if (this.searchState === 0) {
-      this.setButtonState(this.timeEquals, 2);
-      this.setButtonState(this.valueEquals, 1);
+      this.setButtonState(this.timeEquals, ButtonState.Selected);
+      this.setButtonState(this.valueEquals, ButtonState.Enabled);
     } else if (this.searchState === 1) {
-      this.setButtonState(this.timeEquals, 1);
-      this.setButtonState(this.valueEquals, 2);
+      this.setButtonState(this.timeEquals, ButtonState.Enabled);
+      this.setButtonState(this.valueEquals, ButtonState.Selected);
     }
     this.handleSearchBarEntry({key: 'none'});
   }
@@ -227,10 +258,10 @@ export class ControlBar {
   
     if (inputValid && inputText !== '') {
       this.setButtonState(this.previousButton, this.searchState);
-      this.setButtonState(this.nextButton, 1);
+      this.setButtonState(this.nextButton, ButtonState.Enabled);
     } else {
-      this.setButtonState(this.previousButton, 0);
-      this.setButtonState(this.nextButton, 0);
+      this.setButtonState(this.previousButton, ButtonState.Disabled);
+      this.setButtonState(this.nextButton, ButtonState.Disabled);
     }
   }
   
@@ -279,7 +310,9 @@ export class ControlBar {
   }
 
   handleSignalSelect(netlistId: NetlistId) {
-    if (netlistId === null || netlistId === undefined) {return;}
+    if (netlistId === null || netlistId === undefined) {
+      this.updateButtonsForSelectedWaveform(null);
+    }
 
     this.updateButtonsForSelectedWaveform(dataManager.netlistData[netlistId].signalWidth);
     this.valueEqualsSymbol.textContent = dataManager.netlistData[netlistId]?.valueFormat.symbolText;

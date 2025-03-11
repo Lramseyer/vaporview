@@ -66,6 +66,7 @@ export interface ViewerState {
   zoomRatio: number;
   scrollLeft: number;
   touchpadScrolling: boolean;
+  autoTouchpadScrolling: boolean;
   mouseupEventType: string | null;
 }
 
@@ -78,6 +79,7 @@ export const viewerState: ViewerState = {
   zoomRatio: 1,
   scrollLeft: 0,
   touchpadScrolling: false,
+  autoTouchpadScrolling: true,
   mouseupEventType: null
 };
 
@@ -169,6 +171,8 @@ class VaporviewWebview {
   // event handler variables
   events: EventHandler;
 
+  ctrlKey: boolean = false;
+
   constructor(
     events: EventHandler, 
     viewport: Viewport, 
@@ -203,6 +207,7 @@ class VaporviewWebview {
     // #region Primitive Handlers
     window.addEventListener('message', (e) => {this.handleMessage(e);});
     window.addEventListener('keydown', (e) => {this.keyDownHandler(e);});
+    window.addEventListener('keyup',   (e) => {this.keyUpHandler(e);});
     window.addEventListener('mouseup', (e) => {this.handleMouseUp(e);});
     window.addEventListener('resize',  ()  => {this.handleResizeViewer();}, false);
     this.scrollArea.addEventListener(      'wheel', (e) => {this.scrollHandler(e);});
@@ -219,18 +224,37 @@ class VaporviewWebview {
     this.events.subscribe(ActionType.ReorderSignals, this.reorderSignals);
   }
 
+  isTouchpad(e) {
+
+    if (e.wheelDeltaY) {
+      if (e.wheelDeltaY === (e.deltaY * -3)) {
+        return true;
+      }
+    } else if (e.wheelDeltaX) {
+      if (e.wheelDeltaX === (e.deltaX * -3)) {
+        return true;
+      }
+    } else if (e.deltaMode === 0) {
+      return true;
+    }
+    if (e.ctrlKey && !this.ctrlKey) {
+      return true;
+    }
+    return false;
+  }
+
   scrollHandler(e: any) {
     e.preventDefault();
-
     //console.log(event);
+    const isTouchpad = viewerState.autoTouchpadScrolling ? this.isTouchpad(e) : viewerState.touchpadScrolling;
 
-    if (!viewerState.touchpadScrolling) {e.preventDefault();}
+    if (!isTouchpad) {e.preventDefault();}
 
     const deltaY = e.deltaY;
     const deltaX = e.deltaX;
     const touchpadScrollDivisor = 12;
 
-    if (e.shiftKey && !viewerState.touchpadScrolling) {
+    if (e.shiftKey && !isTouchpad) {
       e.stopPropagation();
       this.scrollArea.scrollTop      += deltaY || deltaX;
       this.labelsScroll.scrollTop     = this.scrollArea.scrollTop;
@@ -242,16 +266,16 @@ class VaporviewWebview {
       const time        = Math.round((pixelLeft + this.viewport.pseudoScrollLeft) * this.viewport.pixelTime);
 
       // scroll up zooms in (- deltaY), scroll down zooms out (+ deltaY)
-      if      (!viewerState.touchpadScrolling && (deltaY > 0)) {this.events.dispatch(ActionType.Zoom, 1, time, pixelLeft);}
-      else if (!viewerState.touchpadScrolling && (deltaY < 0)) {this.events.dispatch(ActionType.Zoom,-1, time, pixelLeft);}
+      if      (!isTouchpad && (deltaY > 0)) {this.events.dispatch(ActionType.Zoom, 1, time, pixelLeft);}
+      else if (!isTouchpad && (deltaY < 0)) {this.events.dispatch(ActionType.Zoom,-1, time, pixelLeft);}
 
       // Handle zooming with touchpad since we apply scroll attenuation
-      else if (viewerState.touchpadScrolling) {
+      else if (isTouchpad) {
         this.events.dispatch(ActionType.Zoom, deltaY / touchpadScrollDivisor, time, pixelLeft);
       }
 
     } else {
-      if (viewerState.touchpadScrolling) {
+      if (isTouchpad) {
         this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + e.deltaX);
         this.scrollArea.scrollTop       += e.deltaY;
         this.labelsScroll.scrollTop      = this.scrollArea.scrollTop;
@@ -263,6 +287,7 @@ class VaporviewWebview {
   }
 
   keyDownHandler(e: any) {
+
     if (controlBar.searchInFocus) {return;} 
     else {e.preventDefault();}
 
@@ -307,6 +332,12 @@ class VaporviewWebview {
 
     else if (e.key === 'Escape') {this.events.dispatch(ActionType.SignalSelect, null);}
     else if (e.key === 'Delete') {this.removeVariableInternal(viewerState.selectedSignal);}
+
+    else if (e.key === 'Control') {this.ctrlKey = true;}
+  }
+
+  keyUpHandler(e: any) {
+    if (e.key === 'Control') {this.ctrlKey = false};
   }
 
   handleMouseUp(event: MouseEvent) {

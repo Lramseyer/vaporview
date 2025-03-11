@@ -55,7 +55,7 @@ Signals can also be added by clicking on a link in the terminal with the full si
 
 ## Scrolling
 
-The scroll wheel (or touchpad scroll) is used to pan in time or scroll up or down. By default, mouse mode scrolling is enabled. To toggle between scrolling modes, click the **"Enable Touchpad Scrolling"** Button on the top right
+The scroll wheel (or touchpad scroll) is used to pan in time or scroll up or down. By default, auto detect scrolling mode is enabled. To toggle between scrolling modes, click the **"Auto detech Mouse/Touchpad Scrolling"**, **"Enable Touchpad Scrolling"**, or **"Enable Mouse Scrolling"** Button on the top right.
 
 ### Mouse Scrolling
 
@@ -169,6 +169,8 @@ This extension was designed on Vscode version 1.83
   - Copy Name - Copy full path to clipboard
   - Show in Viewer - Shows signal in viewer
 - Added tooltips to netlist view to show details on netlist elements
+- Setting a marker populates the time in the search bar
+- Added Auto Touchpad Scrolling mode
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 
@@ -187,12 +189,19 @@ In no particular order of priority, here's a list of features that are on my rad
 
 I originally built this extension when I worked for an FPGA company. I wanted a good _free_ waveform viewer extension, and I always thought it would be cool to make my own extension.
 
-This is and always will be open source. It's free to use for personal and professional use. There never will be feature regression in favor of a premium tier. In other words, every feature that is currently included, or on the roadmap will be free and open source. Adaptations of the source code completely or even in part for other projects is only allowed _if_ the project is also free and open source. Adaptations of the source code completely or in part for enterprise software is not allowed _unless_ prior written permission is given by the owner of this project. Though I am open to offers.
+This is and always will be open source. It's free to use for personal and professional use. There never will be feature regression in favor of a premium tier. In other words, every feature that is currently included, or on the roadmap will be free and open source. Adaptations of the source code completely or even in part for other projects is only allowed _if_ the project is also free and open source. Adaptations of the source code completely or in part for distribution in enterprise software is not allowed _unless_ prior written permission is given by the owner of this project.
 
 This extension was written by one person, with a full time job that doesn't involve anything to do with writing javascript or typescript. If you would like to see a feature added or functionality changed, or better yet, if you would like to help contribute please visit the [github repository](https://github.com/Lramseyer/VaporView) and discuss there!
 
 # Acknowledgements
 
 This project uses the [wellen](https://github.com/ekiwi/wellen/tree/new-api) library compiled to WASM for file parsing and back-end data management.
+
+## Contributors:
+
+- [@lramseyer](https://github.com/Lramseyer) (Owner)
+- [@heyfey](https://github.com/heyfey)
+
+## Misc
 
 Thanks to my coworkers for their encouragement, feature requests, bug reports, and contribution of VCD files that made this project possible!

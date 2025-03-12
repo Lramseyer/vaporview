@@ -1,6 +1,6 @@
 # Change Log
 
-## 1.3.2 - Upcoming Release
+## 1.3.2 - Latest Release
 
 - Unlocked zooming to allow for smooth zooming on touchpad mode
 - Limited Zoom out distance to timeend
@@ -11,7 +11,7 @@
 - Setting a marker populates the time in the search bar
 - Added Auto Touchpad Scrolling/Zooming mode
 
-## 1.3.1 - Latest Release
+## 1.3.1
 
 - Port pender path to HTML5 canvas (previously used SVGs)
   - Improves text placement in multi bit-waveform renderer

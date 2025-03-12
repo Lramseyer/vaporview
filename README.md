@@ -161,7 +161,7 @@ This extension was designed on Vscode version 1.83
 
 # Development Roadmap
 
-## 1.3.2 - Upcoming Release
+## 1.3.2 - Latest Release
 
 - Unlocked zooming to allow for smooth zooming on touchpad mode
 - Limited Zoom out distance to timeend

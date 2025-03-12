@@ -6,6 +6,11 @@ enum ButtonState {
   Selected = 2
 }
 
+enum SearchState {
+  Time  = 0,
+  Value = 1
+}
+
 export class ControlBar {
   private zoomInButton: HTMLElement;
   private zoomOutButton: HTMLElement;
@@ -29,7 +34,7 @@ export class ControlBar {
   private valueIconRef: any;
 
   // Search handler variables
-  searchState         = 0;
+  searchState         = SearchState.Time;
   searchInFocus       = false;
 
   private events: EventHandler;
@@ -162,7 +167,7 @@ export class ControlBar {
   }
 
   setButtonState(buttonId: any, state: number) {
-    if (state === 0) {
+    if (state === ButtonState.Disabled) {
       buttonId.classList.remove('selected-button');
       buttonId.classList.add('disabled-button');
     } else if (state === ButtonState.Enabled) {
@@ -202,10 +207,10 @@ export class ControlBar {
   handleSearchButtonSelect(button: number) {
     this.handleSearchBarInFocus(true);
     this.searchState = button;
-    if (this.searchState === 0) {
+    if (this.searchState === SearchState.Time) {
       this.setButtonState(this.timeEquals, ButtonState.Selected);
       this.setButtonState(this.valueEquals, ButtonState.Enabled);
-    } else if (this.searchState === 1) {
+    } else if (this.searchState === SearchState.Value) {
       this.setButtonState(this.timeEquals, ButtonState.Enabled);
       this.setButtonState(this.valueEquals, ButtonState.Selected);
     }
@@ -239,9 +244,9 @@ export class ControlBar {
       const parseValue = format.parseValueForSearch;
   
       // check to see that the input is valid
-      if (this.searchState === 0) {
+      if (this.searchState === SearchState.Time) {
         inputValid = this.checkValidTimeString(inputText);
-      } else if (this.searchState === 1) {
+      } else if (this.searchState === SearchState.Value) {
         inputValid = checkValid(inputText);
         if (inputValid) {this.parsedSearchValue = parseValue(inputText);}
         //console.log(inputValid);
@@ -273,7 +278,7 @@ export class ControlBar {
   
     const signalId = dataManager.netlistData[viewerState.selectedSignal].signalId;
   
-    if (this.searchState === 0 && direction === 1) {
+    if (this.searchState === SearchState.Time && direction === 1) {
       this.events.dispatch(ActionType.MarkerSet, parseInt(this.parsedSearchValue), 0);
     } else {
       const signalWidth      = dataManager.valueChangeData[signalId].signalWidth;
@@ -326,8 +331,9 @@ export class ControlBar {
   }
 
   handleMarkerSet(time: number, markerType: number) {
-    if (this.searchState === 0) {
+    if (this.searchState === SearchState.Time) {
       this.searchBar.value = time;
+      this.searchContainer.classList.remove('is-invalid');
     }
   }
 

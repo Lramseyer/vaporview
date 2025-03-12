@@ -238,7 +238,7 @@ class VaporviewWebview {
         this.lastIsTouchpad = true;
         return true;
       }
-    } else if (e.wheelDeltaX) {
+    } else if (e.wheelDeltaX && !e.shiftKey) {
       if (e.wheelDeltaX === (e.deltaX * -3)) {
         this.lastIsTouchpad = true;
         return true;
@@ -261,9 +261,9 @@ class VaporviewWebview {
 
     const deltaY = e.deltaY;
     const deltaX = e.deltaX;
-    const touchpadScrollDivisor = 12;
+    const touchpadScrollDivisor = 18;
 
-    if (e.shiftKey && !isTouchpad) {
+    if (e.shiftKey) {
       e.stopPropagation();
       this.scrollArea.scrollTop      += deltaY || deltaX;
       this.labelsScroll.scrollTop     = this.scrollArea.scrollTop;

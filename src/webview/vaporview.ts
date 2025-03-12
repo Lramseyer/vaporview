@@ -171,7 +171,8 @@ class VaporviewWebview {
   // event handler variables
   events: EventHandler;
 
-  ctrlKey: boolean = false;
+  lastIsTouchpad: boolean = false;
+  touchpadCheckTimer: any = 0;
 
   constructor(
     events: EventHandler, 
@@ -207,7 +208,6 @@ class VaporviewWebview {
     // #region Primitive Handlers
     window.addEventListener('message', (e) => {this.handleMessage(e);});
     window.addEventListener('keydown', (e) => {this.keyDownHandler(e);});
-    window.addEventListener('keyup',   (e) => {this.keyUpHandler(e);});
     window.addEventListener('mouseup', (e) => {this.handleMouseUp(e);});
     window.addEventListener('resize',  ()  => {this.handleResizeViewer();}, false);
     this.scrollArea.addEventListener(      'wheel', (e) => {this.scrollHandler(e);});
@@ -224,22 +224,30 @@ class VaporviewWebview {
     this.events.subscribe(ActionType.ReorderSignals, this.reorderSignals);
   }
 
+  // Function to test whether or not the user is using a touchpad
+  // Sometimes it returns false negatives when flicking the touchpad,
+  // hence the timer to prevent multiple checks in a short period of time
   isTouchpad(e) {
+
+    if (performance.now() < this.touchpadCheckTimer) {
+      return this.lastIsTouchpad;
+    }
 
     if (e.wheelDeltaY) {
       if (e.wheelDeltaY === (e.deltaY * -3)) {
+        this.lastIsTouchpad = true;
         return true;
       }
     } else if (e.wheelDeltaX) {
       if (e.wheelDeltaX === (e.deltaX * -3)) {
+        this.lastIsTouchpad = true;
         return true;
       }
     } else if (e.deltaMode === 0) {
+      this.lastIsTouchpad = true;
       return true;
     }
-    if (e.ctrlKey && !this.ctrlKey) {
-      return true;
-    }
+    this.lastIsTouchpad = false;
     return false;
   }
 
@@ -247,6 +255,7 @@ class VaporviewWebview {
     e.preventDefault();
     //console.log(event);
     const isTouchpad = viewerState.autoTouchpadScrolling ? this.isTouchpad(e) : viewerState.touchpadScrolling;
+    this.touchpadCheckTimer = performance.now() + 100;
 
     if (!isTouchpad) {e.preventDefault();}
 
@@ -261,17 +270,22 @@ class VaporviewWebview {
       this.transitionScroll.scrollTop = this.scrollArea.scrollTop;
     } else if (e.ctrlKey) {
       if      (this.viewport.updatePending) {return;}
+      // Touchpad mode detection returns false positives with pinches, so we
+      // just clamp the deltaY value to prevent zooming in/out too fast
       const bounds      = this.scrollArea.getBoundingClientRect();
       const pixelLeft   = Math.round(e.pageX - bounds.left);
       const time        = Math.round((pixelLeft + this.viewport.pseudoScrollLeft) * this.viewport.pixelTime);
+      const zoomOffset  = Math.min(touchpadScrollDivisor, Math.max(-touchpadScrollDivisor, deltaY));
+      const mouseMode   = !viewerState.autoTouchpadScrolling && !viewerState.touchpadScrolling;
 
+      //if (deltaY !== zoomOffset) {console.log('deltaY: ' + deltaY + '; zoomOffset: ' + zoomOffset);}
       // scroll up zooms in (- deltaY), scroll down zooms out (+ deltaY)
-      if      (!isTouchpad && (deltaY > 0)) {this.events.dispatch(ActionType.Zoom, 1, time, pixelLeft);}
-      else if (!isTouchpad && (deltaY < 0)) {this.events.dispatch(ActionType.Zoom,-1, time, pixelLeft);}
+      if      (mouseMode && (deltaY > 0)) {this.events.dispatch(ActionType.Zoom, 1, time, pixelLeft);}
+      else if (mouseMode && (deltaY < 0)) {this.events.dispatch(ActionType.Zoom,-1, time, pixelLeft);}
 
       // Handle zooming with touchpad since we apply scroll attenuation
-      else if (isTouchpad) {
-        this.events.dispatch(ActionType.Zoom, deltaY / touchpadScrollDivisor, time, pixelLeft);
+      else {
+        this.events.dispatch(ActionType.Zoom, zoomOffset / touchpadScrollDivisor, time, pixelLeft);
       }
 
     } else {
@@ -333,11 +347,6 @@ class VaporviewWebview {
     else if (e.key === 'Escape') {this.events.dispatch(ActionType.SignalSelect, null);}
     else if (e.key === 'Delete') {this.removeVariableInternal(viewerState.selectedSignal);}
 
-    else if (e.key === 'Control') {this.ctrlKey = true;}
-  }
-
-  keyUpHandler(e: any) {
-    if (e.key === 'Control') {this.ctrlKey = false};
   }
 
   handleMouseUp(event: MouseEvent) {

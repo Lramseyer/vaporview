@@ -312,6 +312,7 @@ export class ControlBar {
   handleSignalSelect(netlistId: NetlistId) {
     if (netlistId === null || netlistId === undefined) {
       this.updateButtonsForSelectedWaveform(null);
+      return;
     }
 
     this.updateButtonsForSelectedWaveform(dataManager.netlistData[netlistId].signalWidth);

@@ -9,7 +9,7 @@
   - Show in Viewer - Shows signal in viewer
 - Added tooltips to netlist view to show details on netlist elements
 - Setting a marker populates the time in the search bar
-- Added Auto Touchpad Scrolling mode
+- Added Auto Touchpad Scrolling/Zooming mode
 
 ## 1.3.1 - Latest Release
 

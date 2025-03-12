@@ -170,7 +170,7 @@ This extension was designed on Vscode version 1.83
   - Show in Viewer - Shows signal in viewer
 - Added tooltips to netlist view to show details on netlist elements
 - Setting a marker populates the time in the search bar
-- Added Auto Touchpad Scrolling mode
+- Added Auto Touchpad ScrollingZooming mode
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

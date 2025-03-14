@@ -267,14 +267,21 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
 
     const missingSignals: string[] = [];
-    const foundSignals: NetlistItem[] = [];
+    const foundSignals: any[] = [];
+    const metadataList: NetlistItem[] = [];
 
     for (const signalInfo of settings.displayedSignals) {
       const signal   = signalInfo.name;
-      const metaData = await document.findTreeItem(signal, signalInfo.msb, signalInfo.lsb);
-      if (metaData !== null) {
-        metaData.numberFormat = signalInfo.numberFormat;
-        foundSignals.push(metaData);
+      const metadata = await document.findTreeItem(signal, signalInfo.msb, signalInfo.lsb);
+      if (metadata !== null) {
+        metadataList.push(metadata);
+        // We need to copy the netlistId from the existing wavefrom dump in case the circuit has changed
+        foundSignals.push({
+          netlistId: metadata.netlistId,
+          numberFormat: signalInfo.numberFormat,
+          colorIndex: signalInfo.colorIndex,
+          renderType: signalInfo.renderType,
+        });
       } else {
         missingSignals.push(signal);
       }
@@ -288,7 +295,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
 
     console.log(missingSignals);
-    this.filterAddSignalsInNetlist(foundSignals, true);
+    this.filterAddSignalsInNetlist(metadataList, true);
     for (const signalInfo of settings.displayedSignals) {
       this.setValueFormat(signalInfo.netlistId, signalInfo.numberFormat, signalInfo.colorIndex, signalInfo.renderType);
     }

@@ -238,11 +238,11 @@ class VaporviewWebview {
         this.lastIsTouchpad = true;
         return true;
       }
-    } else if (e.wheelDeltaX && !e.shiftKey) {
-      if (e.wheelDeltaX === (e.deltaX * -3)) {
-        this.lastIsTouchpad = true;
-        return true;
-      }
+    //} else if (e.wheelDeltaX && !e.shiftKey) {
+    //  if (e.wheelDeltaX === (e.deltaX * -3)) {
+    //    this.lastIsTouchpad = true;
+    //    return true;
+    //  }
     } else if (e.deltaMode === 0) {
       this.lastIsTouchpad = true;
       return true;
@@ -254,14 +254,14 @@ class VaporviewWebview {
   scrollHandler(e: any) {
     e.preventDefault();
     //console.log(event);
-    const isTouchpad = viewerState.autoTouchpadScrolling ? this.isTouchpad(e) : viewerState.touchpadScrolling;
-    this.touchpadCheckTimer = performance.now() + 100;
 
-    if (!isTouchpad) {e.preventDefault();}
+
+    //if (!isTouchpad) {e.preventDefault();}
 
     const deltaY = e.deltaY;
     const deltaX = e.deltaX;
     const touchpadScrollDivisor = 18;
+    const mouseMode = !viewerState.autoTouchpadScrolling && !viewerState.touchpadScrolling;
 
     if (e.shiftKey) {
       e.stopPropagation();
@@ -276,7 +276,6 @@ class VaporviewWebview {
       const pixelLeft   = Math.round(e.pageX - bounds.left);
       const time        = Math.round((pixelLeft + this.viewport.pseudoScrollLeft) * this.viewport.pixelTime);
       const zoomOffset  = Math.min(touchpadScrollDivisor, Math.max(-touchpadScrollDivisor, deltaY));
-      const mouseMode   = !viewerState.autoTouchpadScrolling && !viewerState.touchpadScrolling;
 
       //if (deltaY !== zoomOffset) {console.log('deltaY: ' + deltaY + '; zoomOffset: ' + zoomOffset);}
       // scroll up zooms in (- deltaY), scroll down zooms out (+ deltaY)
@@ -289,8 +288,20 @@ class VaporviewWebview {
       }
 
     } else {
-      if (isTouchpad) {
-        this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + e.deltaX);
+      //if (isTouchpad) {
+      //  this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + e.deltaX);
+      //  this.scrollArea.scrollTop       += e.deltaY;
+      //  this.labelsScroll.scrollTop      = this.scrollArea.scrollTop;
+      //  this.transitionScroll.scrollTop  = this.scrollArea.scrollTop;
+      //} else {
+      //  this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + deltaY);
+      //}
+
+      const isTouchpad = viewerState.autoTouchpadScrolling ? this.isTouchpad(e) : viewerState.touchpadScrolling;
+      this.touchpadCheckTimer = performance.now() + 100;
+
+      if (e.deltaX !== 0 || isTouchpad) {
+        this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + deltaX);
         this.scrollArea.scrollTop       += e.deltaY;
         this.labelsScroll.scrollTop      = this.scrollArea.scrollTop;
         this.transitionScroll.scrollTop  = this.scrollArea.scrollTop;
@@ -465,6 +476,12 @@ class VaporviewWebview {
     }
   }
 
+  handleSetSelectedSignal(netlistId: NetlistId) {
+    if (netlistId === null) {return;}
+    if (dataManager.netlistData[netlistId] === undefined) {return;}
+    this.events.dispatch(ActionType.SignalSelect, netlistId);
+  }
+
   handleMessage(e: any) {
     const message = e.data;
 
@@ -478,7 +495,7 @@ class VaporviewWebview {
       case 'setWaveDromClock':      {dataManager.waveDromClock = {netlistId: message.netlistId, edge:  message.edge,}; break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
       case 'setMarker':             {this.events.dispatch(ActionType.MarkerSet, message.time, message.markerType); break;}
-      case 'setSelectedSignal':     {this.events.dispatch(ActionType.SignalSelect, message.netlistId); break;}
+      case 'setSelectedSignal':     {this.handleSetSelectedSignal(message.netlistId); break;}
       case 'getContext':            {sendWebviewContext(); break;}
       case 'copyWaveDrom':          {dataManager.copyWaveDrom(); break;}
       case 'updateColorTheme':      {this.events.dispatch(ActionType.updateColorTheme); break;}

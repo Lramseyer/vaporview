@@ -680,7 +680,7 @@ export class Viewport {
       netlistItem.ctx?.scale(this.pixelRatio, this.pixelRatio);
     });
 
-    if (this.minZoomRatio >= this.zoomRatio) {
+    if (this.minZoomRatio > this.zoomRatio) {
       this.handleZoom(1, 0, 0);
     } else {
       this.updateScrollbarResize();

@@ -272,6 +272,8 @@ export class WaveformDataManager {
       }
     }
 
+    sendWebviewContext();
+
     this.netlistData[netlistId].vscodeContext = this.setSignalContextAttribute(netlistId);
     this.events.dispatch(ActionType.RedrawVariable, netlistId);
   }

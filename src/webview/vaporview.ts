@@ -79,7 +79,7 @@ export const viewerState: ViewerState = {
   zoomRatio: 1,
   scrollLeft: 0,
   touchpadScrolling: false,
-  autoTouchpadScrolling: true,
+  autoTouchpadScrolling: false,
   mouseupEventType: null
 };
 

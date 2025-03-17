@@ -281,6 +281,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
           numberFormat: signalInfo.numberFormat,
           colorIndex: signalInfo.colorIndex,
           renderType: signalInfo.renderType,
+          oldNetlistId: signalInfo.netlistId,
         });
       } else {
         missingSignals.push(signal);
@@ -296,7 +297,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     console.log(missingSignals);
     this.filterAddSignalsInNetlist(metadataList, true);
-    for (const signalInfo of settings.displayedSignals) {
+    for (const signalInfo of foundSignals) {
       this.setValueFormat(signalInfo.netlistId, signalInfo.numberFormat, signalInfo.colorIndex, signalInfo.renderType);
     }
 
@@ -682,7 +683,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     const color3 = vscode.workspace.getConfiguration('vaporview').get('customColor3');
     const color4 = vscode.workspace.getConfiguration('vaporview').get('customColor4');
 
-    console.log('setting value format');
+    //console.log('setting value format');
 
     panel.webview.postMessage({
       command: 'setDisplayFormat',

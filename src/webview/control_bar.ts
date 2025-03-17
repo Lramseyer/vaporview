@@ -99,7 +99,7 @@ export class ControlBar {
     this.mouseScroll.addEventListener(   'click', (e: any) => {this.handleTouchScroll(false);});
 
     this.setButtonState(this.previousButton, ButtonState.Disabled);
-    this.setButtonState(this.autoScroll, ButtonState.Selected);
+    this.setButtonState(this.mouseScroll, ButtonState.Selected);
     this.updateButtonsForSelectedWaveform(null);
 
     this.handleSignalSelect = this.handleSignalSelect.bind(this);

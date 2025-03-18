@@ -281,7 +281,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
           numberFormat: signalInfo.numberFormat,
           colorIndex: signalInfo.colorIndex,
           renderType: signalInfo.renderType,
-          oldNetlistId: signalInfo.netlistId,
         });
       } else {
         missingSignals.push(signal);

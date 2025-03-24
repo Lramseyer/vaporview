@@ -48,7 +48,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Add or remove signal commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.addVariableByInstancePath', (e) => {
-    viewerProvider.addSignalByNameToDocument(e.instancePath);
+    viewerProvider.addVariableByInstancePathToDocument(e);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeSignal', (e) => {
@@ -61,14 +61,12 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.filterAddSignalsInNetlist(viewerProvider.netlistViewSelectedSignals, false);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.addAllInModuleShallow', (e) => {
-    if (e.collapsibleState === vscode.TreeItemCollapsibleState.None) {return;}
-    viewerProvider.addChildVariablesToDocument(e, false, 128);
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.addAllInScopeShallow', (e) => {
+    viewerProvider.addAllInScopeToDocument(e, false, 128);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.addAllInModuleRecursive', (e) => {
-    if (e.collapsibleState === vscode.TreeItemCollapsibleState.None) {return;}
-    viewerProvider.addChildVariablesToDocument(e, true, 128);
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.addAllInScopeRecursive', (e) => {
+    viewerProvider.addAllInScopeToDocument(e, true, 128);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeSelectedNetlist', (e) => {
@@ -79,7 +77,7 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.removeSelectedSignalsFromDocument('displayedSignals');
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeAllInModule', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeAllInScope', (e) => {
     if (e.collapsibleState === vscode.TreeItemCollapsibleState.None) {return;}
     viewerProvider.removeSignalList(e.children);
   }));

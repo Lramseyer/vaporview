@@ -588,12 +588,14 @@
     "compile-wasm" : "npm run generate:model && cargo build --target wasm32-unknown-unknown --release",
     "generate:model": "wit2ts --outDir ./src/extension_core ./wit",
     "compile-addon": "node-gyp rebuild",
-    "compile": "npm run compile-addon && npm run compile-wasm && npm run check-types && node esbuild.js",
+    "compile": "npm run compile-wasm && npm run check-types && node esbuild.js",
+    "compile-fsdb": "npm run compile-addon && npm run compile-wasm && npm run check-types && node esbuild.js",
     "check-types": "tsc --noEmit",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
     "vscode:prepublish": "npm run package",
-    "package": "npm run compile-addon && npm run compile-wasm && npm run check-types && node esbuild.js --production"
+    "package": "npm run compile-wasm && npm run check-types && node esbuild.js --production",
+    "package-fsdb": "npm run compile-addon && npm run compile-wasm && npm run check-types && node esbuild.js --production"
   }
 }

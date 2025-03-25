@@ -2,7 +2,8 @@ import * as vscode from 'vscode';
 import { Worker } from 'worker_threads';
 import * as fs from 'fs';
 
-import { NetlistTreeDataProvider, DisplayedSignalsViewProvider, NetlistItem, VaporviewDocument, WebviewCollection} from './document';
+import { VaporviewDocument, VaporviewDocumentFsdb, VaporviewDocumentWasm } from './document';
+import { NetlistTreeDataProvider, DisplayedSignalsViewProvider, NetlistItem, WebviewCollection } from './tree_view';
 
 export type NetlistId = number;
 export type SignalId  = number;
@@ -111,10 +112,16 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       }
     };
 
-    // Load the Wasm worker
-    const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
-    const wasmWorker = new Worker(workerFile);
-    const document   = await VaporviewDocument.create(uri, openContext.backupId, wasmWorker, this.wasmModule, delegate);
+    let document: VaporviewDocument;
+    const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
+    if (fileType === 'fsdb') {
+      document = await VaporviewDocumentFsdb.create(uri, openContext.backupId, delegate);
+    } else {
+      // Load the Wasm worker
+      const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
+      const wasmWorker = new Worker(workerFile);
+      document = await VaporviewDocumentWasm.create(uri, openContext.backupId, wasmWorker, this.wasmModule, delegate);
+    }
 
     this.netlistTreeDataProvider.loadDocument(document);
     this.displayedSignalsTreeDataProvider.setTreeData(document.displayedSignals);
@@ -135,7 +142,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'setTime':             {this.updateStatusBarItems(document, e); break;}
         case 'setSelectedSignal':   {this.updateStatusBarItems(document, e); break;}
         case 'contextUpdate' :      {this.updateStatusBarItems(document, e); break;}
-        case 'fetchTransitionData': {document.wasmApi.getsignaldata(e.signalIdList); break;}
+        case 'fetchTransitionData': {document.getSignalData(e.signalIdList); break;}
         case 'copyWaveDrom':        {this.copyWaveDromToClipboard(e.waveDromJson, e.maxTransitions, e.maxTransitionsFlag); break;}
         case 'copyToClibpoard':     {vscode.env.clipboard.writeText(e.text); break;}
         case 'showMessage':         {this.handleWebviewMessage(e); break;}

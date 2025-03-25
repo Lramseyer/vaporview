@@ -22,6 +22,7 @@
     "VCD",
     "FST",
     "GHW",
+    "FSDB",
     "Logic Simulation",
     "Logic Analyzer"
   ],
@@ -56,8 +57,15 @@
     "languages": [
       {
         "id": "wavedump",
-        "extensions": [".vcd", ".fst", ".ghw"],
-        "aliases": ["Waveform Dump"],
+        "extensions": [
+          ".vcd",
+          ".fst",
+          ".ghw",
+          ".fsdb"
+        ],
+        "aliases": [
+          "Waveform Dump"
+        ],
         "filenames": [],
         "icon": {
           "light": "./media/wavedump_file_icon.svg",
@@ -78,6 +86,9 @@
           },
           {
             "filenamePattern": "*.ghw"
+          },
+          {
+            "filenamePattern": "*.fsdb"
           }
         ]
       }
@@ -116,6 +127,11 @@
           "default": "#9cdcfe",
           "scope": "application",
           "description": "Custom Color in CSS format ie '#C0FFEE' or 'rgb(192, 255, 238)' or 'blue'"
+        },
+        "vaporview.fsdbReaderLibsPath": {
+          "type": "string",
+          "scope": "application",
+          "description": "Path to find FSDB reader shared libraries (e.g. libnffr.so, libnsys.so for Linux) for your platform. This is needed for FSDB reading. Example: /home/heyfey/verdi/2022.06/share/FsdbReader/linux64"
         }
       }
     },
@@ -145,7 +161,7 @@
         {
           "command": "vaporview.reloadFile",
           "group": "1_open",
-          "when": "activeCustomEditorId == 'vaporview.waveformViewer' && (resourceExtname == '.vcd' || resourceExtname == '.fst' || resourceExtname == '.ghw')"
+          "when": "activeCustomEditorId == 'vaporview.waveformViewer' && (resourceExtname == '.vcd' || resourceExtname == '.fst' || resourceExtname == '.ghw' || resourceExtname == '.fsdb')"
         }
       ],
       "view/item/context": [
@@ -333,7 +349,7 @@
           "group": "1_custom@4"
         }
       ],
-      "vaporview.renderType":[
+      "vaporview.renderType": [
         {
           "command": "vaporview.renderMultiBit",
           "when": "webviewSection == 'signal' && (width > '1' || type == 'Real')",
@@ -572,7 +588,8 @@
   },
   "dependencies": {
     "@vscode/codicons": "0.0.35",
-    "@vscode/wasm-component-model": "1.0.1"
+    "@vscode/wasm-component-model": "1.0.1",
+    "node-addon-api": "^8.3.1"
   },
   "devDependencies": {
     "@types/node": "^18.14.6",
@@ -592,12 +609,15 @@
     "build": "npm run compile",
     "compile-wasm" : "npm run generate:model && cargo build --target wasm32-unknown-unknown --release",
     "generate:model": "wit2ts --outDir ./src/extension_core ./wit",
+    "compile-addon": "node-gyp rebuild",
     "compile": "npm run compile-wasm && npm run check-types && node esbuild.js",
+    "compile-fsdb": "npm run compile-addon && npm run compile-wasm && npm run check-types && node esbuild.js",
     "check-types": "tsc --noEmit",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
     "vscode:prepublish": "npm run package",
-    "package": "npm run compile-wasm && npm run check-types && node esbuild.js --production"
+    "package": "npm run compile-wasm && npm run check-types && node esbuild.js --production",
+    "package-fsdb": "npm run compile-addon && npm run compile-wasm && npm run check-types && node esbuild.js --production"
   }
 }

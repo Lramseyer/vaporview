@@ -144,7 +144,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'contextUpdate' :      {this.updateStatusBarItems(document, e); break;}
         case 'fetchTransitionData': {document.getSignalData(e.signalIdList); break;}
         case 'copyWaveDrom':        {this.copyWaveDromToClipboard(e.waveDromJson, e.maxTransitions, e.maxTransitionsFlag); break;}
-        case 'copyToClibpoard':     {vscode.env.clipboard.writeText(e.text); break;}
+        case 'copyToClipboard':     {vscode.env.clipboard.writeText(e.text); break;}
         case 'showMessage':         {this.handleWebviewMessage(e); break;}
         case 'close-webview':       {webviewPanel.dispose(); break;}
         case 'ready':               {document.onWebviewReady(webviewPanel); break;}
@@ -741,6 +741,18 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       color: color,
       renderType: renderType,
       customColors: [color1, color2, color3, color4],
+    });
+  }
+
+  copyValueAtMarker(e: any) {
+    if (e.netlistId === undefined) {return;}
+    if (!this.activeWebview) {return;}
+    if (!this.activeDocument) {return;}
+    if (!this.activeWebview.visible) {return;}
+
+    this.activeWebview.webview.postMessage({
+      command: 'copyValueAtMarker',
+      netlistId: e.netlistId,
     });
   }
 

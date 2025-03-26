@@ -55,17 +55,17 @@ type FsdbWaveformData = {
 }
 
 // Scopes
-const moduleIcon    = new vscode.ThemeIcon('chip',                   new vscode.ThemeColor('charts.purple'));
-const taskIcon      = new vscode.ThemeIcon('debug-stack-frame',      new vscode.ThemeColor('charts.blue'));
-const funcIcon      = new vscode.ThemeIcon('symbol-module',          new vscode.ThemeColor('charts.blue'));
-const beginIcon     = new vscode.ThemeIcon('debug-start',            new vscode.ThemeColor('charts.blue'));
-const forkIcon      = new vscode.ThemeIcon('repo-forked',            new vscode.ThemeColor('charts.blue'));
-const structIcon    = new vscode.ThemeIcon('symbol-structure', new vscode.ThemeColor('charts.blue'));
-const unionIcon     = new vscode.ThemeIcon('surround-with',    new vscode.ThemeColor('charts.blue'));
-const classIcon     = new vscode.ThemeIcon('symbol-misc',      new vscode.ThemeColor('charts.blue'));
-const interfaceIcon = new vscode.ThemeIcon('debug-disconnect', new vscode.ThemeColor('charts.purple'));
-const packageIcon   = new vscode.ThemeIcon('package',          new vscode.ThemeColor('charts.purple'));
-const scopeIcon     = new vscode.ThemeIcon('symbol-module',    new vscode.ThemeColor('charts.purple'));
+//const moduleIcon    = new vscode.ThemeIcon('chip',                   new vscode.ThemeColor('charts.purple'));
+//const taskIcon      = new vscode.ThemeIcon('debug-stack-frame',      new vscode.ThemeColor('charts.blue'));
+//const funcIcon      = new vscode.ThemeIcon('symbol-module',          new vscode.ThemeColor('charts.blue'));
+//const beginIcon     = new vscode.ThemeIcon('debug-start',            new vscode.ThemeColor('charts.blue'));
+//const forkIcon      = new vscode.ThemeIcon('repo-forked',            new vscode.ThemeColor('charts.blue'));
+//const structIcon    = new vscode.ThemeIcon('symbol-structure', new vscode.ThemeColor('charts.blue'));
+//const unionIcon     = new vscode.ThemeIcon('surround-with',    new vscode.ThemeColor('charts.blue'));
+//const classIcon     = new vscode.ThemeIcon('symbol-misc',      new vscode.ThemeColor('charts.blue'));
+//const interfaceIcon = new vscode.ThemeIcon('debug-disconnect', new vscode.ThemeColor('charts.purple'));
+//const packageIcon   = new vscode.ThemeIcon('package',          new vscode.ThemeColor('charts.purple'));
+//const scopeIcon     = new vscode.ThemeIcon('symbol-module',    new vscode.ThemeColor('charts.purple'));
 
 //export function createScope(name: string, type: string, path: string, netlistId: number) {
 //  
@@ -104,22 +104,22 @@ const scopeIcon     = new vscode.ThemeIcon('symbol-module',    new vscode.ThemeC
 //  return module;
 //}
   
-function bitRangeString(msb: number, lsb: number): string {
-  if (msb < 0 || lsb < 0) {return "";}
-  if (msb === lsb) {return " [" + msb + "]";}
-  return " [" + msb + ":" + lsb + "]";
-}
-
-// Variables
-const regIcon     = new vscode.ThemeIcon('symbol-array',     new vscode.ThemeColor('charts.green'));
-const wireIcon    = new vscode.ThemeIcon('symbol-interface', new vscode.ThemeColor('charts.pink'));
-const intIcon     = new vscode.ThemeIcon('symbol-variable',  new vscode.ThemeColor('charts.green'));
-const paramIcon   = new vscode.ThemeIcon('settings',         new vscode.ThemeColor('charts.green'));
-const realIcon    = new vscode.ThemeIcon('pulse',            new vscode.ThemeColor('charts.orange'));
-const defaultIcon = new vscode.ThemeIcon('file-binary',      new vscode.ThemeColor('charts.green'));
-const stringIcon  = new vscode.ThemeIcon('symbol-key',       new vscode.ThemeColor('charts.yellow'));
-const portIcon    = new vscode.ThemeIcon('plug',             new vscode.ThemeColor('charts.green'));
-const timeIcon    = new vscode.ThemeIcon('watch',            new vscode.ThemeColor('charts.green'));
+//function bitRangeString(msb: number, lsb: number): string {
+//  if (msb < 0 || lsb < 0) {return "";}
+//  if (msb === lsb) {return " [" + msb + "]";}
+//  return " [" + msb + ":" + lsb + "]";
+//}
+//
+//// Variables
+//const regIcon     = new vscode.ThemeIcon('symbol-array',     new vscode.ThemeColor('charts.green'));
+//const wireIcon    = new vscode.ThemeIcon('symbol-interface', new vscode.ThemeColor('charts.pink'));
+//const intIcon     = new vscode.ThemeIcon('symbol-variable',  new vscode.ThemeColor('charts.green'));
+//const paramIcon   = new vscode.ThemeIcon('settings',         new vscode.ThemeColor('charts.green'));
+//const realIcon    = new vscode.ThemeIcon('pulse',            new vscode.ThemeColor('charts.orange'));
+//const defaultIcon = new vscode.ThemeIcon('file-binary',      new vscode.ThemeColor('charts.green'));
+//const stringIcon  = new vscode.ThemeIcon('symbol-key',       new vscode.ThemeColor('charts.yellow'));
+//const portIcon    = new vscode.ThemeIcon('plug',             new vscode.ThemeColor('charts.green'));
+//const timeIcon    = new vscode.ThemeIcon('watch',            new vscode.ThemeColor('charts.green'));
 
 //export function createVar(name: string, type: string, encoding: string, path: string, netlistId: NetlistId, signalId: SignalId, width: number, msb: number, lsb: number) {
 //  const field = bitRangeString(msb, lsb);

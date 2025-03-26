@@ -101,6 +101,10 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.env.clipboard.writeText(result);
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.copyValueAtMarker', (e) => {
+    viewerProvider.copyValueAtMarker(e);
+  }));
+
   // Value Format commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsBinary', (e) => {
     viewerProvider.setValueFormat(e.netlistId, "binary", undefined, undefined);

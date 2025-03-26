@@ -1,5 +1,6 @@
 import { EventHandler, viewport, NetlistData, arrayMove, NetlistId, ActionType, viewerState, dataManager} from './vaporview';
 import { ValueFormat } from './value_format';
+import { vscode } from './vaporview';
 
 export function createLabel(netlistId: NetlistId, isSelected: boolean) {
   //let selectorClass = 'is-idle';
@@ -34,7 +35,7 @@ export function createValueDisplayElement(netlistId: NetlistId, value: any, isSe
     return `<p style="color:${colorStyle}">${displayValue}</p>`;
   }).join(joinString);
 
-  return `<div class="waveform-label ${selectorClass}" id="value-${netlistId}" ${vscodeContext}>${pElement}</div>`;
+  return `<div class="waveform-label ${selectorClass}" id="value-${netlistId}" data-vscode-context=${vscodeContext}>${pElement}</div>`;
 }
 
 export function htmlSafe(string: string) {
@@ -141,6 +142,20 @@ export class LabelsPanels {
     const itemIndex    = labelsList.indexOf(clickedLabel);
     //this.handleSignalSelect(viewerState.displayedSignals[itemIndex]);
     this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignals[itemIndex]);
+  }
+
+  copyValueAtMarker(netlistId: NetlistId | undefined) {
+
+    if (netlistId === undefined) {return;}
+    const value = this.valueAtMarker[netlistId];
+    if (value === undefined) {return;}
+
+    const formatString   = dataManager.netlistData[netlistId].valueFormat.formatString;
+    const width          = dataManager.netlistData[netlistId].signalWidth;
+    const bitVector      = value[value.length - 1];
+    const formattedValue = formatString(bitVector, width, true);
+
+    vscode.postMessage({command: 'copyToClipboard', text: formattedValue});
   }
 
   updateIdleItemsStateAndPosition() {

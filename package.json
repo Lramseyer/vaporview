@@ -181,17 +181,17 @@
           "group": "0_default@3"
         },
         {
-          "command": "vaporview.addAllInModuleShallow",
+          "command": "vaporview.addAllInScopeShallow",
           "when": "viewItem == 'netlistScope'",
           "group": "0_default@4"
         },
         {
-          "command": "vaporview.addAllInModuleRecursive",
+          "command": "vaporview.addAllInScopeRecursive",
           "when": "viewItem == 'netlistScope'",
           "group": "0_default@5"
         },
         {
-          "command": "vaporview.removeAllInModule",
+          "command": "vaporview.removeAllInScope",
           "when": "viewItem == 'netlistScope'",
           "group": "0_default@6"
         },
@@ -202,22 +202,26 @@
         },
         {
           "command": "vaporview.copyName",
-          "group": "0_default@7"
+          "group": "0_default@8"
+        },
+        {
+          "command": "vaporview.addVariableByInstancePath",
+          "group": "1_addVariable"
         },
         {
           "command": "vaporview.saveViewerSettings",
           "when": "view == 'netlistContainer' || view == 'displaylistContainer'",
-          "group": "1_saveLoad@1"
+          "group": "2_saveLoad@1"
         },
         {
           "command": "vaporview.loadViewerSettings",
           "when": "view == 'netlistContainer' || view == 'displaylistContainer'",
-          "group": "1_saveLoad@2"
+          "group": "2_saveLoad@2"
         },
         {
           "command": "vaporview.reloadFile",
           "when": "view == 'netlistContainer' || view == 'displaylistContainer'",
-          "group": "2_reload"
+          "group": "3_reload"
         }
       ],
       "webview/context": [
@@ -402,14 +406,14 @@
       },
       {
         "command": "vaporview.addVariableByInstancePath",
-        "title": "Add To Vaporview"
+        "title": "Add Variable by Name"
       },
       {
-        "command": "vaporview.addAllInModuleShallow",
+        "command": "vaporview.addAllInScopeShallow",
         "title": "Add All Variables in Scope (Shallow)"
       },
       {
-        "command": "vaporview.addAllInModuleRecursive",
+        "command": "vaporview.addAllInScopeRecursive",
         "title": "Add All Variables in Scope (Recursive)"
       },
       {
@@ -421,7 +425,7 @@
         "title": "Remove Selected"
       },
       {
-        "command": "vaporview.removeAllInModule",
+        "command": "vaporview.removeAllInScope",
         "title": "Remove All Variables in Scope"
       },
       {

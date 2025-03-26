@@ -560,7 +560,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     const metadata = await document.findTreeItem(lookup, msb, lsb);
 
     if (metadata === null) {
-      console.log('Signal not found ' + signalName);
+      // console.log('Signal not found ' + signalName);
+      vscode.window.showWarningMessage('Signal not found: ' + signalName);
       return;
     }
 
@@ -578,6 +579,48 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     } else {
       this.addSignalsToDocument([metadata]);
     }
+  }
+
+  public async addVariableByInstancePathToDocument(e: any) {
+    if (e === undefined || e.instancePath === undefined) { // Executed from the command palette
+      vscode.window.showInputBox({
+        prompt: 'Enter variable name',
+        placeHolder: 'top.mid.var'
+      }).then(userInput => {
+        if (userInput !== undefined && userInput !== '') {
+          this.addSignalByNameToDocument(`${userInput}`);
+        }
+      });
+      return;
+    }
+    this.addSignalByNameToDocument(e.instancePath);
+  }
+
+  public async addAllInScopeToDocument(e: NetlistItem, recursive: boolean, maxChildren: number) {
+    if (e === undefined) { // Executed from the command palette
+      vscode.window.showInputBox({
+        prompt: 'Enter scope name',
+        placeHolder: 'top.mid.scope'
+      }).then(userInput => {
+        if (userInput !== undefined && userInput !== '') {
+          this.addChildVariablesToDocumentByName(`${userInput}`, recursive, maxChildren);
+        }
+      });
+      return;
+    }
+    if (e.collapsibleState === vscode.TreeItemCollapsibleState.None) {return;}
+    this.addChildVariablesToDocument(e, recursive, maxChildren);
+  }
+
+  public async addChildVariablesToDocumentByName(name: string, recursive: boolean, maxChildren: number) {
+    if (!this.activeDocument) {return;}
+    const document = this.activeDocument;
+    const netlistItem = await document.findTreeItem(name, undefined, undefined);
+    if (netlistItem === null || netlistItem.contextValue !== 'netlistScope') {
+      vscode.window.showWarningMessage('Scope not found: ' + name);
+      return;
+    }
+    this.addChildVariablesToDocument(netlistItem, recursive, maxChildren);
   }
 
   public async addChildVariablesToDocument(netlistItem: NetlistItem, recursive: boolean, maxChildren: number) {

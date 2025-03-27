@@ -11,7 +11,11 @@ export function createLabel(netlistId: NetlistId, isSelected: boolean) {
   const signalName    = htmlSafe(netlistData.signalName);
   const modulePath    = htmlSafe(netlistData.modulePath + '.');
   const fullPath      = htmlAttributeSafe(modulePath + signalName);
-  return `<div class="waveform-label is-idle ${selectorClass}" id="label-${netlistId}" title="${fullPath}" data-vscode-context=${vscodeContext}>
+  const type          = netlistData.variableType;
+  const width         = netlistData.signalWidth;
+  const encoding      = netlistData.encoding;
+  const tooltip       = "Name: " + fullPath + "\nType: " + type + "\nWidth: " + width + "\nEncoding: " + encoding;
+  return `<div class="waveform-label is-idle ${selectorClass}" id="label-${netlistId}" title="${tooltip}" data-vscode-context=${vscodeContext}>
             <div class='codicon codicon-grabber'></div>
             <p style="opacity:50%">${modulePath}</p><p>${signalName}</p>
           </div>`;

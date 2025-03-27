@@ -113,8 +113,6 @@ The data structures of this extension really are the key to making it work as we
     - netlistIdCount: number
     - signalIdCount: number
     - timeEnd: number
-    - chunkTime: number
-    - chunkCount: number
     - timeScale: number
     - defaultZoom: number
     - timeUnit: string
@@ -266,7 +264,6 @@ Here are some of the important structures for the viewer:
   - chunkStart[]
     - startIndex: number
   - signalWidth: number
-  - chunkCount: number
 
 - netlistData: Map<netlistId, netlistData>
   - signalId: string

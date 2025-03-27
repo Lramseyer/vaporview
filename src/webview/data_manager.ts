@@ -311,17 +311,7 @@ export class WaveformDataManager {
 
     if (time === null) {return -1;}
   
-    //let endIndex;
-    const data        = this.valueChangeData[signalId].transitionData;
-    //const chunk       = Math.floor(time / viewport.chunkTime);
-    //const startIndex  = Math.max(0, data.chunkStart[chunk] - 1);
-    //if (chunk === viewport.chunkCount - 1) {
-    //  endIndex    = data.transitionData.length;
-    //} else {
-    //  endIndex    = data.chunkStart[chunk + 1] + 1;
-    //}
-    //const searchIndex = data.transitionData.slice(startIndex, endIndex).findIndex(([t, v]) => {return t >= time;});
-    //const transitionIndex = startIndex + searchIndex;
+    const data            = this.valueChangeData[signalId].transitionData;
     const transitionIndex = this.binarySearch(data, time);
   
     if (transitionIndex >= data.length) {

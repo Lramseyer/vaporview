@@ -1,6 +1,16 @@
 # Change Log
 
-## 1.3.2 - Latest Release
+# Release TBD
+
+- Added
+  - Copy Value At Marker context menu item
+  - Tooltips when hovering over viewer signal names
+
+- Fixed
+  - Context menu items now appear when right clicking on value display column
+  - "Load/Save Vporview Settings" Menus appearing where they shouldn't
+
+## 1.3.2
 
 - Unlocked zooming to allow for smooth zooming on touchpad mode
 - Limited Zoom out distance to timeend

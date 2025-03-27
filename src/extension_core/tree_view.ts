@@ -300,10 +300,10 @@ export class NetlistItem extends vscode.TreeItem {
 
     super(label, collapsibleState);
     this.numberFormat = "hexadecimal";
-    this.tooltip = "Name" + ": " + fullName + "\n" + "Type" + ": " + type + "\n";
+    this.tooltip = "Name: " + fullName + "\n" + "Type: " + type + "\n";
     if (collapsibleState === vscode.TreeItemCollapsibleState.None) {
       this.contextValue = 'netlistVar'; // Set a context value for leaf nodes
-      this.tooltip += "Width" + ": " + width + "\n" + "Encoding" + ": " + encoding;
+      this.tooltip += "Width: " + width + "\n" + "Encoding: " + encoding;
     } else {
       this.contextValue = 'netlistScope'; // Set a context value for parent nodes
     }

@@ -417,10 +417,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (!this.lastActiveDocument) {return;}
 
     // Check to see that the time is not out of bounds
-    const chunkCount = this.lastActiveDocument.metadata.chunkCount;
-    const chunkTime  = this.lastActiveDocument.metadata.chunkTime;
-    if (!chunkCount || !chunkTime) {return;}
-    if (time < 0 || time > (chunkCount * chunkTime)) {return;}
+    const timeEnd = this.lastActiveDocument.metadata.timeEnd;
+    if (time < 0 || time > timeEnd) {return;}
 
     this.lastActiveWebview.webview.postMessage({command: 'setMarker', time: time, markerType: altMarker});
   }

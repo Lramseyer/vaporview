@@ -445,7 +445,7 @@ class VaporviewWebview {
     //this.viewport.updateContentArea(0, [0, 0]);
     this.events.dispatch(ActionType.Zoom, 1, 0, 0);
     labelsPanel.renderLabelsPanels();
-    this.viewport.init({chunkTime: 128, defaultZoom: 1, timeScale: 1, timeEnd: 0});
+    this.viewport.init({defaultZoom: 1, timeScale: 1, timeEnd: 0});
     vscode.postMessage({type: 'ready'});
   }
 

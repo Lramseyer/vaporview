@@ -161,17 +161,16 @@ export class WaveformDataManager {
 
     this.receive(signalId);
 
-    const transitionData = JSON.parse(this.valueChangeDataTemp[signalId].chunkData.join(""));
+    const chunkData = this.valueChangeDataTemp[signalId].chunkData;
+    const firstChunk = chunkData?.[0];
+    let transitionData: any;
+    if (typeof firstChunk === "string") {
+      transitionData = JSON.parse(chunkData.join(""));
+    } else if (Array.isArray(firstChunk)) { // We're receiving array from fsdb worker
+      transitionData = chunkData.flat();
+    }
     this.updateWaveform(signalId, transitionData, message.min, message.max);
   }
-
-  //updateWaveformFull(message: any) {
-  //  const signalId = message.signalId;
-  //  this.receive(signalId);
-//
-  //  const transitionData = message.transitionData;
-  //  this.updateWaveform(signalId, transitionData, message.min, message.max);
-  //}
 
   updateWaveform(signalId: SignalId, transitionData: any[], min: number, max: number) {
     const netlistIdList = this.valueChangeDataTemp[signalId].netlistIdList;

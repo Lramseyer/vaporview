@@ -242,6 +242,7 @@ const getFsWrapper = async (uri: vscode.Uri): Promise<fsWrapper> => {
 export abstract class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocument {
 
   private readonly _uri: vscode.Uri;
+  private readonly _fileType: string = 'unknown';
   // Hierarchy
   public treeData:         NetlistItem[] = [];
   public displayedSignals: NetlistItem[] = [];
@@ -275,10 +276,12 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
   constructor(uri: vscode.Uri, delegate: VaporviewDocumentDelegate) {
     super(() => this.dispose());
     this._uri = uri;
+    this._fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
     this._delegate = delegate;
   }
 
   public get uri() { return this._uri; }
+  public get fileType() { return this._fileType; }
   public get netlistIdTable(): NetlistIdTable { return this._netlistIdTable; }
   public get webviewInitialized(): boolean { return this._webviewInitialized; }
 
@@ -353,10 +356,10 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     return timeValue.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + ' ' + this.metadata.timeUnit;
   }
 
-  public async findTreeItem(modulePath: string, msb: number | undefined, lsb: number | undefined): Promise<NetlistItem | null> {
+  public async findTreeItem(modulePath: string, msb: number | undefined, lsb: number | undefined, findingScope: boolean | undefined): Promise<NetlistItem | null> {
     const module = this.treeData.find((element) => element.label === modulePath.split('.')[0]);
     if (!module) {return null;}
-    return await module.findChild(modulePath.split('.').slice(1).join('.'), this, msb, lsb);
+    return await module.findChild(modulePath.split('.').slice(1).join('.'), this, msb, lsb, findingScope);
   }
 
   public getNameFromNetlistId(netlistId: NetlistId | null) {
@@ -467,7 +470,7 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
     wasmWorker: Worker,
     wasmModule: WebAssembly.Module,
     delegate: VaporviewDocumentDelegate,
-  ): Promise<VaporviewDocument | PromiseLike<VaporviewDocument>> {
+  ): Promise<VaporviewDocumentWasm | PromiseLike<VaporviewDocumentWasm>> {
 
     const fsWrapper = await getFsWrapper(uri);
     const document  = new VaporviewDocumentWasm(uri, fsWrapper, wasmWorker, delegate);
@@ -676,7 +679,6 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
 
 // #region VaporviewDocumentFsdb
 export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.CustomDocument {
-  // Fsdb
   public fsdbWorker: ChildProcess | undefined = undefined;
   private fsdbTopModuleCount: number = 0;
   private fsdbCurrentScope: NetlistItem | undefined = undefined;
@@ -817,9 +819,14 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
     if (!element) return;
     // Only one scope is allowed to be reading vars at a time
     this.fsdbCurrentScope = element;
+
+    let modulePath = "";
+    if (element.modulePath !== "") {modulePath += element.modulePath + ".";}
+    modulePath += element.name;
+
     await this.callFsdbWorkerTask({
       command: 'readVars',
-      modulePath: element.modulePath,
+      modulePath: modulePath,
       scopeOffsetIdx: element.scopeOffsetIdx
     });
     // TODO(heyfey): Wait for all callbacks finish
@@ -846,20 +853,14 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
       });
     });
 
-    signalIdList.forEach(async (signalId) => {
+    // Map each signalId to a promise for handling its task.
+    const tasks = signalIdList.map(async (signalId) => {
       const result = await this.callFsdbWorkerTask({
         command: 'getValueChanges',
         signalId: signalId
       });
       const message = result as FsdbWorkerMessage;
       const data = message.result as FsdbWaveformData;
-      //this.webviewPanel?.webview.postMessage({
-      //  command: 'update-waveform-full',
-      //  signalId: signalId,
-      //  transitionData: data.valueChanges,
-      //  min: data.min,
-      //  max: data.max
-      //});
 
       // Since we're receiving the full set of value changes, we can hard code
       // the chunk number and total chunks
@@ -878,6 +879,8 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
         signalId: signalId
       });
     });
+    // Run all tasks concurrently and wait for them to complete.
+    // await Promise.all(tasks);
   }
 
   public async unload() {

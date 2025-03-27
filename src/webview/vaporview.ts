@@ -490,7 +490,6 @@ class VaporviewWebview {
       case 'unload':                {this.unload(); break;}
       case 'add-variable':          {dataManager.addVariable(message.signalList); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}
-      //case 'update-waveform-full':  {dataManager.updateWaveformFull(message); break;}
       case 'remove-signal':         {this.removeVariable(message.netlistId); break;}
       case 'setDisplayFormat':      {dataManager.setDisplayFormat(message); break;}
       case 'setWaveDromClock':      {dataManager.waveDromClock = {netlistId: message.netlistId, edge:  message.edge,}; break;}

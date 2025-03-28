@@ -278,8 +278,9 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     const metadataList: NetlistItem[] = [];
 
     for (const signalInfo of settings.displayedSignals) {
-      const signal   = signalInfo.name;
-      const metadata = await document.findTreeItem(signal, signalInfo.msb, signalInfo.lsb);
+      const regex  = /\[(\d+:)?(\d+)\]$/;
+      const signal   = signalInfo.name.replace(regex, '');
+      const metadata = await document.findTreeItem(signal, signalInfo.msb, signalInfo.lsb, false/* findingScope */);
       if (metadata !== null) {
         metadataList.push(metadata);
         // We need to copy the netlistId from the existing wavefrom dump in case the circuit has changed
@@ -310,7 +311,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     //console.log(settings.selectedSignal);
     if (settings.selectedSignal) {
       const s = settings.selectedSignal;
-      const metadata = await document.findTreeItem(s.name, s.msb, s.lsb);
+      const metadata = await document.findTreeItem(s.name, s.msb, s.lsb, false/* findingScope */);
       if (metadata !== null) {
         const netlistIdSelected = metadata.netlistId;
         this.activeWebview?.webview.postMessage({
@@ -491,7 +492,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   async showInNetlistViewByName(signalName: string) {
     if (!this.lastActiveDocument) {return;}
     const document = this.lastActiveDocument;
-    const metadata = await document.findTreeItem(signalName, undefined, undefined);
+    const metadata = await document.findTreeItem(signalName, undefined, undefined, true/* findingScope */);
     if (metadata !== null) {
       this.netlistView.reveal(metadata, {select: true, focus: false, expand: 3});
     }
@@ -555,7 +556,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     const lsb   = field ? parseInt(field[2], 10) : msb;
 
     //console.log('lookup: ' + lookup + ' msb: ' + msb + ' lsb: ' + lsb);
-    const metadata = await document.findTreeItem(lookup, msb, lsb);
+    const metadata = await document.findTreeItem(lookup, msb, lsb, false/* findingScope */);
 
     if (metadata === null) {
       // console.log('Signal not found ' + signalName);
@@ -613,7 +614,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   public async addChildVariablesToDocumentByName(name: string, recursive: boolean, maxChildren: number) {
     if (!this.activeDocument) {return;}
     const document = this.activeDocument;
-    const netlistItem = await document.findTreeItem(name, undefined, undefined);
+    const netlistItem = await document.findTreeItem(name, undefined, undefined, true/* findingScope */);
     if (netlistItem === null || netlistItem.contextValue !== 'netlistScope') {
       vscode.window.showWarningMessage('Scope not found: ' + name);
       return;

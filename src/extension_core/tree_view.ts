@@ -46,7 +46,9 @@ export function createScope(name: string, type: string, path: string, netlistId:
     case 'vhdlarray':        {icon = scopeIcon; break;}
   }
 
-  const module    = new NetlistItem(name, 'module', 'none', 0, 0, netlistId, name, path, 0, 0, scopeOffsetIdx, [], vscode.TreeItemCollapsibleState.Collapsed);
+  const regex  = /\[(\d+:)?(\d+)\]$/;
+  name = name.replace(regex, ''); // fsdb vhdlarray might contain feild, remove it to align with wellen
+  const module    = new NetlistItem(name, typename, 'none', 0, 0, netlistId, name, path, 0, 0, scopeOffsetIdx, [], vscode.TreeItemCollapsibleState.Collapsed);
   module.iconPath = icon;
 
   return module;
@@ -205,7 +207,7 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
 
   getParent(element: NetlistItem): vscode.ProviderResult<NetlistItem> {
     if (this.document && element.modulePath !== "") {
-      return Promise.resolve(this.document.findTreeItem(element.modulePath, undefined, undefined));
+      return Promise.resolve(this.document.findTreeItem(element.modulePath, undefined, undefined, true/* findingScope */));
     }
     return null;
   }
@@ -310,7 +312,7 @@ export class NetlistItem extends vscode.TreeItem {
   }
 
   // Method to recursively find a child element in the tree
-  async findChild(label: string, document: VaporviewDocument, msb: number | undefined, lsb: number | undefined): Promise<NetlistItem | null> {
+  async findChild(label: string, document: VaporviewDocument, msb: number | undefined, lsb: number | undefined, findingScope: boolean | undefined): Promise<NetlistItem | null> {
 
     // If the label is empty, return the current item, but try to find the child with the specified msb and lsb
     if (label === '') {
@@ -323,17 +325,34 @@ export class NetlistItem extends vscode.TreeItem {
       return this;
     }
 
-    const subModules    = label.split(".");
-    const currentModule = subModules.shift();
+    const subModules  = label.split(".");
+    let currentModule = subModules.shift();
+
+    // Special case for fsdb vhdlarray
+    if (document.fileType === 'fsdb' && this.type !== 'vhdlarray') {
+      currentModule = currentModule!.replace(/\[\d+\]/, "");
+    }
+
     if (this.children.length === 0) {
       await document.getChildrenExternal(this);
     }
 
-    const childItem     = this.children.find((child) => child.name === currentModule);
+    const regex  = /\[(\d+:)?(\d+)\]$/;
+    let childItem: NetlistItem | undefined;
+    childItem = this.children.find((child) => child.name.replace(regex, '') === currentModule);
 
+    // For fsdb, variable may not be found at the first time because of reading var on demand
+    if (!childItem && !findingScope) {
+      await document.getChildrenExternal(this);
+      childItem = this.children.find((child) => child.name.replace(regex, '') === currentModule);
+    }
 
     if (childItem) {
-      return await childItem.findChild(subModules.join("."), document, msb, lsb);
+      // Special case for fsdb vhdlarray when finding var
+      if (document.fileType === 'fsdb' && childItem.type === 'vhdlarray' && !findingScope) {
+        subModules.push(label);
+      }
+      return await childItem.findChild(subModules.join("."), document, msb, lsb, findingScope);
     } else {
       return null;
     }

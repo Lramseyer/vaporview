@@ -45,11 +45,11 @@
     "views": {
       "vaporViewActivityBar": [
         {
-          "id": "netlistContainer",
+          "id": "waveformViewerNetlistView",
           "name": "Netlist"
         },
         {
-          "id": "displaylistContainer",
+          "id": "waveformViewerDisplayedSignalsView",
           "name": "Displayed Signals"
         }
       ]
@@ -167,112 +167,112 @@
       "view/item/context": [
         {
           "command": "vaporview.addSelected",
-          "when": "viewItem == 'netlistVar' && view == 'netlistContainer'",
-          "group": "0_default@1"
+          "when": "viewItem == 'netlistVar' && view == 'waveformViewerNetlistView'",
+          "group": "1_default@1"
         },
         {
           "command": "vaporview.removeSelectedNetlist",
-          "when": "viewItem == 'netlistVar' && view == 'netlistContainer'",
-          "group": "0_default@2"
+          "when": "viewItem == 'netlistVar' && view == 'waveformViewerNetlistView'",
+          "group": "1_default@2"
         },
         {
           "command": "vaporview.removeSelectedDisplayedSignals",
-          "when": "viewItem == 'netlistVar' && view == 'displaylistContainer'",
-          "group": "0_default@3"
+          "when": "viewItem == 'netlistVar' && view == 'waveformViewerDisplayedSignalsView'",
+          "group": "1_default@3"
         },
         {
           "command": "vaporview.addAllInScopeShallow",
           "when": "viewItem == 'netlistScope'",
-          "group": "0_default@4"
+          "group": "1_default@4"
         },
         {
           "command": "vaporview.addAllInScopeRecursive",
           "when": "viewItem == 'netlistScope'",
-          "group": "0_default@5"
+          "group": "1_default@5"
         },
         {
           "command": "vaporview.removeAllInScope",
           "when": "viewItem == 'netlistScope'",
-          "group": "0_default@6"
+          "group": "1_default@6"
         },
         {
           "command": "vaporview.showInViewer",
           "when": "viewItem == 'netlistVar'",
-          "group": "0_default@7"
+          "group": "1_default@7"
         },
         {
           "command": "vaporview.copyName",
-          "group": "0_default@8"
+          "group": "1_default@8"
         },
         {
           "command": "vaporview.addVariableByInstancePath",
-          "group": "1_addVariable"
+          "group": "2_addVariable"
         },
         {
           "command": "vaporview.saveViewerSettings",
-          "when": "view == 'netlistContainer' || view == 'displaylistContainer'",
-          "group": "2_saveLoad@1"
+          "when": "view == 'waveformViewerNetlistView' || view == 'waveformViewerDisplayedSignalsView'",
+          "group": "3_saveLoad@1"
         },
         {
           "command": "vaporview.loadViewerSettings",
-          "when": "view == 'netlistContainer' || view == 'displaylistContainer'",
-          "group": "2_saveLoad@2"
+          "when": "view == 'waveformViewerNetlistView' || view == 'waveformViewerDisplayedSignalsView'",
+          "group": "3_saveLoad@2"
         },
         {
           "command": "vaporview.reloadFile",
-          "when": "view == 'netlistContainer' || view == 'displaylistContainer'",
-          "group": "3_reload"
+          "when": "view == 'waveformViewerNetlistView' || view == 'waveformViewerDisplayedSignalsView'",
+          "group": "4_reload"
         }
       ],
       "webview/context": [
         {
           "submenu": "vaporview.valueFormat",
-          "when": "webviewSection == 'signal'",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "1_default@1"
         },
         {
           "submenu": "vaporview.renderType",
-          "when": "webviewSection == 'signal'",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "1_default@2"
         },
         {
           "submenu": "vaporview.valueColor",
-          "when": "webviewSection == 'signal'",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "1_default@3"
         },
         {
           "command": "vaporview.showInNetlistView",
-          "when": "webviewSection == 'signal'",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "2_default@5"
         },
         {
           "command": "vaporview.removeSignal",
-          "when": "webviewSection == 'signal'",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "2_default@6"
         },
         {
           "command": "vaporview.copyName",
-          "when": "webviewSection == 'signal'",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "2_default@7"
         },
         {
           "command": "vaporview.copyValueAtMarker",
-          "when": "webviewSection == 'signal'",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "2_default@7"
         },
         {
           "command": "vaporview.saveViewerSettings",
           "group": "3_saveLoad@1",
-          "when": "webviewSection == 'signal' || webviewSection == 'viewer'"
+          "when": "(webviewSection == 'signal' || webviewSection == 'viewer') && activeCustomEditorId == 'vaporview.waveformViewer'"
         },
         {
           "command": "vaporview.loadViewerSettings",
           "group": "3_saveLoad@2",
-          "when": "webviewSection == 'signal' || webviewSection == 'viewer'"
+          "when": "(webviewSection == 'signal' || webviewSection == 'viewer') && activeCustomEditorId == 'vaporview.waveformViewer'"
         },
         {
           "submenu": "vaporview.waveDrom",
-          "when": "webviewSection == 'signal'",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "4_waveDrom"
         }
       ],

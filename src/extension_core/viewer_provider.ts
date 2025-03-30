@@ -54,7 +54,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     // Create and register the Netlist and Displayed Signals view container
     this.netlistTreeDataProvider = new NetlistTreeDataProvider();
-    this.netlistView = vscode.window.createTreeView('netlistContainer', {
+    this.netlistView = vscode.window.createTreeView('waveformViewerNetlistView', {
       treeDataProvider: this.netlistTreeDataProvider,
       manageCheckboxStateManually: false,
       canSelectMany: true,
@@ -62,7 +62,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this._context.subscriptions.push(this.netlistView);
 
     this.displayedSignalsTreeDataProvider = new DisplayedSignalsViewProvider();
-    this.displayedSignalsView = vscode.window.createTreeView('displaylistContainer', {
+    this.displayedSignalsView = vscode.window.createTreeView('waveformViewerDisplayedSignalsView', {
       treeDataProvider: this.displayedSignalsTreeDataProvider,
       manageCheckboxStateManually: false,
       canSelectMany: true,

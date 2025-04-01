@@ -58,6 +58,7 @@ export enum ActionType {
 let resizeDebounce: any = 0;
 
 export interface ViewerState {
+  uri: any;
   markerTime: number | null;
   altMarkerTime: number | null;
   selectedSignal: number | null;
@@ -71,6 +72,7 @@ export interface ViewerState {
 }
 
 export const viewerState: ViewerState = {
+  uri: null,
   markerTime: null,
   altMarkerTime: null,
   selectedSignal: null,
@@ -445,7 +447,7 @@ class VaporviewWebview {
     //this.viewport.updateContentArea(0, [0, 0]);
     this.events.dispatch(ActionType.Zoom, 1, 0, 0);
     labelsPanel.renderLabelsPanels();
-    this.viewport.init({defaultZoom: 1, timeScale: 1, timeEnd: 0});
+    this.viewport.init({defaultZoom: 1, timeScale: 1, timeEnd: 0}, viewerState.uri);
     vscode.postMessage({type: 'ready'});
   }
 
@@ -486,7 +488,7 @@ class VaporviewWebview {
     const message = e.data;
 
     switch (message.command) {
-      case 'create-ruler':          {this.viewport.init(message.waveformDataSet); break;}
+      case 'create-ruler':          {this.viewport.init(message.waveformDataSet, message.uri); break;}
       case 'unload':                {this.unload(); break;}
       case 'add-variable':          {dataManager.addVariable(message.signalList); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}

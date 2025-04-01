@@ -41,7 +41,23 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.updateColorTheme(e);
   });
 
-  // Commands
+  // #region External Commands
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.addVariable', (e) => {
+    viewerProvider.variableActionCommandHandler(e, "add");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.removeVariable', (e) => {
+    viewerProvider.variableActionCommandHandler(e, "remove");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.revealInNetlistView', (e) => {
+    viewerProvider.variableActionCommandHandler(e, "reveal");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.setMarker', (e) => {
+    viewerProvider.markerCommandHandler(e);
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.viewVaporViewSidebar', () => {
     vscode.commands.executeCommand('workbench.view.extension.vaporView');
   }));
@@ -84,6 +100,7 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.showInNetlistView', (e) => {
+    console.log(e);
     if (e.netlistId !== undefined) {
       viewerProvider.showInNetlistView(e.netlistId);
     }
@@ -106,7 +123,36 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.copyValueAtMarker(e);
   }));
 
-  // Value Format commands
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.saveViewerSettings', (e) => {
+    viewerProvider.saveSettingsToFile();
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.loadViewerSettings', (e) => {
+    viewerProvider.loadSettingsFromFile();
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.reloadFile', (e) => {
+    viewerProvider.reloadFile(e);
+  }));
+
+  // #region WaveDrom
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.copyWaveDrom', (e) => {
+    viewerProvider.copyWaveDrom();
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setWaveDromClockRising', (e) => {
+    viewerProvider.setWaveDromClock('1', e.netlistId);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setWaveDromClockFalling', (e) => {
+    viewerProvider.setWaveDromClock('0', e.netlistId);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.unsetWaveDromClock', (e) => {
+    viewerProvider.setWaveDromClock('1', null);
+  }));
+
+  // #region Value Format
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsBinary', (e) => {
     viewerProvider.setValueFormat(e.netlistId, "binary", undefined, undefined);
   }));
@@ -165,36 +211,7 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.setValueFormat(e.netlistId, "tensorfloat32", undefined, undefined);
   }));
 
-  // WaveDrom commands
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.copyWaveDrom', (e) => {
-    viewerProvider.copyWaveDrom();
-  }));
-
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setWaveDromClockRising', (e) => {
-    viewerProvider.setWaveDromClock('1', e.netlistId);
-  }));
-
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setWaveDromClockFalling', (e) => {
-    viewerProvider.setWaveDromClock('0', e.netlistId);
-  }));
-
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.unsetWaveDromClock', (e) => {
-    viewerProvider.setWaveDromClock('1', null);
-  }));
-
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.saveViewerSettings', (e) => {
-    viewerProvider.saveSettingsToFile();
-  }));
-
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.loadViewerSettings', (e) => {
-    viewerProvider.loadSettingsFromFile();
-  }));
-
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.reloadFile', (e) => {
-    viewerProvider.reloadFile(e);
-  }));
-
-  // Custom Color commands
+  // #region Custom Color
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor1', (e) => {
     viewerProvider.setValueFormat(e.netlistId, undefined, 0, undefined);
   }));

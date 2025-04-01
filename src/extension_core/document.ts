@@ -167,6 +167,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     webviewPanel.webview.postMessage({
       command: 'create-ruler',
       waveformDataSet: this.metadata,
+      uri: this.uri
     });
     //console.log(this.metadata);
     this._webviewInitialized = true;
@@ -209,6 +210,11 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
   //  const newMinTimeStemp     = 10 ** (Math.round(Math.log10(minTimeStemp / 128)) | 0);
   //  this.metadata.defaultZoom = 4 / newMinTimeStemp;
   //}
+
+  public reveal() {
+    if (!this.webviewPanel) {return;}
+    this.webviewPanel.reveal(vscode.ViewColumn.Active);
+  }
 
   public getSettings() {
     return {

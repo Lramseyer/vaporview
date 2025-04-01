@@ -141,8 +141,14 @@ export class Viewport {
     this.events.subscribe(ActionType.updateColorTheme, this.handleColorChange);
   }
 
-  init(metadata: any) {
+  init(metadata: any, uri: string) {
     document.title     = metadata.filename;
+    document.body.setAttribute("data-vscode-context", JSON.stringify({
+      preventDefaultContextMenuItems: true,
+      webviewSelection: true,
+      uri: uri,
+    }));
+    viewerState.uri    = uri;
     this.pixelRatio    = window.devicePixelRatio || 1;
     this.defaultZoom   = metadata.defaultZoom;
     this.zoomRatio     = metadata.defaultZoom;
@@ -150,7 +156,6 @@ export class Viewport {
     this.timeScale     = metadata.timeScale;
     this.timeStop      = metadata.timeEnd;
     this.maxZoomRatio  = this.zoomRatio * 64;
-    //this.updatePending = true;
     this.waveformArea.innerHTML = '';
     this.getThemeColors();
     this.updateViewportWidth();

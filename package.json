@@ -263,12 +263,12 @@
         {
           "command": "vaporview.saveViewerSettings",
           "group": "3_saveLoad@1",
-          "when": "(webviewSection == 'signal' || webviewSection == 'viewer') && activeCustomEditorId == 'vaporview.waveformViewer'"
+          "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
         },
         {
           "command": "vaporview.loadViewerSettings",
           "group": "3_saveLoad@2",
-          "when": "(webviewSection == 'signal' || webviewSection == 'viewer') && activeCustomEditorId == 'vaporview.waveformViewer'"
+          "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
         },
         {
           "submenu": "vaporview.waveDrom",
@@ -554,10 +554,6 @@
       {
         "command": "vaporview.unsetWaveDromClock",
         "title": "Unset WaveDrom Clock"
-      },
-      {
-        "command": "vaporview.viewVaporViewSidebar",
-        "title": "View VaporView Sidebar"
       },
       {
         "command": "vaporview.saveViewerSettings",

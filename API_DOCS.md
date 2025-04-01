@@ -72,4 +72,73 @@ Note: Tree items in both the Netlist View and the Displayed Signals View have th
 
 # Commands
 
-This section is not complete yet
+In an attempt to future proof and maintain compatibility with any potential future waveform viewers, all public commands will be prefixed with the "waveformViewer" prefix instead of "vapoview". All commands in this API take in one argument, which is an object with all arguments named. This is to maintain compatibility with any context menu items
+
+## waveformViewer.addVariable
+
+Add a variable to the viewer
+
+### Arguments
+
+- **uri** - (Optional) Document URI - if not defined, this function will use the currently active, or last active document
+- **netlistId** - (Optional*) Waveform Dump File Variable ID
+- **instancePath** - (Optional*) Full instance path for variable
+- **modulePath** - (Optional*) - Variable module math without variable name
+- **name** - (Optional*) - Variable name
+- **msb** - (Optional) - Most Significant Bit
+- **lsb** - (Optional) - Least Significant Bit
+
+Note that a variable must be specified with at least of the following set of keys, and priority is as follows:
+
+1. netlistId
+2. instancePath
+3. modulePath AND name
+
+## waveformViewer.removeVariable
+
+Remove a variable from the viewer
+
+### Arguments
+
+- **uri** - (Optional) Document URI - if not defined, this function will use the currently active, or last active document
+- **netlistId** - (Optional*) Waveform Dump File Variable ID
+- **instancePath** - (Optional*) Full instance path for variable
+- **modulePath** - (Optional*) - Variable module math without variable name
+- **name** - (Optional*) - Variable name
+- **msb** - (Optional) - Most Significant Bit
+- **lsb** - (Optional) - Least Significant Bit
+
+Note that a variable must be specified with at least of the following set of keys, and priority is as follows:
+
+1. netlistId
+2. instancePath
+3. modulePath AND name
+
+## waveformViewer.revealVariableInNetlistView
+
+Reveal a variable or scope in the netlist view
+
+### Arguments
+
+- **uri** - (Optional) Document URI - if not defined, this function will use the currently active, or last active document
+- **netlistId** - (Optional*) Waveform Dump File Variable ID
+- **instancePath** - (Optional*) Full instance path for variable or scope
+- **modulePath** - (Optional*) - Variable module math without target variable or scope name
+- **name** - (Optional*) - Variable or Scope name
+
+Note that a variable or scope must be specified with at least of the following set of keys, and priority is as follows:
+
+1. netlistId
+2. instancePath
+3. modulePath AND name
+
+## waveformViewer.setMarker
+
+Set the marker or alt marker to a time in the viewer
+
+### Arguments
+
+- **uri** - (Optional) Document URI - if not defined, this function will use the currently active, or last active document
+- **time** - Target Time
+- **units** - (Optional) Time Unit - If not specified, will default to waveform dump format time units "fs" | "ps" | "ns" | "us" | "µs" | "ms" | "s" | "ks"
+- **markerType** - (Optional) Marker Type - 0: Main Marker, 1: Alt Marker

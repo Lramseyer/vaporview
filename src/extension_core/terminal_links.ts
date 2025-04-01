@@ -59,7 +59,7 @@ export class TimestampLinkProvider implements vscode.TerminalLinkProvider {
         const time  = parseFloat([...link.data.matchAll(this.timeStampWithUnits)][0][1]);
         const units = [...link.data.matchAll(this.timeStampWithUnits)][0][2];
         //console.log("Timestamp with units link clicked: " + time + '; units: ' + units);
-        this.viewerProvider.setMarkerAtTimeWithUnits(time, units);
+        this.viewerProvider.setMarkerAtTimeWithUnits(time, units, 0);
         break;
       }
     }

@@ -156,6 +156,10 @@ export function sendWebviewContext() {
   });
 }
 
+export function outputLog(message: string) {
+  vscode.postMessage({ command: 'logOutput', message: message });
+}
+
 class VaporviewWebview {
 
   // HTML Elements
@@ -503,6 +507,7 @@ class VaporviewWebview {
       case 'copyWaveDrom':          {dataManager.copyWaveDrom(); break;}
       case 'copyValueAtMarker':     {labelsPanel.copyValueAtMarker(message.netlistId); break;}
       case 'updateColorTheme':      {this.events.dispatch(ActionType.updateColorTheme); break;}
+      default: {outputLog('Unknown webview message type: ' + message.command); break;}
     }
   }
 }

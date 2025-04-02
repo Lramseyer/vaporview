@@ -6,6 +6,7 @@
   - Copy Value At Marker context menu item
   - Tooltips when hovering over viewer signal names
   - Commands for use in other extensions and API docs
+  - Zoom to Fit button on control bar
 
 - Fixed
   - Context menu items now appear when right clicking on value display column

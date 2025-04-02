@@ -43,18 +43,22 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // #region External Commands
   context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.addVariable', (e) => {
+    viewerProvider.log.appendLine("Command called: 'waveformViewer.addVariable'");
     viewerProvider.variableActionCommandHandler(e, "add");
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.removeVariable', (e) => {
+    viewerProvider.log.appendLine("Command called: 'waveformViewer.removeVariable'");
     viewerProvider.variableActionCommandHandler(e, "remove");
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.revealInNetlistView', (e) => {
+    viewerProvider.log.appendLine("Command called: 'waveformViewer.revealInNetlistView'");
     viewerProvider.variableActionCommandHandler(e, "reveal");
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.setMarker', (e) => {
+    viewerProvider.log.appendLine("Command called: 'waveformViewer.setMarker'");
     viewerProvider.markerCommandHandler(e);
   }));
 

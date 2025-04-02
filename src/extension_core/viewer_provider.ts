@@ -50,14 +50,16 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   ) {
 
     // The channel for printing the log.
-    this.log = vscode.window.createOutputChannel('Vaporview Log', { log: true });
+    this.log = vscode.window.createOutputChannel('Vaporview', { log: true });
     _context.subscriptions.push(this.log);
+
+    this.log.appendLine('Vaporview Activated');
 
     // Create and register the Netlist and Displayed Signals view container
     this.netlistTreeDataProvider = new NetlistTreeDataProvider();
     this.netlistView = vscode.window.createTreeView('waveformViewerNetlistView', {
       treeDataProvider: this.netlistTreeDataProvider,
-      manageCheckboxStateManually: false,
+      manageCheckboxStateManually: true,
       canSelectMany: true,
     });
     this._context.subscriptions.push(this.netlistView);
@@ -65,7 +67,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.displayedSignalsTreeDataProvider = new DisplayedSignalsViewProvider();
     this.displayedSignalsView = vscode.window.createTreeView('waveformViewerDisplayedSignalsView', {
       treeDataProvider: this.displayedSignalsTreeDataProvider,
-      manageCheckboxStateManually: false,
+      manageCheckboxStateManually: true,
       canSelectMany: true,
     });
     this._context.subscriptions.push(this.displayedSignalsView);
@@ -92,6 +94,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   ): Promise<VaporviewDocument> {
 
     const delegate = {
+      logOutputChannel: (message: string) => {this.log.appendLine(message);},
       getViewerContext: async () => {
         const webviewsForDocument = Array.from(this.webviews.get(document.uri));
         if (!webviewsForDocument.length) {
@@ -140,16 +143,18 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     webviewPanel.webview.onDidReceiveMessage(e => {
 
       switch (e.command) {
+        case 'logOutput':           {this.log.appendLine(e.message); break;}
+        case 'showMessage':         {this.handleWebviewMessage(e); break;}
+        case 'copyToClipboard':     {vscode.env.clipboard.writeText(e.text); break;}
+        case 'copyWaveDrom':        {this.copyWaveDromToClipboard(e.waveDromJson, e.maxTransitions, e.maxTransitionsFlag); break;}
+        case 'ready':               {document.onWebviewReady(webviewPanel); break;}
+        case 'close-webview':       {webviewPanel.dispose(); break;}
         case 'setTime':             {this.updateStatusBarItems(document, e); break;}
         case 'setSelectedSignal':   {this.updateStatusBarItems(document, e); break;}
         case 'contextUpdate' :      {this.updateStatusBarItems(document, e); break;}
         case 'fetchTransitionData': {document.getSignalData(e.signalIdList); break;}
-        case 'copyWaveDrom':        {this.copyWaveDromToClipboard(e.waveDromJson, e.maxTransitions, e.maxTransitionsFlag); break;}
-        case 'copyToClipboard':     {vscode.env.clipboard.writeText(e.text); break;}
-        case 'showMessage':         {this.handleWebviewMessage(e); break;}
-        case 'close-webview':       {webviewPanel.dispose(); break;}
-        case 'ready':               {document.onWebviewReady(webviewPanel); break;}
         case 'removeVariable':      {this.removeSignalFromDocument(e.netlistId); break;}
+        default: {this.log.appendLine('Unknown webview message type: ' + e.command); break;}
       }
 
       if (e.type === 'response')    {this.onMessage(e);}
@@ -302,7 +307,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       this.setMarkerAtTime(settings.altMarkerTime, 1);
     }
 
-    console.log(missingSignals);
+    this.log.appendLine('Missing signals: '+ missingSignals.join(', '));
     this.filterAddSignalsInNetlist(metadataList, true);
     for (const signalInfo of foundSignals) {
       this.setValueFormat(signalInfo.netlistId, signalInfo.numberFormat, signalInfo.colorIndex, signalInfo.renderType);

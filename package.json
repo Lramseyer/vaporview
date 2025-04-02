@@ -27,7 +27,7 @@
     "Logic Analyzer"
   ],
   "engines": {
-    "vscode": "^1.89.0"
+    "vscode": "^1.96.0"
   },
   "main": "./dist/extension",
   "browser": "./dist/extension",

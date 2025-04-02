@@ -14,6 +14,7 @@ enum SearchState {
 export class ControlBar {
   private zoomInButton: HTMLElement;
   private zoomOutButton: HTMLElement;
+  private zoomFitButton: HTMLElement;
   private prevNegedge: HTMLElement;
   private prevPosedge: HTMLElement;
   private nextNegedge: HTMLElement;
@@ -46,6 +47,7 @@ export class ControlBar {
 
     this.zoomInButton  = document.getElementById('zoom-in-button')!;
     this.zoomOutButton = document.getElementById('zoom-out-button')!;
+    this.zoomFitButton = document.getElementById('zoom-fit-button')!;
     this.prevNegedge   = document.getElementById('previous-negedge-button')!;
     this.prevPosedge   = document.getElementById('previous-posedge-button')!;
     this.nextNegedge   = document.getElementById('next-negedge-button')!;
@@ -64,19 +66,20 @@ export class ControlBar {
     this.searchBar     = document.getElementById('search-bar');
     this.valueIconRef  = document.getElementById('value-icon-reference');
 
-    if (this.zoomInButton === null || this.zoomOutButton === null || this.prevNegedge === null ||
-        this.prevPosedge === null || this.nextNegedge === null || this.nextPosedge === null ||
-        this.prevEdge === null || this.nextEdge === null || this.timeEquals === null ||
-        this.valueEquals === null || this.previousButton === null || this.nextButton === null ||
-        this.touchScroll === null || this.mouseScroll === null || this.autoScroll === null ||
-        this.searchContainer === null || this.searchBar === null || this.valueIconRef === null || 
-        this.valueEqualsSymbol === null) {
+    if (this.zoomInButton === null || this.zoomOutButton === null || this.zoomFitButton === null || 
+        this.prevNegedge === null || this.prevPosedge === null || this.nextNegedge === null || 
+        this.nextPosedge === null || this.prevEdge === null || this.nextEdge === null || 
+        this.timeEquals === null || this.valueEquals === null || this.previousButton === null || 
+        this.nextButton === null || this.touchScroll === null || this.mouseScroll === null || 
+        this.autoScroll === null || this.searchContainer === null || this.searchBar === null || 
+        this.valueIconRef === null ||  this.valueEqualsSymbol === null) {
       throw new Error("Could not find all required elements");
     }
 
     // Control bar button event handlers
     this.zoomInButton.addEventListener( 'click', (e) => {this.events.dispatch(ActionType.Zoom, -1, (viewport.pseudoScrollLeft + viewport.halfViewerWidth) / viewport.zoomRatio, viewport.halfViewerWidth);});
     this.zoomOutButton.addEventListener('click', (e) => {this.events.dispatch(ActionType.Zoom, 1, (viewport.pseudoScrollLeft + viewport.halfViewerWidth) / viewport.zoomRatio, viewport.halfViewerWidth);});
+    this.zoomFitButton.addEventListener('click', (e) => {this.events.dispatch(ActionType.Zoom, Infinity, 0, 0);});
     this.prevNegedge.addEventListener(  'click', (e: any) => {this.goToNextTransition(-1, '0');});
     this.prevPosedge.addEventListener(  'click', (e: any) => {this.goToNextTransition(-1, '1');});
     this.nextNegedge.addEventListener(  'click', (e: any) => {this.goToNextTransition( 1, '0');});

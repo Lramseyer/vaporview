@@ -41,7 +41,7 @@ body {
 
 .control-bar-button {
   padding: 2px 2px 2px 2px;
-  margin: 4px 6px 4px 6px;
+  margin: 4px 0px 4px 4px;
   height: 20px;
   width: 20px;
   fill: var(--vscode-icon-foreground);
@@ -76,6 +76,7 @@ body {
   border-radius: 2px;
   background-color: var(--vscode-input-background);
   height: 25px;
+  margin-right: 4px;
 }
 
 #search-container.is-focused {

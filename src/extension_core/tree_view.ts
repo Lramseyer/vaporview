@@ -46,7 +46,7 @@ export function createScope(name: string, type: string, path: string, netlistId:
     case 'vhdlarray':        {icon = scopeIcon; break;}
   }
 
-  const module    = new NetlistItem(name, 'module', 'none', 0, 0, netlistId, name, path, 0, 0, scopeOffsetIdx, [], vscode.TreeItemCollapsibleState.Collapsed);
+  const module    = new NetlistItem(name, typename, 'none', 0, 0, netlistId, name, path, 0, 0, scopeOffsetIdx, [], vscode.TreeItemCollapsibleState.Collapsed);
   module.iconPath = icon;
 
   return module;

@@ -74,11 +74,19 @@ Note: Tree items in both the Netlist View and the Displayed Signals View have th
 
 In an attempt to future proof and maintain compatibility with any potential future waveform viewers, all public commands will be prefixed with the "waveformViewer" prefix instead of "vapoview". All commands in this API take in one argument, which is an object with all arguments named. This is to maintain compatibility with any context menu items
 
+## vaporview.openFile
+
+Opens a file with vaporview
+
+### Argument: uri
+
+This command takes the URI to a waveform dump file.
+
 ## waveformViewer.addVariable
 
 Add a variable to the viewer
 
-### Arguments
+### Arguments: object
 
 - **uri** - (Optional) Document URI - if not defined, this function will use the currently active, or last active document
 - **netlistId** - (Optional*) Waveform Dump File Variable ID
@@ -98,7 +106,7 @@ Note that a variable must be specified with at least of the following set of key
 
 Remove a variable from the viewer
 
-### Arguments
+### Arguments: object
 
 - **uri** - (Optional) Document URI - if not defined, this function will use the currently active, or last active document
 - **netlistId** - (Optional*) Waveform Dump File Variable ID
@@ -118,7 +126,7 @@ Note that a variable must be specified with at least of the following set of key
 
 Reveal a variable or scope in the netlist view
 
-### Arguments
+### Arguments: object
 
 - **uri** - (Optional) Document URI - if not defined, this function will use the currently active, or last active document
 - **netlistId** - (Optional*) Waveform Dump File Variable ID
@@ -136,7 +144,7 @@ Note that a variable or scope must be specified with at least of the following s
 
 Set the marker or alt marker to a time in the viewer
 
-### Arguments
+### Arguments: object
 
 - **uri** - (Optional) Document URI - if not defined, this function will use the currently active, or last active document
 - **time** - Target Time

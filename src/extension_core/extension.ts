@@ -42,6 +42,11 @@ export async function activate(context: vscode.ExtensionContext) {
   });
 
   // #region External Commands
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.openFile', (uri) => {
+    viewerProvider.log.appendLine("Command called: 'vaporview.openFile'");
+    vscode.commands.executeCommand('vscode.openWith', uri, 'vaporview.waveformViewer');
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.addVariable', (e) => {
     viewerProvider.log.appendLine("Command called: 'waveformViewer.addVariable'");
     viewerProvider.variableActionCommandHandler(e, "add");

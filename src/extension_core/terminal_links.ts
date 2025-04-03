@@ -51,14 +51,14 @@ export class TimestampLinkProvider implements vscode.TerminalLinkProvider {
     switch (link.type) {
       case 'uvm-timestamp': {
         const time = parseInt([...link.data.matchAll(this.uvmTimestampRegex)][0][1]);
-        //console.log("UVM Timestamp link clicked: " + time);
+        this.viewerProvider.log.appendLine('UVM Timestamp link clicked: ' + time);
         this.viewerProvider.setMarkerAtTime(time, 0);
         break;
       }
       case 'timestamp-with-units': {
         const time  = parseFloat([...link.data.matchAll(this.timeStampWithUnits)][0][1]);
         const units = [...link.data.matchAll(this.timeStampWithUnits)][0][2];
-        //console.log("Timestamp with units link clicked: " + time + '; units: ' + units);
+        this.viewerProvider.log.appendLine("Timestamp with units link clicked: " + time + '; units: ' + units);
         this.viewerProvider.setMarkerAtTimeWithUnits(time, units, 0);
         break;
       }
@@ -100,6 +100,7 @@ export class NetlistLinkProvider implements vscode.TerminalLinkProvider {
       case 'netlist-element': {
         //console.log("Netlist element link clicked: " + link.data);
         this.viewerProvider.addSignalByNameToDocument(link.data);
+        this.viewerProvider.log.appendLine('Terminal link clicked: ' + link.data);
         break;
       }
     }

@@ -4,11 +4,11 @@ This document is work in progress, and may be subject to change. Please visit gi
 
 ## Overview
 
-Vaporview is designed with the VSCode IDE expereince in mind, and as such, I want to allow for extension interoperability as much as possible. This document outlines vaporview command subscriptions, and commands that are emitted.
+Vaporview is designed with the VSCode IDE expereince in mind, so this document serves to help enable extension interoperability. This document outlines vaporview command subscriptions, and commands that are emitted.
 
 # Context menus
 
-Custom context menu commands can be added to vaporview componets such as the netlist viewer and and waveform viewer, and those context menu items can call commands to other extensions.
+Custom context [right click] menu commands can be added to vaporview componets such as the netlist viewer and and waveform viewer, and those context menu items can call commands to other extensions.
 
 ## Waveform Viewer Document (document webview)
 
@@ -18,7 +18,9 @@ Custom context menu items can be added to the waveform viewer webview. All attri
 - **package.json path:** contributes.menus.webview/context
 - **when:** activeCustomEditorId == 'vaporview.waveformViewer'
 
-### Attributes
+### Signal Item Attributes
+
+All signals in the webview will emit the following attributes when right clicked on
 
 - **webviewSection** - "signal"
 - **modulePath** - Instance path (delimited by "." characters) without the variable name
@@ -72,7 +74,7 @@ Note: Tree items in both the Netlist View and the Displayed Signals View have th
 
 # Commands
 
-In an attempt to future proof and maintain compatibility with any potential future waveform viewers, all public commands will be prefixed with the "waveformViewer" prefix instead of "vapoview". All commands in this API take in one argument, which is an object with all arguments named. This is to maintain compatibility with any context menu items
+In an attempt to future proof and maintain compatibility with any potential future waveform viewers, most public commands will be prefixed with the "waveformViewer" prefix instead of "vapoview". Commands listed in this API may take in arguments, which will usually be an object with the arguments named. This is to maintain compatibility with any context menu items.
 
 ## vaporview.openFile
 

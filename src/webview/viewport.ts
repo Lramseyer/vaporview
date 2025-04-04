@@ -423,10 +423,10 @@ export class Viewport {
 
   updateMarker() {
     if (this.markerElement && viewerState.markerTime !== null) {
-      this.markerElement.style.left = this.getViewportLeft(viewerState.markerTime, 10) + 'px';
+      this.markerElement.style.left = this.getViewportLeft(viewerState.markerTime, 15) + 'px';
     }
     if (this.altMarkerElement && viewerState.altMarkerTime !== null) {
-      this.altMarkerElement.style.left = this.getViewportLeft(viewerState.altMarkerTime, 10) + 'px';
+      this.altMarkerElement.style.left = this.getViewportLeft(viewerState.altMarkerTime, 15) + 'px';
     }
   }
 
@@ -620,7 +620,7 @@ export class Viewport {
     this.updatePending    = true;
     this.zoomRatio        = newZoomRatio;
     this.pixelTime        = 1 / this.zoomRatio;
-    this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth + 10, 0));
+    this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth, 0));
     this.pseudoScrollLeft = Math.max(Math.min((zoomOrigin * this.zoomRatio) - screenPosition, this.maxScrollLeft), 0);
     this.timeScrollLeft   = this.pseudoScrollLeft * this.pixelTime;
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
@@ -657,15 +657,15 @@ export class Viewport {
     this.pixelRatio       = window.devicePixelRatio || 1;
     this.scrollbarCanvasElement.setAttribute("width",  `0`);
     this.scrollbarCanvasElement.style.width  = `0px`;
-    const bounds          = this.scrollArea.getBoundingClientRect();
-    this.viewerWidth      = bounds.width;
-    this.viewerHeight     = bounds.height;
+    const boundsScroll    = this.scrollArea.getBoundingClientRect();
+    this.viewerWidth      = boundsScroll.width - 10;
+    this.viewerHeight     = boundsScroll.height;
     this.halfViewerWidth  = this.viewerWidth / 2;
-    this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth + 10, 0));
+    this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth, 0));
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
     this.timeScrollRight  = this.timeScrollLeft + this.viewerWidthTime;
     this.scrollbarCanvasElement.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
-    this.minZoomRatio     = (this.viewerWidth - 10) / this.timeStop;
+    this.minZoomRatio     = (this.viewerWidth) / this.timeStop;
 
     // Update Ruler Canvas Dimensions
     this.rulerCanvasElement.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);

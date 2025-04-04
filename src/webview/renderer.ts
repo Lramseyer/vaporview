@@ -21,7 +21,7 @@ function busValue(time: number, deltaTime: number, displayValue: string, viewpor
   //}
 
   adjustedTime = Math.max(time, viewportSpecs.timeScrollLeft);
-  adjestedDeltaTime = Math.min(time + deltaTime, viewportSpecs.timeScrollRight - (10 * viewportSpecs.pixelTime)) - adjustedTime;
+  adjestedDeltaTime = Math.min(time + deltaTime, viewportSpecs.timeScrollRight) - adjustedTime;
   let characterWidthLimit = adjestedDeltaTime - (2 * padding);
 
   if (textTime > characterWidthLimit) {

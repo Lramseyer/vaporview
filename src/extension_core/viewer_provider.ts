@@ -8,6 +8,7 @@ import { NetlistTreeDataProvider, DisplayedSignalsViewProvider, NetlistItem, Web
 export type NetlistId = number;
 export type SignalId  = number;
 export interface VaporviewDocumentDelegate {
+  logOutputChannel(message: string): void;
   getViewerContext(): Promise<Uint8Array>;
   updateViews(uri: vscode.Uri): void;
   removeFromCollection(uri: vscode.Uri, document: VaporviewDocument): void;

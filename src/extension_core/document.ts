@@ -108,9 +108,7 @@ const getFsWrapper = async (uri: vscode.Uri): Promise<fsWrapper> => {
       if (fileStats.isFile()) {
         return nodeFsWrapper;
       }
-    } catch {
-      // probably not node.js, or file does not exist
-    }
+    } catch { /* probably not node.js, or file does not exist */  }
   }
 
   return wroskpaceFsWrapper;
@@ -373,6 +371,9 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
   protected async load() {
 
     const fileType = this.uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
+    this._delegate.logOutputChannel("Loading " + fileType + " file: " + this.uri.fsPath);
+    const loadTime = Date.now();
+
     await this.fileReader.loadFile(this.uri, fileType);
     await vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification,
@@ -382,8 +383,17 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
       await this.wasmApi.loadfile(BigInt(this.fileReader.fileSize), this.fileReader.fd, this.fileReader.loadStatic, this.fileReader.bufferSize);
     });
 
+    const netlistFinishTime = Date.now();
+    const netlistTime = (netlistFinishTime - loadTime) / 1000;
+    this._delegate.logOutputChannel("Finished parsing netlist for " + this.uri.fsPath);
+    this._delegate.logOutputChannel("Scope count: " + this.metadata.moduleCount + 
+      " Variable count: " + this.metadata.netlistIdCount + " Time: " + netlistTime + " seconds");
+
     this._delegate.updateViews(this.uri);
     await this._readBody(fileType);
+
+    this._delegate.logOutputChannel("Finished parsing waveforms for " + this.uri.fsPath);
+    this._delegate.logOutputChannel("Total time: " + (Date.now() - loadTime) / 1000 + " ms");
   }
 
   public readonly service: filehandler.Imports.Promisified = {

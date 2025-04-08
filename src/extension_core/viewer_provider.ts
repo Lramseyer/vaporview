@@ -149,6 +149,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'copyToClipboard':     {vscode.env.clipboard.writeText(e.text); break;}
         case 'copyWaveDrom':        {this.copyWaveDromToClipboard(e.waveDromJson, e.maxTransitions, e.maxTransitionsFlag); break;}
         case 'ready':               {document.onWebviewReady(webviewPanel); break;}
+        case 'revealNetlistView':   {vscode.commands.executeCommand("waveformViewerNetlistView.focus");; break;}
         case 'close-webview':       {webviewPanel.dispose(); break;}
         case 'setTime':             {this.updateStatusBarItems(document, e); break;}
         case 'setSelectedSignal':   {this.updateStatusBarItems(document, e); break;}

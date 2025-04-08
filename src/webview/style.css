@@ -281,6 +281,21 @@ body {
   outline: none;
 }
 
+#netlist-link {
+  user-select: none;
+  white-space: pre;
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  padding: 0px 8px 0px 8px;
+}
+
+#netlist-link-text {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+  cursor: pointer;
+}
+
 #scrollbar {
   position: absolute;
   bottom : 0px;

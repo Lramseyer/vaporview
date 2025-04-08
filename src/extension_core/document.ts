@@ -393,7 +393,7 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
     await this._readBody(fileType);
 
     this._delegate.logOutputChannel("Finished parsing waveforms for " + this.uri.fsPath);
-    this._delegate.logOutputChannel("Total time: " + (Date.now() - loadTime) / 1000 + " ms");
+    this._delegate.logOutputChannel("Total time: " + (Date.now() - loadTime) / 1000 + " seconds");
   }
 
   public readonly service: filehandler.Imports.Promisified = {

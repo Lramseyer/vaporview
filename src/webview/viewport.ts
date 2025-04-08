@@ -19,6 +19,7 @@ export class Viewport {
   rulerCanvas: CanvasRenderingContext2D;
   markerElement: HTMLElement;
   altMarkerElement: HTMLElement;
+  netlistLinkElement: HTMLElement | null = null;
 
   highlightElement: any     = null;
   highlightEndEvent: any    = null;
@@ -157,6 +158,7 @@ export class Viewport {
     this.timeStop      = metadata.timeEnd;
     this.maxZoomRatio  = this.zoomRatio * 64;
     this.waveformArea.innerHTML = '';
+    this.addNetlistLink();
     this.getThemeColors();
     this.updateViewportWidth();
     this.handleZoom(1, 0, 0);
@@ -221,6 +223,7 @@ export class Viewport {
   handleAddVariable(netlistIdList: NetlistId[], updateFlag: boolean) {
     netlistIdList.forEach((netlistId) => {
       if (!dataManager.netlistData[netlistId]) {return;}
+      this.removeNetlistLink();
       const netlistData = dataManager.netlistData[netlistId];
       // create a canvas element and add it to the scroll area
       const canvas = document.createElement('canvas');
@@ -241,6 +244,27 @@ export class Viewport {
       netlistData.ctx?.scale(this.pixelRatio, this.pixelRatio);
       if (updateFlag) {this.renderWaveform(netlistData);}
     });
+  }
+
+  addNetlistLink() {
+    this.waveformArea.innerHTML = `
+    <div class="waveform-container" id="netlist-link">
+      <p>Add signals from the </p><p id="netlist-link-text"><u>Netlist View</u></p>
+    </div>`;
+    this.netlistLinkElement = document.getElementById('netlist-link');
+    const linkText = document.getElementById('netlist-link-text');
+    if (linkText) {
+      linkText.addEventListener('click', () => {
+        vscode.postMessage({command: 'revealNetlistView'});
+      });
+    }
+  }
+
+  removeNetlistLink() {
+    if (this.netlistLinkElement) {
+      this.netlistLinkElement.remove();
+      this.netlistLinkElement = null;
+    }
   }
 
   getTimeFromClick(event: MouseEvent) {
@@ -515,6 +539,9 @@ export class Viewport {
     const netlistElement = dataManager.netlistData[netlistId];
     if (!netlistElement) {return;}
     if (netlistElement.canvas) {netlistElement.canvas.remove();}
+    if (children.length === 0) {
+      this.addNetlistLink();
+    }
   }
 
   handleMarkerSet(time: number, markerType: number) {

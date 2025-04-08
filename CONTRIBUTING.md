@@ -4,19 +4,6 @@ I wrote this in hopes that if anyone wants to help contribute to the development
 
 I should also mention if it's not obvious; I come from a hardware background. Web programming is not my area of expertise. You're not going to offend me by crutiquing my code or my choices. You're also not going to offend me for crutiquing my life choices - especially if you use Verdi through a VDI or VNC session and you actually like it! I hope this documentation is able to provide an explaination on how everything is implemented so that we can make this project into the best it can be.
 
-## Low hanging fruit
-
-Since me and my gang of AI ghost writers have (up to this point) have been the biggest contributors to this project, you might imagine that it's a lot of work to make this code useful _and_ nicely organized _and_ well documented _and_ have hice asthaetics _and_ juggle all of my other priorities of life like Skiing, Rock Climbing, a full time job, and a social life. So I have compiled a list of things that you could easily get started on to contribute to this project.
-
-- Creating custom icons for netlist view or control bar
-- Adding data formats
-
-## Not so low hanging fruit
-
-While not necissarily a priority, I have a list of things that would greatly enhance the usability of this extension, but they're kind of difficult (for me at least) and I might need some help with these:
-
-- ~~Rewriting performance critical components (like the renderer) in Web Assembly~~ It turns out that after porting the renderer to canvas, the Javascript implementation is more than fast enough.
-
 ## Extension overview
 
 The file structure for the extension (not including assets like icons and pcitures) is as follows
@@ -27,6 +14,7 @@ The file structure for the extension (not including assets like icons and pcitur
     - viewer_provider.ts
     - document.ts
     - terminal_links.ts
+    - tree_view.ts
     - worker.ts
     - _filehandler.ts*_
   - webview
@@ -188,37 +176,13 @@ The `scrollArea` is where most of the complexity lies, and will have it's own se
 
 ## How waveforms are rendered
 
-Originally, I went with an SVG chunk implementation, where SVG chunks would dynamically get rendered, and swapped in and out. However, in 1.3.1, I ported it all to canvas, so the next parts are largely irrelevant.
+Originally, I went with an SVG implementation, where SVG chunks would dynamically get rendered, and swapped in and out. However, in 1.3.1, I ported it all to canvas.
 
-As alluded to earlier in the data structures overview, the waveforms are rendered in chunks. In fact the entire `scrollArea` is rendered in chunks. Since it didn't make sense to store all of the rendered (svg versions) of the waveform data in memory for all zoom levels, I used [clusterize.js](https://clusterize.js.org/). What this essentially does, is allow you to have a lot of rows in a scrollable element without the need for the DOM to track all of them (because otherwise you get a really laggy page) It does this by dynamically swapping rows in and out and inserting dummy spacer elements on the top and bottom. Since it was designed for rows, I modified it to use columns instead. It also assumes that all of the content is stored in memory, so I modified it to dynamically build the element as it is rendered. It also has a weird way of discerning which chunk needs to be rendered. So I modified that to fit my needs. Then I removed all of the code that did all of the unnecissary safety checks that I wouldn't be needing for my specific application. Since it shared a lot of state variables with the main vaporview.js file, I moved the code into the main file, merged state variables, and callback syntax to be cleaner and more concise.
+The SVG implementation became way too much to manage. I used a modified version of clusterize.js to handle columns instead of rows. Then I found out that chromium (which is what Vscode uses as its rendering engine) only allows elements up to 16,777,216 pixels, which is actually not large enough when zooming into waveforms all the way. So I modified it yet again to use a fake scrollbar and no spacer elements.
 
-As I got further along, I realized that Chromium limits scrollable elements to 16,777,216 pixels, which is (conveniently enough) the maximum integer size of a 32 bit floating point number. This is a problem when you have a large waveform and you zoom in really far. Chromium literally clips the element. So instead of using a scrollable element and inserting left and right spacer elements, I created a fake scrollbar that looks and acts just like a real one, ditched the spacer elements and calculate the `left:` property of the `contentArea` to behave as if it's inside a scrollable area. It still swaps columns in and out, but instead of calculating and inserting the spacer elements, it sets the `contentArea.style.left` property.
+It was a pain to handle chunk boundary rendering, text placement, and chunk sizing when zooming. Worst of all, drawing and inserting the chunks would cause frame drops, so I implemented an asynchronous chunk rendering to alleviate that. But then it kept wasting time trying to draw chunks that the user scrolled way past.
 
-At this point, it's down to about 45 lines of code (from originally 330 lines) and it's hardly recognizable. But I do want to give a shout out to Denis Lukov (the author) for his work that ultimately made this project possible.
-
-Since it can take longer than 1 frame's worth of time to generate the HTML and parse it, I render the waveform content asyncronously. This was more challenging than I had initially imagined, and it might still have a few bugs. But in essence, the basic chunk element (the chunk with the ruler) is dynamically fetched and rendered, and everything else is asynchronously rendered, yeilding to a `requestAnimationFrame()` so that the scrolling is smooth, but the content can be rendered a few frames later.
-
-There's a mutationObserver that checks the rendered content for changed chunks, and then calls `renderWaveformsAsync()` to insert the waveforms into their respective elements. The hard part in all of this, was when updates were done before a chunk finished rendering. For this, I had to add an `abortFlag` to each chunk, that when set, the `renderWaveformsAsync()` function knows to stop, and a garbage collection function to remove all chunks that are not in the cache.
-
-### The anatomy of a chunk
-
-- .column-chunk
-  - .ruler-chunk
-  - .waveform-column
-    - .waveform-chunk
-    - .waveform-chunk
-    - ...
-  - #main-marker (if applicable)
-  - #alt-marker (if applicable)
-
-Chunks are rendered with the functions:
-
-- `shallowFetchColumns()`
-- `renderWaveformsAsync()`
-- `updateChunkInCache()`
-- `createTimeMarker()`
-- `renderWaveformChunk()`
-- `createWaveformSVG()`
+Eventually, I ported it all to canvas with the intent on porting the renderer to webassembly. But after implementing it and getting it working the way I wanted, I profiled the renderer and found that the JS code was only taking 1-2 ms on average to draw all of the waveforms when in full screen. It was the GPU that was the bottleneck in worst case scenarios. Even though the render function was being called every frame of a scroll, it was still smoother and better looking. No more cursed async renderer, or chunk boundaries to keep track of.
 
 ### binary waveform elements
 
@@ -270,19 +234,6 @@ Here are some of the important structures for the viewer:
   - signalWidth: number
   - signalName: string
   - modulePath: string
-
-- dataCache: object
-  - valueAtMarker: Map<signalID, string>
-  - startIndex: number
-  - endIndex: number
-  - updatesPending: number
-  - valueAtMarker: Map<SignalId, string>
-  - columns: object[]
-    - rulerChunk: html string
-    - marker: html string
-    - altMarker: html string
-    - waveformChunk: Map<netlistId, object>
-      - html: html string
 
 ## Event Handlers
 

@@ -9,6 +9,7 @@ export class WaveformDataManager {
   requested: SignalId[] = [];
   queued:    SignalId[] = [];
   requestActive: boolean = false;
+  requestStart: number = 0;
 
   valueChangeData: WaveformData[] = [];
   netlistData: NetlistData[]      = [];
@@ -60,6 +61,7 @@ export class WaveformDataManager {
     if (this.queued.length === 0) {return;}
 
     this.requestActive = true;
+    this.requestStart  = Date.now();
     this.requested     = this.queued;
     this.queued        = [];
 
@@ -162,6 +164,12 @@ export class WaveformDataManager {
     this.receive(signalId);
 
     const transitionData = JSON.parse(this.valueChangeDataTemp[signalId].chunkData.join(""));
+
+    if (!this.requestActive) {
+      console.log("Request complete, time: " + (Date.now() - this.requestStart) / 1000 + " seconds");
+      this.requestStart = 0;
+    }
+
     this.updateWaveform(signalId, transitionData, message.min, message.max);
   }
 

@@ -233,6 +233,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
   }
 
   public async findTreeItem(modulePath: string, msb: number | undefined, lsb: number | undefined): Promise<NetlistItem | null> {
+    console.log("findTreeItem() " + modulePath + " msb: " + msb + " lsb: " + lsb);
     const module = this.treeData.find((element) => element.label === modulePath.split('.')[0]);
     if (!module) {return null;}
     return await module.findChild(modulePath.split('.').slice(1).join('.'), this, msb, lsb);
@@ -526,7 +527,7 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
         });
         if (parent !== undefined) {
           parent.children = bitList;
-          //parent.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+          parent.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
         } else {
           result.push(...bitList);
         }

@@ -43,27 +43,27 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // #region External Commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.openFile', (uri) => {
-    viewerProvider.log.appendLine("Command called: 'vaporview.openFile'");
+    viewerProvider.log.appendLine("Command called: 'vaporview.openFile ' + " + uri.toString());
     vscode.commands.executeCommand('vscode.openWith', uri, 'vaporview.waveformViewer');
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.addVariable', (e) => {
-    viewerProvider.log.appendLine("Command called: 'waveformViewer.addVariable'");
+    viewerProvider.log.appendLine("Command called: 'waveformViewer.addVariable' " + JSON.stringify(e));
     viewerProvider.variableActionCommandHandler(e, "add");
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.removeVariable', (e) => {
-    viewerProvider.log.appendLine("Command called: 'waveformViewer.removeVariable'");
+    viewerProvider.log.appendLine("Command called: 'waveformViewer.removeVariable' " + JSON.stringify(e));
     viewerProvider.variableActionCommandHandler(e, "remove");
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.revealInNetlistView', (e) => {
-    viewerProvider.log.appendLine("Command called: 'waveformViewer.revealInNetlistView'");
+    viewerProvider.log.appendLine("Command called: 'waveformViewer.revealInNetlistView' " + JSON.stringify(e));
     viewerProvider.variableActionCommandHandler(e, "reveal");
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.setMarker', (e) => {
-    viewerProvider.log.appendLine("Command called: 'waveformViewer.setMarker'");
+    viewerProvider.log.appendLine("Command called: 'waveformViewer.setMarker' " + JSON.stringify(e));
     viewerProvider.markerCommandHandler(e);
   }));
 

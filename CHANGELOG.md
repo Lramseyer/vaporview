@@ -1,6 +1,6 @@
 # Change Log
 
-## HEAD -> main (Release TBD)
+## 1.3.3
 
 - Added
   - Copy Value At Marker context menu item

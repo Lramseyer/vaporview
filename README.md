@@ -163,16 +163,16 @@ This extension was designed on Vscode version 1.83
 
 # Development Roadmap
 
-## 1.3.2 - Latest Release
+## 1.3.3 - Upcoming Release
 
-- Unlocked zooming to allow for smooth zooming on touchpad mode
-- Limited Zoom out distance to timeend
-- Added context Menu items
-  - Copy Name - Copy full path to clipboard
-  - Show in Viewer - Shows signal in viewer
-- Added tooltips to netlist view to show details on netlist elements
-- Setting a marker populates the time in the search bar
-- Added Auto Touchpad ScrollingZooming mode
+- Added
+  - Copy Value At Marker context menu item
+  - Tooltips when hovering over viewer signal names
+  - Commands for use in other extensions and API docs
+  - Zoom to Fit button on control bar
+- Fixed
+  - Context menu items now appear when right clicking on value display column
+  - "Load/Save Vporview Settings" Menus don't appear where they shouldn't
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

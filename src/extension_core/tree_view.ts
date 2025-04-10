@@ -68,14 +68,16 @@ const defaultIcon = new vscode.ThemeIcon('file-binary',      new vscode.ThemeCol
 const stringIcon  = new vscode.ThemeIcon('symbol-key',       new vscode.ThemeColor('charts.yellow'));
 const portIcon    = new vscode.ThemeIcon('plug',             new vscode.ThemeColor('charts.green'));
 const timeIcon    = new vscode.ThemeIcon('watch',            new vscode.ThemeColor('charts.green'));
+const enumIcon    = new vscode.ThemeIcon('symbol-parameter', new vscode.ThemeColor('charts.green'));
 
 export function createVar(name: string, type: string, encoding: string, path: string, netlistId: NetlistId, signalId: SignalId, width: number, msb: number, lsb: number, isFsdb: boolean) {
   const field = bitRangeString(msb, lsb);
+  let label = name;
 
   // field is already included in signal name for fsdb
-  if (!isFsdb) name = name + field;
+  if (!isFsdb) label = name + field;
 
-  const variable = new NetlistItem(name, type, encoding, width, signalId, netlistId, name, path, msb, lsb, -1, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked);
+  const variable = new NetlistItem(label, type, encoding, width, signalId, netlistId, name, path, msb, lsb, -1, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked);
   const typename = type.toLocaleLowerCase();
   let icon;
 
@@ -107,7 +109,7 @@ export function createVar(name: string, type: string, encoding: string, path: st
     case 'shortint':        {icon = intIcon; break;}
     case 'longint':         {icon = intIcon; break;}
     case 'byte':            {icon = defaultIcon; break;}
-    case 'enum':            {icon = defaultIcon; break;}
+    case 'enum':            {icon = enumIcon; break;}
     case 'shortreal':       {icon = defaultIcon; break;}
     case 'boolean':         {icon = defaultIcon; break;}
     case 'bitvector':       {icon = defaultIcon; break;}

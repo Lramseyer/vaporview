@@ -173,6 +173,7 @@ This extension was designed on Vscode version 1.83
 - Fixed
   - Context menu items now appear when right clicking on value display column
   - "Load/Save Vporview Settings" Menus don't appear where they shouldn't
+  - Terminal Links only match for paths with valid top level scopes
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

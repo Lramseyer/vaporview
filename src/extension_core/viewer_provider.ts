@@ -8,6 +8,7 @@ import { NetlistTreeDataProvider, DisplayedSignalsViewProvider, NetlistItem, Web
 export type NetlistId = number;
 export type SignalId  = number;
 export interface VaporviewDocumentDelegate {
+  addSignalByNameToDocument(signalName: string): void;
   logOutputChannel(message: string): void;
   getViewerContext(): Promise<Uint8Array>;
   updateViews(uri: vscode.Uri): void;
@@ -95,6 +96,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   ): Promise<VaporviewDocument> {
 
     const delegate = {
+      addSignalByNameToDocument: this.addSignalByNameToDocument.bind(this),
       logOutputChannel: (message: string) => {this.log.appendLine(message);},
       getViewerContext: async () => {
         const webviewsForDocument = Array.from(this.webviews.get(document.uri));

@@ -33,7 +33,7 @@ export async function activate(context: vscode.ExtensionContext) {
   vscode.window.registerTerminalLinkProvider(new TimestampLinkProvider(viewerProvider));
 
   // I need to move this to the document provider class...
-  vscode.window.registerTerminalLinkProvider(new NetlistLinkProvider(viewerProvider));
+  //vscode.window.registerTerminalLinkProvider(new NetlistLinkProvider(viewerProvider));
 
   // I want to get semantic tokens for the current theme
   // The API is not available yet, so I'm just going to log the theme

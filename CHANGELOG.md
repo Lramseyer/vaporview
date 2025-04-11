@@ -11,6 +11,7 @@
 - Fixed
   - Context menu items now appear when right clicking on value display column
   - "Load/Save Vporview Settings" Menus appearing where they shouldn't
+  - Terminal Links only match for paths with valid top level scopes
 
 ## 1.3.2
 

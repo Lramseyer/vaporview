@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { promisify } from 'util';
 import { Worker } from 'worker_threads';
+import { NetlistLinkProvider } from './terminal_links';
 import { ChildProcess, fork } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -117,6 +118,7 @@ const getFsWrapper = async (uri: vscode.Uri): Promise<fsWrapper> => {
 // #region VaporviewDocument
 export abstract class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocument {
 
+  protected disposables: vscode.Disposable[] = [];
   private readonly _uri: vscode.Uri;
   // Hierarchy
   public treeData:         NetlistItem[] = [];
@@ -395,6 +397,11 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
 
     this._delegate.logOutputChannel("Finished parsing waveforms for " + this.uri.fsPath);
     this._delegate.logOutputChannel("Total time: " + (Date.now() - loadTime) / 1000 + " seconds");
+
+    const scopeTopNames = this.treeData.filter(item => item.contextValue === 'netlistScope').map((item) => item.name);
+    const terminalLinkProvider = new NetlistLinkProvider(this._delegate, scopeTopNames);
+    const disposable = vscode.window.registerTerminalLinkProvider(terminalLinkProvider);
+    this.disposables.push(disposable);
   }
 
   public readonly service: filehandler.Imports.Promisified = {
@@ -563,6 +570,7 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
     this._wasmWorker.terminate();
     this._delegate.updateViews(this.uri);
     this._delegate.removeFromCollection(this.uri, this);
+    this.disposables.forEach((disposable) => {disposable.dispose();});
   }
 }
 

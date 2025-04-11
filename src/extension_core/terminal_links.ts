@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { WaveformViewerProvider } from './viewer_provider';
+import { WaveformViewerProvider, VaporviewDocumentDelegate } from './viewer_provider';
+
 
 interface CustomTerminalLink extends vscode.TerminalLink {data: string; type: string;}
 export class TimestampLinkProvider implements vscode.TerminalLinkProvider {
@@ -70,13 +71,34 @@ export class NetlistLinkProvider implements vscode.TerminalLinkProvider {
 
   // Terminal link provider code
   // Detect netlist elements in the terminal - ie: top.submodule.signal
-  private readonly netlistElement     = /[\w\$]+(\.[\w\$]+)+/g;
+  private readonly defaultRegex     = /(([\w\$\.\[\]\:]+)\.)+[\w\$\.\[\]\:]+/g;
+  private readonly regexList: RegExp[] = [];
 
-  constructor(private readonly viewerProvider: WaveformViewerProvider) {}
+  constructor(
+    private delegate: VaporviewDocumentDelegate,
+    scopeTop: string[]
+  ) {
+
+    if (scopeTop.length > 16) {
+      this.regexList.push(this.defaultRegex);
+    } else {
+      for (const scope of scopeTop) {
+        // Escape all special regex characters: $ * + ? ( ) [ ]
+        const escapedScope = scope.replace(/[$*+?()[\]]/g, '\\$&');
+        const regex = new RegExp(escapedScope + '(\\.[\\w\\$\\[\\]\\:]+)+', 'g');
+        this.regexList.push(regex);
+      }
+    }
+  }
 
   provideTerminalLinks(context: vscode.TerminalLinkContext, token: vscode.CancellationToken) {
 
-    const netlistElementMatches     = [...context.line.matchAll(this.netlistElement)];
+    //const netlistElementMatches     = [...context.line.matchAll(this.defaultRegex)];
+    const netlistElementMatches: RegExpMatchArray[] = [];
+    for (const regex of this.regexList) {
+      const matches = [...context.line.matchAll(regex)];
+      netlistElementMatches.push(...matches);
+    }
 
     const netlistElementLinks = netlistElementMatches.map(match => {
       const line       = context.line;
@@ -99,8 +121,8 @@ export class NetlistLinkProvider implements vscode.TerminalLinkProvider {
     switch (link.type) {
       case 'netlist-element': {
         //console.log("Netlist element link clicked: " + link.data);
-        this.viewerProvider.addSignalByNameToDocument(link.data);
-        this.viewerProvider.log.appendLine('Terminal link clicked: ' + link.data);
+        this.delegate.addSignalByNameToDocument(link.data);
+        this.delegate.logOutputChannel('Terminal link clicked: ' + link.data);
         break;
       }
     }

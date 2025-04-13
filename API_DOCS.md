@@ -200,17 +200,16 @@ A submenu or menu group will be added for Signal Item context menu, and it will 
 
 ### Attributes
 
-- **webviewSection** - "signal"
+- **netlistId** -  Variable ID in waveform dump file
 - **modulePath** - Instance path (delimited by "." characters) without the variable name
 - **signalName** - Variable or Scope Name
-- **netlistId** -  Variable ID in waveform dump file
 - **type** - this.netlistData[netlistId].variableType,
 - **width** - BitVector Bit Width of Variable, will be 0 for Strings and Reals
 - **encoding** - "BitVector" | "Real" | "String" | "none"
 - **numberFormat** - Number format
 - **value** - Value as Bit Vector
-- **displayValue** - Encoded value
-- **time** - Time of click event
+- **formattedValue** - Encoded value
+- **time** - Time of value change
 
 ## vaporview.addSignalValueLink
 

@@ -106,6 +106,7 @@ export class WaveformDataManager {
         variableType: signal.type,
         encoding:     signal.encoding,
         vscodeContext: "",
+        valueLinkCommand: "",
         valueFormat:  valueFormat,
         renderType:   signal.signalWidth === 1 ? binaryWaveformRenderer : multiBitWaveformRenderer,
         colorIndex:   colorIndex,

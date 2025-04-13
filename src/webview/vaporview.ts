@@ -24,6 +24,7 @@ export type NetlistData = {
   signalWidth: number;
   valueFormat: ValueFormat;
   vscodeContext: string;
+  valueLinkCommand: string;
   variableType: string;
   encoding: string;
   renderType: WaveformRenderer;
@@ -507,7 +508,7 @@ class VaporviewWebview {
       case 'copyWaveDrom':          {dataManager.copyWaveDrom(); break;}
       case 'copyValueAtMarker':     {labelsPanel.copyValueAtMarker(message.netlistId); break;}
       case 'updateColorTheme':      {this.events.dispatch(ActionType.updateColorTheme); break;}
-      default: {outputLog('Unknown webview message type: ' + message.command); break;}
+      default:                      {outputLog('Unknown webview message type: ' + message.command); break;}
     }
   }
 }

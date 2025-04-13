@@ -256,7 +256,7 @@ export class Viewport {
     const linkText = document.getElementById('netlist-link-text');
     if (linkText) {
       linkText.addEventListener('click', () => {
-        vscode.postMessage({command: 'revealNetlistView'});
+        vscode.postMessage({ command: 'executeCommand', commandName: "waveformViewerNetlistView.focus" });
       });
     }
   }
@@ -327,11 +327,7 @@ export class Viewport {
     let netlistId: any     = null;
     const containerId = event.target?.closest('.waveform-container');
     if (containerId) {netlistId = parseInt(containerId.id.split('-').slice(1));}
-    if (netlistId !== undefined && netlistId !== null) {
-
-      if (button === 0) {
-        this.events.dispatch(ActionType.SignalSelect, netlistId);
-      }
+    if (netlistId !== undefined && netlistId !== null && netlistId > 0) {
 
       // Snap to the nearest transition if the click is close enough
       const nearestTransition = dataManager.getNearestTransition(netlistId, time);
@@ -342,9 +338,46 @@ export class Viewport {
       const pixelDistance = Math.abs(nearestTime - time) * this.zoomRatio;
 
       if (pixelDistance < snapToDistance) {snapToTime = nearestTime;}
-    }
+
+      if (button === 0) {
+        this.events.dispatch(ActionType.SignalSelect, netlistId);
+        //this.handleValueLink(netlistId, time, snapToTime);
+      }
+    } else if (isNaN(netlistId)) {return;}
 
     this.events.dispatch(ActionType.MarkerSet, snapToTime, button);
+  }
+
+  handleValueLink(netlistId: NetlistId, time: number, snapToTime: number) {
+    const netlistData = dataManager.netlistData[netlistId];
+
+    if (!netlistData) {return;}
+    if (netlistData.valueLinkCommand === "") {return;}
+    if (netlistData.renderType.id !== 'multiBit') {return;}
+    if (time !== snapToTime) {return;}
+
+    const command        = netlistData.valueLinkCommand;
+    const signalId       = netlistData.signalId;
+    const index          = dataManager.getNearestTransitionIndex(signalId, time);
+    const valueChange    = dataManager.valueChangeData[signalId][index];
+    const timeValue      = valueChange[0];
+    const value          = valueChange[1];
+    const formattedValue = netlistData.formattedValues[index];
+
+    const event = {
+      netlistId: netlistId,
+      modulePath: netlistData.modulePath,
+      signalName: netlistData.signalName,
+      type: netlistData.variableType,
+      width: netlistData.signalWidth,
+      encoding: netlistData.encoding,
+      numberFormat: netlistData.valueFormat.id,
+      value: value,
+      formattedValue: formattedValue,
+      time: timeValue,
+    }
+
+    vscode.postMessage({ command: 'executeCommand', commandName: command, args: event });
   }
 
   updateScrollbarResize() {

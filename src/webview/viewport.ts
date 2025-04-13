@@ -1,7 +1,6 @@
 import { vscode, NetlistData,  WaveformData, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
-import { bool } from "@vscode/wasm-component-model";
 import { labelsPanel } from "./vaporview";
 
 const domParser = new DOMParser();
@@ -44,6 +43,7 @@ export class Viewport {
   timeScrollRight: number     = 0;
   timeScale: number           = 1;
   timeStop: number            = 0;
+  timeTableCount: number      = 0;
 
   scrollbarMoved: boolean     = false;
   scrollbarStartX: number     = 0;
@@ -149,14 +149,15 @@ export class Viewport {
       webviewSelection: true,
       uri: uri,
     }));
-    viewerState.uri    = uri;
-    this.pixelRatio    = window.devicePixelRatio || 1;
-    this.defaultZoom   = metadata.defaultZoom;
-    this.zoomRatio     = metadata.defaultZoom;
-    this.pixelTime     = 1 / this.zoomRatio;
-    this.timeScale     = metadata.timeScale;
-    this.timeStop      = metadata.timeEnd;
-    this.maxZoomRatio  = this.zoomRatio * 64;
+    viewerState.uri     = uri;
+    this.pixelRatio     = window.devicePixelRatio || 1;
+    this.defaultZoom    = metadata.defaultZoom;
+    this.zoomRatio      = metadata.defaultZoom;
+    this.pixelTime      = 1 / this.zoomRatio;
+    this.timeScale      = metadata.timeScale;
+    this.timeStop       = metadata.timeEnd;
+    this.timeTableCount = metadata.timeTableCount;
+    this.maxZoomRatio   = this.zoomRatio * 64;
     this.waveformArea.innerHTML = '';
     this.addNetlistLink();
     this.getThemeColors();

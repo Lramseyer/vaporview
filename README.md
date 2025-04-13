@@ -4,13 +4,9 @@ VaporView is an open source waveform viewer extension for Visual Studio Code - [
 
 ![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/overview.png?raw=true)
 
-# Features
+# Waveform Viewer Features
 
-## Waveform Viewer
-
-Natively supports VCD, FST, and GHW waveform dump formats
-
-Also supports FSDB files where external libraries are present.
+Natively supports VCD, FST, and GHW waveform dump formats. Also supports FSDB files where external libraries are present.
 
 VaporView opens the waveform dump files in an interactive viewer, where you can:
 - Add, remove, and rearrange signals
@@ -19,6 +15,8 @@ VaporView opens the waveform dump files in an interactive viewer, where you can:
 - Search for values witin a waveform dump
 
 For use of other waveform dump formats such as LXT, VZT, GTKwave offers conversion tools. Proprietery formats such as WLF and VPD can also be converted, but require you to compile GTKwave. See the [GTKwave Manual](https://gtkwave.sourceforge.net/gtkwave.pdf) for details - page 16, and 69 for an overview.
+
+# VScode IDE Integration
 
 ## Terminal Links
 
@@ -29,6 +27,17 @@ VaporView associates timestamps and netlist paths as links in the terminal. Thes
 - Netlist elements - ie: `top.submodule.signal`
 
 When clicking on netlit element links, paths that point to a variable will add that variable to the viewer. However, if the path points to a scope, it will instead reveal and select that scope in the netlist view.
+
+## Interoperability With Other Extensions
+
+This is a work in progress effort, and will be finalized in the 1.4 Release. Details can be found in the [API docs](https://github.com/Lramseyer/vaporview/blob/main/API_DOCS.md), but a summary of the API features that other extension developers will be able to use are listed below:
+
+- Vaporview Commands
+  - Adding and removing variables
+  - Placing markers at specific times
+  - Revealing items in the netlist
+- Adding custom context menu items
+- Signal value links
 
 # Controls
 
@@ -166,6 +175,7 @@ This extension was designed on Vscode version 1.83
 ## 1.3.3 - Upcoming Release
 
 - Added
+  - Beta API
   - Copy Value At Marker context menu item
   - Tooltips when hovering over viewer signal names
   - Commands for use in other extensions and API docs

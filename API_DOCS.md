@@ -18,7 +18,24 @@ Custom context menu items can be added to the waveform viewer webview. All attri
 - **package.json path:** contributes.menus.webview/context
 - **when:** activeCustomEditorId == 'vaporview.waveformViewer'
 
-### Signal Item Attributes
+### Menu Groups
+
+- 1_default
+  - **Submenu vaporview.valueFormat** - Value Format
+  - **Submenu vaporview.valueColor** - Render Type
+  - **Submenu vaporview.renderType** - Color
+- 2_default
+    - Show In Netlist View
+    - Remove Variable
+    - Copy Name
+    - Copy Value
+- 3_saveLoad
+    - Save Viewer Settings
+    - Load Viewer Settings
+- 4_waveDrom
+  - **Submenu vaporview.waveDrom** -  WaveDrom
+
+### Signal Item Attributes - data-vscode-context
 
 All signals in the webview will emit the following attributes when right clicked on
 
@@ -47,6 +64,24 @@ See [Tree Item API docs](https://code.visualstudio.com/api/references/vscode-api
 - **ID:** waveformViewerDisplayedSignalsView
 - **package.json path:** contributes.menus.view/item/context
 - **when:** view == 'waveformViewerDisplayedSignalsView'
+
+### Menu Groups
+
+- 1_default
+  - Add Selected
+  - Remove Selected
+  - Add all in Scope
+  - Add all in Scope (Recursive)
+  - Remove all in Scope
+  - Show in Viewer
+  - Copy Name
+- 2_addVariable
+  - Add Variable By Name
+- 3_saveLoad
+  - Save Viewer Settings
+  - Load Viewer Settings
+- 4_reload
+  - Reload File
 
 ### Attributes:
 
@@ -152,3 +187,95 @@ Set the marker or alt marker to a time in the viewer
 - **time** - Target Time
 - **units** - (Optional) Time Unit - If not specified, will default to waveform dump format time units "fs" | "ps" | "ns" | "us" | "µs" | "ms" | "s" | "ks"
 - **markerType** - (Optional) Marker Type - 0: Main Marker, 1: Alt Marker
+
+# Signal Value Links (proposal)
+
+Something that has been in my roadmap for a while is the ability to "Allow users to link .objdump files to a program counter value for a more integrated debug experience" This was something I wanted when I first created vaporview (because I was debugging a CPU with no GDB or ETM tracing.) How cool would it be to debug a CPU with a waveform dump and actually connect it back to the line of code it's running? In brainstorming how to implelent it, I have a proposed solution, but it's actually a more general solution.
+
+## How to Use
+
+Signals will have the ability to have links added to them such that when a user clicks on a value, it will emit a custom command that other extension developers can call. Any command can be attached to a Signal. When that command is emitted, it will include an argument, which will be an object with the attributes listed below.
+
+A submenu or menu group will be added for Signal Item context menu, and it will be up to the extension developer to contribute a menu item to add their custom command
+
+### Attributes
+
+- **webviewSection** - "signal"
+- **modulePath** - Instance path (delimited by "." characters) without the variable name
+- **signalName** - Variable or Scope Name
+- **netlistId** -  Variable ID in waveform dump file
+- **type** - this.netlistData[netlistId].variableType,
+- **width** - BitVector Bit Width of Variable, will be 0 for Strings and Reals
+- **encoding** - "BitVector" | "Real" | "String" | "none"
+- **numberFormat** - Number format
+- **value** - Value as Bit Vector
+- **displayValue** - Encoded value
+- **time** - Time of click event
+
+## vaporview.addSignalValueLink
+
+### Arguments: object
+  - **uri** - (Optional) Document URI - if not defined, this function will use the currently active, or last active document
+  - **command** - custom command that will be called when clicked
+  - **netlistId** - (Optional*) Waveform Dump File Variable ID - note that this will be emitted by the context menu command, so developers will have this value
+  - **instancePath** - (Optional*) Full instance path for variable
+  - **modulePath** - (Optional*) - Variable module math without variable name
+  - **name** - (Optional*) - Variable name
+  - **msb** - (Optional) - Most Significant Bit
+  - **lsb** - (Optional) - Least Significant Bit
+
+Note that a variable must be specified with at least of the following set of keys, and priority is as follows:
+
+1. netlistId
+2. instancePath
+3. modulePath AND name
+
+## Sample code
+
+package.json
+```json
+"contributes": {
+  "menus": {
+    ...
+    "webview/context": [
+      ...
+      {
+        "command": "myExtension.addLinkForValues",
+        "when": "viewItem == 'netlistVar'",
+        "group": "0_links"
+      },
+      ...
+    ]
+  },
+  ...
+  {
+    "commands": [
+      {
+        "command": "myExtension.addLinkForValues",
+        "Title": "Link Signal Values"
+      }
+    ]
+  }
+}
+```
+
+extension.ts
+```TypeScript
+// Register command for the context menu item
+const disposable_1 = vscode.commands.registerCommand(
+  'myExtension.addLinkForValues', 
+  (e) => {
+    const args = {
+      netlistId: e.netlistId
+      e.command: 'myExtension.clickSignalValueLink'
+    }
+    vscode.commands.executeCommand('vaporview.addSignalValueLink', args);
+  }
+);
+
+// Register custom command that will be emitted by Signal Value Link
+const disposable_2 = vscode.commands.registerCommand(
+  'myExtension.clickSignalValueLink', 
+  (e) => {onDidClickSignalValueLink(e)}
+)
+```

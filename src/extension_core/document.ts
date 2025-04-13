@@ -12,7 +12,7 @@ import { SignalId, NetlistId, VaporviewDocumentDelegate} from './viewer_provider
 // If this file is not present, run `npm run generate:model` to generate it
 // See GETTING_STARTED.md for more details
 import { filehandler } from './filehandler';
-import { NetlistItem, NetlistTreeDataProvider, createScope, createVar } from './tree_view';
+import { NetlistItem, createScope, createVar } from './tree_view';
 
 export type NetlistIdTable = NetlistIdRef[];
 export type NetlistIdRef = {
@@ -25,6 +25,7 @@ type WaveformTopMetadata = {
   moduleCount: number;
   netlistIdCount: number;
   signalIdCount: number;
+  timeTableCount: number;
   timeEnd:     number;
   timeScale:   number;
   defaultZoom: number;
@@ -133,6 +134,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     moduleCount:    0,
     netlistIdCount: 0,
     signalIdCount:  0,
+    timeTableCount: 0,
     timeEnd:     0,
     timeScale:   1,
     defaultZoom: 1,
@@ -163,10 +165,10 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     this.webviewPanel = webviewPanel;
     if (this._webviewInitialized) {return;}
     if (!this.metadata.timeTableLoaded) {return;}
-    //console.log("creating ruler");
+    //console.log("Initializing Viewport");
     webviewPanel.webview.postMessage({
-      command: 'create-ruler',
-      waveformDataSet: this.metadata,
+      command: 'initViewport',
+      metadata: this.metadata,
       uri: this.uri
     });
     //console.log(this.metadata);
@@ -196,13 +198,22 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     this._netlistIdTable = new Array(varcount);
   }
 
-  public setChunkSize(chunksize: bigint, timeend: bigint) {
+  public setChunkSize(chunksize: bigint, timeend: bigint, timetablelength: bigint) {
     //this._setChunkSize(Number(chunksize));
     const newMinTimeStemp         = 10 ** (Math.round(Math.log10(Number(chunksize) / 128)) | 0);
     this.metadata.defaultZoom     = 4 / newMinTimeStemp;
     this.metadata.timeEnd         = Number(timeend);
     this.metadata.timeTableLoaded = true;
+    this.metadata.timeTableCount   = Number(timetablelength);
+    this._delegate.logOutputChannel("Total Value Change Events: " + this.toStringWithCommas(Number(timetablelength)));
     this.onDoneParsingWaveforms();
+  }
+
+  protected setTerminalLinkProvider() {
+    const scopeTopNames = this.treeData.filter(item => item.contextValue === 'netlistScope').map((item) => item.name);
+    const terminalLinkProvider = new NetlistLinkProvider(this._delegate, scopeTopNames);
+    const disposable = vscode.window.registerTerminalLinkProvider(terminalLinkProvider);
+    this.disposables.push(disposable);
   }
 
   //private _setChunkSize(minTimeStemp: number) {
@@ -228,6 +239,8 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
       displayedSignals: this.webviewContext.displayedSignals
     };
   }
+
+  public toStringWithCommas(n: number) {return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");}
 
   public formatTime(time: number) {
     const timeValue = time * this.metadata.timeScale;
@@ -389,24 +402,24 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
     const netlistFinishTime = Date.now();
     const netlistTime = (netlistFinishTime - loadTime) / 1000;
     this._delegate.logOutputChannel("Finished parsing netlist for " + this.uri.fsPath);
-    this._delegate.logOutputChannel("Scope count: " + this.metadata.moduleCount + 
-      " Variable count: " + this.metadata.netlistIdCount + " Time: " + netlistTime + " seconds");
+    this._delegate.logOutputChannel(
+      "Scope count: " + this.metadata.moduleCount + 
+      ", Variable count: " + this.metadata.netlistIdCount + 
+      ", Time: " + netlistTime + " seconds");
 
     this._delegate.updateViews(this.uri);
     await this._readBody(fileType);
 
     this._delegate.logOutputChannel("Finished parsing waveforms for " + this.uri.fsPath);
-    this._delegate.logOutputChannel("Total time: " + (Date.now() - loadTime) / 1000 + " seconds");
+    this._delegate.logOutputChannel("Time: " + (Date.now() - netlistFinishTime) / 1000 + " seconds");
 
-    const scopeTopNames = this.treeData.filter(item => item.contextValue === 'netlistScope').map((item) => item.name);
-    const terminalLinkProvider = new NetlistLinkProvider(this._delegate, scopeTopNames);
-    const disposable = vscode.window.registerTerminalLinkProvider(terminalLinkProvider);
-    this.disposables.push(disposable);
+    this.setTerminalLinkProvider();
   }
 
   public readonly service: filehandler.Imports.Promisified = {
 
     log: (msg: string) => {console.log(msg);},
+    outputlog: (msg: string) => {this._delegate.logOutputChannel(msg);},
     fsread: (fd: number, offset: bigint, length: number): Uint8Array => {
 
       const bytesRead = this.fileReader.readSlice(fd, this.fileBuffer, 0, length, Number(offset));
@@ -431,8 +444,8 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
     setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
       this.setMetadata(scopecount, varcount, timescale, timeunit);
     },
-    setchunksize: (chunksize: bigint, timeend: bigint) => {
-      this.setChunkSize(chunksize, timeend);
+    setchunksize: (chunksize: bigint, timeend: bigint, timetablelength: bigint) => {
+      this.setChunkSize(chunksize, timeend, timetablelength);
     },
     sendtransitiondatachunk: (signalid: number, totalchunks: number, chunknum: number, min: number, max: number ,transitionData: string) => {
 
@@ -571,6 +584,7 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
     this._delegate.updateViews(this.uri);
     this._delegate.removeFromCollection(this.uri, this);
     this.disposables.forEach((disposable) => {disposable.dispose();});
+    this.disposables = [];
   }
 }
 
@@ -674,7 +688,7 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
       case 'fsdb-scope-callback': { this.fsdbScopeCallback(message.name, message.type, message.path, message.netlistId, message.scopeOffsetIdx); break; }
       case 'fsdb-upscope-callback': { this.fsdbUpscopeCallback(); break; }
       case 'setMetadata': { this.setMetadata(message.scopecount, message.varcount, message.timescale, message.timeunit); break; }
-      case 'setChunkSize': { this.setChunkSize(message.chunksize, message.timeend); break; }
+      case 'setChunkSize': { this.setChunkSize(message.chunksize, message.timeend, BigInt(0)); break; }
       case 'fsdb-var-callback': {
         this.fsdbVarCallback(
           message.name, message.type, message.encoding, message.path, message.netlistId, message.signalId, message.width, message.msb, message.lsb);
@@ -804,6 +818,8 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
     this.unload();
     this._delegate.updateViews(this.uri);
     this._delegate.removeFromCollection(this.uri, this);
+    this.disposables.forEach((disposable) => {disposable.dispose();});
+    this.disposables = [];
   }
 
   /**

@@ -60,8 +60,7 @@
         "extensions": [
           ".vcd",
           ".fst",
-          ".ghw",
-          ".fsdb"
+          ".ghw"
         ],
         "aliases": [
           "Waveform Dump"
@@ -70,6 +69,20 @@
         "icon": {
           "light": "./media/wavedump_file_icon.svg",
           "dark": "./media/wavedump_file_icon.svg"
+        }
+      },
+      {
+        "id": "fsdb",
+        "extensions": [
+          ".fsdb"
+        ],
+        "aliases": [
+          "Waveform Dump"
+        ],
+        "filenames": [],
+        "icon": {
+          "light": "./media/wavedump_file_icon_fsdb.svg",
+          "dark": "./media/wavedump_file_icon_fsdb.svg"
         }
       }
     ],

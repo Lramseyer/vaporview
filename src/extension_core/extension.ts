@@ -32,14 +32,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   vscode.window.registerTerminalLinkProvider(new TimestampLinkProvider(viewerProvider));
 
-  // I need to move this to the document provider class...
-  //vscode.window.registerTerminalLinkProvider(new NetlistLinkProvider(viewerProvider));
-
   // I want to get semantic tokens for the current theme
   // The API is not available yet, so I'm just going to log the theme
-  vscode.window.onDidChangeActiveColorTheme((e) => {
-    viewerProvider.updateColorTheme(e);
-  });
+  vscode.window.onDidChangeActiveColorTheme((e) => {viewerProvider.updateColorTheme(e);});
 
   // #region External Commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.openFile', (uri) => {

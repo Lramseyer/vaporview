@@ -74,11 +74,12 @@ export class NetlistLinkProvider implements vscode.TerminalLinkProvider {
   private readonly defaultRegex     = /(([\w\$\.\[\]\:]+)\.)+[\w\$\.\[\]\:]+/g;
   private readonly regexList: RegExp[] = [];
 
+  // We only want to match to valid top level modules (which will be passed in)
+  // and not to any random string that looks like a netlist element
   constructor(
     private delegate: VaporviewDocumentDelegate,
     scopeTop: string[]
   ) {
-
     if (scopeTop.length > 16) {
       this.regexList.push(this.defaultRegex);
     } else {

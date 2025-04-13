@@ -492,7 +492,7 @@ class VaporviewWebview {
     const message = e.data;
 
     switch (message.command) {
-      case 'create-ruler':          {this.viewport.init(message.waveformDataSet, message.uri); break;}
+      case 'initViewport':          {this.viewport.init(message.metadata, message.uri); break;}
       case 'unload':                {this.unload(); break;}
       case 'add-variable':          {dataManager.addVariable(message.signalList); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}

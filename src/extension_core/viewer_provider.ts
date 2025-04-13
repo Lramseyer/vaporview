@@ -75,9 +75,9 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this._context.subscriptions.push(this.displayedSignalsView);
 
     // Create a status bar item for marker time, delta time, and selected signal
-    this.markerTimeStatusBarItem     = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
-    this.deltaTimeStatusBarItem      = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
-    this.selectedSignalStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+    this.markerTimeStatusBarItem     = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 97);
+    this.deltaTimeStatusBarItem      = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
+    this.selectedSignalStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
 
     // Subscribe to the View events. We need to subscribe to expand and collapse events
     // because the collapsible state would not otherwise be preserved when the tree view is refreshed
@@ -270,6 +270,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       vscode.window.showWarningMessage('The settings file may not match the active viewer');
     }
 
+    this.log.appendLine('Loading settings from file: ' + fileData.fileName);
     this.applySettings(fileData, this.activeDocument);
   }
 
@@ -311,7 +312,10 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       this.setMarkerAtTime(settings.altMarkerTime, 1);
     }
 
-    this.log.appendLine('Missing signals: '+ missingSignals.join(', '));
+    if (missingSignals.length > 0) {
+      this.log.appendLine('Missing signals: '+ missingSignals.join(', '));
+    }
+
     this.filterAddSignalsInNetlist(metadataList, true);
     for (const signalInfo of foundSignals) {
       this.setValueFormat(signalInfo.netlistId, signalInfo.numberFormat, signalInfo.colorIndex, signalInfo.renderType);

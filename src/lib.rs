@@ -136,7 +136,7 @@ impl Seek for WasmFileReader {
       SeekFrom::Current(offset) => { new_cursor = (self.cursor as i64 + offset) as u64; }
     }
     if (new_cursor as i64) < 0 {
-      log(&format!("Invalid seek to negative position: {:?}", new_cursor));
+      outputlog(&format!("Invalid seek to negative position: {:?}", new_cursor));
       self.cursor = 0;
       return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid seek to negative position"));
     }
@@ -156,7 +156,7 @@ impl Seek for WasmFileReader {
     //log(&format!("Seeking relative: {:?}", offset));
     let new_cursor = (self.cursor as i64 + offset) as i64;
     if new_cursor < 0 {
-      log(&format!("Invalid seek to negative position: {:?}", new_cursor));
+      outputlog(&format!("Invalid seek to negative position: {:?}", new_cursor));
       self.cursor = 0;
       return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid seek to negative position"));
     }
@@ -220,7 +220,7 @@ impl Guest for Filecontext {
         *global_body = ReadBodyEnum::Static(header.body);
       },
       HeaderResultType::Err(e) => {
-        log(&format!("Error reading header: {:?}", e));
+        outputlog(&format!("Error reading header: {:?}", e));
         return;
       }
     }
@@ -296,7 +296,7 @@ impl Guest for Filecontext {
         *global_signal_source = Some(result.source);
       },
       Err(e) => {
-        log(&format!("Error reading body: {:?}", e));
+        outputlog(&format!("Error reading body: {:?}", e));
         return;
       }
     }
@@ -317,8 +317,9 @@ impl Guest for Filecontext {
       }
     }
     //log(&format!("Setting chunk size to: {:?}", min_timestamp));
+    // convert time_table_length to string with commas
 
-    setchunksize(min_timestamp, time_end_extend);
+    setchunksize(min_timestamp, time_end_extend, time_table_length as u64);
 
     // unload _body
     *global_body = ReadBodyEnum::None;
@@ -336,7 +337,7 @@ impl Guest for Filecontext {
     let parent = ScopeRef::from_index(id as usize);
     match parent {
       Some(parent_ref) => {parent_scope = hierarchy.get(parent_ref);},
-      None => {log(&format!("No scopes found")); return "{\"scopes\": [], \"vars\": []}".to_string();}
+      None => {outputlog(&format!("No scopes found")); return "{\"scopes\": [], \"vars\": []}".to_string();}
     }
 
     //log(&format!("Parent Scope: {:?}", parent));
@@ -410,7 +411,7 @@ impl Guest for Filecontext {
       match signal_ref_option {
         Some(s) => {signal_ref_list.push(s);},
         None => {
-          log(&format!("Signal not found"));
+          outputlog(&format!("Signal not found: {}", signalid));
           sendtransitiondatachunk(*signalid, 1, 0, 0.0, 1.0, "[]");
           return;
         }

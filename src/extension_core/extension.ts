@@ -57,6 +57,11 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.variableActionCommandHandler(e, "reveal");
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.addSignalValueLink', (e) => {
+    viewerProvider.log.appendLine("Command called: 'waveformViewer.addSignalValueLink' " + JSON.stringify(e));
+    viewerProvider.variableActionCommandHandler(e, "addLink");
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.setMarker', (e) => {
     viewerProvider.log.appendLine("Command called: 'waveformViewer.setMarker' " + JSON.stringify(e));
     viewerProvider.markerCommandHandler(e);
@@ -158,94 +163,94 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // #region Value Format
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsBinary', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, "binary", undefined, undefined);
+    viewerProvider.setValueFormat(e.netlistId, {valueFormat: "binary"});
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsHexadecimal', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, "hexadecimal", undefined, undefined);
+    viewerProvider.setValueFormat(e.netlistId, {valueFormat: "hexadecimal"});
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsDecimal', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, "decimal", undefined, undefined);
+    viewerProvider.setValueFormat(e.netlistId, {valueFormat: "decimal"});
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsDecimalSigned', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, "signed", undefined, undefined);
+    viewerProvider.setValueFormat(e.netlistId, {valueFormat: "signed"});
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsOctal', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, "octal", undefined, undefined);
+    viewerProvider.setValueFormat(e.netlistId, {valueFormat: "octal"});
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsFloat', (e) => {
     switch (e.width) {
-      case 8:  viewerProvider.setValueFormat(e.netlistId, "float8",  undefined, undefined); break;
-      case 16: viewerProvider.setValueFormat(e.netlistId, "float16", undefined, undefined); break;
-      case 32: viewerProvider.setValueFormat(e.netlistId, "float32", undefined, undefined); break;
-      case 64: viewerProvider.setValueFormat(e.netlistId, "float64", undefined, undefined); break;
-      default: viewerProvider.setValueFormat(e.netlistId, "binary",  undefined, undefined); break;
+      case 8:  viewerProvider.setValueFormat(e.netlistId, {valueFormat: "float8"}); break;
+      case 16: viewerProvider.setValueFormat(e.netlistId, {valueFormat: "float16"}); break;
+      case 32: viewerProvider.setValueFormat(e.netlistId, {valueFormat: "float32"}); break;
+      case 64: viewerProvider.setValueFormat(e.netlistId, {valueFormat: "float64"}); break;
+      default: viewerProvider.setValueFormat(e.netlistId, {valueFormat: "binary"}); break;
     }
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.renderMultiBit', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, undefined, "multiBit");
+    viewerProvider.setValueFormat(e.netlistId, {renderType: "multiBit"});
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.renderLinear', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, undefined, "linear");
+    viewerProvider.setValueFormat(e.netlistId, {renderType: "linear"});
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.renderStepped', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, undefined, "stepped");
+    viewerProvider.setValueFormat(e.netlistId, {renderType: "stepped"});
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.renderLinearSigned', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, undefined, "linearSigned");
+    viewerProvider.setValueFormat(e.netlistId, {renderType: "linearSigned"});
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.renderSteppedSigned', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, undefined, "steppedSigned");
+    viewerProvider.setValueFormat(e.netlistId, {renderType: "steppedSigned"});
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsBFloat', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, "bfloat16", undefined, undefined);
+    viewerProvider.setValueFormat(e.netlistId,  {valueFormat: "bfloat16"});
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsTFloat', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, "tensorfloat32", undefined, undefined);
+    viewerProvider.setValueFormat(e.netlistId,  {valueFormat: "tensorfloat32"});
   }));
 
   // #region Custom Color
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor1', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, 0, undefined);
+    viewerProvider.setValueFormat(e.netlistId, {colorIndex: 0});
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor2', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, 1, undefined);
+    viewerProvider.setValueFormat(e.netlistId, {colorIndex: 1});
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor3', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, 2, undefined);
+    viewerProvider.setValueFormat(e.netlistId, {colorIndex: 2});
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor4', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, 3, undefined);
+    viewerProvider.setValueFormat(e.netlistId, {colorIndex: 3});
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor1', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, 4, undefined);
+    viewerProvider.setValueFormat(e.netlistId, {colorIndex: 4});
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor2', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, 5, undefined);
+    viewerProvider.setValueFormat(e.netlistId, {colorIndex: 5});
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor3', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, 6, undefined);
+    viewerProvider.setValueFormat(e.netlistId, {colorIndex: 6});
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor4', (e) => {
-    viewerProvider.setValueFormat(e.netlistId, undefined, 7, undefined);
+    viewerProvider.setValueFormat(e.netlistId, {colorIndex: 7});
   }));
 }
 

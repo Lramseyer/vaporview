@@ -293,6 +293,10 @@ export class WaveformDataManager {
       }
     }
 
+    if (message.command !== undefined) {
+      netlistData.valueLinkCommand = message.command;
+    }
+
     sendWebviewContext();
 
     this.netlistData[netlistId].vscodeContext = this.setSignalContextAttribute(netlistId);
@@ -311,6 +315,7 @@ export class WaveformDataManager {
       type: this.netlistData[netlistId].variableType,
       width: width,
       preventDefaultContextMenuItems: true,
+      commandValid: this.netlistData[netlistId].valueLinkCommand !== "",
       netlistId: netlistId,
     }).replace(/\s/g, '%x20')}`;
     return attribute;

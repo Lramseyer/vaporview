@@ -318,7 +318,12 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     this.filterAddSignalsInNetlist(metadataList, true);
     for (const signalInfo of foundSignals) {
-      this.setValueFormat(signalInfo.netlistId, signalInfo.numberFormat, signalInfo.colorIndex, signalInfo.renderType);
+      this.setValueFormat(signalInfo.netlistId, {
+        valueFormat: signalInfo.numberFormat,
+        colorIndex: signalInfo.colorIndex,
+        renderType: signalInfo.renderType,
+        command:    signalInfo.command,
+      });
     }
 
     //console.log(settings.selectedSignal);
@@ -600,17 +605,30 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       return;
     }
 
-    if (action === 'add') {
-      if (metadata.contextValue !== 'netlistScope') {
-        this.addSignalsToDocument(document, [metadata]);
+    switch (action) {
+      case 'add': {
+        if (metadata.contextValue !== 'netlistScope') {
+          this.addSignalsToDocument(document, [metadata]);
+        }
+        break;
+      } 
+      case 'remove': {
+        if (metadata.contextValue !== 'netlistScope') {
+          const netlistId = metadata.netlistId;
+          this.removeSignalFromDocument(netlistId);
+        }
+        break;
+      } 
+      case 'reveal': {
+        this.netlistView.reveal(metadata, {select: true, focus: false, expand: 0});
+        break;
       }
-    } else if (action === 'remove') {
-      if (metadata.contextValue !== 'netlistScope') {
-        const netlistId = metadata.netlistId;
-        this.removeSignalFromDocument(netlistId);
+      case "addLink": {
+        if (metadata.contextValue !== 'netlistScope') {
+          this.setValueFormat(metadata.netlistId, {command: e.command});
+        }
+        break;
       }
-    } else if (action === 'reveal') {
-      this.netlistView.reveal(metadata, {select: true, focus: false, expand: 0});
     }
   }
 
@@ -819,7 +837,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
   }
 
-  public setValueFormat(id: NetlistId | undefined, format: string | undefined, color: number | undefined, renderType: string | undefined) {
+  public setValueFormat(id: NetlistId | undefined, properties: any) {
     if (id === undefined) {return;}
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
@@ -828,6 +846,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     const panel      = this.activeWebview;
     const document   = this.activeDocument;
     const netlistRef = document.netlistIdTable[id];
+    const format     = properties.valueFormat;
 
     if (netlistRef) {
       if (format !== undefined) {
@@ -846,8 +865,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       command: 'setDisplayFormat',
       netlistId: id,
       numberFormat: format,
-      color: color,
-      renderType: renderType,
+      color: properties.colorIndex,
+      renderType: properties.renderType,
       customColors: [color1, color2, color3, color4],
     });
   }

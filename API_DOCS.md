@@ -188,7 +188,7 @@ Set the marker or alt marker to a time in the viewer
 - **units** - (Optional) Time Unit - If not specified, will default to waveform dump format time units "fs" | "ps" | "ns" | "us" | "µs" | "ms" | "s" | "ks"
 - **markerType** - (Optional) Marker Type - 0: Main Marker, 1: Alt Marker
 
-# Signal Value Links (proposal)
+# Signal Value Links
 
 Something that has been in my roadmap for a while is the ability to "Allow users to link .objdump files to a program counter value for a more integrated debug experience" This was something I wanted when I first created vaporview (because I was debugging a CPU with no GDB or ETM tracing.) How cool would it be to debug a CPU with a waveform dump and actually connect it back to the line of code it's running? In brainstorming how to implelent it, I have a proposed solution, but it's actually a more general solution.
 
@@ -211,7 +211,7 @@ A submenu or menu group will be added for Signal Item context menu, and it will 
 - **formattedValue** - Encoded value
 - **time** - Time of value change
 
-## vaporview.addSignalValueLink
+## waveformViewer.addSignalValueLink
 
 ### Arguments: object
   - **uri** - (Optional) Document URI - if not defined, this function will use the currently active, or last active document
@@ -268,7 +268,7 @@ const disposable_1 = vscode.commands.registerCommand(
       netlistId: e.netlistId
       e.command: 'myExtension.clickSignalValueLink'
     }
-    vscode.commands.executeCommand('vaporview.addSignalValueLink', args);
+    vscode.commands.executeCommand('waveformViewer.addSignalValueLink', args);
   }
 );
 

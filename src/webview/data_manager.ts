@@ -167,7 +167,7 @@ export class WaveformDataManager {
     const transitionData = JSON.parse(this.valueChangeDataTemp[signalId].chunkData.join(""));
 
     if (!this.requestActive) {
-      console.log("Request complete, time: " + (Date.now() - this.requestStart) / 1000 + " seconds");
+      //console.log("Request complete, time: " + (Date.now() - this.requestStart) / 1000 + " seconds");
       this.requestStart = 0;
     }
 
@@ -294,7 +294,7 @@ export class WaveformDataManager {
     }
 
     if (message.command !== undefined) {
-      netlistData.valueLinkCommand = message.command;
+      netlistData.valueLinkCommand = message.valueLinkCommand;
     }
 
     sendWebviewContext();

@@ -6,7 +6,12 @@ This document is work in progress, and may be subject to change. Please visit gi
 
 Vaporview is designed with the VSCode IDE expereince in mind, so this document serves to help enable extension interoperability. This document outlines vaporview command subscriptions, and commands that are emitted.
 
-# Context menus
+- Custom context [right click] menu items
+- Adding, removing, and selecting variables
+- Placing markers
+- Signal Value Links
+
+# Context Menus
 
 Custom context [right click] menu commands can be added to vaporview componets such as the netlist viewer and and waveform viewer, and those context menu items can call commands to other extensions.
 

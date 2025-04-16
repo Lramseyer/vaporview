@@ -83,7 +83,6 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.addSelected', (e) => {
-    console.log(e);
     viewerProvider.filterAddSignalsInNetlist(viewerProvider.netlistViewSelectedSignals, false);
   }));
 
@@ -109,14 +108,12 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.showInNetlistView', (e) => {
-    console.log(e);
     if (e.netlistId !== undefined) {
       viewerProvider.showInNetlistView(e.netlistId);
     }
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.showInViewer', (e) => {
-    console.log(e);
     viewerProvider.addSignalByNameToDocument(e.modulePath + '.' + e.name);
   }));
 
@@ -252,6 +249,11 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor4', (e) => {
     viewerProvider.setValueFormat(e.netlistId, {colorIndex: 7});
   }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.dummy', (e) => {
+    viewerProvider.log.appendLine("Command called: 'vaporview.dummy' " + JSON.stringify(e));
+  }
+  ));
 }
 
 export default WaveformViewerProvider;

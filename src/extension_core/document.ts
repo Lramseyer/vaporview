@@ -248,7 +248,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
   }
 
   public async findTreeItem(modulePath: string, msb: number | undefined, lsb: number | undefined): Promise<NetlistItem | null> {
-    console.log("findTreeItem() " + modulePath + " msb: " + msb + " lsb: " + lsb);
+    //console.log("findTreeItem() " + modulePath + " msb: " + msb + " lsb: " + lsb);
     const module = this.treeData.find((element) => element.label === modulePath.split('.')[0]);
     if (!module) {return null;}
     return await module.findChild(modulePath.split('.').slice(1).join('.'), this, msb, lsb);

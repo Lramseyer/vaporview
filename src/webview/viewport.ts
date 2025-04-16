@@ -327,7 +327,7 @@ export class Viewport {
     let netlistId: any     = null;
     const containerId = event.target?.closest('.waveform-container');
     if (containerId) {netlistId = parseInt(containerId.id.split('-').slice(1));}
-    if (netlistId !== undefined && netlistId !== null && netlistId > 0) {
+    if (netlistId !== undefined && netlistId !== null && netlistId >= 0) {
 
       // Snap to the nearest transition if the click is close enough
       const nearestTransition = dataManager.getNearestTransition(netlistId, time);
@@ -341,7 +341,7 @@ export class Viewport {
 
       if (button === 0) {
         this.events.dispatch(ActionType.SignalSelect, netlistId);
-        //this.handleValueLink(netlistId, time, snapToTime);
+        this.handleValueLink(netlistId, time, snapToTime);
       }
     } else if (isNaN(netlistId)) {return;}
 
@@ -349,6 +349,7 @@ export class Viewport {
   }
 
   handleValueLink(netlistId: NetlistId, time: number, snapToTime: number) {
+
     const netlistData = dataManager.netlistData[netlistId];
 
     if (!netlistData) {return;}
@@ -358,8 +359,8 @@ export class Viewport {
 
     const command        = netlistData.valueLinkCommand;
     const signalId       = netlistData.signalId;
-    const index          = dataManager.getNearestTransitionIndex(signalId, time);
-    const valueChange    = dataManager.valueChangeData[signalId][index];
+    const index          = dataManager.getNearestTransitionIndex(signalId, time) - 1;
+    const valueChange    = dataManager.valueChangeData[signalId].transitionData[index];
     const timeValue      = valueChange[0];
     const value          = valueChange[1];
     const formattedValue = netlistData.formattedValues[index];

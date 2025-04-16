@@ -868,6 +868,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       color: properties.colorIndex,
       renderType: properties.renderType,
       customColors: [color1, color2, color3, color4],
+      valueLinkCommand: properties.command,
     });
   }
 
@@ -913,7 +914,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     if (!this.activeWebview?.visible) {return;}
     if (!this.activeDocument?.webviewInitialized) {
-      console.log('Webview not initialized');
+      this.log.appendLine('Webview not initialized');
       this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Unchecked);
       return;
     }

@@ -571,6 +571,7 @@ export class Viewport {
       return element.id !== `waveform-${netlistId}`;
     });
     this.waveformArea.replaceChildren(...children);
+    this.renderAllWaveforms(false);
     const netlistElement = dataManager.netlistData[netlistId];
     if (!netlistElement) {return;}
     if (netlistElement.canvas) {netlistElement.canvas.remove();}

@@ -405,19 +405,19 @@ export class WaveformDataManager {
       const signalName      = netlistItem.modulePath + "." + netlistItem.signalName;
       const signalId        = netlistItem.signalId;
       const transitionData  = this.valueChangeData[signalId].transitionData;
-      const lowerBound      = this.binarySearch(transitionData, timeWindow[0]);
+      const lowerBound      = this.binarySearch(transitionData, timeWindow[0]) - 1;
       const upperBound      = this.binarySearch(transitionData, timeWindow[1]) + 2;
       const signalDataChunk = transitionData.slice(lowerBound, upperBound);
       let   initialState = "x";
       const json: any       = {name: signalName, wave: ""};
       const signalDataTrimmed: any[] = [];
       if (netlistItem.signalWidth > 1) {json.data = [];}
-  
+
       signalDataChunk.forEach((transition: any) => {
         if (transition[0] <= timeWindow[0]) {initialState = transition[1];}
         if (transition[0] >= timeWindow[0] && transition[0] <= timeWindow[1]) {signalDataTrimmed.push(transition);}
       });
-  
+
       waveDromData[netlistId] = {json: json, signalData: signalDataTrimmed, signalWidth: netlistItem.signalWidth, initialState: initialState};
       const taggedTransitions: any = signalDataTrimmed.map(t => [t[0], t[1], netlistId]);
       allTransitions = allTransitions.concat(taggedTransitions);

@@ -462,7 +462,7 @@
       },
       {
         "command": "vaporview.copyName",
-        "title": "Copy Name"
+        "title": "Copy Variable Name"
       },
       {
         "command": "vaporview.copyValueAtMarker",

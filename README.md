@@ -168,11 +168,11 @@ To set which signal will be the WaveDrom Clock, right click on the signal you wi
 
 # Requirements
 
-This extension was designed on Vscode version 1.83
+This extension requires VScode 1.96.0 or later
 
 # Development Roadmap
 
-## 1.3.3 - Upcoming Release
+## 1.3.3 - Latest Release
 
 - Added
   - Beta API

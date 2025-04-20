@@ -151,7 +151,8 @@
     "submenus": [
       {
         "id": "vaporview.waveDrom",
-        "label": "WaveDrom"
+        "label": "WaveDrom",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
       },
       {
         "id": "vaporview.valueFormat",
@@ -167,6 +168,11 @@
         "id": "vaporview.valueColor",
         "label": "Color",
         "when": "webviewSection == 'signal'"
+      },
+      {
+        "id": "vaporview.timeUnit",
+        "label": "Time Unit",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
       }
     ],
     "menus": {
@@ -239,39 +245,43 @@
       ],
       "webview/context": [
         {
-          "submenu": "vaporview.valueFormat",
-          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "submenu": "vaporview.timeUnit",
           "group": "1_default@1"
         },
         {
-          "submenu": "vaporview.renderType",
+          "submenu": "vaporview.valueFormat",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "1_default@2"
         },
         {
-          "submenu": "vaporview.valueColor",
+          "submenu": "vaporview.renderType",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "1_default@3"
         },
         {
+          "submenu": "vaporview.valueColor",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "group": "1_default@4"
+        },
+        {
           "command": "vaporview.showInNetlistView",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "2_default@5"
+          "group": "2_default@1"
         },
         {
           "command": "vaporview.removeSignal",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "2_default@6"
+          "group": "2_default@2"
         },
         {
           "command": "vaporview.copyName",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "2_default@7"
+          "group": "2_default@3"
         },
         {
           "command": "vaporview.copyValueAtMarker",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "2_default@7"
+          "group": "2_default@4"
         },
         {
           "command": "vaporview.saveViewerSettings",
@@ -373,31 +383,63 @@
           "group": "1_custom@4"
         }
       ],
+      "vaporview.timeUnit": [
+        {
+          "command": "vaporview.setTimeUnitsSeconds",
+          "when": "s == true",
+          "group": "1_default@1"
+        },
+        {
+          "command": "vaporview.setTimeUnitsMilliseconds",
+          "when": "ms == true",
+          "group": "1_default@2"
+        },
+        {
+          "command": "vaporview.setTimeUnitsMicroseconds",
+          "when": "µs == true",
+          "group": "1_default@3"
+        },
+        {
+          "command": "vaporview.setTimeUnitsNanoseconds",
+          "when": "ns == true",
+          "group": "1_default@4"
+        },
+        {
+          "command": "vaporview.setTimeUnitsPicoseconds",
+          "when": "ps == true",
+          "group": "1_default@5"
+        },
+        {
+          "command": "vaporview.setTimeUnitsFemtoseconds",
+          "when": "fs == true",
+          "group": "1_default@6"
+        }
+      ],
       "vaporview.renderType": [
         {
           "command": "vaporview.renderMultiBit",
           "when": "webviewSection == 'signal' && (width > '1' || type == 'Real')",
-          "group": "0_default@1"
+          "group": "1_default@1"
         },
         {
           "command": "vaporview.renderLinear",
           "when": "webviewSection == 'signal' && (width > '1' || type == 'Real')",
-          "group": "0_default@2"
+          "group": "1_default@2"
         },
         {
           "command": "vaporview.renderStepped",
           "when": "webviewSection == 'signal' && (width > '1' || type == 'Real')",
-          "group": "0_default@3"
+          "group": "1_default@3"
         },
         {
           "command": "vaporview.renderLinearSigned",
           "when": "webviewSection == 'signal' && (width > '1')",
-          "group": "0_default@4"
+          "group": "1_default@4"
         },
         {
           "command": "vaporview.renderSteppedSigned",
           "when": "webviewSection == 'signal' && (width > '1')",
-          "group": "0_default@5"
+          "group": "1_default@5"
         }
       ],
       "vaporview.waveDrom": [
@@ -551,6 +593,34 @@
       {
         "command": "vaporview.customColor4",
         "title": "Custom Color 4"
+      },
+      {
+        "command": "vaporview.setTimeUnitsSeconds",
+        "title": "Seconds"
+      },
+      {
+        "command": "vaporview.setTimeUnitsMilliseconds",
+        "title": "Milliseconds"
+      },
+      {
+        "command": "vaporview.setTimeUnitsMicroseconds",
+        "title": "Microseconds"
+      },
+      {
+        "command": "vaporview.setTimeUnitsNanoseconds",
+        "title": "Nanoseconds"
+      },
+      {
+        "command": "vaporview.setTimeUnitsPicoseconds",
+        "title": "Picoseconds"
+      },
+      {
+        "command": "vaporview.setTimeUnitsFemtoseconds",
+        "title": "Femtoseconds"
+      },
+      {
+        "command": "vaporview.viewVaporViewSidebar",
+        "title": "View VaporView Sidebar"
       },
       {
         "command": "vaporview.copyWaveDrom",

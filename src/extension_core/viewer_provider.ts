@@ -15,6 +15,34 @@ export interface VaporviewDocumentDelegate {
   removeFromCollection(uri: vscode.Uri, document: VaporviewDocument): void;
 }
 
+export function scaleFromUnits(unit: string | undefined) {
+  switch (unit) {
+    case 'fs': return 1e-15;
+    case 'ps': return 1e-12;
+    case 'ns': return 1e-9;
+    case 'us': return 1e-6;
+    case 'µs': return 1e-6;
+    case 'ms': return 1e-3;
+    case 's':  return 1;
+    case 'ks': return 1000;
+    default: return 1;
+  }
+}
+
+export function logScaleFromUnits(unit: string | undefined) {
+  switch (unit) {
+    case 'fs': return -15;
+    case 'ps': return -12;
+    case 'ns': return -9;
+    case 'us': return -6;
+    case 'µs': return -6;
+    case 'ms': return -3;
+    case 's':  return 0;
+    case 'ks': return 3;
+    default: return 0;
+  }
+}
+
 // #region WaveformViewerProvider
 export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<VaporviewDocument> {
 
@@ -78,6 +106,9 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.markerTimeStatusBarItem     = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 97);
     this.deltaTimeStatusBarItem      = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
     this.selectedSignalStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
+
+    this.markerTimeStatusBarItem.command = 'vaporview.setTimeUnits';
+    this.markerTimeStatusBarItem.tooltip = 'Select Time Units';
 
     // Subscribe to the View events. We need to subscribe to expand and collapse events
     // because the collapsible state would not otherwise be preserved when the tree view is refreshed
@@ -401,31 +432,17 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     });
   }
 
-  scaleFromUnits(unit: string | undefined) {
-    switch (unit) {
-      case 'fs': return 1e-15;
-      case 'ps': return 1e-12;
-      case 'ns': return 1e-9;
-      case 'us': return 1e-6;
-      case 'µs': return 1e-6;
-      case 'ms': return 1e-3;
-      case 's':  return 1;
-      case 'ks': return 1000;
-      default: return 1;
-    }
-  }
-
   setMarkerAtTimeWithUnits(time: number, unit: string, altMarker: number) {
 
     if (!this.lastActiveDocument) {return;}
   
     const metadata  = this.lastActiveDocument.metadata;
     const timeScale = metadata.timeScale;
-    const timeUnit  = this.scaleFromUnits(metadata.timeUnit);
+    const timeUnit  = scaleFromUnits(metadata.timeUnit);
 
     if (!timeScale || !timeUnit) {return;}
 
-    const scaleFactor = this.scaleFromUnits(unit) / (timeUnit * timeScale);
+    const scaleFactor = scaleFromUnits(unit) / (timeUnit * timeScale);
 
     this.setMarkerAtTime(Math.round(time * scaleFactor), altMarker);
   }
@@ -440,6 +457,38 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (time < 0 || time > timeEnd) {return;}
 
     this.lastActiveWebview.webview.postMessage({command: 'setMarker', time: time, markerType: altMarker});
+  }
+
+  async updateTimeUnits(newUnits: string) {
+
+    if (!this.lastActiveWebview) {return;}
+    if (!this.lastActiveDocument) {return;}
+
+    const timeUnit  = scaleFromUnits(this.lastActiveDocument.metadata.timeUnit);
+    const timeEnd   = this.lastActiveDocument.metadata.timeEnd;
+    const timeScale = this.lastActiveDocument.metadata.timeScale;
+    const maxTime   = timeUnit * timeScale * timeEnd;
+    const unitsList = ['fs', 'ps', 'ns', 'µs', 'ms', 's'];
+    const selectableUnits = unitsList.filter((unit) => {return scaleFromUnits(unit) <= maxTime;});
+    console.log('maxTime: ' + maxTime);
+    console.log('unitsList: ' + selectableUnits);
+
+    let units: string | undefined = newUnits;
+
+    if (newUnits === "") {
+      await vscode.window.showQuickPick(
+        selectableUnits,
+        {
+          placeHolder: 'Select Time Units',
+          canPickMany: false,
+        }
+      ).then((unit) => {
+        units = unit;
+      });
+    }
+
+    if (units === undefined || units === "") {return;}
+    this.lastActiveWebview.webview.postMessage({command: 'setTimeUnits', units: units});
   }
 
   updateStatusBarItems(document: VaporviewDocument, event: any) {
@@ -460,20 +509,23 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     w.scrollLeft       = event.scrollLeft       || w.scrollLeft;
     w.numberFormat     = event.numberFormat     || w.numberFormat;
 
+    console.log(event);
+
     if (w.markerTime || w.markerTime === 0) {
-      this.markerTimeStatusBarItem.text = 'time: ' + document.formatTime(w.markerTime);
-      this.markerTimeStatusBarItem.show();
+      this.markerTimeStatusBarItem.text = 'Time: ' + document.formatTime(w.markerTime, event.displayTimeUnit);
       if (w.altMarkerTime !== null && w.markerTime !== null) {
         const deltaT = w.markerTime - w.altMarkerTime;
-        this.deltaTimeStatusBarItem.text = 'Δt: ' + document.formatTime(deltaT);
+        this.deltaTimeStatusBarItem.text = 'Δt: ' + document.formatTime(deltaT, event.displayTimeUnit);
         this.deltaTimeStatusBarItem.show();
       } else {
         this.deltaTimeStatusBarItem.hide();
       }
     } else {
       this.deltaTimeStatusBarItem.hide();
-      this.markerTimeStatusBarItem.hide();
+      //this.markerTimeStatusBarItem.hide();
+      this.markerTimeStatusBarItem.text = 'Time Units: ' + event.displayTimeUnit;
     }
+    this.markerTimeStatusBarItem.show();
 
     if (w.selectedSignal || w.selectedSignal === 0) {
       const NetlistIdRef = document.netlistIdTable[w.selectedSignal];

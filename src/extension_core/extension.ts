@@ -141,6 +141,35 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.reloadFile(e);
   }));
 
+  // #Marker and Timing
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setTimeUnits', (e) => {
+    viewerProvider.updateTimeUnits("");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setTimeUnitsSeconds', (e) => {
+    viewerProvider.updateTimeUnits("s");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setTimeUnitsMilliseconds', (e) => {
+    viewerProvider.updateTimeUnits("ms");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setTimeUnitsMicroseconds', (e) => {
+    viewerProvider.updateTimeUnits("µs");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setTimeUnitsNanoseconds', (e) => {
+    viewerProvider.updateTimeUnits("ns");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setTimeUnitsPicoseconds', (e) => {
+    viewerProvider.updateTimeUnits("ps");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setTimeUnitsFemtoseconds', (e) => {
+    viewerProvider.updateTimeUnits("fs");
+  }));
+
   // #region WaveDrom
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.copyWaveDrom', (e) => {
     viewerProvider.copyWaveDrom();

@@ -141,17 +141,19 @@ export function sendWebviewContext() {
     command: 'contextUpdate',
     markerTime: viewerState.markerTime,
     altMarkerTime: viewerState.altMarkerTime,
+    displayTimeUnit: viewport.displayTimeUnit,
     selectedSignal: viewerState.selectedSignal,
     zoomRatio: vaporview.viewport.zoomRatio,
     scrollLeft: vaporview.viewport.pseudoScrollLeft,
     displayedSignals: viewerState.displayedSignals.map((id: NetlistId) => {
       const data = dataManager.netlistData[id];
       return {
-        netlistId:    id,
-        name:         data.modulePath + "." + data.signalName,
-        numberFormat: data.valueFormat.id,
-        colorIndex:   data.colorIndex,
-        renderType:   data.renderType.id,
+        netlistId:        id,
+        name:             data.modulePath + "." + data.signalName,
+        numberFormat:     data.valueFormat.id,
+        colorIndex:       data.colorIndex,
+        renderType:       data.renderType.id,
+        valueLinkCommand: data.valueLinkCommand,
       };
     })
   });
@@ -503,6 +505,7 @@ class VaporviewWebview {
       case 'setWaveDromClock':      {dataManager.waveDromClock = {netlistId: message.netlistId, edge:  message.edge,}; break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
       case 'setMarker':             {this.events.dispatch(ActionType.MarkerSet, message.time, message.markerType); break;}
+      case 'setTimeUnits':          {this.viewport.updateUnits(message.units); break;}
       case 'setSelectedSignal':     {this.handleSetSelectedSignal(message.netlistId); break;}
       case 'getContext':            {sendWebviewContext(); break;}
       case 'copyWaveDrom':          {dataManager.copyWaveDrom(); break;}

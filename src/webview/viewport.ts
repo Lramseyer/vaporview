@@ -14,6 +14,7 @@ export class Viewport {
   scrollbarContainer: HTMLElement;
   scrollbarCanvasElement: HTMLElement;
   scrollbarCanvas: CanvasRenderingContext2D;
+  rulerElement: HTMLElement;
   rulerCanvasElement: HTMLElement;
   rulerCanvas: CanvasRenderingContext2D;
   markerElement: HTMLElement;
@@ -42,6 +43,9 @@ export class Viewport {
   viewerWidthTime: number     = 0;
   timeScrollRight: number     = 0;
   timeScale: number           = 1;
+  adjustedLogTimeScale: number= 0;
+  timeUnit: string            = 'ns';
+  displayTimeUnit: string     = 'ns';
   timeStop: number            = 0;
   timeTableCount: number      = 0;
 
@@ -51,12 +55,15 @@ export class Viewport {
   // Zoom level variables
   zoomRatio: number           = 1;
   defaultZoom: number         = 1;
+  zoomOffset: number          = 0;
   pixelTime: number           = 1;
   maxZoomRatio: number        = 64;
   minZoomRatio: number        = 1 / 64;
   rulerNumberSpacing: number  = 100;
   rulerTickSpacing: number    = 10;
   rulerNumberIncrement: number = 100;
+  minNumberSpacing: number   = 100;
+  minTickSpacing: number     = 10;
 
   pixelRatio: number          = 1;
   updatePending: boolean      = false;
@@ -82,14 +89,15 @@ export class Viewport {
     const scrollbar          = document.getElementById('scrollbar');
     const scrollbarContainer = document.getElementById('scrollbarContainer');
     const scrollbarCanvas    = document.getElementById('scrollbarAreaCanvas');
+    const rulerElement       = document.getElementById('ruler');
     const rulerCanvas        = document.getElementById('rulerCanvas');
     const markerElement      = document.getElementById('main-marker');
     const altMarkerElement   = document.getElementById('alt-marker');
 
     if (scrollArea === null || contentArea === null || scrollbar === null || 
       scrollbarContainer === null || scrollbarCanvas === null || 
-      waveformArea === null || rulerCanvas === null || markerElement === null ||
-      altMarkerElement === null) {
+      waveformArea === null || rulerElement === null || rulerCanvas === null ||
+      markerElement === null || altMarkerElement === null) {
       throw new Error('Viewport elements not found');
     }
 
@@ -109,6 +117,7 @@ export class Viewport {
     this.scrollbarContainer     = scrollbarContainer;
     this.scrollbarCanvasElement = scrollbarCanvas;
     this.scrollbarCanvas        = canvasContext;
+    this.rulerElement           = rulerElement;
     this.rulerCanvasElement     = rulerCanvas;
     this.rulerCanvas            = rulerCanvasCtx;
 
@@ -155,10 +164,15 @@ export class Viewport {
     this.zoomRatio      = metadata.defaultZoom;
     this.pixelTime      = 1 / this.zoomRatio;
     this.timeScale      = metadata.timeScale;
-    this.timeStop       = metadata.timeEnd;
-    this.timeTableCount = metadata.timeTableCount;
-    this.maxZoomRatio   = this.zoomRatio * 64;
+    this.timeUnit       = metadata.timeUnit;
+    this.adjustedLogTimeScale = 0;
+    this.displayTimeUnit   = metadata.timeUnit;
+    this.timeStop          = metadata.timeEnd;
+    this.timeTableCount    = metadata.timeTableCount;
+    this.maxZoomRatio      = this.zoomRatio * 64;
     this.waveformArea.innerHTML = '';
+    this.updateUnits(this.timeUnit);
+    this.setRulerVscodeContext();
     this.addNetlistLink();
     this.getThemeColors();
     this.updateViewportWidth();
@@ -219,6 +233,18 @@ export class Viewport {
   async handleColorChange() {
     this.getThemeColors();
     this.redrawViewport();
+  }
+
+  setRulerVscodeContext() {
+    const context   = { preventDefaultContextMenuItems: true, };
+    const unitsList = ['fs', 'ps', 'ns', 'µs', 'ms', 's'];
+    const maxTime   = (10 ** this.logScaleFromUnits(this.timeUnit)) * this.timeScale * this.timeStop;
+
+    unitsList.forEach((unit) => {
+      context[unit] = maxTime >= (10 ** this.logScaleFromUnits(unit));
+    });
+
+    this.rulerElement.setAttribute("data-vscode-context", `${JSON.stringify(context).replace(/\s/g, '%x20')}`);
   }
 
   handleAddVariable(netlistIdList: NetlistId[], updateFlag: boolean) {
@@ -630,11 +656,33 @@ export class Viewport {
     if (element) {element.classList.add('is-selected');}
   }
 
+  logScaleFromUnits(unit: string | undefined) {
+    switch (unit) {
+      case 'fs': return -15;
+      case 'ps': return -12;
+      case 'ns': return -9;
+      case 'us': return -6;
+      case 'µs': return -6;
+      case 'ms': return -3;
+      case 's':  return -0;
+      case 'ks': return 3;
+      default: return 0;
+    }
+  }
+
+  updateUnits(units: string) {
+    this.displayTimeUnit = units;
+    this.adjustedLogTimeScale = this.logScaleFromUnits(this.timeUnit) - this.logScaleFromUnits(units);
+    this.updateRuler();
+    sendWebviewContext();
+  }
+
   updateRuler() {
     let tickX = this.rulerTickSpacing - (this.pseudoScrollLeft % this.rulerTickSpacing) - (this.rulerTickSpacing + 0.5);
     let numberX = -1 * (this.pseudoScrollLeft % this.rulerNumberSpacing);
     let numberDirty = (this.pseudoScrollLeft + numberX) * this.pixelTime;
     let number = Math.round(numberDirty / this.rulerNumberIncrement) * this.rulerNumberIncrement;
+    let setIndex = Math.round(number / this.rulerNumberIncrement);
 
     const ctx = this.rulerCanvas;
     ctx.imageSmoothingEnabled = false;
@@ -657,11 +705,35 @@ export class Viewport {
     ctx.stroke();
 
     // Draw the Numbers
+    let scale;
+    let valueString;
+    if (this.adjustedLogTimeScale >= 0) {
+      scale = 10 ** this.adjustedLogTimeScale;
+    } else {
+      scale = 10 ** -this.adjustedLogTimeScale;
+    }
+
     while (numberX <= this.viewerWidth + 50) {
-      ctx.fillText((number * this.timeScale).toString(), numberX, 15);
+      if (this.adjustedLogTimeScale > 0) {
+        valueString = (number * this.timeScale * scale).toString();
+      } else {
+        valueString = (number * this.timeScale / scale).toString();
+      }
+
+      valueString += " " + this.displayTimeUnit;
+      if (setIndex % 2 === 1) {
+        const alpha = Math.min((this.zoomOffset - Math.floor(this.zoomOffset)) * 4, 1);
+        ctx.globalAlpha = alpha;
+      } else {
+        ctx.globalAlpha = 1;
+      }
+
+      ctx.fillText(valueString, numberX, 15);
       numberX += this.rulerNumberSpacing;
       number += this.rulerNumberIncrement;
+      setIndex += 1;
     }
+    ctx.globalAlpha = 1;
   }
 
   handleZoom(amount: number, zoomOrigin: number, screenPosition: number) {
@@ -688,12 +760,13 @@ export class Viewport {
     this.timeScrollLeft   = this.pseudoScrollLeft * this.pixelTime;
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
     this.timeScrollRight  = this.timeScrollLeft + this.viewerWidthTime;
-    const zoomOffset      = Math.log2(this.zoomRatio / this.defaultZoom);
-    const baseZoom        = (2 ** Math.floor(zoomOffset)) * this.defaultZoom;
-    const spacingRatio    = 2 ** (zoomOffset - Math.floor(zoomOffset));
-    this.rulerTickSpacing = 10 * spacingRatio;
-    this.rulerNumberSpacing = 100 * spacingRatio;
-    this.rulerNumberIncrement = 100 / baseZoom;
+    this.zoomOffset      = Math.log2(this.zoomRatio / this.defaultZoom);
+    const baseZoom        = (2 ** Math.floor(this.zoomOffset)) * this.defaultZoom;
+    const spacingRatio    = 2 ** (this.zoomOffset - Math.floor(this.zoomOffset));
+    this.rulerTickSpacing = this.minTickSpacing * spacingRatio;
+    this.rulerNumberSpacing = this.minNumberSpacing * spacingRatio;
+    this.rulerNumberIncrement = this.minNumberSpacing / baseZoom;
+
     //console.log('zoom ratio: ' + this.zoomRatio + ' zoom offset: ' + zoomOffset + ' base zoom: ' + baseZoom);
 
     this.updateScrollbarResize();

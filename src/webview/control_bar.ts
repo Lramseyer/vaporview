@@ -1,4 +1,5 @@
-import {ActionType, EventHandler, NetlistId, viewerState, viewport, dataManager} from './vaporview';
+import { commands } from 'vscode';
+import {ActionType, EventHandler, NetlistId, viewerState, viewport, dataManager, vscode} from './vaporview';
 
 enum ButtonState {
   Disabled = 0,
@@ -97,9 +98,9 @@ export class ControlBar {
     this.previousButton.addEventListener('click', (e: any) => {this.handleSearchGoTo(-1);});
     this.nextButton.addEventListener(    'click', (e: any) => {this.handleSearchGoTo(1);});
   
-    this.autoScroll.addEventListener(   'click', (e: any) => {this.handleAutoScroll();});
-    this.touchScroll.addEventListener(   'click', (e: any) => {this.handleTouchScroll(true);});
-    this.mouseScroll.addEventListener(   'click', (e: any) => {this.handleTouchScroll(false);});
+    this.autoScroll.addEventListener(    'click', (e: any) => {this.handleScrollModeClick("Auto");});
+    this.touchScroll.addEventListener(   'click', (e: any) => {this.handleScrollModeClick("Touchpad");});
+    this.mouseScroll.addEventListener(   'click', (e: any) => {this.handleScrollModeClick("Mouse");});
 
     this.setButtonState(this.previousButton, ButtonState.Disabled);
     this.setButtonState(this.mouseScroll, ButtonState.Selected);
@@ -147,6 +148,18 @@ export class ControlBar {
     timeIndex = Math.min(timeIndex, data.transitionData.length - 1);
   
     this.events.dispatch(ActionType.MarkerSet, data.transitionData[timeIndex][0], 0);
+  }
+
+  handleScrollModeClick(mode: string) {
+    vscode.postMessage({command: 'updateConfiguration', property: "scrollingMode", value: mode});
+  }
+
+  setScrollMode(mode: string) {
+    switch (mode) {
+      case 'Mouse':    this.handleTouchScroll(false); break;
+      case 'Touchpad': this.handleTouchScroll(true);  break;
+      case 'Auto':     this.handleAutoScroll();       break;
+    }
   }
 
   handleTouchScroll(state: boolean) {

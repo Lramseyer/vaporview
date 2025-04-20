@@ -138,6 +138,10 @@ Vaporview supports 8 different waveform colors. The colors are based off the [se
 
 Aside from the binary and multi-bit waveform renderers, Vaporview supports displaying analog signals. Any multi-bit variable or Real type supports this. Analog signals can be displayed wither as a linear or stepped line. In the case of binary vlues, the Y value can be evaluated as either a signed or unsigned value. To change the Render Type, right click on the signal in the viewer and select **Render Type** -> and select the render type you wish to use for the signal.
 
+## Time Units
+
+You can change the Time Units in one of 2 ways: clicking the Time Status Bar in the lower right hand corner of the window, or by right clicking on the time ruler and selecting uits from the **Time Unit** menu.
+
 ## Saving and loading opened signals
 
 VaporView allows you to save and load your signal list. This can be done either by right clicking anywhere in the viewer or netlist and selecting **"Save Vaproview Settings"** or **"Load Vaproview Settings"**. You can also access the command directly by pressing **Ctrl + Shift + P** and Type **">Save Vaproview Settings"** or **">Load Vaproview Settings"** and press **Enter** to slect the command. A dialog box will pop up prompting which file you would like to save/load settings from.

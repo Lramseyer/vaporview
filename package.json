@@ -145,6 +145,13 @@
           "type": "string",
           "scope": "application",
           "description": "Path to find FSDB reader shared libraries (e.g. libnffr.so, libnsys.so for Linux) for your platform. This is needed for FSDB reading. Example: /home/heyfey/verdi/2022.06/share/FsdbReader/linux64"
+        },
+        "vaporview.scrollingMode": {
+          "type": "string",
+          "enum": ["Mouse", "Touchpad", "Auto"],
+          "default": "Mouse",
+          "scope": "application",
+          "description": "Scrolling mode for the waveform viewer. Options: 'mouse' (default), 'touch'."
         }
       }
     },

@@ -101,6 +101,18 @@ export class EventHandler {
   }
 }
 
+export function restoreState() {
+  const state = vscode.getState();
+  if (!state) {return;}
+  console.log('Restoring state: ');
+  console.log(state);
+  vscode.postMessage({
+    command: 'restoreState',
+    state: state,
+    uri: viewerState.uri,
+  });
+}
+
 // Event handler helper functions
 export function arrayMove(array: any[], fromIndex: number, toIndex: number) {
   const element = array[fromIndex];
@@ -135,10 +147,8 @@ export function sendDisplayedSignals() {
   });
 }
 
-export function sendWebviewContext() {
-
-  vscode.postMessage({
-    command: 'contextUpdate',
+function createWebviewContext() {
+  return  {
     markerTime: viewerState.markerTime,
     altMarkerTime: viewerState.altMarkerTime,
     displayTimeUnit: viewport.displayTimeUnit,
@@ -155,8 +165,15 @@ export function sendWebviewContext() {
         renderType:       data.renderType.id,
         valueLinkCommand: data.valueLinkCommand,
       };
-    })
-  });
+    }),
+  }
+}
+
+export function sendWebviewContext() {
+  let context: any = createWebviewContext();
+  vscode.setState(context);
+  context.command = 'contextUpdate';
+  vscode.postMessage(context);
 }
 
 export function outputLog(message: string) {
@@ -505,9 +522,10 @@ class VaporviewWebview {
       case 'setWaveDromClock':      {dataManager.waveDromClock = {netlistId: message.netlistId, edge:  message.edge,}; break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
       case 'setMarker':             {this.events.dispatch(ActionType.MarkerSet, message.time, message.markerType); break;}
-      case 'setTimeUnits':          {this.viewport.updateUnits(message.units); break;}
+      case 'setTimeUnits':          {this.viewport.updateUnits(message.units, true); break;}
       case 'setSelectedSignal':     {this.handleSetSelectedSignal(message.netlistId); break;}
       case 'getContext':            {sendWebviewContext(); break;}
+      case 'setScrollingMode':      {controlBar.setScrollMode(message.scrollingMode); break;}
       case 'copyWaveDrom':          {dataManager.copyWaveDrom(); break;}
       case 'copyValueAtMarker':     {labelsPanel.copyValueAtMarker(message.netlistId); break;}
       case 'updateColorTheme':      {this.events.dispatch(ActionType.updateColorTheme); break;}

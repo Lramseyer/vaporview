@@ -1,4 +1,4 @@
-import { vscode, NetlistData,  WaveformData, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager } from "./vaporview";
+import { vscode, NetlistData,  WaveformData, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { labelsPanel } from "./vaporview";
@@ -171,12 +171,13 @@ export class Viewport {
     this.timeTableCount    = metadata.timeTableCount;
     this.maxZoomRatio      = this.zoomRatio * 64;
     this.waveformArea.innerHTML = '';
-    this.updateUnits(this.timeUnit);
+    this.updateUnits(this.timeUnit, false);
     this.setRulerVscodeContext();
     this.addNetlistLink();
     this.getThemeColors();
     this.updateViewportWidth();
     this.handleZoom(1, 0, 0);
+    restoreState();
     //this.updateRuler();
     //this.updateScrollbarResize();
     //this.updatePending = false;
@@ -670,11 +671,13 @@ export class Viewport {
     }
   }
 
-  updateUnits(units: string) {
+  updateUnits(units: string, updateContext: boolean) {
     this.displayTimeUnit = units;
     this.adjustedLogTimeScale = this.logScaleFromUnits(this.timeUnit) - this.logScaleFromUnits(units);
     this.updateRuler();
-    sendWebviewContext();
+    if (updateContext) {
+      sendWebviewContext();
+    }
   }
 
   updateRuler() {

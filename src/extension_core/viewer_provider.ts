@@ -181,6 +181,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'showMessage':         {this.handleWebviewMessage(e); break;}
         case 'copyToClipboard':     {vscode.env.clipboard.writeText(e.text); break;}
         case 'executeCommand':      {vscode.commands.executeCommand(e.commandName, e.args); break;}
+        case 'updateConfiguration': {vscode.workspace.getConfiguration('vaporview').update(e.property, e.value, vscode.ConfigurationTarget.Global); break;}
         case 'copyWaveDrom':        {this.copyWaveDromToClipboard(e.waveDromJson, e.maxTransitions, e.maxTransitionsFlag); break;}
         case 'ready':               {document.onWebviewReady(webviewPanel); break;}
         case 'close-webview':       {webviewPanel.dispose(); break;}
@@ -189,6 +190,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'contextUpdate' :      {this.updateStatusBarItems(document, e); break;}
         case 'fetchTransitionData': {document.getSignalData(e.signalIdList); break;}
         case 'removeVariable':      {this.removeSignalFromDocument(e.netlistId); break;}
+        case 'restoreState':        {this.applySettings(e.state, this.getDocumentFromUri(e.uri)); break;}
         default: {this.log.appendLine('Unknown webview message type: ' + e.command); break;}
       }
 
@@ -416,6 +418,13 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     });
   }
 
+  updateConfiguration(e: any) {
+    this.documentCollection.forEach((entry) => {
+      const document = entry.document;
+      document.setScrollingMode();
+    });
+  }
+
   handleWebviewMessage(event: any) {
     switch (event.messageType) {
       case 'info':    {vscode.window.showInformationMessage(event.message); break;}
@@ -509,7 +518,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     w.scrollLeft       = event.scrollLeft       || w.scrollLeft;
     w.numberFormat     = event.numberFormat     || w.numberFormat;
 
-    console.log(event);
+    //console.log(event);
 
     if (w.markerTime || w.markerTime === 0) {
       this.markerTimeStatusBarItem.text = 'Time: ' + document.formatTime(w.markerTime, event.displayTimeUnit);

@@ -1,15 +1,20 @@
 # Change Log
 
+# Upcoming Release
+
+- Added Feature to change time units
+- Scrolling Mode is now a global user setting
+- Viewer reloads previous state upon closing and reopening VScode
+
 ## 1.3.3 - Latest Release
 
-- Added
+- Added:
   - Beta API
   - Copy Value At Marker context menu item
   - Tooltips when hovering over viewer signal names
   - Commands for use in other extensions and API docs
   - Zoom to Fit button on control bar
-
-- Fixed
+- Fixed issues:
   - Context menu items now appear when right clicking on value display column
   - "Load/Save Vporview Settings" Menus appearing where they shouldn't
   - Terminal Links only match for paths with valid top level scopes

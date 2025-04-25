@@ -32,4 +32,5 @@ world filehandler {
   // so we will convert to JSON string
   export getchildren: func(id: u32, startindex: u32) -> string;
   export getsignaldata: func(signalidlist: list<u32>);
+  export getvaluesattime: func(time: u64, paths: list<string>) -> string;
 }

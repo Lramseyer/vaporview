@@ -68,6 +68,25 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.markerCommandHandler(e);
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.getOpenDocuments', (e) => {
+    viewerProvider.log.appendLine("Command called: 'waveformViewer.getOpenDocuments' " + JSON.stringify(e));
+    return viewerProvider.getAllDocuments();
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.getViewerSettings', (e) => {
+    viewerProvider.log.appendLine("Command called: 'waveformViewer.getViewerSettings' " + JSON.stringify(e));
+    const document = viewerProvider.getDocumentFromOptionalUri(e.uri);
+    if (!document) {return;}
+    return document.getSettings();
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.getValuesAtTime', (e) => {
+    viewerProvider.log.appendLine("Command called: 'waveformViewer.getValuesAtTime' " + JSON.stringify(e));
+    const document = viewerProvider.getDocumentFromOptionalUri(e.uri);
+    if (!document) {return;}
+    return document.getValuesAtTime(e);
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.viewVaporViewSidebar', () => {
     vscode.commands.executeCommand('workbench.view.extension.vaporView');
   }));

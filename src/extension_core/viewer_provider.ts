@@ -190,7 +190,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'contextUpdate' :      {this.updateStatusBarItems(document, e); break;}
         case 'fetchTransitionData': {document.getSignalData(e.signalIdList); break;}
         case 'removeVariable':      {this.removeSignalFromDocument(e.netlistId); break;}
-        case 'restoreState':        {this.applySettings(e.state, this.getDocumentFromUri(e.uri)); break;}
+        case 'restoreState':        {this.applySettings(e.state, this.getDocumentFromUri(e.uri.toString())); break;}
         default: {this.log.appendLine('Unknown webview message type: ' + e.command); break;}
       }
 
@@ -238,12 +238,37 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.onDidChangeViewStateActive(document, webviewPanel);
   }
 
-  public getDocumentFromUri(uri: vscode.Uri): VaporviewDocument | undefined {
-    const key = uri.toString();
+  public getDocumentFromUri(uri: string): VaporviewDocument | undefined {
+    const key = uri
     for (const entry of this.documentCollection) {
       if (entry.resource === key) {return entry.document;}
     }
     return undefined;
+  }
+
+  public getDocumentFromOptionalUri(uri: string | undefined): VaporviewDocument | undefined {
+    if (!uri) {return this.activeDocument;}
+    else {return this.getDocumentFromUri(uri);}
+  }
+
+  public getAllDocuments() {
+    const result: any = {
+      documents: [],
+      lastActiveDocument: null
+    }
+    this.documentCollection.forEach((entry) => {
+      result.documents.push(entry.document.uri.toString());
+    });
+    if (this.lastActiveDocument) {
+      result.lastActiveDocument = this.lastActiveDocument.uri.toString();
+    }
+    return result;
+  }
+
+  public getViewerSettings(uri: any) {
+    let document = this.getDocumentFromOptionalUri(uri);
+    if (!document) {return;}
+    return document.getSettings();
   }
 
   public saveSettingsToFile() {
@@ -379,7 +404,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     let document: VaporviewDocument | undefined;
     if (e.fsPath) {
-      document = this.getDocumentFromUri(e);
+      document = this.getDocumentFromUri(e.toString());
     } else {
       document = this.activeDocument;
     }
@@ -731,31 +756,35 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   }
 
   public async addSignalByNameToDocument(signalName: string) {
+
     if (!this.lastActiveDocument) {return;}
     const document = this.lastActiveDocument;
 
+    // remove colon or semicolon from end of signal name
+    const instancePath = signalName.replace(/[:;]$/, '');
     // get msb and lsb from signal name
     const regex  = /\[(\d+:)?(\d+)\]$/;
-    const field  = signalName.match(regex);
-    const lookup = signalName.replace(regex, '');
+    const field  = instancePath.match(regex);
+    const lookup = instancePath.replace(regex, '');
     const msb   = field ? parseInt(field[1], 10) : undefined;
     const lsb   = field ? parseInt(field[2], 10) : msb;
     //console.log('lookup: ' + lookup + ' msb: ' + msb + ' lsb: ' + lsb);
     const metadata = await document.findTreeItem(lookup, msb, lsb);
 
     if (metadata === null) {
-      // console.log('Signal not found ' + signalName);
-      vscode.window.showWarningMessage('Signal not found: ' + signalName);
+      // console.log('Signal not found ' + instancePath);
+      vscode.window.showWarningMessage('Signal not found: ' + instancePath);
       return;
     }
 
     // If it's a scope item, we just reveal it in the tree view
+    console.log('contextValue: ' + metadata.contextValue);
     if (metadata.contextValue === 'netlistScope') {
       this.netlistView.reveal(metadata, {select: true, focus: false, expand: 0});
       return;
     }
 
-    //console.log('found signal ' + signalName);
+    //console.log('found signal ' + instancePath);
     const netlistId   = metadata.netlistId;
     const isDisplayed = document.webviewContext.displayedSignals.find((element: any) => element.netlistId === netlistId);
     if (isDisplayed !== undefined) {

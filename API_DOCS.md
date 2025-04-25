@@ -193,6 +193,44 @@ Set the marker or alt marker to a time in the viewer
 - **units** - (Optional) Time Unit - If not specified, will default to waveform dump format time units "fs" | "ps" | "ns" | "us" | "µs" | "ms" | "s" | "ks"
 - **markerType** - (Optional) Marker Type - 0: Main Marker, 1: Alt Marker
 
+## waveformViewer.getOpenDocuments
+
+Returns a list of open waveform viewer documents
+
+### Arguments: none
+
+### Return: object
+
+Remember that to get a valid return value, all vscode commands must be called with an await keyword!
+
+- **documents** - List of URIs corresponding to open documents
+- **lastActiveDocument** - URI of last active or currently active wavefrom viewer document
+
+## waveformViewer.getViewerSettings
+
+### Return: object
+
+Returns the viewer settings in th esame schema as the save file
+
+### Arguments: object
+
+- **uri** - (Optional) Document URI - if not defined, this function will use the currently active, or last active document
+
+## waveformViewer.getValuesAtTime
+
+### Arguments: object
+
+- **uri** - (Optional) Document URI - if not defined, this function will use the currently active, or last active document
+- **time** - (optional) if not defined, will use marker time for the document
+- **instancePaths** - Array of instance path strings
+
+### Return: Array of objects
+
+- **instancePath** - Instance path string
+- **value** - Value as string
+
+Note that if an instance path input is not found in the netlist, the result will not return a value for it.
+
 # Signal Value Links
 
 Something that has been in my roadmap for a while is the ability to "Allow users to link .objdump files to a program counter value for a more integrated debug experience" This was something I wanted when I first created vaporview (because I was debugging a CPU with no GDB or ETM tracing.) How cool would it be to debug a CPU with a waveform dump and actually connect it back to the line of code it's running? In brainstorming how to implelent it, I have a proposed solution, but it's actually a more general solution.
@@ -283,3 +321,40 @@ const disposable_2 = vscode.commands.registerCommand(
   (e) => {onDidClickSignalValueLink(e)}
 )
 ```
+
+# Save File Format (Proposal)
+
+Note tha this is a proposal, which does not reflect the actual file format. I plan to coordinate with the Surfer team to standardize on a format, and this oultlines the things I would want for vaporview.
+
+## Window Configuration
+
+- Nested set of dividers
+
+## Marker placement
+
+- Main Marker
+- Alt Marker
+
+## Displayed signals
+
+- Item type - Signal | Group | Transaction | Other?
+
+## Item Type: Signal
+- Type - Signal
+- Instance Path
+- Number Format - ie hex, decimal, binary
+- Text justify - Left | right | center
+- Render type - binary | multi-bit | linear | stepped | etc
+- Pin location - top | bottom
+- Color (preferably an index to adapt to color themes)
+- Background Color
+- Value Link Command
+
+## Item Type: Group
+- Type - Group
+- Array of items
+
+## Item Type Transaction
+- Type - Transaction
+- Transaction Type
+- Arguments - Array of Signals

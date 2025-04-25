@@ -603,27 +603,27 @@
       },
       {
         "command": "vaporview.setTimeUnitsSeconds",
-        "title": "Seconds"
+        "title": "s"
       },
       {
         "command": "vaporview.setTimeUnitsMilliseconds",
-        "title": "Milliseconds"
+        "title": "ms"
       },
       {
         "command": "vaporview.setTimeUnitsMicroseconds",
-        "title": "Microseconds"
+        "title": "µs"
       },
       {
         "command": "vaporview.setTimeUnitsNanoseconds",
-        "title": "Nanoseconds"
+        "title": "ns"
       },
       {
         "command": "vaporview.setTimeUnitsPicoseconds",
-        "title": "Picoseconds"
+        "title": "ps"
       },
       {
         "command": "vaporview.setTimeUnitsFemtoseconds",
-        "title": "Femtoseconds"
+        "title": "fs"
       },
       {
         "command": "vaporview.viewVaporViewSidebar",

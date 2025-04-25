@@ -352,6 +352,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
 
   public abstract getChildrenExternal(element: NetlistItem | undefined): Promise<NetlistItem[]>;
   public abstract getSignalData(signalIdList: SignalId[]): Promise<void>;
+  public abstract getValuesAtTime(e: any): string[];
   protected abstract load(): Promise<void>;
   public abstract unload(): Promise<void>;
   public abstract dispose(): void;
@@ -573,6 +574,14 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
 
     element.children = result;
     return Promise.resolve(element.children);
+  }
+
+  public getValuesAtTime(e: any): string[] {
+    let time = e.time;
+    if (!e.time) {
+      time = this.webviewContext.markerTime;
+    }
+    return this.wasmApi.getvaluesattime(time, e.instancePaths);
   }
 
   public async getSignalData(signalIdList: SignalId[]) {
@@ -808,6 +817,15 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
         signalId: signalId
       });
     });
+  }
+
+  public getValuesAtTime(e: any): string[] {
+    let time = e.time;
+    if (!e.time) {time = this.webviewContext.markerTime;}
+
+    // Implement here
+
+    return [];
   }
 
   public async unload() {

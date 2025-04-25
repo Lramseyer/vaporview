@@ -63,7 +63,7 @@ export class Viewport {
   rulerTickSpacing: number    = 10;
   rulerNumberIncrement: number = 100;
   minNumberSpacing: number   = 100;
-  minTickSpacing: number     = 10;
+  minTickSpacing: number     = 20;
 
   pixelRatio: number          = 1;
   updatePending: boolean      = false;
@@ -682,10 +682,12 @@ export class Viewport {
 
   updateRuler() {
     let tickX = this.rulerTickSpacing - (this.pseudoScrollLeft % this.rulerTickSpacing) - (this.rulerTickSpacing + 0.5);
+    let tickXalt = tickX - (this.rulerTickSpacing / 2);
     let numberX = -1 * (this.pseudoScrollLeft % this.rulerNumberSpacing);
     let numberDirty = (this.pseudoScrollLeft + numberX) * this.pixelTime;
     let number = Math.round(numberDirty / this.rulerNumberIncrement) * this.rulerNumberIncrement;
     let setIndex = Math.round(number / this.rulerNumberIncrement);
+    const alpha = Math.min((this.zoomOffset - Math.floor(this.zoomOffset)) * 4, 1);
 
     const ctx = this.rulerCanvas;
     ctx.imageSmoothingEnabled = false;
@@ -707,6 +709,15 @@ export class Viewport {
     }
     ctx.stroke();
 
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    while (tickXalt <= this.viewerWidth) {
+      ctx.moveTo(tickXalt, 27.5);
+      ctx.lineTo(tickXalt, 32.5);
+      tickXalt += this.rulerTickSpacing;
+    }
+    ctx.stroke();
+
     // Draw the Numbers
     let scale;
     let valueString;
@@ -725,7 +736,6 @@ export class Viewport {
 
       valueString += " " + this.displayTimeUnit;
       if (setIndex % 2 === 1) {
-        const alpha = Math.min((this.zoomOffset - Math.floor(this.zoomOffset)) * 4, 1);
         ctx.globalAlpha = alpha;
       } else {
         ctx.globalAlpha = 1;

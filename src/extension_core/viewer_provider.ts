@@ -778,7 +778,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
 
     // If it's a scope item, we just reveal it in the tree view
-    console.log('contextValue: ' + metadata.contextValue);
     if (metadata.contextValue === 'netlistScope') {
       this.netlistView.reveal(metadata, {select: true, focus: false, expand: 0});
       return;

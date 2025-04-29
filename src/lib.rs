@@ -471,8 +471,7 @@ impl Guest for Filecontext {
 
   }
 
-  fn getvaluesattime(time: u64, paths: Vec<String>) -> String {
-    //log(&format!("Getting values at time: {:?}", time));
+  fn getvaluesattime(time: u64, paths: String) -> String {
 
     let mut global_signal_source = _signal_source.lock().unwrap();
     let signal_source = global_signal_source.as_mut().unwrap();
@@ -480,10 +479,14 @@ impl Guest for Filecontext {
     let global_hierarchy = _hierarchy.lock().unwrap();
     let hierarchy = global_hierarchy.as_ref().unwrap();
 
-    let mut signal_ref_list: Vec<SignalRef> = Vec::new();
-    let mut result_struct: Vec<(&String, SignalRef)> = Vec::new();
+    let global_time_table = _time_table.lock().unwrap();
+    let time_table = global_time_table.as_ref().unwrap();
 
-    paths.iter().for_each(|path| {
+    let mut signal_ref_list: Vec<SignalRef> = Vec::new();
+    let mut result_struct: Vec<(String, SignalRef)> = Vec::new();
+
+    let path_list = paths.split(" ").collect::<Vec<&str>>();
+    path_list.iter().for_each(|path| {
       let path_parts: Vec<&str> = path.split('.').collect();
       let name = path_parts.last().unwrap();
       let scope_path = &path_parts[0..path_parts.len() - 1];
@@ -493,7 +496,7 @@ impl Guest for Filecontext {
           let var = hierarchy.get(s);
           let signal_ref = var.signal_ref();
           signal_ref_list.push(signal_ref);
-          result_struct.push((path, signal_ref));
+          result_struct.push((path.to_string(), signal_ref));
         },
         None => {return;}
       }
@@ -504,8 +507,8 @@ impl Guest for Filecontext {
     let signals_loaded = signal_source.load_signals(&signal_ref_list, hierarchy, false);
 
     let mut result = String::new();
+    result.push_str("[");
     signals_loaded.iter().for_each(|(s, signal)| {
-      result.push_str("[");
       let transitions = signal.iter_changes();
       let time_index = signal.time_indices();
 
@@ -513,7 +516,7 @@ impl Guest for Filecontext {
       let mut i: usize = 0;
       let mut v = String::new();
       for (_, value) in transitions {
-        if time_index[i] > time as u32 {
+        if time_table[time_index[i] as usize] > time {
           break;
         }
         v = value.to_string();
@@ -522,19 +525,15 @@ impl Guest for Filecontext {
 
       result_struct.iter().for_each(|(path, signalid)| {
         if s.index() == signalid.index() {
-          result.push_str(&format!("{{\"path\": {:?}, \"value\": {:?}}},", path, v));
+          result.push_str(&format!("{{\"instancePath\": {:?}, \"value\": {:?}}},", path, v));
         }
       });
 
-      //log(&format!("Signal Data Orgainzed!"));
-
-      // set last character to "]" to close the array
-      if result.len() > 1 {result.pop();}
-      result.push_str("]");
-
-
       // Send the data in chunks
     });
+    
+    if result.len() > 1 {result.pop();}
+    result.push_str("]");
     return result;
 
   }

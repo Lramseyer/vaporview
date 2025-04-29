@@ -255,7 +255,6 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     if (timescaleOffset > 0) {
       timeValue = time * this.metadata.timeScale * (10 ** timescaleOffset);
     } else {
-      console.log("timescaleOffset: " + timeScaleOffsetInverse);
       timeValue = time * this.metadata.timeScale / (10 ** timeScaleOffsetInverse);
     }
     const strings = timeValue.toString().split('.');
@@ -352,7 +351,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
 
   public abstract getChildrenExternal(element: NetlistItem | undefined): Promise<NetlistItem[]>;
   public abstract getSignalData(signalIdList: SignalId[]): Promise<void>;
-  public abstract getValuesAtTime(e: any): string[];
+  public abstract getValuesAtTime(e: any): Promise<any>;
   protected abstract load(): Promise<void>;
   public abstract unload(): Promise<void>;
   public abstract dispose(): void;
@@ -576,12 +575,13 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
     return Promise.resolve(element.children);
   }
 
-  public getValuesAtTime(e: any): string[] {
+  public async getValuesAtTime(e: any): Promise<any> {
     let time = e.time;
     if (!e.time) {
       time = this.webviewContext.markerTime;
     }
-    return this.wasmApi.getvaluesattime(time, e.instancePaths);
+    const result = await this.wasmApi.getvaluesattime(BigInt(time), e.instancePaths.join(" "));
+    return JSON.parse(result);
   }
 
   public async getSignalData(signalIdList: SignalId[]) {
@@ -819,7 +819,7 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
     });
   }
 
-  public getValuesAtTime(e: any): string[] {
+  public async getValuesAtTime(e: any): Promise<any> {
     let time = e.time;
     if (!e.time) {time = this.webviewContext.markerTime;}
 

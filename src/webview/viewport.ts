@@ -8,6 +8,7 @@ const domParser = new DOMParser();
 export class Viewport {
 
   scrollArea: HTMLElement;
+  scrollAreaBounds: DOMRect;
   contentArea: HTMLElement;
   waveformArea: HTMLElement;
   scrollbar: HTMLElement;
@@ -20,6 +21,7 @@ export class Viewport {
   markerElement: HTMLElement;
   altMarkerElement: HTMLElement;
   netlistLinkElement: HTMLElement | null = null;
+  valueLinkObject: NetlistData | null = null;
 
   highlightElement: any     = null;
   highlightEndEvent: any    = null;
@@ -133,6 +135,8 @@ export class Viewport {
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
     this.handleMarkerSet = this.handleMarkerSet.bind(this);
     this.handleReorderSignals = this.handleReorderSignals.bind(this);
+    this.handleValueLinkMouseOver = this.handleValueLinkMouseOver.bind(this);
+    this.handleValueLinkMouseExit = this.handleValueLinkMouseExit.bind(this);
     this.highlightZoom = this.highlightZoom.bind(this);
     this.drawHighlightZoom = this.drawHighlightZoom.bind(this);
     this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
@@ -296,8 +300,8 @@ export class Viewport {
   }
 
   getTimeFromClick(event: MouseEvent) {
-    const bounds    = this.scrollArea.getBoundingClientRect();
-    const pixelLeft = Math.round(event.pageX - bounds.left);
+    //const bounds    = this.scrollArea.getBoundingClientRect();
+    const pixelLeft = Math.round(event.pageX - this.scrollAreaBounds.left);
     return Math.round((pixelLeft + this.pseudoScrollLeft) * this.pixelTime);
   }
 
@@ -320,6 +324,64 @@ export class Viewport {
       this.handleScrollEvent((time * this.zoomRatio) - this.halfViewerWidth);
     }
     return moveViewer;
+  }
+
+  handleValueLinkMouseOver(event: MouseEvent) {
+    this.mouseOverHandler(event, true);
+  }
+
+  handleValueLinkMouseExit(event: MouseEvent) {
+    this.mouseOverHandler(event, false);
+  }
+
+  setValueLinkCursor(keyDown: boolean) {
+    if (this.valueLinkObject === null) {return;}
+    if (!this.valueLinkObject.canvas)  {return;}
+    if (this.valueLinkObject.valueLinkIndex >= 0 && keyDown) {
+      this.valueLinkObject.canvas.classList.add('waveform-link');
+    } else {
+      this.valueLinkObject.canvas.classList.remove('waveform-link');
+    }
+  }
+
+  mouseOverHandler(event: MouseEvent, checkBounds: boolean) {
+    if (!event.target) {return;}
+    const netlistId   = parseInt(event.target.id.split('-').pop());
+    const netlistData = dataManager.netlistData[netlistId];
+    let redraw        = false;
+    let valueIndex    = -1;
+    if (!netlistData) {return;}
+
+    if (checkBounds) {
+      const elementX    = event.pageX - this.scrollAreaBounds.left;
+      netlistData.valueLinkBounds.forEach(([min, max], i) => {
+        if (elementX >= min && elementX <= max) {
+          valueIndex = i;
+        }
+      })
+    }
+
+    // store a pointer to the netlistData object for a keydown event handler
+    if (valueIndex >= 0) {
+      this.valueLinkObject = netlistData;
+    } else {
+      this.valueLinkObject = null;
+    }
+
+    // Check to change cursor to a pointer
+    if (valueIndex >= 0 && (event.ctrlKey || event.metaKey)) {
+      netlistData.canvas?.classList.add('waveform-link');
+    } else {
+      netlistData.canvas?.classList.remove('waveform-link');
+    }
+
+    if (valueIndex !== netlistData.valueLinkIndex) {redraw = true;}
+    netlistData.valueLinkIndex = valueIndex;
+
+    if (redraw) {
+      netlistData.wasRendered = false;
+      this.renderWaveform(netlistData);
+    }
   }
 
   handleScrollAreaMouseDown(event: MouseEvent) {
@@ -366,9 +428,13 @@ export class Viewport {
 
       if (pixelDistance < snapToDistance) {snapToTime = nearestTime;}
 
+      if (button === 0 && (event.ctrlKey || event.metaKey)) {
+        this.handleValueLink(netlistId, time, snapToTime);
+        return;
+      }
+
       if (button === 0) {
         this.events.dispatch(ActionType.SignalSelect, netlistId);
-        this.handleValueLink(netlistId, time, snapToTime);
       }
     } else if (isNaN(netlistId)) {return;}
 
@@ -382,6 +448,7 @@ export class Viewport {
     if (!netlistData) {return;}
     if (netlistData.valueLinkCommand === "") {return;}
     if (netlistData.renderType.id !== 'multiBit') {return;}
+    if (netlistData.valueLinkIndex < 0) {return;}
     if (time !== snapToTime) {return;}
 
     const command        = netlistData.valueLinkCommand;
@@ -434,8 +501,9 @@ export class Viewport {
   handleScrollbarContainerClick(e: MouseEvent) {
     e.preventDefault();
     if (this.scrollbarHidden) {return;}
-    const scrollbarBounds = this.scrollbarContainer.getBoundingClientRect();
-    const scrollbarX      = e.clientX - scrollbarBounds.left;
+    //const scrollbarBounds = this.scrollbarContainer.getBoundingClientRect();
+    //const scrollbarX      = e.clientX - scrollbarBounds.left;
+    const scrollbarX      = e.clientX - this.scrollAreaBounds.left;
     const newPosition     = Math.min(Math.max(0, scrollbarX - (this.scrollbarWidth / 2)), this.maxScrollbarPosition);
     const newScrollLeft   = Math.round((newPosition / this.maxScrollbarPosition) * this.maxScrollLeft);
     this.handleScrollEvent(newScrollLeft);
@@ -475,7 +543,8 @@ export class Viewport {
     this.highlightEndEvent = event;
     const width       = Math.abs(this.highlightEndEvent.pageX - this.highlightStartEvent.pageX);
     const left        = Math.min(this.highlightStartEvent.pageX, this.highlightEndEvent.pageX);
-    const elementLeft = left - this.scrollArea.getBoundingClientRect().left;
+    //const elementLeft = left - this.scrollArea.getBoundingClientRect().left;
+    const elementLeft = left - this.scrollAreaBounds.left;
     const style       = `left: ${elementLeft}px; width: ${width}px; height: ${this.contentArea.clientHeight};`;
   
     if (width > 5) {viewerState.mouseupEventType = 'highlightZoom';}
@@ -806,9 +875,9 @@ export class Viewport {
     this.pixelRatio       = window.devicePixelRatio || 1;
     this.scrollbarCanvasElement.setAttribute("width",  `0`);
     this.scrollbarCanvasElement.style.width  = `0px`;
-    const boundsScroll    = this.scrollArea.getBoundingClientRect();
-    this.viewerWidth      = boundsScroll.width - 10;
-    this.viewerHeight     = boundsScroll.height;
+    this.scrollAreaBounds = this.scrollArea.getBoundingClientRect();;
+    this.viewerWidth      = this.scrollAreaBounds.width - 10;
+    this.viewerHeight     = this.scrollAreaBounds.height;
     this.halfViewerWidth  = this.viewerWidth / 2;
     this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth, 0));
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;

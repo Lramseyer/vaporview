@@ -107,6 +107,8 @@ export class WaveformDataManager {
         encoding:     signal.encoding,
         vscodeContext: "",
         valueLinkCommand: "",
+        valueLinkBounds: [],
+        valueLinkIndex: -1,
         valueFormat:  valueFormat,
         renderType:   signal.signalWidth === 1 ? binaryWaveformRenderer : multiBitWaveformRenderer,
         colorIndex:   colorIndex,
@@ -293,8 +295,19 @@ export class WaveformDataManager {
       }
     }
 
-    if (message.command !== undefined) {
+    if (message.valueLinkCommand !== undefined) {
+      console.log("Value link command: " + message.valueLinkCommand);
+
+      if (netlistData.valueLinkCommand === "" && message.valueLinkCommand !== "") {
+        netlistData.canvas?.addEventListener("pointermove", viewport.handleValueLinkMouseOver, true);
+        netlistData.canvas?.addEventListener("pointerleave", viewport.handleValueLinkMouseExit, true);
+      } else if (message.valueLinkCommand === "") {
+        netlistData.canvas?.removeEventListener("pointermove", viewport.handleValueLinkMouseOver, true);
+        netlistData.canvas?.removeEventListener("pointerleave", viewport.handleValueLinkMouseExit, true);
+      }
+
       netlistData.valueLinkCommand = message.valueLinkCommand;
+      netlistData.valueLinkIndex   = -1;
     }
 
     sendWebviewContext();

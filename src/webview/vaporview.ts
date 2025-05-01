@@ -25,6 +25,8 @@ export type NetlistData = {
   valueFormat: ValueFormat;
   vscodeContext: string;
   valueLinkCommand: string;
+  valueLinkBounds: [number, number][];
+  valueLinkIndex: number;
   variableType: string;
   encoding: string;
   renderType: WaveformRenderer;
@@ -234,6 +236,7 @@ class VaporviewWebview {
     // #region Primitive Handlers
     window.addEventListener('message', (e) => {this.handleMessage(e);});
     window.addEventListener('keydown', (e) => {this.keyDownHandler(e);});
+    window.addEventListener('keyup',   (e) => {this.keyUpHandler(e);});
     window.addEventListener('mouseup', (e) => {this.handleMouseUp(e);});
     window.addEventListener('resize',  ()  => {this.handleResizeViewer();}, false);
     this.scrollArea.addEventListener(      'wheel', (e) => {this.scrollHandler(e);});
@@ -384,6 +387,11 @@ class VaporviewWebview {
     else if (e.key === 'Escape') {this.events.dispatch(ActionType.SignalSelect, null);}
     else if (e.key === 'Delete') {this.removeVariableInternal(viewerState.selectedSignal);}
 
+    else if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(true);}
+  }
+
+  keyUpHandler(e: any) {
+    if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(false);}
   }
 
   handleMouseUp(event: MouseEvent) {

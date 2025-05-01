@@ -1,10 +1,11 @@
 # Change Log
 
-# Upcoming Release
+# 1.3.4 - Upcoming Release
 
 - Added Feature to change time units
 - Scrolling Mode is now a global user setting
 - Viewer reloads previous state upon closing and reopening VScode
+- Added Signal Value Links functionality
 
 ## 1.3.3 - Latest Release
 

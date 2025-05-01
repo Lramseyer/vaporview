@@ -218,13 +218,36 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     ctx.textBaseline = 'middle';
     ctx.imageSmoothingEnabled = false;
     ctx.textRendering = 'optimizeLegibility';
-    textElements.forEach(([text, xValue, center]) => {
-      if (center) {ctx.fillText(text, xValue * viewportSpecs.zoomRatio, 1)};
+    textElements.forEach(([text, xValue, center], i) => {
+      if (center) {
+        ctx.fillText(text, xValue * viewportSpecs.zoomRatio, 1)
+        if (i === netlistData.valueLinkIndex) {ctx.fillText("_".repeat(text.length), xValue * viewportSpecs.zoomRatio, 1);}
+      };
     });
     ctx.textAlign = justifydirection;
-    textElements.forEach(([text, xValue, center]) => {
-      if (!center) {ctx.fillText(text, xValue * viewportSpecs.zoomRatio, 1)};
+    textElements.forEach(([text, xValue, center], i) => {
+      if (!center) {
+        ctx.fillText(text, xValue * viewportSpecs.zoomRatio, 1);
+        if (i === netlistData.valueLinkIndex) {ctx.fillText("_".repeat(text.length), xValue * viewportSpecs.zoomRatio, 1);}
+      }
     });
+
+    // Render Signal Link Underline
+    netlistData.valueLinkBounds = [];
+    if (netlistData.valueLinkCommand !== "") {
+      const leftOffset = justifydirection === "left" ? 0 : 1;
+      const rightOffset = justifydirection === "left" ? -1 : 0;
+      textElements.forEach(([text, xValue, center]) => {
+        const x = (xValue * viewportSpecs.zoomRatio) - viewportSpecs.pseudoScrollLeft;
+        const textWidth = text.length * viewportSpecs.characterWidth;
+        if (!center) {
+          netlistData.valueLinkBounds.push([x + (leftOffset * textWidth), x + (rightOffset * textWidth)]);
+        } else {
+          const centerOffset = textWidth / 2;
+          netlistData.valueLinkBounds.push([x - centerOffset, x + centerOffset]);
+        }
+      });
+    }
 
     ctx.restore();
   },

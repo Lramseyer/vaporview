@@ -430,6 +430,10 @@ body {
   box-sizing: border-box;
 }
 
+.waveform-link {
+  cursor: pointer;
+}
+
 .is-selected{
   border-top: 4px solid var(--vscode-editor-lineHighlightBorder);
   border-bottom: 4px solid var(--vscode-editor-lineHighlightBorder);

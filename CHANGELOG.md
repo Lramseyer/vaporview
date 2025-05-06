@@ -6,6 +6,7 @@
 - Scrolling Mode is now a global user setting
 - Viewer reloads previous state upon closing and reopening VScode
 - Added Signal Value Links functionality
+- Added "Backspace" keybinding to remove variable
 
 ## 1.3.3 - Latest Release
 

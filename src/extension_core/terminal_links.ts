@@ -57,8 +57,9 @@ export class TimestampLinkProvider implements vscode.TerminalLinkProvider {
         break;
       }
       case 'timestamp-with-units': {
-        const time  = parseFloat([...link.data.matchAll(this.timeStampWithUnits)][0][1]);
-        const units = [...link.data.matchAll(this.timeStampWithUnits)][0][2];
+        const timeString = [...link.data.matchAll(this.timeStampWithUnits)][0][1];
+        const time       = parseFloat(timeString.replace(/,/g, ''));
+        const units      = [...link.data.matchAll(this.timeStampWithUnits)][0][2];
         this.viewerProvider.log.appendLine("Timestamp with units link clicked: " + time + '; units: ' + units);
         this.viewerProvider.setMarkerAtTimeWithUnits(time, units, 0);
         break;
@@ -94,7 +95,6 @@ export class NetlistLinkProvider implements vscode.TerminalLinkProvider {
 
   provideTerminalLinks(context: vscode.TerminalLinkContext, token: vscode.CancellationToken) {
 
-    //const netlistElementMatches     = [...context.line.matchAll(this.defaultRegex)];
     const netlistElementMatches: RegExpMatchArray[] = [];
     for (const regex of this.regexList) {
       const matches = [...context.line.matchAll(regex)];
@@ -118,14 +118,8 @@ export class NetlistLinkProvider implements vscode.TerminalLinkProvider {
   }
 
   handleTerminalLink(link: CustomTerminalLink) {
-
-    switch (link.type) {
-      case 'netlist-element': {
-        //console.log("Netlist element link clicked: " + link.data);
-        this.delegate.addSignalByNameToDocument(link.data);
-        this.delegate.logOutputChannel('Terminal link clicked: ' + link.data);
-        break;
-      }
-    }
+    //console.log("Netlist element link clicked: " + link.data);
+    this.delegate.addSignalByNameToDocument(link.data);
+    this.delegate.logOutputChannel('Terminal link clicked: ' + link.data);
   }
 }

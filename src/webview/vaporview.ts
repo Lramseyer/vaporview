@@ -385,7 +385,7 @@ class VaporviewWebview {
     else if (e.key === 'N') {controlBar.goToNextTransition(-1);}
 
     else if (e.key === 'Escape') {this.events.dispatch(ActionType.SignalSelect, null);}
-    else if (e.key === 'Delete') {this.removeVariableInternal(viewerState.selectedSignal);}
+    else if (e.key === 'Delete' || e.key === 'Backspace') {this.removeVariableInternal(viewerState.selectedSignal);}
 
     else if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(true);}
   }

@@ -510,6 +510,15 @@ class VaporviewWebview {
     }
   }
 
+  handleSetConfigSettings(settings: any) {
+    if (settings.scrollingMode !== undefined) {
+      controlBar.setScrollMode(settings.scrollingMode);
+    }
+    if (settings.rulerLines !== undefined) {
+      this.viewport.setRulerLines(settings.rulerLines);
+    }
+  }
+
   handleSetSelectedSignal(netlistId: NetlistId) {
     if (netlistId === null) {return;}
     if (dataManager.netlistData[netlistId] === undefined) {return;}
@@ -522,18 +531,18 @@ class VaporviewWebview {
     switch (message.command) {
       case 'initViewport':          {this.viewport.init(message.metadata, message.uri); break;}
       case 'unload':                {this.unload(); break;}
+      case 'setConfigSettings':     {this.handleSetConfigSettings(message); break;}
+      case 'getContext':            {sendWebviewContext(); break;}
+      case 'getSelectionContext':   {sendWebviewContext(); break;}
       case 'add-variable':          {dataManager.addVariable(message.signalList); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}
       //case 'update-waveform-full':  {dataManager.updateWaveformFull(message); break;}
       case 'remove-signal':         {this.removeVariable(message.netlistId); break;}
       case 'setDisplayFormat':      {dataManager.setDisplayFormat(message); break;}
       case 'setWaveDromClock':      {dataManager.waveDromClock = {netlistId: message.netlistId, edge:  message.edge,}; break;}
-      case 'getSelectionContext':   {sendWebviewContext(); break;}
       case 'setMarker':             {this.events.dispatch(ActionType.MarkerSet, message.time, message.markerType); break;}
       case 'setTimeUnits':          {this.viewport.updateUnits(message.units, true); break;}
       case 'setSelectedSignal':     {this.handleSetSelectedSignal(message.netlistId); break;}
-      case 'getContext':            {sendWebviewContext(); break;}
-      case 'setScrollingMode':      {controlBar.setScrollMode(message.scrollingMode); break;}
       case 'copyWaveDrom':          {dataManager.copyWaveDrom(); break;}
       case 'copyValueAtMarker':     {labelsPanel.copyValueAtMarker(message.netlistId); break;}
       case 'updateColorTheme':      {this.events.dispatch(ActionType.updateColorTheme); break;}

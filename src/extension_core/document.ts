@@ -171,14 +171,19 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
       metadata: this.metadata,
       uri: this.uri
     });
-    this.setScrollingMode();
+    this.setConfigurationSettings();
     //console.log(this.metadata);
     this._webviewInitialized = true;
   }
 
-  public setScrollingMode() {
+  public setConfigurationSettings() {
     const scrollingMode = vscode.workspace.getConfiguration('vaporview').get('scrollingMode');
-    this.webviewPanel?.webview.postMessage({command: 'setScrollingMode', scrollingMode: scrollingMode});
+    const rulerLines    = vscode.workspace.getConfiguration('vaporview').get('showRulerLines');
+    this.webviewPanel?.webview.postMessage({
+      command: 'setConfigSettings',
+      scrollingMode: scrollingMode,
+      rulerLines: rulerLines
+    });
   }
 
   public onDoneParsingWaveforms() {

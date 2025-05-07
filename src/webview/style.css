@@ -253,6 +253,13 @@ body {
   margin-left: 1px;
 }
 
+#viewport-background {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  background-color: var(--vscode-editor-background);
+}
+
 #scrollbarContainer {
   position: relative;
   grid-column-start: 3;

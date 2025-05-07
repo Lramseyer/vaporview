@@ -2,6 +2,10 @@
 
 This document is work in progress, and may be subject to change. Please visit github for API discussions.
 
+Things still subject to change:
+- Changing terminology "modulePath" to "scopePath"
+- Adding Custom Enum, and custom Value format commands
+
 ## Overview
 
 Vaporview is designed with the VSCode IDE expereince in mind, so this document serves to help enable extension interoperability. This document outlines vaporview command subscriptions, and commands that are emitted.
@@ -26,10 +30,14 @@ Custom context menu items can be added to the waveform viewer webview. All attri
 ### Menu Groups
 
 - 1_default
+  - **Submenu vaporview.timeUnit**
+  - Show Ruler Lines
+  - Hide Ruler Lines
+- 1_waveform_settings
   - **Submenu vaporview.valueFormat** - Value Format
   - **Submenu vaporview.valueColor** - Render Type
   - **Submenu vaporview.renderType** - Color
-- 2_default
+- 2_variables
     - Show In Netlist View
     - Remove Variable
     - Copy Name
@@ -210,7 +218,7 @@ Remember that to get a valid return value, all vscode commands must be called wi
 
 ### Return: object
 
-Returns the viewer settings in th esame schema as the save file
+Returns the viewer settings in the same schema as the save file
 
 ### Arguments: object
 

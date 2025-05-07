@@ -117,6 +117,19 @@
           "scope": "application",
           "description": "Maximum file size (in MB) to load FST files into memory. This is faster, but consumes more memory. Set to 0 to disable."
         },
+        "vaporview.scrollingMode": {
+          "type": "string",
+          "enum": ["Mouse", "Touchpad", "Auto"],
+          "default": "Mouse",
+          "scope": "application",
+          "description": "Scrolling mode for the waveform viewer. Options: 'mouse' (default), 'touch'."
+        },
+        "vaporview.showRulerLines": {
+          "type": "boolean",
+          "default": "true",
+          "scope": "application",
+          "description": "Vertical ruler lines in the waveform viewer."
+        },
         "vaporview.customColor1": {
           "type": "string",
           "default": "#cccccc",
@@ -145,13 +158,6 @@
           "type": "string",
           "scope": "application",
           "description": "Path to find FSDB reader shared libraries (e.g. libnffr.so, libnsys.so for Linux) for your platform. This is needed for FSDB reading. Example: /home/heyfey/verdi/2022.06/share/FsdbReader/linux64"
-        },
-        "vaporview.scrollingMode": {
-          "type": "string",
-          "enum": ["Mouse", "Touchpad", "Auto"],
-          "default": "Mouse",
-          "scope": "application",
-          "description": "Scrolling mode for the waveform viewer. Options: 'mouse' (default), 'touch'."
         }
       }
     },
@@ -256,39 +262,49 @@
           "group": "1_default@1"
         },
         {
+          "command": "vaporview.showRulerLines",
+          "when": "webviewSection == 'ruler' && rulerLines == false && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "group": "1_default@2"
+        },
+        {
+          "command": "vaporview.hideRulerLines",
+          "when": "webviewSection == 'ruler' && rulerLines == true && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "group": "1_default@2"
+        },
+        {
           "submenu": "vaporview.valueFormat",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "1_default@2"
+          "group": "1_waveform_settings@2"
         },
         {
           "submenu": "vaporview.renderType",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "1_default@3"
+          "group": "1_waveform_settings@3"
         },
         {
           "submenu": "vaporview.valueColor",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "1_default@4"
+          "group": "1_waveform_settings@4"
         },
         {
           "command": "vaporview.showInNetlistView",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "2_default@1"
+          "group": "2_variables@1"
         },
         {
           "command": "vaporview.removeSignal",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "2_default@2"
+          "group": "2_variables@2"
         },
         {
           "command": "vaporview.copyName",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "2_default@3"
+          "group": "2_variables@3"
         },
         {
           "command": "vaporview.copyValueAtMarker",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "2_default@4"
+          "group": "2_variables@4"
         },
         {
           "command": "vaporview.saveViewerSettings",
@@ -624,6 +640,14 @@
       {
         "command": "vaporview.setTimeUnitsFemtoseconds",
         "title": "fs"
+      },
+      {
+        "command": "vaporview.showRulerLines",
+        "title": "Show Ruler Lines"
+      },
+      {
+        "command": "vaporview.hideRulerLines",
+        "title": "Hide Ruler Lines"
       },
       {
         "command": "vaporview.viewVaporViewSidebar",

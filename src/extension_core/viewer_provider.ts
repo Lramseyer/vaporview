@@ -445,8 +445,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
   updateConfiguration(e: any) {
     this.documentCollection.forEach((entry) => {
-      const document = entry.document;
-      document.setScrollingMode();
+      entry.document.setConfigurationSettings();
     });
   }
 

@@ -299,6 +299,14 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.setValueFormat(e.netlistId, {colorIndex: 7});
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.showRulerLines', (e) => {
+    vscode.workspace.getConfiguration('vaporview').update('showRulerLines', true, vscode.ConfigurationTarget.Global);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.hideRulerLines', (e) => {
+    vscode.workspace.getConfiguration('vaporview').update('showRulerLines', false, vscode.ConfigurationTarget.Global);
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.dummy', (e) => {
     viewerProvider.log.appendLine("Command called: 'vaporview.dummy' " + JSON.stringify(e));
   }

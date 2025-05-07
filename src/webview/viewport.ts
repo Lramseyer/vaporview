@@ -18,6 +18,8 @@ export class Viewport {
   rulerElement: HTMLElement;
   rulerCanvasElement: HTMLElement;
   rulerCanvas: CanvasRenderingContext2D;
+  backgroundCanvasElement: HTMLElement;
+  backgroundCanvas: CanvasRenderingContext2D;
   markerElement: HTMLElement;
   altMarkerElement: HTMLElement;
   netlistLinkElement: HTMLElement | null = null;
@@ -66,6 +68,8 @@ export class Viewport {
   rulerNumberIncrement: number = 100;
   minNumberSpacing: number   = 100;
   minTickSpacing: number     = 20;
+  rulerLines: boolean        = true;
+  rulerLineX: [number, number][] = [];
 
   pixelRatio: number          = 1;
   updatePending: boolean      = false;
@@ -75,6 +79,7 @@ export class Viewport {
   colorKey: string[]          = ['green', 'orange', 'blue', 'purple'];
   xzColor: string             = 'red';
   rulerTextColor: string      = 'grey';
+  rulerGuideColor: string     = 'grey';
   markerAnnotation: string    = '';
   backgroundColor: string     = 'black';
   fontFamily: string          = 'Menlo';
@@ -95,18 +100,20 @@ export class Viewport {
     const rulerCanvas        = document.getElementById('rulerCanvas');
     const markerElement      = document.getElementById('main-marker');
     const altMarkerElement   = document.getElementById('alt-marker');
+    const backgroundCanvas   = document.getElementById('viewport-background');
 
     if (scrollArea === null || contentArea === null || scrollbar === null || 
       scrollbarContainer === null || scrollbarCanvas === null || 
       waveformArea === null || rulerElement === null || rulerCanvas === null ||
-      markerElement === null || altMarkerElement === null) {
+      markerElement === null || altMarkerElement === null || backgroundCanvas === null) {
       throw new Error('Viewport elements not found');
     }
 
     const canvasContext = (scrollbarCanvas as HTMLCanvasElement).getContext('2d');
     const rulerCanvasCtx = (rulerCanvas as HTMLCanvasElement).getContext('2d');
+    const backgroundCanvasCtx = (backgroundCanvas as HTMLCanvasElement).getContext('2d');
 
-    if (canvasContext === null || rulerCanvasCtx === null) {
+    if (canvasContext === null || rulerCanvasCtx === null || backgroundCanvasCtx === null) {
       throw new Error('Canvas context not found');
     }
 
@@ -122,6 +129,9 @@ export class Viewport {
     this.rulerElement           = rulerElement;
     this.rulerCanvasElement     = rulerCanvas;
     this.rulerCanvas            = rulerCanvasCtx;
+    this.backgroundCanvasElement = backgroundCanvas;
+    this.backgroundCanvas       = backgroundCanvasCtx;
+
 
     // click handler to handle clicking inside the waveform viewer
     // gets the absolute x position of the click relative to the scrollable content
@@ -200,6 +210,7 @@ export class Viewport {
 
     // Ruler Color
     this.rulerTextColor = style.getPropertyValue('--vscode-editorLineNumber-foreground');
+    this.rulerGuideColor = style.getPropertyValue('--vscode-editorIndentGuide-background');
 
     // I calculated this as 174, 176, 173 @ 10% opacity in the default theme, but there was no CSS color that matched
     this.markerAnnotation = document.documentElement.style.getPropertyValue('--vscode-editorOverviewRuler-selectionHighlightForeground');
@@ -240,10 +251,22 @@ export class Viewport {
     this.redrawViewport();
   }
 
+  setRulerLines(state: boolean) {
+    if (this.rulerLines === state) {return;}
+    this.rulerLines = state;
+    this.setRulerVscodeContext();
+    this.updateBackgroundCanvas();
+  }
+
+
   setRulerVscodeContext() {
-    const context   = { preventDefaultContextMenuItems: true, };
     const unitsList = ['fs', 'ps', 'ns', 'µs', 'ms', 's'];
     const maxTime   = (10 ** this.logScaleFromUnits(this.timeUnit)) * this.timeScale * this.timeStop;
+    const context   = {
+      webviewSection: 'ruler',
+      preventDefaultContextMenuItems: true,
+      rulerLines: this.rulerLines 
+    };
 
     unitsList.forEach((unit) => {
       context[unit] = maxTime >= (10 ** this.logScaleFromUnits(unit));
@@ -757,6 +780,7 @@ export class Viewport {
     let number = Math.round(numberDirty / this.rulerNumberIncrement) * this.rulerNumberIncrement;
     let setIndex = Math.round(number / this.rulerNumberIncrement);
     const alpha = Math.min((this.zoomOffset - Math.floor(this.zoomOffset)) * 4, 1);
+    const twoPi = Math.PI * 2;
 
     const ctx = this.rulerCanvas;
     ctx.imageSmoothingEnabled = false;
@@ -772,20 +796,18 @@ export class Viewport {
     // Draw the Ticks
     ctx.beginPath();
     while (tickX <= this.viewerWidth) {
-      ctx.moveTo(tickX, 27.5);
-      ctx.lineTo(tickX, 32.5);
+      ctx.arc(tickX, 30, 1, 0, twoPi);
       tickX += this.rulerTickSpacing;
     }
-    ctx.stroke();
+    ctx.fill();
 
     ctx.globalAlpha = alpha;
     ctx.beginPath();
     while (tickXalt <= this.viewerWidth) {
-      ctx.moveTo(tickXalt, 27.5);
-      ctx.lineTo(tickXalt, 32.5);
+      ctx.arc(tickXalt, 30, 1, 0, twoPi);
       tickXalt += this.rulerTickSpacing;
     }
-    ctx.stroke();
+    ctx.fill();
 
     // Draw the Numbers
     let scale;
@@ -796,6 +818,8 @@ export class Viewport {
       scale = 10 ** -this.adjustedLogTimeScale;
     }
 
+    this.rulerLineX = [];
+    ctx.fillStyle = this.rulerTextColor;
     while (numberX <= this.viewerWidth + 50) {
       if (this.adjustedLogTimeScale > 0) {
         valueString = (number * this.timeScale * scale).toString();
@@ -806,8 +830,10 @@ export class Viewport {
       valueString += " " + this.displayTimeUnit;
       if (setIndex % 2 === 1) {
         ctx.globalAlpha = alpha;
+        this.rulerLineX.push([numberX, alpha]);
       } else {
         ctx.globalAlpha = 1;
+        this.rulerLineX.push([numberX, 1]);
       }
 
       ctx.fillText(valueString, numberX, 15);
@@ -815,8 +841,28 @@ export class Viewport {
       number += this.rulerNumberIncrement;
       setIndex += 1;
     }
+    
     ctx.globalAlpha = 1;
   }
+
+  updateBackgroundCanvas() {
+    const ctx = this.backgroundCanvas;
+    ctx.strokeStyle = this.rulerGuideColor;
+    ctx.lineWidth   = 1;
+    ctx.clearRect(0, 0, this.viewerWidth, this.viewerHeight);
+
+    // Ruler Lines
+    if (this.rulerLines) {
+      this.rulerLineX.forEach(([x, alpha]) => {
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, this.viewerHeight);
+        ctx.stroke();
+      });
+    }
+  }
+
 
   handleZoom(amount: number, zoomOrigin: number, screenPosition: number) {
     // -1 zooms in, +1 zooms out
@@ -859,6 +905,7 @@ export class Viewport {
     this.updatePending = true;
     this.updateMarker();
     this.updateRuler();
+    this.updateBackgroundCanvas();
     this.renderAllWaveforms(true);
     this.updatePending = false;
   }
@@ -891,6 +938,13 @@ export class Viewport {
     this.rulerCanvasElement.style.width  = `${this.viewerWidth}px`;
     this.rulerCanvasElement.style.height = '40px';
     this.rulerCanvas.scale(this.pixelRatio, this.pixelRatio);
+
+    // Update Background Canvas Dimensions
+    this.backgroundCanvasElement.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
+    this.backgroundCanvasElement.setAttribute("height", `${this.viewerHeight * this.pixelRatio}`);
+    this.backgroundCanvasElement.style.width  = `${this.viewerWidth}px`;
+    this.backgroundCanvasElement.style.height = `${this.viewerHeight}px`;
+    this.backgroundCanvas.scale(this.pixelRatio, this.pixelRatio);
 
     // Update Waveform Canvas Dimensions
     dataManager.netlistData.forEach((netlistItem) => {

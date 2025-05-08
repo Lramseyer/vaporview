@@ -315,7 +315,7 @@ export const binaryWaveformRenderer: WaveformRenderer = {
         }
 
         if (valueIs9State(initialValue)) {
-          xzPath.push([initialTimeOrStart, time - initialTimeOrStart]);
+          xzPath.push([initialTimeOrStart, time]);
         }
 
         value2state = parseInt(value);
@@ -529,9 +529,11 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, view
 
   if (stepped) {
     accumulatedPath.push([viewportSpecs.timeScrollRight + (15 * viewportSpecs.pixelTime), evalCoordinates(initialValue2state)]);
+  } else {
+    accumulatedPath.push([postState[0], evalCoordinates(postState[1])]);
   }
 
-  accumulatedPath.push([viewportSpecs.timeScrollRight + (15 * viewportSpecs.pixelTime), 0]);
+  accumulatedPath.push([postState[0], 0]);
 
   const drawColor  = netlistData.color;
   const xzColor    = viewportSpecs.xzColor;

@@ -841,7 +841,7 @@ export class Viewport {
         this.rulerLineX.push([numberX, 1]);
       }
 
-      ctx.fillText(valueString, numberX, 15);
+      ctx.fillText(valueString, numberX, 16);
       numberX += this.rulerNumberSpacing;
       number += this.rulerNumberIncrement;
       setIndex += 1;

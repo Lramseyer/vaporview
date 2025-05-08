@@ -516,9 +516,7 @@ impl Guest for Filecontext {
       let mut i: usize = 0;
       let mut v = String::new();
       for (_, value) in transitions {
-        if time_table[time_index[i] as usize] > time {
-          break;
-        }
+        if time_table[time_index[i] as usize] > time {break;}
         v = value.to_string();
         i += 1;
       }

@@ -176,18 +176,14 @@ This extension requires VScode 1.96.0 or later
 
 # Development Roadmap
 
-## 1.3.3 - Latest Release
+## 1.3.4 - Upcoming Release
 
-- Added
-  - Beta API
-  - Copy Value At Marker context menu item
-  - Tooltips when hovering over viewer signal names
-  - Commands for use in other extensions and API docs
-  - Zoom to Fit button on control bar
-- Fixed
-  - Context menu items now appear when right clicking on value display column
-  - "Load/Save Vporview Settings" Menus don't appear where they shouldn't
-  - Terminal Links only match for paths with valid top level scopes
+- Ruler now displays time units
+- Added Feature to change time units
+- Scrolling Mode is now a global user setting
+- Viewer reloads previous state upon closing and reopening VScode
+- Added Signal Value Links functionality
+- Added "Backspace" keybinding to remove variable
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

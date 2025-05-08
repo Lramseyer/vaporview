@@ -9,7 +9,7 @@
 - Added Signal Value Links functionality
 - Added "Backspace" keybinding to remove variable
 
-## 1.3.3 - Latest Release
+## 1.3.3
 
 - Added:
   - Beta API

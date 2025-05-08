@@ -33,10 +33,9 @@ export class Viewport {
 
   // Scroll handler variables
   pseudoScrollLeft: number    = 0;
-  contentLeft: number         = 0;
-  leftOffset: number          = 0;
   viewerWidth: number         = 0;
   viewerHeight: number        = 0;
+  waveformsHeight: number     = 40;
   halfViewerWidth: number     = 0;
   maxScrollLeft: number       = 0;
   maxScrollbarPosition: number = 0;
@@ -299,6 +298,8 @@ export class Viewport {
       netlistData.ctx?.scale(this.pixelRatio, this.pixelRatio);
       if (updateFlag) {this.renderWaveform(netlistData);}
     });
+    this.waveformsHeight = this.contentArea.getBoundingClientRect().height;
+    this.updateBackgroundCanvas();
   }
 
   addNetlistLink() {
@@ -694,9 +695,13 @@ export class Viewport {
     const netlistElement = dataManager.netlistData[netlistId];
     if (!netlistElement) {return;}
     if (netlistElement.canvas) {netlistElement.canvas.remove();}
+    this.waveformsHeight = this.contentArea.getBoundingClientRect().height;
+    this.updateBackgroundCanvas();
+
     if (children.length === 0) {
       this.addNetlistLink();
     }
+
   }
 
   handleMarkerSet(time: number, markerType: number) {
@@ -857,7 +862,7 @@ export class Viewport {
         ctx.globalAlpha = alpha;
         ctx.beginPath();
         ctx.moveTo(x, 0);
-        ctx.lineTo(x, this.viewerHeight);
+        ctx.lineTo(x, this.waveformsHeight);
         ctx.stroke();
       });
     }

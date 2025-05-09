@@ -176,7 +176,7 @@ This extension requires VScode 1.96.0 or later
 
 # Development Roadmap
 
-## 1.3.4 - Upcoming Release
+## 1.3.4 - Latest Release
 
 - Ruler now displays time units
 - Added Feature to change time units

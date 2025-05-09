@@ -1,6 +1,6 @@
 # Change Log
 
-# 1.3.4 - Upcoming Release
+# 1.3.4 - Latest Release
 
 - Ruler now displays time units
 - Added Feature to change time units

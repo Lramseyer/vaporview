@@ -377,10 +377,10 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.filterAddSignalsInNetlist(metadataList, true);
     for (const signalInfo of foundSignals) {
       this.setValueFormat(signalInfo.netlistId, {
-        valueFormat: signalInfo.numberFormat,
-        colorIndex: signalInfo.colorIndex,
-        renderType: signalInfo.renderType,
-        command:    signalInfo.command,
+        valueFormat:   signalInfo.numberFormat,
+        colorIndex:    signalInfo.colorIndex,
+        renderType:    signalInfo.renderType,
+        command:       signalInfo.command,
       });
     }
 
@@ -957,6 +957,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       renderType: properties.renderType,
       customColors: [color1, color2, color3, color4],
       valueLinkCommand: properties.command,
+      annotateValue: properties.annotateValue,
     });
   }
 

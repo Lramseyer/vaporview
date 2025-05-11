@@ -178,6 +178,11 @@
         "when": "webviewSection == 'signal'"
       },
       {
+        "id": "vaporview.highlightEdge",
+        "label": "Edge Guides",
+        "when": "webviewSection == 'signal'"
+      },
+      {
         "id": "vaporview.valueColor",
         "label": "Color",
         "when": "webviewSection == 'signal'"
@@ -282,9 +287,14 @@
           "group": "1_waveform_settings@3"
         },
         {
-          "submenu": "vaporview.valueColor",
+          "submenu": "vaporview.highlightEdge",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "1_waveform_settings@4"
+        },
+        {
+          "submenu": "vaporview.valueColor",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "group": "1_waveform_settings@5"
         },
         {
           "command": "vaporview.showInNetlistView",
@@ -465,6 +475,28 @@
           "group": "1_default@5"
         }
       ],
+      "vaporview.highlightEdge": [
+        {
+          "command": "vaporview.annotatePosedge",
+          "when": "webviewSection == 'signal' && width == '1'",
+          "group": "1_default@1"
+        },
+        {
+          "command": "vaporview.annotateNegedge",
+          "when": "webviewSection == 'signal' && width == '1'",
+          "group": "1_default@2"
+        },
+        {
+          "command": "vaporview.annotateAllEdge",
+          "when": "webviewSection == 'signal'",
+          "group": "1_default@3"
+        },
+        {
+          "command": "vaporview.annotateNone",
+          "when": "webviewSection == 'signal'",
+          "group": "1_default@4"
+        }
+      ],
       "vaporview.waveDrom": [
         {
           "command": "vaporview.copyWaveDrom",
@@ -584,6 +616,22 @@
       {
         "command": "vaporview.renderSteppedSigned",
         "title": "Stepped (Signed)"
+      },
+      {
+        "command": "vaporview.annotatePosedge",
+        "title": "Rising Edge"
+      },
+      {
+        "command": "vaporview.annotateNegedge",
+        "title": "Falling Edge"
+      },
+      {
+        "command": "vaporview.annotateAllEdge",
+        "title": "All Edges"
+      },
+      {
+        "command": "vaporview.annotateNone",
+        "title": "None"
       },
       {
         "command": "vaporview.defaultColor1",

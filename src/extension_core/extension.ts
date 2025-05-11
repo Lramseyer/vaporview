@@ -266,6 +266,23 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.setValueFormat(e.netlistId,  {valueFormat: "tensorfloat32"});
   }));
 
+  // #region Annotate Edges
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.annotatePosedge', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, {annotateValue: ["1"]});
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.annotateNegedge', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, {annotateValue: ["0"]});
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.annotateAllEdge', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, {annotateValue: ["0", "1"]});
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.annotateNone', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, {annotateValue: []});
+  }));
+
   // #region Custom Color
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor1', (e) => {
     viewerProvider.setValueFormat(e.netlistId, {colorIndex: 0});

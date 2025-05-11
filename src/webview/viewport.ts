@@ -62,6 +62,7 @@ export class Viewport {
   pixelTime: number           = 1;
   maxZoomRatio: number        = 64;
   minZoomRatio: number        = 1 / 64;
+  minDrawWidth: number        = 1;
   rulerNumberSpacing: number  = 100;
   rulerTickSpacing: number    = 10;
   rulerNumberIncrement: number = 100;
@@ -69,6 +70,7 @@ export class Viewport {
   minTickSpacing: number     = 20;
   rulerLines: boolean        = true;
   rulerLineX: [number, number][] = [];
+  annotateTime: number[]     = [];
 
   pixelRatio: number          = 1;
   updatePending: boolean      = false;
@@ -79,6 +81,7 @@ export class Viewport {
   xzColor: string             = 'red';
   rulerTextColor: string      = 'grey';
   rulerGuideColor: string     = 'grey';
+  edgeGuideColor: string      = 'orange';
   markerAnnotation: string    = '';
   backgroundColor: string     = 'black';
   fontFamily: string          = 'Menlo';
@@ -210,6 +213,8 @@ export class Viewport {
     // Ruler Color
     this.rulerTextColor = style.getPropertyValue('--vscode-editorLineNumber-foreground');
     this.rulerGuideColor = style.getPropertyValue('--vscode-editorIndentGuide-background');
+    this.edgeGuideColor = style.getPropertyValue('--vscode-terminal-findMatchBackground');
+
 
     // I calculated this as 174, 176, 173 @ 10% opacity in the default theme, but there was no CSS color that matched
     this.markerAnnotation = document.documentElement.style.getPropertyValue('--vscode-editorOverviewRuler-selectionHighlightForeground');
@@ -675,6 +680,33 @@ export class Viewport {
     netlistData.wasRendered = true;
   }
 
+  async annotateWaveform(netlistId: NetlistId, valueList: string[]) {
+
+    const netlistData     = dataManager.netlistData[netlistId];
+    if (!netlistData) {return;}
+    const signalId        = netlistData.signalId;
+    const data            = dataManager.valueChangeData[signalId];
+    if (!data) {return;}
+    const valueChangeData = data.transitionData;
+    this.annotateTime     = [];
+
+    if (valueList.length > 0) {
+      if (netlistData.signalWidth === 1) {
+        valueChangeData.forEach((valueChange) => {
+          valueList.forEach((value) => {
+            if (valueChange[1] === value) {
+              this.annotateTime.push(valueChange[0]);
+            }
+          });
+        });
+      } else {
+        valueChangeData.forEach(([time, _value]) => {this.annotateTime.push(time);});
+      }
+    }
+
+    this.updateBackgroundCanvas();
+  }
+
   handleReorderSignals(oldIndex: number, newIndex: number) {
     const children       = Array.from(this.waveformArea.children);
     arrayMove(children, oldIndex, newIndex);
@@ -866,6 +898,58 @@ export class Viewport {
         ctx.stroke();
       });
     }
+
+    // Annotation lines
+    const startIndex = dataManager.binarySearchTime(this.annotateTime, this.timeScrollLeft);
+    const endIndex   = dataManager.binarySearchTime(this.annotateTime, this.timeScrollRight);
+    let lineList: any= [];
+    let boxList: any = [];
+    let noDrawFlag   = false;
+    let lastDrawTime = 0;
+    let lastNoDrawTime = 0;
+    let initialTime = 0;
+
+    for (let i = startIndex; i < endIndex; i++) {
+      const time = this.annotateTime[i];
+      if (time - initialTime < this.minDrawWidth) {
+        noDrawFlag     = true;
+        lastNoDrawTime = time;
+      } else {
+        if (noDrawFlag) {
+          boxList.push([lastDrawTime, lastNoDrawTime]);
+          noDrawFlag = false;
+        }
+        lineList.push(time);
+        lastDrawTime = time;
+      }
+      initialTime = time;
+    }
+    if (noDrawFlag) {
+      boxList.push([lastDrawTime, lastNoDrawTime]);
+    }
+
+    ctx.strokeStyle  = this.edgeGuideColor;
+    ctx.fillStyle    = this.edgeGuideColor;
+    ctx.globalAlpha  = 1;
+    ctx.beginPath();
+    lineList.forEach((time) => {
+      const x = this.getViewportLeft(time, 0);
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, this.waveformsHeight);
+    });
+    ctx.stroke();
+
+    ctx.beginPath();
+    boxList.forEach(([start, end]) => {
+      const xStart = this.getViewportLeft(start, 0);
+      const xEnd   = this.getViewportLeft(end, 0);
+      ctx.moveTo(xStart, 0);
+      ctx.lineTo(xStart, this.waveformsHeight);
+      ctx.lineTo(xEnd, this.waveformsHeight);
+      ctx.lineTo(xEnd, 0);
+    });
+    ctx.fill();
+    ctx.stroke();
   }
 
 
@@ -888,6 +972,7 @@ export class Viewport {
     this.updatePending    = true;
     this.zoomRatio        = newZoomRatio;
     this.pixelTime        = 1 / this.zoomRatio;
+    this.minDrawWidth     = this.pixelTime / this.pixelRatio;
     this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth, 0));
     this.pseudoScrollLeft = Math.max(Math.min((zoomOrigin * this.zoomRatio) - screenPosition, this.maxScrollLeft), 0);
     this.timeScrollLeft   = this.pseudoScrollLeft * this.pixelTime;

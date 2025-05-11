@@ -223,6 +223,17 @@ export class WaveformDataManager {
     return low;
   }
 
+  binarySearchTime(array: any[], target: number) {
+    let low  = 0;
+    let high = array.length;
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      if (array[mid] < target) {low = mid + 1;}
+      else {high = mid;}
+    }
+    return low;
+  }
+
   setColorFromColorIndex(netlistData: NetlistData | undefined) {
     if (netlistData === undefined) {return;}
     const colorIndex = netlistData.colorIndex;
@@ -308,6 +319,11 @@ export class WaveformDataManager {
 
       netlistData.valueLinkCommand = message.valueLinkCommand;
       netlistData.valueLinkIndex   = -1;
+    }
+
+    if (message.annotateValue !== undefined) {
+      viewport.annotateWaveform(netlistId, message.annotateValue);
+      viewport.updateBackgroundCanvas();
     }
 
     sendWebviewContext();

@@ -38,9 +38,11 @@ export async function activate(context: vscode.ExtensionContext) {
   vscode.workspace.onDidChangeConfiguration((e) => {viewerProvider.updateConfiguration(e);});
 
   // #region External Commands
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.openFile', (uri) => {
-    viewerProvider.log.appendLine("Command called: 'vaporview.openFile ' + " + uri.toString());
-    vscode.commands.executeCommand('vscode.openWith', uri, 'vaporview.waveformViewer');
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.openFile', async (e) => {
+    viewerProvider.log.appendLine("Command called: 'vaporview.openFile ' + " + e.uri.toString());
+    if (!e.uri) {return;}
+    await vscode.commands.executeCommand('vscode.openWith', e.uri, 'vaporview.waveformViewer');
+    if (e.loadAll) {viewerProvider.loadAllVariablesFromFile(e.uri, e.maxSignals);}
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.addVariable', (e) => {
@@ -134,12 +136,12 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.showInViewer', (e) => {
-    viewerProvider.addSignalByNameToDocument(e.modulePath + '.' + e.name);
+    viewerProvider.addSignalByNameToDocument(e.scopePath + '.' + e.name);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.copyName', (e) => {
     let result = "";
-    if (e.modulePath !== "") {result += e.modulePath + ".";}
+    if (e.scopePath !== "") {result += e.scopePath + ".";}
     if (e.name) {result += e.name;}
     if (e.signalName) {result += e.signalName;}
     vscode.env.clipboard.writeText(result);

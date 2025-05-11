@@ -664,8 +664,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       if (e.instancePath !== undefined) {
         path = e.instancePath;
       } else {
-        if (e.modulePath !== undefined) {
-          path = e.modulePath + ".";
+        if (e.scopePath !== undefined) {
+          path = e.scopePath + ".";
         }
         path += e.name;
       }
@@ -673,6 +673,17 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
 
     return metadata;
+  }
+
+  public loadAllVariablesFromFile(uri: string, maxSignals: number) {
+    const document = this.getDocumentFromUri(uri);
+    if (!document) {return;}
+    const netlistIdCount = document.metadata.netlistIdCount;
+    if (netlistIdCount > maxSignals || netlistIdCount > 64) {return;}
+
+    document.treeData.forEach(scope => {
+      this.addChildVariablesToDocument(document, scope, true, maxSignals);
+    });
   }
 
   // Add or remove signals from the waveform viewer
@@ -808,6 +819,9 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   }
 
   public async addAllInScopeToDocument(e: NetlistItem, recursive: boolean, maxChildren: number) {
+    if (!this.activeDocument) {return;}
+    const document = this.activeDocument;
+    
     if (e === undefined) { // Executed from the command palette
       vscode.window.showInputBox({
         prompt: 'Enter scope name',
@@ -820,7 +834,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       return;
     }
     if (e.collapsibleState === vscode.TreeItemCollapsibleState.None) {return;}
-    this.addChildVariablesToDocument(e, recursive, maxChildren);
+    this.addChildVariablesToDocument(document, e, recursive, maxChildren);
   }
 
   public async addChildVariablesToDocumentByName(name: string, recursive: boolean, maxChildren: number) {
@@ -831,15 +845,13 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       vscode.window.showWarningMessage('Scope not found: ' + name);
       return;
     }
-    this.addChildVariablesToDocument(netlistItem, recursive, maxChildren);
+    this.addChildVariablesToDocument(document, netlistItem, recursive, maxChildren);
   }
 
-  public async addChildVariablesToDocument(netlistItem: NetlistItem, recursive: boolean, maxChildren: number) {
+  public async addChildVariablesToDocument(document: VaporviewDocument, netlistItem: NetlistItem, recursive: boolean, maxChildren: number) {
 
-    if (!this.activeDocument) {return;}
     if (netlistItem.contextValue !== 'netlistScope') {return;}
 
-    const document = this.activeDocument;
     const netlistVariables: NetlistItem[] = [];
     const netlistScopes: NetlistItem[] = [netlistItem];
 

@@ -27,7 +27,7 @@ function handleMessage(message: any) {
         case 'readScopes': { fsdbAddon.readScopes(fsdbScopeCallback, fsdbUpscopeCallback); break; }
         case 'readMetadata': { fsdbAddon.readMetadata(setMetadata, setChunkSize); break; }
         case 'readVars': {
-            fsdbAddon.readVars(message.modulePath, message.scopeOffsetIdx, fsdbVarCallback, fsdbArrayBeginCallback, fsdbArrayEndCallback);
+            fsdbAddon.readVars(message.scopePath, message.scopeOffsetIdx, fsdbVarCallback, fsdbArrayBeginCallback, fsdbArrayEndCallback);
             break;
         }
         case 'loadSignals': { fsdbAddon.loadSignals(message.signalIdList); break; }

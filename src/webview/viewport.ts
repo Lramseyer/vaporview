@@ -490,7 +490,7 @@ export class Viewport {
 
     const event = {
       netlistId: netlistId,
-      modulePath: netlistData.modulePath,
+      scopePath: netlistData.scopePath,
       signalName: netlistData.signalName,
       type: netlistData.variableType,
       width: netlistData.signalWidth,

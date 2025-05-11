@@ -102,7 +102,7 @@ export class WaveformDataManager {
         signalId:     signalId,
         signalWidth:  signal.signalWidth,
         signalName:   signal.signalName,
-        modulePath:   signal.modulePath,
+        scopePath:    signal.scopePath,
         variableType: signal.type,
         encoding:     signal.encoding,
         vscodeContext: "",
@@ -334,12 +334,12 @@ export class WaveformDataManager {
 
   setSignalContextAttribute(netlistId: NetlistId) {
     const width        = this.netlistData[netlistId].signalWidth;
-    const modulePath   = this.netlistData[netlistId].modulePath;
+    const scopePath   = this.netlistData[netlistId].scopePath;
     const signalName   = this.netlistData[netlistId].signalName;
     //const attribute    = `data-vscode-context=${JSON.stringify({
       const attribute    = `${JSON.stringify({
       webviewSection: "signal",
-      modulePath: modulePath,
+      scopePath: scopePath,
       signalName: signalName,
       type: this.netlistData[netlistId].variableType,
       width: width,
@@ -431,7 +431,7 @@ export class WaveformDataManager {
     const waveDromData: any = {};
     viewerState.displayedSignals.forEach((netlistId) => {
       const netlistItem: any     = this.netlistData[netlistId];
-      const signalName      = netlistItem.modulePath + "." + netlistItem.signalName;
+      const signalName      = netlistItem.scopePath + "." + netlistItem.signalName;
       const signalId        = netlistItem.signalId;
       const transitionData  = this.valueChangeData[signalId].transitionData;
       const lowerBound      = this.binarySearch(transitionData, timeWindow[0]) - 1;

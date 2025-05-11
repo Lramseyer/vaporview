@@ -20,7 +20,7 @@ export type ValueChange = [number, string];
 export type NetlistData = {
   signalId: number;
   signalName: string;
-  modulePath: string;
+  scopePath: string;
   signalWidth: number;
   valueFormat: ValueFormat;
   vscodeContext: string;
@@ -161,7 +161,7 @@ function createWebviewContext() {
       const data = dataManager.netlistData[id];
       return {
         netlistId:        id,
-        name:             data.modulePath + "." + data.signalName,
+        name:             data.scopePath + "." + data.signalName,
         numberFormat:     data.valueFormat.id,
         colorIndex:       data.colorIndex,
         renderType:       data.renderType.id,

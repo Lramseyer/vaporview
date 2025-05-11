@@ -206,8 +206,8 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
   }
 
   getParent(element: NetlistItem): vscode.ProviderResult<NetlistItem> {
-    if (this.document && element.modulePath !== "") {
-      return Promise.resolve(this.document.findTreeItem(element.modulePath, undefined, undefined));
+    if (this.document && element.scopePath !== "") {
+      return Promise.resolve(this.document.findTreeItem(element.scopePath, undefined, undefined));
     }
     return null;
   }
@@ -243,7 +243,7 @@ export class DisplayedSignalsViewProvider implements vscode.TreeDataProvider<Net
 
   public addSignalToTreeData(netlistItem: NetlistItem): NetlistItem {
     const n = netlistItem;
-    const displayedItem = new NetlistItem(n.label, n.type, n.encoding, n.width, n.signalId, n.netlistId, n.name, n.modulePath, n.msb, n.lsb, -1, n.children, vscode.TreeItemCollapsibleState.None, n.checkboxState);
+    const displayedItem = new NetlistItem(n.label, n.type, n.encoding, n.width, n.signalId, n.netlistId, n.name, n.scopePath, n.msb, n.lsb, -1, n.children, vscode.TreeItemCollapsibleState.None, n.checkboxState);
     displayedItem.iconPath = n.iconPath;
     this.treeData.push(displayedItem);
     this._onDidChangeTreeData.fire(undefined); // Trigger a refresh of the Netlist view
@@ -288,7 +288,7 @@ export class NetlistItem extends vscode.TreeItem {
     public readonly signalId:   SignalId, // Signal-specific information
     public readonly netlistId:  NetlistId, // Netlist-specific information
     public readonly name:       string,
-    public readonly modulePath: string,
+    public readonly scopePath: string,
     public readonly msb:        number,
     public readonly lsb:        number,
     public readonly scopeOffsetIdx: number, // Only used in fsdb
@@ -297,7 +297,7 @@ export class NetlistItem extends vscode.TreeItem {
     public checkboxState:    vscode.TreeItemCheckboxState | undefined = undefined // Display preference
   ) {
     let fullName = "";
-    if (modulePath !== "") {fullName += modulePath + ".";}
+    if (scopePath !== "") {fullName += scopePath + ".";}
     fullName += label;
 
     super(label, collapsibleState);

@@ -1,5 +1,10 @@
 # Change Log
 
+# Release Version TBD
+
+- Added edge guides
+- Upgraded to wellen 0.15.0
+
 # 1.3.4 - Latest Release
 
 - Ruler now displays time units

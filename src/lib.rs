@@ -10,10 +10,11 @@ use std::io::{self, BufReader, Cursor, Read, Seek, SeekFrom};
 //use std::result;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
-use wellen::{FileFormat, GetItem, Hierarchy, ScopeRef, SignalRef, SignalSource, TimeTable, TimescaleUnit, WellenError, VarRef};
+use wellen::{FileFormat, Hierarchy, ScopeRef, SignalRef, SignalSource, TimeTable, TimescaleUnit, WellenError, VarRef};
 use wellen::viewers::{read_body, read_header, ReadBodyContinuation, HeaderResult};
 use wellen::LoadOptions;
 use std::sync::Arc;
+use core::ops::Index;
 
 enum ReadBodyEnum {
   Static(ReadBodyContinuation<Cursor<Vec<u8>>>),
@@ -72,7 +73,7 @@ struct ScopeData {
 
 fn get_var_data(hierarchy: &Hierarchy, v: VarRef) -> VarData {
 
-  let variable = hierarchy.get(v);
+  let variable = hierarchy.index(v);
   let name = variable.name(&hierarchy).to_string();
   let id = v.index() as u32;
   let tpe = format!("{:?}", variable.var_type());
@@ -91,7 +92,7 @@ fn get_var_data(hierarchy: &Hierarchy, v: VarRef) -> VarData {
 }
 
 fn get_scope_data(hierarchy: &Hierarchy, s: ScopeRef) -> ScopeData {
-  let scope = hierarchy.get(s);
+  let scope = hierarchy.index(s);
   let name = scope.name(&hierarchy).to_string();
   let id = s.index() as u32;
   let tpe = format!("{:?}", scope.scope_type());
@@ -337,7 +338,7 @@ impl Guest for Filecontext {
     let parent_scope;
     let parent = ScopeRef::from_index(id as usize);
     match parent {
-      Some(parent_ref) => {parent_scope = hierarchy.get(parent_ref);},
+      Some(parent_ref) => {parent_scope = hierarchy.index(parent_ref);},
       None => {outputlog(&format!("No scopes found")); return "{\"scopes\": [], \"vars\": []}".to_string();}
     }
 
@@ -493,7 +494,7 @@ impl Guest for Filecontext {
       let var_ref_option = hierarchy.lookup_var(&scope_path, name);
       match var_ref_option {
         Some(s) => {
-          let var = hierarchy.get(s);
+          let var = hierarchy.index(s);
           let signal_ref = var.signal_ref();
           signal_ref_list.push(signal_ref);
           result_struct.push((path.to_string(), signal_ref));

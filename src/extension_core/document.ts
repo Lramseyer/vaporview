@@ -267,24 +267,24 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     return strings.join('.') + ' ' + unit;
   }
 
-  public async findTreeItem(modulePath: string, msb: number | undefined, lsb: number | undefined): Promise<NetlistItem | null> {
-    //console.log("findTreeItem() " + modulePath + " msb: " + msb + " lsb: " + lsb);
-    const module = this.treeData.find((element) => element.label === modulePath.split('.')[0]);
+  public async findTreeItem(scopePath: string, msb: number | undefined, lsb: number | undefined): Promise<NetlistItem | null> {
+    //console.log("findTreeItem() " + scopePath + " msb: " + msb + " lsb: " + lsb);
+    const module = this.treeData.find((element) => element.label === scopePath.split('.')[0]);
     if (!module) {return null;}
-    return await module.findChild(modulePath.split('.').slice(1).join('.'), this, msb, lsb);
+    return await module.findChild(scopePath.split('.').slice(1).join('.'), this, msb, lsb);
   }
 
   public getNameFromNetlistId(netlistId: NetlistId | null) {
     if (netlistId === null) {return null;}
     const netlistData  = this.netlistIdTable[netlistId]?.netlistItem;
-    const modulePath   = netlistData?.modulePath;
+    const scopePath    = netlistData?.scopePath;
     const signalName   = netlistData?.name;
     const numberFormat = netlistData?.numberFormat;
     const msb          = netlistData?.msb;
     const lsb          = netlistData?.lsb;
     //const colorIndex   = netlistData?.colorIndex;
     return {
-      name: modulePath + '.' + signalName,
+      name: scopePath + '.' + signalName,
       numberFormat: numberFormat,
       msb: msb,
       lsb: lsb,
@@ -306,7 +306,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
         signalId:    metadata.signalId,
         signalWidth: metadata.width,
         signalName:  metadata.name,
-        modulePath:  metadata.modulePath,
+        scopePath:   metadata.scopePath,
         netlistId:   metadata.netlistId,
         type:        metadata.type,
         encoding:    metadata.encoding,
@@ -507,9 +507,9 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
     if (!this.wasmApi) {return Promise.resolve([]);}
     if (element.children.length > 0) {return Promise.resolve(element.children);}
 
-    let modulePath = "";
-    if (element.modulePath !== "") {modulePath += element.modulePath + ".";}
-    modulePath += element.name;
+    let scopePath = "";
+    if (element.scopePath !== "") {scopePath += element.scopePath + ".";}
+    scopePath += element.name;
     let itemsRemaining = Infinity;
     let startIndex     = 0;
     const result: NetlistItem[] = [];
@@ -518,7 +518,7 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
     let callLimit = 255;
     const varTable: any = {};
     while (itemsRemaining > 0) {
-      //console.log("calling getscopes for " + modulePath + " with start index " + startIndex);
+      //console.log("calling getscopes for " + scopePath + " with start index " + startIndex);
       const children = await this.wasmApi.getchildren(element.netlistId, startIndex);
       const childItems = JSON.parse(children);
       //console.log(children);
@@ -527,13 +527,13 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
       startIndex    += childItems.totalReturned;
 
       childItems.scopes.forEach((child: any) => {
-        result.push(createScope(child.name, child.type, modulePath, child.id, -1));
+        result.push(createScope(child.name, child.type, scopePath, child.id, -1));
       });
       childItems.vars.forEach((child: any) => {
         // Need to handle the case where we get a variable with the same name but
         // different bit ranges.
         const encoding = child.encoding.split('(')[0];
-        const varItem = createVar(child.name, child.type, encoding, modulePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, false /*isFsdb*/);
+        const varItem = createVar(child.name, child.type, encoding, scopePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, false /*isFsdb*/);
         if (varTable[child.name] === undefined) {
           varTable[child.name] = [varItem];
         } else {
@@ -763,7 +763,7 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
     this.fsdbCurrentScope = element;
     await this.callFsdbWorkerTask({
       command: 'readVars',
-      modulePath: element.modulePath,
+      scopePath: element.scopePath,
       scopeOffsetIdx: element.scopeOffsetIdx
     });
     // TODO(heyfey): Wait for all callbacks finish

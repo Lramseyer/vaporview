@@ -113,7 +113,7 @@ The data structures of this extension really are the key to making it work as we
   - signalId: string
   - netlistId: string
   - name: string
-  - modulePath: string,
+  - scopePath: string,
   - children: NetlistItem[]
     - ...
   - collapsibleState: vscode.TreeItemCollapsibleState
@@ -233,7 +233,7 @@ Here are some of the important structures for the viewer:
   - signalId: string
   - signalWidth: number
   - signalName: string
-  - modulePath: string
+  - scopePath: string
 
 ## Event Handlers
 

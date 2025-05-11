@@ -3,7 +3,6 @@
 This document is work in progress, and may be subject to change. Please visit github for API discussions.
 
 Things still subject to change:
-- Changing terminology "modulePath" to "scopePath"
 - Adding Custom Enum, and custom Value format commands
 
 ## Overview
@@ -53,7 +52,7 @@ Custom context menu items can be added to the waveform viewer webview. All attri
 All signals in the webview will emit the following attributes when right clicked on
 
 - **webviewSection** - "signal"
-- **modulePath** - Instance path (delimited by "." characters) without the variable name
+- **scopePath** - Instance path (delimited by "." characters) without the variable name
 - **signalName** - Variable or Scope Name
 - **type** - this.netlistData[netlistId].variableType,
 - **width** - BitVector Bit Width of Variable, will be 0 for Strings and Reals
@@ -108,7 +107,7 @@ Note: Tree items in both the Netlist View and the Displayed Signals View have th
 - **tooltip** - Tooltip Text
 - **label** - [VScode Tree Item Label](https://code.visualstudio.com/api/references/vscode-api#TreeItemLabel)
 - **name** - Variable or Scope Name
-- **modulePath** - Instance path (delimited by "." characters) without the variable name
+- **scopePath** - Instance path without the variable name (delimited by "." characters)
 - **type** - [Variable Type](https://docs.rs/wellen/0.14.5/wellen/enum.VarType.html) or [Scope Type](https://docs.rs/wellen/0.14.5/wellen/enum.ScopeType.html).
 - **encoding** - "BitVector" | "Real" | "String" | "none"
 - **width** - (BitVector only) Bit Width of Variable
@@ -120,15 +119,21 @@ Note: Tree items in both the Netlist View and the Displayed Signals View have th
 - **fsdbVarLoaded** - FSDB only attribute
 - **scopeOffsetIdx** - FSDB only attribute
 
-# Commands
+# Command Inputs
 
 In an attempt to future proof and maintain compatibility with any potential future waveform viewers, most public commands will be prefixed with the "waveformViewer" prefix instead of "vapoview". Commands listed in this API may take in arguments, which will usually be an object with the arguments named. This is to maintain compatibility with any context menu items.
+
+Note that this is not an exhaustive list of input commands in Vaporview, however once the API is finalized for 1.4, these commands come with a gaurantee that nothing will be removed from the schema. In other words, there will be no changes to these commands that might otherwise break another extension.
 
 ## vaporview.openFile
 
 Opens a file with vaporview
 
-### Argument: uri
+### Arguments: object
+
+- **uri** - Document URI
+- **loadAll** - true | false - if set to true, will load all variables into the viewport
+- **maxSignals** - abort loading all variables if netlist contains more than this number of variables. This value will be limited to 64
 
 This command takes the URI to a waveform dump file.
 
@@ -141,7 +146,7 @@ Add a variable to the viewer
 - **uri** - (Optional) Document URI - if not defined, this function will use the currently active, or last active document
 - **netlistId** - (Optional*) Waveform Dump File Variable ID
 - **instancePath** - (Optional*) Full instance path for variable
-- **modulePath** - (Optional*) - Variable module math without variable name
+- **scopePath** - (Optional*) - Variable module math without variable name
 - **name** - (Optional*) - Variable name
 - **msb** - (Optional) - Most Significant Bit
 - **lsb** - (Optional) - Least Significant Bit
@@ -150,7 +155,7 @@ Note that a variable must be specified with at least of the following set of key
 
 1. netlistId
 2. instancePath
-3. modulePath AND name
+3. scopePath AND name
 
 ## waveformViewer.removeVariable
 
@@ -161,7 +166,7 @@ Remove a variable from the viewer
 - **uri** - (Optional) Document URI - if not defined, this function will use the currently active, or last active document
 - **netlistId** - (Optional*) Waveform Dump File Variable ID
 - **instancePath** - (Optional*) Full instance path for variable
-- **modulePath** - (Optional*) - Variable module math without variable name
+- **scopePath** - (Optional*) - Variable module math without variable name
 - **name** - (Optional*) - Variable name
 - **msb** - (Optional) - Most Significant Bit
 - **lsb** - (Optional) - Least Significant Bit
@@ -170,7 +175,7 @@ Note that a variable must be specified with at least of the following set of key
 
 1. netlistId
 2. instancePath
-3. modulePath AND name
+3. scopePath AND name
 
 ## waveformViewer.revealVariableInNetlistView
 
@@ -181,14 +186,14 @@ Reveal a variable or scope in the netlist view
 - **uri** - (Optional) Document URI - if not defined, this function will use the currently active, or last active document
 - **netlistId** - (Optional*) Waveform Dump File Variable ID
 - **instancePath** - (Optional*) Full instance path for variable or scope
-- **modulePath** - (Optional*) - Variable module math without target variable or scope name
+- **scopePath** - (Optional*) - Variable module math without target variable or scope name
 - **name** - (Optional*) - Variable or Scope name
 
 Note that a variable or scope must be specified with at least of the following set of keys, and priority is as follows:
 
 1. netlistId
 2. instancePath
-3. modulePath AND name
+3. scopePath AND name
 
 ## waveformViewer.setMarker
 
@@ -239,6 +244,10 @@ Returns the viewer settings in the same schema as the save file
 
 Note that if an instance path input is not found in the netlist, the result will not return a value for it.
 
+# Command Outputs
+
+Vaporview can emit some commands when users perform actions in vaporview. While nothing has been implemented, you can add any specific requests to the [github issues](https://github.com/Lramseyer/vaporview/issues) page.
+
 # Signal Value Links
 
 Something that has been in my roadmap for a while is the ability to "Allow users to link .objdump files to a program counter value for a more integrated debug experience" This was something I wanted when I first created vaporview (because I was debugging a CPU with no GDB or ETM tracing.) How cool would it be to debug a CPU with a waveform dump and actually connect it back to the line of code it's running? In brainstorming how to implelent it, I have a proposed solution, but it's actually a more general solution.
@@ -252,7 +261,7 @@ A submenu or menu group will be added for Signal Item context menu, and it will 
 ### Attributes
 
 - **netlistId** -  Variable ID in waveform dump file
-- **modulePath** - Instance path (delimited by "." characters) without the variable name
+- **scopePath** - Instance path (delimited by "." characters) without the variable name
 - **signalName** - Variable or Scope Name
 - **type** - this.netlistData[netlistId].variableType,
 - **width** - BitVector Bit Width of Variable, will be 0 for Strings and Reals
@@ -269,7 +278,7 @@ A submenu or menu group will be added for Signal Item context menu, and it will 
   - **command** - custom command that will be called when clicked
   - **netlistId** - (Optional*) Waveform Dump File Variable ID - note that this will be emitted by the context menu command, so developers will have this value
   - **instancePath** - (Optional*) Full instance path for variable
-  - **modulePath** - (Optional*) - Variable module math without variable name
+  - **scopePath** - (Optional*) - Variable module math without variable name
   - **name** - (Optional*) - Variable name
   - **msb** - (Optional) - Most Significant Bit
   - **lsb** - (Optional) - Least Significant Bit
@@ -278,7 +287,7 @@ Note that a variable must be specified with at least of the following set of key
 
 1. netlistId
 2. instancePath
-3. modulePath AND name
+3. scopePath AND name
 
 ## Sample code
 

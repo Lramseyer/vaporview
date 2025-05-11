@@ -237,7 +237,7 @@ class VaporviewWebview {
     window.addEventListener('message', (e) => {this.handleMessage(e);});
     window.addEventListener('keydown', (e) => {this.keyDownHandler(e);});
     window.addEventListener('keyup',   (e) => {this.keyUpHandler(e);});
-    window.addEventListener('mouseup', (e) => {this.handleMouseUp(e);});
+    window.addEventListener('mouseup', (e) => {this.handleMouseUp(e, false);});
     window.addEventListener('resize',  ()  => {this.handleResizeViewer();}, false);
     this.scrollArea.addEventListener(      'wheel', (e) => {this.scrollHandler(e);});
     this.scrollArea.addEventListener(      'scroll', () => {this.handleViewportScroll();});
@@ -384,7 +384,7 @@ class VaporviewWebview {
     else if (e.key === 'n') {controlBar.goToNextTransition(1);}
     else if (e.key === 'N') {controlBar.goToNextTransition(-1);}
 
-    else if (e.key === 'Escape') {this.events.dispatch(ActionType.SignalSelect, null);}
+    else if (e.key === 'Escape') {this.handleMouseUp(e, true);}
     else if (e.key === 'Delete' || e.key === 'Backspace') {this.removeVariableInternal(viewerState.selectedSignal);}
 
     else if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(true);}
@@ -394,10 +394,10 @@ class VaporviewWebview {
     if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(false);}
   }
 
-  handleMouseUp(event: MouseEvent) {
+  handleMouseUp(event: MouseEvent | KeyboardEvent, abort: boolean) {
     //console.log('mouseup event type: ' + mouseupEventType);
     if (viewerState.mouseupEventType === 'rearrange') {
-      labelsPanel.dragEnd(event);
+      labelsPanel.dragEnd(event, abort);
     } else if (viewerState.mouseupEventType === 'resize') {
       labelsPanel.resizeElement.classList.remove('is-resizing');
       labelsPanel.resizeElement.classList.add('is-idle');
@@ -410,7 +410,7 @@ class VaporviewWebview {
     } else if (viewerState.mouseupEventType === 'highlightZoom') {
       this.scrollArea.removeEventListener('mousemove', viewport.drawHighlightZoom, false);
       viewport.highlightListenerSet = false;
-      viewport.highlightZoom();
+      viewport.highlightZoom(abort);
     } else if (viewerState.mouseupEventType === 'markerSet') {
       this.scrollArea.removeEventListener('mousemove', viewport.drawHighlightZoom, false);
       clearTimeout(viewport.highlightDebounce);

@@ -552,7 +552,7 @@ export class Viewport {
     viewerState.mouseupEventType = 'scroll';
   }
 
-  highlightZoom() {
+  highlightZoom(abort: boolean) {
     const timeStart = this.getTimeFromClick(this.highlightStartEvent);
     const timeEnd   = this.getTimeFromClick(this.highlightEndEvent);
     const time      = Math.round((timeStart + timeEnd) / 2);
@@ -564,7 +564,9 @@ export class Viewport {
       this.highlightElement = null;
     }
 
-    this.events.dispatch(ActionType.Zoom, amount, time, this.halfViewerWidth);
+    if (!abort) {
+      this.events.dispatch(ActionType.Zoom, amount, time, this.halfViewerWidth);
+    }
   }
 
   drawHighlightZoom(event: MouseEvent) {

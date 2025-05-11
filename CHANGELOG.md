@@ -4,6 +4,7 @@
 
 - Added edge guides
 - Upgraded to wellen 0.15.0
+- Added Escape Key to abort some user actions
 
 # 1.3.4 - Latest Release
 

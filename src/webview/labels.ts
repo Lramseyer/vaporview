@@ -247,14 +247,15 @@ export class LabelsPanels {
     this.updateIdleItemsStateAndPosition();
   }
 
-  dragEnd(event: MouseEvent) {
+  dragEnd(event: MouseEvent | KeyboardEvent, abort) {
     event.preventDefault();
     if (!this.draggableItem) {return;}
 
     this.idleItems.forEach((item: any) => {item.style = null;});
     document.removeEventListener('mousemove', this.dragMove);
-
-    this.events.dispatch(ActionType.ReorderSignals, this.draggableItemIndex, this.draggableItemNewIndex);
+    if (!abort) {
+      this.events.dispatch(ActionType.ReorderSignals, this.draggableItemIndex, this.draggableItemNewIndex);
+    }
 
     this.labelsList            = [];
     this.idleItems             = [];
@@ -263,6 +264,8 @@ export class LabelsPanels {
     this.pointerStartX         = null;
     this.pointerStartY         = null;
     this.draggableItem         = null;
+
+    if (abort) {this.renderLabelsPanels();}
   }
 
   handleResizeMousedown(event: MouseEvent, element: HTMLElement, index: number) {

@@ -518,6 +518,38 @@
     },
     "commands": [
       {
+        "command": "vaporview.openFile",
+        "title": "Open File with VaporView"
+      },
+      {
+        "command": "waveformViewer.addVariable",
+        "title": "Add to Waveform Viewer"
+      },
+      {
+        "command": "waveformViewer.removeVariable",
+        "title": "Remove from Waveform Viewer"
+      },
+      {
+        "command": "waveformViewer.revealVariableInNetlistView",
+        "title": "Show in Netlist View"
+      },
+      {
+        "command": "waveformViewer.setMarker",
+        "title": "Set Marker"
+      },
+      {
+        "command": "waveformViewer.getOpenDocuments",
+        "title": "Get Open Documents"
+      },
+      {
+        "command": "waveformViewer.getViewerState",
+        "title": "Get Viewer State" 
+      },
+      {
+        "command": "waveformViewer.getValuesAtTime",
+        "title": "Get Values at Time"
+      },
+      {
         "command": "vaporview.addSelected",
         "title": "Add Selected"
       },

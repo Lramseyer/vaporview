@@ -75,8 +75,8 @@ export async function activate(context: vscode.ExtensionContext) {
     return viewerProvider.getAllDocuments();
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.getViewerSettings', (e) => {
-    viewerProvider.log.appendLine("Command called: 'waveformViewer.getViewerSettings' " + JSON.stringify(e));
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.getViewerState', (e) => {
+    viewerProvider.log.appendLine("Command called: 'waveformViewer.getViewerState' " + JSON.stringify(e));
     const document = viewerProvider.getDocumentFromOptionalUri(e.uri);
     if (!document) {return;}
     return document.getSettings();

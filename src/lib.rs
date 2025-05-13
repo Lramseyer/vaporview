@@ -518,13 +518,17 @@ impl Guest for Filecontext {
       let mut v = String::new();
       for (_, value) in transitions {
         if time_table[time_index[i] as usize] > time {break;}
+        if time_table[time_index[i] as usize] == time {
+          v.push_str(&format!("\",\"{:?}", value));
+          break;
+        }
         v = value.to_string();
         i += 1;
       }
 
       result_struct.iter().for_each(|(path, signalid)| {
         if s.index() == signalid.index() {
-          result.push_str(&format!("{{\"instancePath\": {:?}, \"value\": {:?}}},", path, v));
+          result.push_str(&format!("{{\"instancePath\": {:?}, \"value\": [\"{:?}\"]}},", path, v));
         }
       });
 

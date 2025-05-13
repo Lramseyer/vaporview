@@ -265,7 +265,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     return result;
   }
 
-  public getViewerSettings(uri: any) {
+  public getViewerState(uri: any) {
     let document = this.getDocumentFromOptionalUri(uri);
     if (!document) {return;}
     return document.getSettings();

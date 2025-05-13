@@ -219,7 +219,7 @@ Remember that to get a valid return value, all vscode commands must be called wi
 - **documents** - List of URIs corresponding to open documents
 - **lastActiveDocument** - URI of last active or currently active wavefrom viewer document
 
-## waveformViewer.getViewerSettings
+## waveformViewer.getViewerState
 
 ### Return: object
 
@@ -240,7 +240,7 @@ Returns the viewer settings in the same schema as the save file
 ### Return: Array of objects
 
 - **instancePath** - Instance path string
-- **value** - Value as string
+- **value** - Array of values length 1 or 2 [current value] or [previous value, current value]
 
 Note that if an instance path input is not found in the netlist, the result will not return a value for it.
 

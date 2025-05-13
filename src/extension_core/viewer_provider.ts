@@ -43,6 +43,11 @@ export function logScaleFromUnits(unit: string | undefined) {
   }
 }
 
+export interface markerSetEventData {
+  filePath: string;
+  time: number;
+}
+
 // #region WaveformViewerProvider
 export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<VaporviewDocument> {
 
@@ -73,6 +78,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   public displayedSignalsViewSelectedSignals: NetlistItem[] = [];
   public log: vscode.OutputChannel;
   public get numDocuments(): number {return this.numDocuments;}
+
+  public static readonly markerSetEvent = new vscode.EventEmitter<markerSetEventData>();
 
   constructor(
     private readonly _context: vscode.ExtensionContext, 
@@ -187,7 +194,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'close-webview':       {webviewPanel.dispose(); break;}
         case 'setTime':             {this.updateStatusBarItems(document, e); break;}
         case 'setSelectedSignal':   {this.updateStatusBarItems(document, e); break;}
-        case 'contextUpdate' :      {this.updateStatusBarItems(document, e); break;}
+        case 'contextUpdate':       {this.updateStatusBarItems(document, e); WaveformViewerProvider.markerSetEvent.fire({ filePath: document.uri.fsPath, time: e.markerTime }); break;}
         case 'fetchTransitionData': {document.getSignalData(e.signalIdList); break;}
         case 'removeVariable':      {this.removeSignalFromDocument(e.netlistId); break;}
         case 'restoreState':        {this.applySettings(e.state, this.getDocumentFromUri(e.uri.toString())); break;}

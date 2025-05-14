@@ -330,6 +330,11 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.log.appendLine("Command called: 'vaporview.dummy' " + JSON.stringify(e));
   }
   ));
+
+  const markerSetEvent = WaveformViewerProvider.markerSetEvent;
+  return {
+    markerSetEvent
+  };
 }
 
 export default WaveformViewerProvider;

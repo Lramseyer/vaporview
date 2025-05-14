@@ -12,6 +12,7 @@ export interface VaporviewDocumentDelegate {
   logOutputChannel(message: string): void;
   getViewerContext(): Promise<Uint8Array>;
   updateViews(uri: vscode.Uri): void;
+  emitEvent(e: any): void;
   removeFromCollection(uri: vscode.Uri, document: VaporviewDocument): void;
 }
 
@@ -43,9 +44,16 @@ export function logScaleFromUnits(unit: string | undefined) {
   }
 }
 
-export interface markerSetEventData {
-  filePath: string;
+export interface markerSetEvent {
+  uri: string;
   time: number;
+  units: string;
+}
+
+export interface signalEvent {
+  uri: string;
+  isntancePath: string;
+  netlistId: number;
 }
 
 // #region WaveformViewerProvider
@@ -79,7 +87,10 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   public log: vscode.OutputChannel;
   public get numDocuments(): number {return this.numDocuments;}
 
-  public static readonly markerSetEvent = new vscode.EventEmitter<markerSetEventData>();
+  public static readonly markerSetEventEmitter = new vscode.EventEmitter<markerSetEvent>();
+  public static readonly signalSelectEventEmitter = new vscode.EventEmitter<signalEvent>();
+  public static readonly addVariableEventEmitter = new vscode.EventEmitter<signalEvent>();
+  public static readonly removeVariableEventEmitter = new vscode.EventEmitter<signalEvent>();
 
   constructor(
     private readonly _context: vscode.ExtensionContext, 
@@ -150,6 +161,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         this.netlistTreeDataProvider.loadDocument(document);
         this.displayedSignalsTreeDataProvider.setTreeData(document.displayedSignals);
       },
+      emitEvent: (e: any) => {this.emitEvent(e);},
       removeFromCollection: (uri: vscode.Uri, document: VaporviewDocument) => {
         const entry = { resource: uri.toString(), document: document };
         this.documentCollection.delete(entry);
@@ -189,15 +201,13 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'copyToClipboard':     {vscode.env.clipboard.writeText(e.text); break;}
         case 'executeCommand':      {vscode.commands.executeCommand(e.commandName, e.args); break;}
         case 'updateConfiguration': {vscode.workspace.getConfiguration('vaporview').update(e.property, e.value, vscode.ConfigurationTarget.Global); break;}
-        case 'copyWaveDrom':        {this.copyWaveDromToClipboard(e.waveDromJson, e.maxTransitions, e.maxTransitionsFlag); break;}
         case 'ready':               {document.onWebviewReady(webviewPanel); break;}
-        case 'close-webview':       {webviewPanel.dispose(); break;}
-        case 'setTime':             {this.updateStatusBarItems(document, e); break;}
-        case 'setSelectedSignal':   {this.updateStatusBarItems(document, e); break;}
-        case 'contextUpdate':       {this.updateStatusBarItems(document, e); WaveformViewerProvider.markerSetEvent.fire({ filePath: document.uri.fsPath, time: e.markerTime }); break;}
+        case 'restoreState':        {this.applySettings(e.state, this.getDocumentFromUri(e.uri.toString())); break;}
+        case 'contextUpdate':       {this.updateStatusBarItems(document, e); break;}
+        case 'emitEvent':           {this.emitEvent(e); break;}
         case 'fetchTransitionData': {document.getSignalData(e.signalIdList); break;}
         case 'removeVariable':      {this.removeSignalFromDocument(e.netlistId); break;}
-        case 'restoreState':        {this.applySettings(e.state, this.getDocumentFromUri(e.uri.toString())); break;}
+        case 'close-webview':       {webviewPanel.dispose(); break;}
         default: {this.log.appendLine('Unknown webview message type: ' + e.command); break;}
       }
 
@@ -432,14 +442,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.activeWebview?.webview.postMessage({command: 'copyWaveDrom'});
   }
 
-  copyWaveDromToClipboard(waveDromJson: string, maxTransitions: number, maxTransitionsFlag: boolean) {
-    if (maxTransitionsFlag) {
-      vscode.window.showWarningMessage('The number of transitions exceeds the maximum limit of ' + maxTransitions);
-    }
-    vscode.env.clipboard.writeText(waveDromJson);
-    vscode.window.showInformationMessage('WaveDrom JSON copied to clipboard.');
-  }
-
   // Send command to all webviews
   updateColorTheme(e: any) {
     this.documentCollection.forEach((entry) => {
@@ -458,9 +460,10 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
   handleWebviewMessage(event: any) {
     switch (event.messageType) {
-      case 'info':    {vscode.window.showInformationMessage(event.message); break;}
       case 'warning': {vscode.window.showWarningMessage(event.message); break;}
       case 'error':   {vscode.window.showErrorMessage(event.message); break;}
+      case 'info':    {vscode.window.showInformationMessage(event.message); break;}
+      default:        {vscode.window.showInformationMessage(event.message); break;}
     }
   }
 
@@ -577,6 +580,30 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       //}
     } else {
       this.selectedSignalStatusBarItem.hide();
+    }
+  }
+
+  emitEvent(e: any) {
+
+    let markerData: markerSetEvent = {
+      uri: e.uri,
+      time: e.time,
+      units: e.units,
+    }
+
+    let signalData: signalEvent = {
+      uri: e.uri,
+      isntancePath: e.instancePath,
+      netlistId: e.netlistId,
+    }
+
+    //console.log(e);
+
+    switch (e.eventType) {
+      case 'markerSet':      {WaveformViewerProvider.markerSetEventEmitter.fire(markerData); break;}
+      case 'signalSelect':   {WaveformViewerProvider.signalSelectEventEmitter.fire(signalData); break;}
+      case 'addVariable':    {WaveformViewerProvider.addVariableEventEmitter.fire(signalData); break;}
+      case 'removeVariable': {WaveformViewerProvider.removeVariableEventEmitter.fire(signalData); break;}
     }
   }
 

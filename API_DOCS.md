@@ -244,9 +244,33 @@ Returns the viewer settings in the same schema as the save file
 
 Note that if an instance path input is not found in the netlist, the result will not return a value for it.
 
-# Command Outputs
+# Event Emitters (Work in Progress)
 
-Vaporview can emit some commands when users perform actions in vaporview. While nothing has been implemented, you can add any specific requests to the [github issues](https://github.com/Lramseyer/vaporview/issues) page.
+Vaporview emits events when users perform actions in the viewer. If there's anything you wish to see added to this list, please comment on the [github issues](https://github.com/Lramseyer/vaporview/issues) page.
+
+## markerSetEventEmitter
+
+- **uri** - string
+- **time** - number
+- **units** - string
+
+## signalSelectEventEmitter
+
+- **uri** - string
+- **isntancePath** - string
+- **netlistId** - number
+
+## addVariableEventEmitter
+
+- **uri** - string
+- **isntancePath** - string
+- **netlistId** - number
+
+## removeVariableEventEmitter
+
+- **uri** - string
+- **isntancePath** - string
+- **netlistId** - number
 
 # Signal Value Links
 

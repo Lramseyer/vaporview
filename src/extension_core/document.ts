@@ -12,7 +12,7 @@ import { SignalId, NetlistId, VaporviewDocumentDelegate, scaleFromUnits, logScal
 // If this file is not present, run `npm run generate:model` to generate it
 // See GETTING_STARTED.md for more details
 import { filehandler } from './filehandler';
-import { NetlistItem, createScope, createVar } from './tree_view';
+import { NetlistItem, createScope, createVar, getInstancePath } from './tree_view';
 
 export type NetlistIdTable = NetlistIdRef[];
 export type NetlistIdRef = {
@@ -311,6 +311,13 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
         type:        metadata.type,
         encoding:    metadata.encoding,
      });
+
+      this._delegate.emitEvent({
+        eventType: 'addVariable',
+        uri: this.uri,
+        instancePath: getInstancePath(metadata),
+        netlistId: metadata.netlistId,
+      })
     });
     this.webviewPanel.webview.postMessage({
       command: 'add-variable',
@@ -335,6 +342,14 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
       command: 'remove-signal',
       netlistId: netlistId
    });
+
+    const metadata = this.netlistIdTable[netlistId]?.netlistItem;
+    this._delegate.emitEvent({
+      eventType: 'removeVariable',
+      uri: this.uri,
+      instancePath: getInstancePath(metadata),
+      netlistId: metadata.netlistId,
+    })
   }
 
   public async unloadTreeData() {

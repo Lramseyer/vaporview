@@ -126,22 +126,6 @@ export function arrayMove(array: any[], fromIndex: number, toIndex: number) {
 // Event handler helper functions
 // ----------------------------------------------------------------------------
 
-export function setSeletedSignalOnStatusBar(netlistId: NetlistId) {
-  vscode.postMessage({
-    command: 'setSelectedSignal',
-    netlistId: netlistId
-  });
-}
-
-export function setTimeOnStatusBar() {
-  // .toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-  vscode.postMessage({
-    command: 'setTime',
-    markerTime:    viewerState.markerTime,
-    altMarkerTime: viewerState.altMarkerTime
-  });
-}
-
 export function sendDisplayedSignals() {
   vscode.postMessage({
     command: 'setDisplayedSignals',
@@ -438,11 +422,31 @@ class VaporviewWebview {
   handleMarkerSet(time: number, markerType: number) {
     if (time > this.viewport.timeStop || time < 0) {return;}
     sendWebviewContext();
+    vscode.postMessage({
+      command: 'emitEvent',
+      eventType: 'markerSet',
+      uri: viewerState.uri,
+      time: time,
+      units: this.viewport.timeUnit,
+    });
   }
 
   handleSignalSelect(netlistId: NetlistId | null) {
     if (netlistId === null) {return;}
+    const netlistData = dataManager.netlistData[netlistId];
     sendWebviewContext();
+    if (netlistData === undefined) {return;}
+
+    let instancePath = netlistData.scopePath + '.' + netlistData.signalName;
+    if (netlistData.scopePath === "") {instancePath = netlistData.signalName;}
+
+    vscode.postMessage({
+      command: 'emitEvent',
+      eventType: 'signalSelect',
+      uri: viewerState.uri,
+      isntancePath: instancePath,
+      netlistId: netlistId,
+    });
   }
 
 // #region Helper Functions

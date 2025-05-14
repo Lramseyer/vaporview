@@ -342,7 +342,6 @@ export class LabelsPanels {
     viewerState.selectedSignalIndex = viewerState.displayedSignals.findIndex((signal) => {return signal === netlistId;});
     if (viewerState.selectedSignalIndex === -1) {viewerState.selectedSignalIndex = null;}
   
-    //setSeletedSignalOnStatusBar(netlistId);
     this.renderLabelsPanels();
   }
 

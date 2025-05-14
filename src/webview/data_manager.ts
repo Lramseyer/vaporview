@@ -532,11 +532,14 @@ export class WaveformDataManager {
     });
     result += ']}';
 
-    vscode.postMessage({
-      command: 'copyWaveDrom',
-      waveDromJson: result,
-      maxTransitionsFlag: transitionCount >= MAX_TRANSITIONS,
-      maxTransitions: MAX_TRANSITIONS
-    });
+    if (transitionCount >= MAX_TRANSITIONS) {
+      vscode.postMessage({
+        command: 'showMessage',
+        messageType: 'warning',
+        message: 'The number of transitions exceeds the maximum limit of ' + MAX_TRANSITIONS,
+      });
+    }
+    vscode.postMessage({command: 'copyToClipboard', text: result});
+    vscode.postMessage({command: 'showMessage',  message: 'WaveDrom JSON copied to clipboard.'});
   }
-  }
+}

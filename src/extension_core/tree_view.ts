@@ -128,6 +128,14 @@ export function createVar(name: string, type: string, encoding: string, path: st
   return variable;
 }
 
+export function getInstancePath(netlistItem: NetlistItem): string {
+  let path = netlistItem.label;
+  if (netlistItem.scopePath !== "") {
+    path = netlistItem.scopePath + "." + path;
+  }
+  return path;
+}
+
 
 // #region WebviewCollection
 /**

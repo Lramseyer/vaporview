@@ -37,6 +37,11 @@ export async function activate(context: vscode.ExtensionContext) {
   vscode.window.onDidChangeActiveColorTheme((e) => {viewerProvider.updateColorTheme(e);});
   vscode.workspace.onDidChangeConfiguration((e) => {viewerProvider.updateConfiguration(e);});
 
+  const markerSetEvent = WaveformViewerProvider.markerSetEventEmitter;
+  const signalSelectEvent = WaveformViewerProvider.signalSelectEventEmitter;
+  const addVariableEvent = WaveformViewerProvider.addVariableEventEmitter;
+  const removeVariableEvent = WaveformViewerProvider.removeVariableEventEmitter;
+
   // #region External Commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.openFile', async (e) => {
     viewerProvider.log.appendLine("Command called: 'vaporview.openFile ' + " + e.uri.toString());
@@ -328,12 +333,13 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.dummy', (e) => {
     viewerProvider.log.appendLine("Command called: 'vaporview.dummy' " + JSON.stringify(e));
-  }
-  ));
+  }));
 
-  const markerSetEvent = WaveformViewerProvider.markerSetEvent;
   return {
-    markerSetEvent
+    markerSetEvent,
+    signalSelectEvent,
+    addVariableEvent,
+    removeVariableEvent,
   };
 }
 

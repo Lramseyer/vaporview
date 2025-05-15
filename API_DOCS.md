@@ -248,25 +248,35 @@ Note that if an instance path input is not found in the netlist, the result will
 
 Vaporview emits events when users perform actions in the viewer. If there's anything you wish to see added to this list, please comment on the [github issues](https://github.com/Lramseyer/vaporview/issues) page.
 
-## markerSetEventEmitter
+All events are emitted regaurdless of their source action - click, key press, or external action.
+
+## onDidSetMarker
+
+Emitted when the marker changes value in the viewer. 
 
 - **uri** - string
 - **time** - number
 - **units** - string
 
-## signalSelectEventEmitter
+## onDidSelectSignal
+
+Emitted when a signal is selected by either the user, or externally
 
 - **uri** - string
 - **isntancePath** - string
 - **netlistId** - number
 
-## addVariableEventEmitter
+## onDidAddVariable
+
+Emitted when a variable is added to the viewer
 
 - **uri** - string
 - **isntancePath** - string
 - **netlistId** - number
 
-## removeVariableEventEmitter
+## onDidRemoveVariable
+
+Emitted when a variable is removed from the viewer
 
 - **uri** - string
 - **isntancePath** - string

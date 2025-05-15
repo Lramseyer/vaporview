@@ -37,10 +37,10 @@ export async function activate(context: vscode.ExtensionContext) {
   vscode.window.onDidChangeActiveColorTheme((e) => {viewerProvider.updateColorTheme(e);});
   vscode.workspace.onDidChangeConfiguration((e) => {viewerProvider.updateConfiguration(e);});
 
-  const markerSetEvent = WaveformViewerProvider.markerSetEventEmitter;
-  const signalSelectEvent = WaveformViewerProvider.signalSelectEventEmitter;
-  const addVariableEvent = WaveformViewerProvider.addVariableEventEmitter;
-  const removeVariableEvent = WaveformViewerProvider.removeVariableEventEmitter;
+  const markerSetEvent = WaveformViewerProvider.markerSetEventEmitter.event;
+  const signalSelectEvent = WaveformViewerProvider.signalSelectEventEmitter.event;
+  const addVariableEvent = WaveformViewerProvider.addVariableEventEmitter.event;
+  const removeVariableEvent = WaveformViewerProvider.removeVariableEventEmitter.event;
 
   // #region External Commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.openFile', async (e) => {
@@ -336,10 +336,10 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   return {
-    markerSetEvent,
-    signalSelectEvent,
-    addVariableEvent,
-    removeVariableEvent,
+    onDidSetMarker: markerSetEvent,
+    onDidSelectSignal: signalSelectEvent,
+    onDidAddVariable: addVariableEvent,
+    onDidRemoveVariable: removeVariableEvent,
   };
 }
 

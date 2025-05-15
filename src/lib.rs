@@ -515,20 +515,35 @@ impl Guest for Filecontext {
 
       //log(&format!("Total Time Indices: {:?}", time_index.len()));
       let mut i: usize = 0;
-      let mut v = String::new();
+      let mut v = "[]".to_string();
+      let mut last_value = None;
+
       for (_, value) in transitions {
-        if time_table[time_index[i] as usize] > time {break;}
-        if time_table[time_index[i] as usize] == time {
-          v.push_str(&format!("\",\"{:?}", value));
-          break;
-        }
-        v = value.to_string();
-        i += 1;
+          let current_time = time_table[time_index[i] as usize];
+          if current_time > time {
+              if let Some(ref last) = last_value {
+                  v = format!("[\"{}\"]", last);
+              }
+              break;
+          }
+          if current_time == time {
+              if let Some(ref last) = last_value {
+                v = format!("[\"{}\"", last);
+              }
+              v.push_str(&format!(",\"{}\"]", value.to_string()));
+              break;
+          }
+          last_value = Some(value.to_string());
+          i += 1;
+      }
+
+      if v == "[]" && last_value.is_some() {
+          v = format!("[\"{}\"]", last_value.unwrap());
       }
 
       result_struct.iter().for_each(|(path, signalid)| {
         if s.index() == signalid.index() {
-          result.push_str(&format!("{{\"instancePath\": {:?}, \"value\": [\"{:?}\"]}},", path, v));
+          result.push_str(&format!("{{\"instancePath\": {:?}, \"value\": {:?}}},", path, v));
         }
       });
 

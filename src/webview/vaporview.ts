@@ -447,6 +447,17 @@ class VaporviewWebview {
       isntancePath: instancePath,
       netlistId: netlistId,
     });
+
+    const waveHeight = 28;
+    if (viewerState.selectedSignalIndex !== null) {
+      const yPosition    = viewerState.selectedSignalIndex * waveHeight;
+      const maxScrollTop = yPosition - (viewport.viewerHeight - (3 * waveHeight));
+      const minScrollTop = yPosition - waveHeight;
+      const newScrollTop = Math.max(maxScrollTop, Math.min(minScrollTop, this.labelsScroll.scrollTop));
+      console.log('minScrollTop: ' + minScrollTop + '; maxScrollTop: ' + maxScrollTop);
+      console.log('newScrollTop: ' + newScrollTop);
+      this.syncVerticalScroll({deltaY: 0}, newScrollTop);
+    }
   }
 
 // #region Helper Functions

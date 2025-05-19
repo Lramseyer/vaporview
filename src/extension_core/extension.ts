@@ -168,7 +168,16 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.reloadFile(e);
   }));
 
-  // #Marker and Timing
+  // #region Keybindings
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.nextEdge', (e) => {
+    viewerProvider.handleKeyBinding(e, "nextEdge");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.previousEdge', (e) => {
+    viewerProvider.handleKeyBinding(e, "previousEdge");
+  }));
+
+  // #region Marker and Timing
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.setTimeUnits', (e) => {
     viewerProvider.updateTimeUnits("");
   }));

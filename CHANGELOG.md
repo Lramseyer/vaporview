@@ -7,6 +7,7 @@
 - Added Escape Key to abort some user actions
 - Fix renderer floating point math errors causing jitter
 - Fixed revealing signals in viewport behavior
+- Drag to reorder signals now responds to scroll
 
 # 1.3.4 - Latest Release
 

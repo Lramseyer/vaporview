@@ -161,6 +161,26 @@
         }
       }
     },
+    "keybindings": [
+      {
+        "command": "vaporview.saveViewerSettings",
+        "key": "ctrl+s",
+        "mac": "cmd+s",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
+        "command": "vaporview.previousEdge",
+        "key": "ctrl+Left",
+        "mac": "alt+Left",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
+        "command": "vaporview.nextEdge",
+        "key": "ctrl+Right",
+        "mac": "alt+Right",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      }
+    ],
     "submenus": [
       {
         "id": "vaporview.waveDrom",
@@ -788,6 +808,14 @@
       {
         "command": "vaporview.loadViewerSettings",
         "title": "Load Vaporview Settings"
+      },
+      {
+        "command": "vaporview.nextEdge",
+        "title": "Reload File"
+      },
+      {
+        "command": "vaporview.previousEdge",
+        "title": "Reload File"
       }
     ]
   },

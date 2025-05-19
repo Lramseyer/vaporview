@@ -779,6 +779,10 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
   }
 
+  public handleKeyBinding(e: any, keyCommand: string) {
+    if (!this.activeWebview) {return;}
+    this.activeWebview.webview.postMessage({command: 'handle-keypress', keyCommand: keyCommand});
+  }
 
   private addSignalsToDocument(document: VaporviewDocument, netlistElements: NetlistItem[]) {
     //if (!this.activeWebview) {return;}

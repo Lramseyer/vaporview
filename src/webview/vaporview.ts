@@ -340,13 +340,11 @@ class VaporviewWebview {
     // ctrl + left and right arrow keys move the marker to the next transition
 
     if ((e.key === 'ArrowRight') && (viewerState.markerTime !== null)) {
-      if (e.ctrlKey || e.altKey) {controlBar.goToNextTransition(1);}
-      else if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, this.viewport.timeStop, 0);}
-      else                {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime + 1, 0);}
+      if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, this.viewport.timeStop, 0);}
+      else           {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime + 1, 0);}
     } else if ((e.key === 'ArrowLeft') && (viewerState.markerTime !== null)) {
-      if (e.ctrlKey || e.altKey) {controlBar.goToNextTransition(-1);}
-      else if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, 0, 0);}
-      else                {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime - 1, 0);}
+      if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, 0, 0);}
+      else           {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime - 1, 0);}
 
     // up and down arrow keys move the selected signal
     // alt + up and down arrow keys reorder the selected signal up and down
@@ -372,6 +370,13 @@ class VaporviewWebview {
     else if (e.key === 'Delete' || e.key === 'Backspace') {this.removeVariableInternal(viewerState.selectedSignal);}
 
     else if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(true);}
+  }
+
+  externalKeyDownHandler(e: any) {
+    if (viewerState.markerTime !== null) {
+      if (e.keyCommand == 'nextEdge') {controlBar.goToNextTransition(1);}
+      else if (e.keyCommand == 'previousEdge') {controlBar.goToNextTransition(-1);}
+    }
   }
 
   keyUpHandler(e: any) {
@@ -470,6 +475,7 @@ class VaporviewWebview {
     this.transitionScroll.scrollTop = scrollLevel + deltaY;
     this.scrollArea.scrollTop       = scrollLevel + deltaY;
     viewport.renderAllWaveforms(false);
+    labelsPanel.dragMove(e);
     this.viewport.updatePending     = false;
   }
 
@@ -552,6 +558,7 @@ class VaporviewWebview {
       case 'add-variable':          {dataManager.addVariable(message.signalList); break;}
       case 'remove-signal':         {this.removeVariable(message.netlistId); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}
+      case 'handle-keypress':       {this.externalKeyDownHandler(message); break;}
       //case 'update-waveform-full':  {dataManager.updateWaveformFull(message); break;}
       case 'setDisplayFormat':      {dataManager.setDisplayFormat(message); break;}
       case 'setWaveDromClock':      {dataManager.waveDromClock = {netlistId: message.netlistId, edge:  message.edge,}; break;}

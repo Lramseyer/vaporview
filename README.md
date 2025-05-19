@@ -47,10 +47,10 @@ This is a work in progress effort, and will be finalized in the 1.4 Release. Det
 - **Shift + Scroll Wheel** - Scroll up and down on waveforms
 - **Up/Down Arrow** - Select signal above/below selected signal
 - **Alt + Up/Down Arrow** - Rearrange selected signal
-- **Ctrl + Left/Right Arrow** - Move marker to previous/next value transition of selected signal
+- **Ctrl/Command + Left/Right Arrow** - Move marker to previous/next value transition of selected signal
 - **Alt + Click or Middle Click** - Set Alt-Marker
 - **Home** and **End** - Scroll to the beginning and end (respectively) of the waveform
-- **Delete** - Remove Selected Signal
+- **Delete** or **Backspace** - Remove Selected Signal
 
 ## Adding and Removing Signals
 

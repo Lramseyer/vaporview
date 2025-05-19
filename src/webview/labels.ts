@@ -71,6 +71,7 @@ export class LabelsPanels {
   draggableItemNewIndex: any = null;
   pointerStartX: any         = null;
   pointerStartY: any         = null;
+  scrollStartY: any          = null;
   resizeIndex: any           = null;
   valueAtMarker: any         = {};
 
@@ -223,6 +224,7 @@ export class LabelsPanels {
 
     this.pointerStartX = event.clientX;
     this.pointerStartY = event.clientY;
+    this.scrollStartY  = this.labelsScroll.scrollTop;
 
     this.draggableItem.classList.remove('is-idle');
     this.draggableItem.classList.remove('is-selected');
@@ -236,11 +238,12 @@ export class LabelsPanels {
     this.idleItems             = this.labelsList.filter((item: any) => {return item.classList.contains('is-idle');});
   }
 
-  dragMove(event: MouseEvent) {
+  dragMove(event: MouseEvent | any) {
     if (!this.draggableItem) {return;}
 
+    const scrollOffsetY  = this.labelsScroll.scrollTop - this.scrollStartY;
     const pointerOffsetX = event.clientX - this.pointerStartX;
-    const pointerOffsetY = event.clientY - this.pointerStartY;
+    const pointerOffsetY = event.clientY - this.pointerStartY + scrollOffsetY;
 
     this.draggableItem.style.transform = `translate(${pointerOffsetX}px, ${pointerOffsetY}px)`;
 

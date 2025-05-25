@@ -760,7 +760,7 @@ static void __PrintTimeValChng(ffrVCTrvsHdl vc_trvs_hdl, fsdbTag64 *time,
           // *((float *)vc_ptr));
           vc_float = *((float *)vc_ptr);
           min = std::min(min, static_cast<double>(vc_float));
-          max = std::min(max, static_cast<double>(vc_float));
+          max = std::max(max, static_cast<double>(vc_float));
           valueChange = Napi::Array::New(env, 2);
           valueChange.Set((uint32_t)0, Napi::Number::New(
                                            env, combineTime(time->H, time->L)));
@@ -785,7 +785,7 @@ static void __PrintTimeValChng(ffrVCTrvsHdl vc_trvs_hdl, fsdbTag64 *time,
       // *((double *)vc_ptr));
       vc_double = *((double *)vc_ptr);
       min = std::min(min, vc_double);
-      max = std::min(max, vc_double);
+      max = std::max(max, vc_double);
       valueChange = Napi::Array::New(env, 2);
       valueChange.Set((uint32_t)0,
                       Napi::Number::New(env, combineTime(time->H, time->L)));

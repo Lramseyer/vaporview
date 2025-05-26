@@ -813,20 +813,14 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
       });
     });
 
-    signalIdList.forEach(async (signalId) => {
+    // Map each signalId to a promise for handling its task.
+    const tasks = signalIdList.map(async (signalId) => {
       const result = await this.callFsdbWorkerTask({
         command: 'getValueChanges',
         signalId: signalId
       });
       const message = result as FsdbWorkerMessage;
       const data = message.result as FsdbWaveformData;
-      //this.webviewPanel?.webview.postMessage({
-      //  command: 'update-waveform-full',
-      //  signalId: signalId,
-      //  transitionData: data.valueChanges,
-      //  min: data.min,
-      //  max: data.max
-      //});
 
       // Since we're receiving the full set of value changes, we can hard code
       // the chunk number and total chunks
@@ -845,6 +839,8 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
         signalId: signalId
       });
     });
+    // Run all tasks concurrently and wait for them to complete.
+    // await Promise.all(tasks);
   }
 
   public async getValuesAtTime(e: any): Promise<any> {

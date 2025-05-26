@@ -39,8 +39,8 @@ ffrObject *fsdb_obj = nullptr;
 // Logical offsets in scope 'Top'
 static std::vector<fsdbLUOff> scope_offset;
 
-static std::vector<std::string> module_path_stack;
-static std::string module_path;
+static std::vector<std::string> scope_path_stack;
+static std::string scope_path;
 static std::stack<uint_T> arraysize_stack;
 
 // Not using atomic here. Note that we assume all addon call will be
@@ -218,7 +218,7 @@ void readVars(const Napi::CallbackInfo &info) {
   if (!CHECK_FUNCTION(env, info[3])) return;
   if (!CHECK_FUNCTION(env, info[4])) return;
 
-  module_path = info[0].As<Napi::String>();
+  scope_path = info[0].As<Napi::String>();
   size_t scopeOffsetIdx =
       static_cast<size_t>(info[1].As<Napi::Number>().Uint32Value());
   fsdbVarCallback = info[2].As<Napi::Function>();
@@ -269,7 +269,7 @@ static bool_T MyTreeCB(fsdbTreeCBType cb_type, void *client_data,
       // fprintf(stderr, "<Upscope>\n");
 
       fsdbUpscopeCallback.Call(std::vector<Napi::Value>());
-      module_path_stack.pop_back();
+      scope_path_stack.pop_back();
       break;
 
     case FSDB_TREE_CBT_VAR:
@@ -326,17 +326,17 @@ static bool_T MyTreeCB(fsdbTreeCBType cb_type, void *client_data,
   return TRUE;
 }
 
-static std::string joinModulePath(std::vector<std::string> &module_path_stack) {
-  if (module_path_stack.empty()) {
+static std::string joinScopePath(std::vector<std::string> &scope_path_stack) {
+  if (scope_path_stack.empty()) {
     return "";
   }
   std::ostringstream oss;
-  oss << module_path_stack[0];  // Add the first item without a leading
+  oss << scope_path_stack[0];  // Add the first item without a leading
                                 // delimiter
 
   // Append the rest with a delimiter "."
-  for (size_t i = 1; i < module_path_stack.size(); i++) {
-    oss << "." << module_path_stack[i];
+  for (size_t i = 1; i < scope_path_stack.size(); i++) {
+    oss << "." << scope_path_stack[i];
   }
 
   return oss.str();
@@ -373,8 +373,9 @@ static void __DumpScope(fsdbTreeCBDataScope *scope) {
 
   // fprintf(stderr, "<Scope> name:%s  type:%s\n", scope->name, type);
 
-  module_path_stack.push_back(scope->name);
-  std::string path = joinModulePath(module_path_stack);
+  // scope_path_stack.push_back(scope->name);
+  std::string path = joinScopePath(scope_path_stack);
+  scope_path_stack.push_back(scope->name);
 
   std::vector<Napi::Value> args;
   args.push_back(Napi::String::New(env_global, scope->name));
@@ -536,7 +537,7 @@ static void __DumpVar(fsdbTreeCBDataVar *var) {
   args.push_back(Napi::String::New(env_global, var->name));
   args.push_back(Napi::String::New(env_global, type));
   args.push_back(Napi::String::New(env_global, encoding));
-  args.push_back(Napi::String::New(env_global, module_path));
+  args.push_back(Napi::String::New(env_global, scope_path));
   args.push_back(Napi::Number::New(env_global, netlistId));
   args.push_back(Napi::Number::New(env_global, var->u.idcode));
   args.push_back(Napi::Number::New(
@@ -555,7 +556,7 @@ void __DumpArray(fsdbTreeCBDataArrayBegin *array) {
 
   std::vector<Napi::Value> args;
   args.push_back(Napi::String::New(env_global, name));
-  args.push_back(Napi::String::New(env_global, module_path));
+  args.push_back(Napi::String::New(env_global, scope_path));
   args.push_back(Napi::Number::New(env_global, netlistId));
   fsdbArrayBeginCallback.Call(args);
   netlistId++;
@@ -803,7 +804,7 @@ static void __PrintTimeValChng(ffrVCTrvsHdl vc_trvs_hdl, fsdbTag64 *time,
 
 void unload(const Napi::CallbackInfo &info) {
   scope_offset.clear();
-  module_path_stack.clear();
+  scope_path_stack.clear();
   std::stack<uint_T> s;
   arraysize_stack.swap(s);  // clear the stack
   env_global = nullptr;

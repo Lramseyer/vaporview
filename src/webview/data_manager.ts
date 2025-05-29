@@ -1,9 +1,10 @@
-import { NetlistData, SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext } from './vaporview';
+import { SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager } from './vaporview';
 import { formatBinary, formatHex, ValueFormat, formatString, valueFormatList } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer, signedLinearWaveformRenderer, signedSteppedrWaveformRenderer } from './renderer';
+import { VariableItem } from './signal_item';
 
 // This will be populated when a custom color is set
-let customColorKey = [];
+export let customColorKey = [];
 
 export class WaveformDataManager {
   requested: SignalId[] = [];
@@ -12,7 +13,7 @@ export class WaveformDataManager {
   requestStart: number = 0;
 
   valueChangeData: WaveformData[] = [];
-  netlistData: NetlistData[]      = [];
+  netlistData: VariableItem[]     = [];
   valueChangeDataTemp: any        = [];
 
   contentArea: HTMLElement = document.getElementById('contentArea')!;
@@ -79,55 +80,31 @@ export class WaveformDataManager {
 
     let updateFlag     = false;
     let selectedSignal = viewerState.selectedSignal;
-
     const signalIdList: any  = [];
     const netlistIdList: any = [];
+
     signalList.forEach((signal: any) => {
 
       const netlistId = signal.netlistId;
       const signalId  = signal.signalId;
+      const varItem = new VariableItem(
+        netlistId,
+        signalId,
+        signal.signalName,
+        signal.scopePath,
+        signal.signalWidth,
+        signal.type,
+        signal.encoding,
+        signal.signalWidth === 1 ? binaryWaveformRenderer : multiBitWaveformRenderer,
+      );
 
-      let valueFormat;
-      let colorIndex = 0;
-      if (signal.encoding === "String") {
-        valueFormat = formatString;
-        colorIndex  = 1;
-      } else if (signal.encoding === "Real") {
-        valueFormat = formatString;
-      } else {
-        valueFormat = signal.signalWidth === 1 ? formatBinary : formatHex;
-      }
-
-      this.netlistData[netlistId] = {
-        signalId:     signalId,
-        signalWidth:  signal.signalWidth,
-        signalName:   signal.signalName,
-        scopePath:    signal.scopePath,
-        variableType: signal.type,
-        encoding:     signal.encoding,
-        vscodeContext: "",
-        valueLinkCommand: "",
-        valueLinkBounds: [],
-        valueLinkIndex: -1,
-        valueFormat:  valueFormat,
-        renderType:   signal.signalWidth === 1 ? binaryWaveformRenderer : multiBitWaveformRenderer,
-        colorIndex:   colorIndex,
-        color:        "",
-        wasRendered:  false,
-        formattedValues: [],
-        formatValid:  false,
-        canvas:       null,
-        ctx:          null,
-      };
-
-      this.netlistData[netlistId].vscodeContext = this.setSignalContextAttribute(netlistId);
-      this.setColorFromColorIndex(this.netlistData[netlistId]);
+      this.netlistData[netlistId] = varItem;
       netlistIdList.push(netlistId);
 
       if (this.valueChangeData[signalId] !== undefined) {
         selectedSignal = netlistId;
         updateFlag     = true;
-        this.cacheValueFormat(this.netlistData[netlistId]);
+        varItem.cacheValueFormat();
       } else if (this.valueChangeDataTemp[signalId] !== undefined) {
         this.valueChangeDataTemp[signalId].netlistIdList.push(netlistId);
       } else if (this.valueChangeDataTemp[signalId] === undefined) {
@@ -207,7 +184,7 @@ export class WaveformDataManager {
 
     netlistIdList.forEach((netlistId: NetlistId) => {
       this.events.dispatch(ActionType.RedrawVariable, netlistId);
-      this.cacheValueFormat(this.netlistData[netlistId]);
+      this.netlistData[netlistId].cacheValueFormat();
     });
   }
 
@@ -234,37 +211,10 @@ export class WaveformDataManager {
     return low;
   }
 
-  setColorFromColorIndex(netlistData: NetlistData | undefined) {
-    if (netlistData === undefined) {return;}
-    const colorIndex = netlistData.colorIndex;
-    if (colorIndex < 4) {
-      netlistData.color = viewport.colorKey[colorIndex];
-    } else {
-      netlistData.color = customColorKey[colorIndex - 4];
-    }
-  }
-
   handleColorChange() {
     viewport.getThemeColors();
     this.netlistData.forEach((data) => {
-      this.setColorFromColorIndex(data);
-    });
-  }
-
-  async cacheValueFormat(netlistData: NetlistData) {
-    return new Promise<void>((resolve) => {
-      const valueChangeData = this.valueChangeData[netlistData.signalId];
-      if (valueChangeData === undefined)            {resolve(); return;}
-      if (netlistData.renderType.id !== "multiBit") {resolve(); return;}
-      if (netlistData.formatValid)                  {resolve(); return;}
-
-      netlistData.formattedValues = valueChangeData.transitionData.map(([, value]) => {
-        const is9State = netlistData.valueFormat.is9State(value);
-        return netlistData.valueFormat.formatString(value, netlistData.signalWidth, !is9State);
-      });
-      netlistData.formatValid = true;
-      resolve();
-      return;
+      data.setColorFromColorIndex();
     });
   }
 
@@ -281,13 +231,13 @@ export class WaveformDataManager {
       netlistData.formatValid = false;
       netlistData.formattedValues = [];
       netlistData.valueFormat = valueFormat;
-      this.cacheValueFormat(netlistData);
+      netlistData.cacheValueFormat();
     }
 
     if (message.color !== undefined) {
       customColorKey = message.customColors;
       netlistData.colorIndex = message.color;
-      this.setColorFromColorIndex(netlistData);
+      netlistData.setColorFromColorIndex();
     }
 
     if (message.renderType !== undefined) {
@@ -302,7 +252,7 @@ export class WaveformDataManager {
       }
 
       if (netlistData.renderType.id === "multiBit") {
-        this.cacheValueFormat(netlistData);
+        netlistData.cacheValueFormat();
       }
     }
 
@@ -328,26 +278,8 @@ export class WaveformDataManager {
 
     sendWebviewContext();
 
-    this.netlistData[netlistId].vscodeContext = this.setSignalContextAttribute(netlistId);
+    netlistData.setSignalContextAttribute();
     this.events.dispatch(ActionType.RedrawVariable, netlistId);
-  }
-
-  setSignalContextAttribute(netlistId: NetlistId) {
-    const width        = this.netlistData[netlistId].signalWidth;
-    const scopePath   = this.netlistData[netlistId].scopePath;
-    const signalName   = this.netlistData[netlistId].signalName;
-    //const attribute    = `data-vscode-context=${JSON.stringify({
-      const attribute    = `${JSON.stringify({
-      webviewSection: "signal",
-      scopePath: scopePath,
-      signalName: signalName,
-      type: this.netlistData[netlistId].variableType,
-      width: width,
-      preventDefaultContextMenuItems: true,
-      commandValid: this.netlistData[netlistId].valueLinkCommand !== "",
-      netlistId: netlistId,
-    }).replace(/\s/g, '%x20')}`;
-    return attribute;
   }
 
   getNearestTransitionIndex(signalId: SignalId, time: number) {

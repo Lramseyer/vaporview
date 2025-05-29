@@ -1,7 +1,8 @@
-import { vscode, NetlistData,  WaveformData, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState } from "./vaporview";
+import { vscode, WaveformData, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { labelsPanel } from "./vaporview";
+import { VariableItem } from "./signal_item";
 
 const domParser = new DOMParser();
 
@@ -23,7 +24,7 @@ export class Viewport {
   markerElement: HTMLElement;
   altMarkerElement: HTMLElement;
   netlistLinkElement: HTMLElement | null = null;
-  valueLinkObject: NetlistData | null = null;
+  valueLinkObject: VariableItem | null = null;
 
   highlightElement: any     = null;
   highlightEndEvent: any    = null;
@@ -192,10 +193,10 @@ export class Viewport {
     this.addNetlistLink();
     this.getThemeColors();
     this.updateViewportWidth();
+    this.updateScrollbarResize();
     this.handleZoom(1, 0, 0);
     restoreState();
     //this.updateRuler();
-    //this.updateScrollbarResize();
     //this.updatePending = false;
   }
 
@@ -262,7 +263,6 @@ export class Viewport {
     this.updateBackgroundCanvas();
   }
 
-
   setRulerVscodeContext() {
     const unitsList = ['fs', 'ps', 'ns', 'µs', 'ms', 's'];
     const maxTime   = (10 ** this.logScaleFromUnits(this.timeUnit)) * this.timeScale * this.timeStop;
@@ -279,6 +279,14 @@ export class Viewport {
     this.rulerElement.setAttribute("data-vscode-context", `${JSON.stringify(context).replace(/\s/g, '%x20')}`);
   }
 
+  public resizeCanvas(canvasElement: HTMLElement, ctx: CanvasRenderingContext2D, width: number, height: number) {
+    canvasElement.setAttribute("width",  `${width * this.pixelRatio}`);
+    canvasElement.setAttribute("height", `${height * this.pixelRatio}`);
+    canvasElement.style.width  = `${width}px`;
+    canvasElement.style.height = `${height}px`;
+    ctx.scale(this.pixelRatio, this.pixelRatio);
+  }
+
   handleAddVariable(netlistIdList: NetlistId[], updateFlag: boolean) {
     netlistIdList.forEach((netlistId) => {
       if (!dataManager.netlistData[netlistId]) {return;}
@@ -288,20 +296,18 @@ export class Viewport {
       const canvas = document.createElement('canvas');
       canvas.setAttribute('id', 'waveform-canvas-' + netlistId);
       canvas.classList.add('waveform-canvas');
-      canvas.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
-      canvas.setAttribute("height", `${20 * this.pixelRatio}`);
-      canvas.style.width  = `${this.viewerWidth}px`;
-      canvas.style.height = '20px';
+      netlistData.canvas = canvas;
+      netlistData.ctx = canvas.getContext('2d');
+      if (netlistData.ctx) {
+        this.resizeCanvas(canvas, netlistData.ctx, this.viewerWidth, 20);
+      }
       const waveformContainer = document.createElement('div');
       waveformContainer.setAttribute('id', 'waveform-' + netlistId);
       waveformContainer.classList.add('waveform-container');
       waveformContainer.appendChild(canvas);
       waveformContainer.setAttribute("data-vscode-context", netlistData.vscodeContext);
       this.waveformArea.appendChild(waveformContainer);
-      netlistData.canvas = canvas;
-      netlistData.ctx = canvas.getContext('2d');
-      netlistData.ctx?.scale(this.pixelRatio, this.pixelRatio);
-      if (updateFlag) {this.renderWaveform(netlistData);}
+      if (updateFlag) {netlistData.renderWaveform();}
     });
     this.waveformsHeight = this.contentArea.getBoundingClientRect().height;
     this.updateBackgroundCanvas();
@@ -409,7 +415,7 @@ export class Viewport {
 
     if (redraw) {
       netlistData.wasRendered = false;
-      this.renderWaveform(netlistData);
+      netlistData.renderWaveform();
     }
   }
 
@@ -507,16 +513,9 @@ export class Viewport {
   updateScrollbarResize() {
     this.scrollbarWidth        = Math.max(Math.round((this.viewerWidth ** 2) / (this.timeStop * this.zoomRatio)), 17);
     this.maxScrollbarPosition  = Math.max(this.viewerWidth - this.scrollbarWidth, 0);
-
     this.updateScrollBarPosition();
     this.scrollbar.style.width  = this.scrollbarWidth + 'px';
     this.scrollbar.style.height = 10 + 'px';
-
-    this.scrollbarCanvasElement.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
-    this.scrollbarCanvasElement.setAttribute("height", `${10 * this.pixelRatio}`);
-    this.scrollbarCanvasElement.style.width  = `${this.viewerWidth}px`;
-    this.scrollbarCanvasElement.style.height = '10px';
-    this.scrollbarCanvas?.scale(this.pixelRatio, this.pixelRatio);
     this.updateScrollContainer();
   }
 
@@ -617,69 +616,24 @@ export class Viewport {
   }
 
   renderAllWaveforms(skipRendered: boolean) {
-    const netlistData = dataManager.netlistData;
+    //const netlistData = dataManager.netlistData;
     const viewerHeightMinusRuler = this.viewerHeight - 40;
     const scrollTop   = this.scrollArea.scrollTop;
     const startIndex  = Math.floor(scrollTop / 28);
     const endIndex    = Math.ceil((scrollTop + viewerHeightMinusRuler) / 28);
 
     viewerState.displayedSignals.forEach((netlistId, i) => {
+      const netlistData = dataManager.netlistData[netlistId];
 
-      if (!skipRendered && netlistData[netlistId].wasRendered) {return;}
+      if (!skipRendered && netlistData.wasRendered) {return;}
 
       if (i < startIndex || i >= endIndex) {
-        netlistData[netlistId].wasRendered = false;
+        netlistData.wasRendered = false;
         return;
       }
 
-      this.renderWaveform(netlistData[netlistId]);
+      netlistData.renderWaveform();
     });
-  }
-
-  renderWaveform(netlistData: NetlistData) {
-
-    const signalId = netlistData.signalId;
-    const data     = dataManager.valueChangeData[signalId];
-
-    if (!data) {return;}
-    if (!netlistData.ctx) {return;}
-
-    // find the closest timestampt to timeScrollLeft
-    const valueChanges = data.transitionData;
-    const startIndex   = Math.max(dataManager.binarySearch(valueChanges, this.timeScrollLeft - (2 * this.pixelTime)), 1);
-    const endIndex     = dataManager.binarySearch(valueChanges, this.timeScrollRight);
-    const initialState = valueChanges[startIndex - 1];
-    let   postState    = valueChanges[endIndex];
-
-    if (endIndex >= valueChanges.length) {
-      postState = [this.viewerWidth * this.pixelTime, ''];
-    }
-
-    const valueChangeChunk = {
-      valueChanges: valueChanges,
-      startIndex: startIndex,
-      endIndex: endIndex,
-      initialState: initialState,
-      postState: postState,
-      encoding: netlistData.encoding,
-      signalWidth: netlistData.signalWidth,
-      min: data.min,
-      max: data.max,
-    };
-  
-    // I should probably move this functionally into the data manager
-    if (netlistData.encoding !== "Real") {
-      if (netlistData.renderType.id === 'steppedSigned' || netlistData.renderType.id === 'linearSigned') {
-        valueChangeChunk.min = Math.max(-Math.pow(2, netlistData.signalWidth - 1), -128);
-        valueChangeChunk.max = Math.min(Math.pow(2, netlistData.signalWidth - 1) - 1, 127);
-      } else {
-        valueChangeChunk.min = 0;
-        valueChangeChunk.max = Math.min(Math.pow(2, netlistData.signalWidth) - 1, 255);
-      }
-    }
-
-    netlistData.renderType.draw(valueChangeChunk, netlistData, this);
-    netlistData.wasRendered = true;
   }
 
   async annotateWaveform(netlistId: NetlistId, valueList: string[]) {
@@ -716,7 +670,7 @@ export class Viewport {
 
     const netlistElement = dataManager.netlistData[viewerState.displayedSignals[newIndex]];
     if (!netlistElement) {return;}
-    if (!netlistElement.wasRendered) {this.renderWaveform(netlistElement);}
+    if (!netlistElement.wasRendered) {netlistElement.renderWaveform();}
   }
 
   handleRemoveVariable(netlistId: NetlistId) {
@@ -954,7 +908,6 @@ export class Viewport {
     ctx.stroke();
   }
 
-
   handleZoom(amount: number, zoomOrigin: number, screenPosition: number) {
     // -1 zooms in, +1 zooms out
     // zoomRatio is in pixels per time unit
@@ -980,7 +933,7 @@ export class Viewport {
     this.timeScrollLeft   = this.pseudoScrollLeft * this.pixelTime;
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
     this.timeScrollRight  = this.timeScrollLeft + this.viewerWidthTime;
-    this.zoomOffset      = Math.log2(this.zoomRatio / this.defaultZoom);
+    this.zoomOffset       = Math.log2(this.zoomRatio / this.defaultZoom);
     const baseZoom        = (2 ** Math.floor(this.zoomOffset)) * this.defaultZoom;
     const spacingRatio    = 2 ** (this.zoomOffset - Math.floor(this.zoomOffset));
     this.rulerTickSpacing = this.minTickSpacing * spacingRatio;
@@ -1006,7 +959,7 @@ export class Viewport {
     if (viewerState.markerTime !== null) {
       labelsPanel.valueAtMarker[netlistId] = dataManager.getValueAtTime(netlistId, viewerState.markerTime);
     }
-    this.renderWaveform(dataManager.netlistData[netlistId]);
+    dataManager.netlistData[netlistId].renderWaveform();
   }
 
   updateViewportWidth() {
@@ -1021,32 +974,16 @@ export class Viewport {
     this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth, 0));
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
     this.timeScrollRight  = this.timeScrollLeft + this.viewerWidthTime;
-    this.scrollbarCanvasElement.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
     this.minZoomRatio     = (this.viewerWidth) / this.timeStop;
 
-    // Update Ruler Canvas Dimensions
-    this.rulerCanvasElement.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
-    this.rulerCanvasElement.setAttribute("height", `${40 * this.pixelRatio}`);
-    this.rulerCanvasElement.style.width  = `${this.viewerWidth}px`;
-    this.rulerCanvasElement.style.height = '40px';
-    this.rulerCanvas.scale(this.pixelRatio, this.pixelRatio);
-
-    // Update Background Canvas Dimensions
-    this.backgroundCanvasElement.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
-    this.backgroundCanvasElement.setAttribute("height", `${this.viewerHeight * this.pixelRatio}`);
-    this.backgroundCanvasElement.style.width  = `${this.viewerWidth}px`;
-    this.backgroundCanvasElement.style.height = `${this.viewerHeight}px`;
-    this.backgroundCanvas.scale(this.pixelRatio, this.pixelRatio);
+    // Update Ruler Canvas, Background Canvas, and Scrollbar Canvas Dimensions
+    this.resizeCanvas(this.scrollbarCanvasElement, this.scrollbarCanvas, this.viewerWidth, 10);
+    this.resizeCanvas(this.rulerCanvasElement, this.rulerCanvas, this.viewerWidth, 40);
+    this.resizeCanvas(this.backgroundCanvasElement, this.backgroundCanvas, this.viewerWidth, this.viewerHeight);
 
     // Update Waveform Canvas Dimensions
     dataManager.netlistData.forEach((netlistItem) => {
-      if (!netlistItem.canvas) {return;}
-      //netlistItem.canvas.setAttribute("width",  `${this.viewerWidth}`);
-      netlistItem.canvas.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
-      netlistItem.canvas.setAttribute("height", `${20 * this.pixelRatio}`);
-      netlistItem.canvas.style.width  = `${this.viewerWidth}px`;
-      netlistItem.canvas.style.height = '20px';
-      netlistItem.ctx?.scale(this.pixelRatio, this.pixelRatio);
+      netlistItem.resize();
     });
 
     if (this.minZoomRatio > this.zoomRatio) {

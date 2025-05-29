@@ -17,27 +17,18 @@ interface VsCodeApi {
 export type NetlistId = number;
 export type SignalId  = number;
 export type ValueChange = [number, string];
-export type NetlistData = {
-  signalId: number;
-  signalName: string;
-  scopePath: string;
-  signalWidth: number;
-  valueFormat: ValueFormat;
-  vscodeContext: string;
-  valueLinkCommand: string;
-  valueLinkBounds: [number, number][];
-  valueLinkIndex: number;
-  variableType: string;
-  encoding: string;
-  renderType: WaveformRenderer;
-  colorIndex: number;
-  color: string;
-  formattedValues: string[];
-  formatValid: boolean;
-  wasRendered: boolean;
-  canvas: HTMLCanvasElement | null;
-  ctx: CanvasRenderingContext2D | null;
-};
+
+export enum CollapseState {
+  None      = 0,
+  Collapsed = 1,
+  Expanded  = 2,
+}
+
+export enum DataType {
+  None,
+  Variable,
+  Group,
+}
 
 export type WaveformData = {
   transitionData: any[];
@@ -267,8 +258,6 @@ class VaporviewWebview {
   scrollHandler(e: any) {
     e.preventDefault();
     //console.log(event);
-
-
     //if (!isTouchpad) {e.preventDefault();}
 
     const deltaY = e.deltaY;

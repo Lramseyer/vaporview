@@ -259,10 +259,12 @@
         },
         {
           "command": "vaporview.copyName",
+          "when": "view == 'waveformViewerNetlistView' || view == 'waveformViewerDisplayedSignalsView'",
           "group": "1_default@8"
         },
         {
           "command": "vaporview.addVariableByInstancePath",
+          "when": "view == 'waveformViewerNetlistView' || view == 'waveformViewerDisplayedSignalsView'",
           "group": "2_addVariable"
         },
         {

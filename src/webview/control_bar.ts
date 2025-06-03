@@ -121,13 +121,13 @@ export class ControlBar {
     }
 
     if (viewerState.markerTime === null) {return;}
-  
-    const signalId = dataManager.netlistData[viewerState.selectedSignal].signalId;
+
+    const signalId = dataManager.rowItems[viewerState.selectedSignal].signalId;
     const data     = dataManager.valueChangeData[signalId];
     const time     = viewerState.markerTime;
     let timeIndex;
     let indexIncrement;
-  
+
     if (edge === undefined) {
       timeIndex = data.transitionData.findIndex(([t, v]) => {return t >= time;});
       indexIncrement = 1;
@@ -135,18 +135,18 @@ export class ControlBar {
       timeIndex = data.transitionData.findIndex(([t, v]) => {return t >= time && v === edge;});
       indexIncrement = 2;
     }
-  
+
     if (timeIndex === -1) {
       //console.log('search found a -1 index');
       return;
     }
-  
+
     if ((direction === 1) && (time === data.transitionData[timeIndex][0])) {timeIndex += indexIncrement;}
     else if (direction === -1) {timeIndex -= indexIncrement;}
   
     timeIndex = Math.max(timeIndex, 0);
     timeIndex = Math.min(timeIndex, data.transitionData.length - 1);
-  
+
     this.events.dispatch(ActionType.MarkerSet, data.transitionData[timeIndex][0], 0);
   }
 
@@ -255,7 +255,7 @@ export class ControlBar {
     //console.log(viewerState.selectedSignal);
     //console.log(this.searchState);
     if (viewerState.selectedSignal !== null) {
-      const format = dataManager.netlistData[viewerState.selectedSignal].valueFormat;
+      const format = dataManager.rowItems[viewerState.selectedSignal].valueFormat;
       const checkValid = format.checkValid;
       const parseValue = format.parseValueForSearch;
   
@@ -292,7 +292,7 @@ export class ControlBar {
     let startTime = viewerState.markerTime;
     if (startTime === null) {startTime = 0;}
   
-    const signalId = dataManager.netlistData[viewerState.selectedSignal].signalId;
+    const signalId = dataManager.rowItems[viewerState.selectedSignal].signalId;
   
     if (this.searchState === SearchState.Time && direction === 1) {
       this.events.dispatch(ActionType.MarkerSet, parseInt(this.parsedSearchValue), 0);
@@ -336,13 +336,13 @@ export class ControlBar {
       return;
     }
 
-    this.updateButtonsForSelectedWaveform(dataManager.netlistData[netlistId].signalWidth);
-    this.valueEqualsSymbol.textContent = dataManager.netlistData[netlistId]?.valueFormat.symbolText;
+    this.updateButtonsForSelectedWaveform(dataManager.rowItems[netlistId].signalWidth);
+    this.valueEqualsSymbol.textContent = dataManager.rowItems[netlistId]?.valueFormat.symbolText;
   }
 
   handleRedrawVariable(netlistId: NetlistId) {
     if (netlistId === viewerState.selectedSignal) {
-      this.valueEqualsSymbol.textContent = dataManager.netlistData[netlistId]?.valueFormat.symbolText;
+      this.valueEqualsSymbol.textContent = dataManager.rowItems[netlistId]?.valueFormat.symbolText;
     }
   }
 

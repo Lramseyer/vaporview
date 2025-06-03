@@ -16,6 +16,7 @@ interface VsCodeApi {
 
 export type NetlistId = number;
 export type SignalId  = number;
+export type RowId     = number;
 export type ValueChange = [number, string];
 
 export enum CollapseState {
@@ -133,7 +134,7 @@ function createWebviewContext() {
     zoomRatio: vaporview.viewport.zoomRatio,
     scrollLeft: vaporview.viewport.pseudoScrollLeft,
     displayedSignals: viewerState.displayedSignals.map((id: NetlistId) => {
-      const data = dataManager.netlistData[id];
+      const data = dataManager.rowItems[id];
       return {
         netlistId:        id,
         name:             data.scopePath + "." + data.signalName,
@@ -322,7 +323,7 @@ class VaporviewWebview {
     if (e.key === 'd' && e.ctrlKey) {
       console.log(this.viewport.updatePending);
       console.log(viewerState);
-      console.log(dataManager.netlistData);
+      console.log(dataManager.rowItems);
     }
 
     // left and right arrow keys move the marker
@@ -427,7 +428,7 @@ class VaporviewWebview {
 
   handleSignalSelect(netlistId: NetlistId | null) {
     if (netlistId === null) {return;}
-    const netlistData = dataManager.netlistData[netlistId];
+    const netlistData = dataManager.rowItems[netlistId];
     sendWebviewContext();
     if (netlistData === undefined) {return;}
 
@@ -531,7 +532,7 @@ class VaporviewWebview {
 
   handleSetSelectedSignal(netlistId: NetlistId) {
     if (netlistId === null) {return;}
-    if (dataManager.netlistData[netlistId] === undefined) {return;}
+    if (dataManager.rowItems[netlistId] === undefined) {return;}
     this.events.dispatch(ActionType.SignalSelect, netlistId);
   }
 

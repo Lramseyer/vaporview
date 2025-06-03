@@ -86,7 +86,7 @@ export class LabelsPanels {
     const transitions: string[] = [];
     viewerState.displayedSignals.forEach((netlistId, index) => {
       const isSelected  = (netlistId === viewerState.selectedSignal);
-      const netlistData = dataManager.netlistData[netlistId];
+      const netlistData = dataManager.rowItems[netlistId];
       this.labelsList.push(netlistData.createLabelElement(isSelected));
       transitions.push(netlistData.createValueDisplayElement(this.valueAtMarker[netlistId], isSelected));
     });
@@ -108,8 +108,8 @@ export class LabelsPanels {
     const value = this.valueAtMarker[netlistId];
     if (value === undefined) {return;}
 
-    const formatString   = dataManager.netlistData[netlistId].valueFormat.formatString;
-    const width          = dataManager.netlistData[netlistId].signalWidth;
+    const formatString   = dataManager.rowItems[netlistId].valueFormat.formatString;
+    const width          = dataManager.rowItems[netlistId].signalWidth;
     const bitVector      = value[value.length - 1];
     const formattedValue = formatString(bitVector, width, true);
 

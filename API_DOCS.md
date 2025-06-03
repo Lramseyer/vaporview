@@ -54,7 +54,7 @@ All signals in the webview will emit the following attributes when right clicked
 - **webviewSection** - "signal"
 - **scopePath** - Instance path (delimited by "." characters) without the variable name
 - **signalName** - Variable or Scope Name
-- **type** - this.netlistData[netlistId].variableType,
+- **type** - this.rowItems[netlistId].variableType,
 - **width** - BitVector Bit Width of Variable, will be 0 for Strings and Reals
 - **preventDefaultContextMenuItems** - always true
 - **netlistId** -  Variable ID in waveform dump file
@@ -297,7 +297,7 @@ A submenu or menu group will be added for Signal Item context menu, and it will 
 - **netlistId** -  Variable ID in waveform dump file
 - **scopePath** - Instance path (delimited by "." characters) without the variable name
 - **signalName** - Variable or Scope Name
-- **type** - this.netlistData[netlistId].variableType,
+- **type** - this.rowItems[netlistId].variableType,
 - **width** - BitVector Bit Width of Variable, will be 0 for Strings and Reals
 - **encoding** - "BitVector" | "Real" | "String" | "none"
 - **numberFormat** - Number format

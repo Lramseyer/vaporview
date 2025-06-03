@@ -134,7 +134,8 @@ function createWebviewContext() {
     zoomRatio: vaporview.viewport.zoomRatio,
     scrollLeft: vaporview.viewport.pseudoScrollLeft,
     displayedSignals: viewerState.displayedSignals.map((id: NetlistId) => {
-      const data = dataManager.rowItems[id];
+      const rowId = dataManager.netlistIdTable[id];
+      const data  = dataManager.rowItems[rowId];
       return {
         netlistId:        id,
         name:             data.scopePath + "." + data.signalName,
@@ -428,7 +429,8 @@ class VaporviewWebview {
 
   handleSignalSelect(netlistId: NetlistId | null) {
     if (netlistId === null) {return;}
-    const netlistData = dataManager.rowItems[netlistId];
+    const rowId = dataManager.netlistIdTable[netlistId];
+    const netlistData = dataManager.rowItems[rowId];
     sendWebviewContext();
     if (netlistData === undefined) {return;}
 
@@ -532,7 +534,8 @@ class VaporviewWebview {
 
   handleSetSelectedSignal(netlistId: NetlistId) {
     if (netlistId === null) {return;}
-    if (dataManager.rowItems[netlistId] === undefined) {return;}
+    const rowId = dataManager.netlistIdTable[netlistId];
+    if (dataManager.rowItems[rowId] === undefined) {return;}
     this.events.dispatch(ActionType.SignalSelect, netlistId);
   }
 

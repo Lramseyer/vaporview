@@ -289,12 +289,13 @@ export class Viewport {
 
   handleAddVariable(netlistIdList: NetlistId[], updateFlag: boolean) {
     netlistIdList.forEach((netlistId) => {
-      if (!dataManager.rowItems[netlistId]) {return;}
+      const rowId = dataManager.netlistIdTable[netlistId];
+      if (!dataManager.rowItems[rowId]) {return;}
       this.removeNetlistLink();
-      const netlistData = dataManager.rowItems[netlistId];
+      const netlistData = dataManager.rowItems[rowId];
       // create a canvas element and add it to the scroll area
       const canvas = document.createElement('canvas');
-      canvas.setAttribute('id', 'waveform-canvas-' + netlistId);
+      canvas.setAttribute('id', 'waveform-canvas-' + rowId);
       canvas.classList.add('waveform-canvas');
       netlistData.canvas = canvas;
       netlistData.ctx = canvas.getContext('2d');
@@ -382,7 +383,8 @@ export class Viewport {
   mouseOverHandler(event: MouseEvent, checkBounds: boolean) {
     if (!event.target) {return;}
     const netlistId   = parseInt(event.target.id.split('-').pop());
-    const netlistData = dataManager.rowItems[netlistId];
+    const rowId       = dataManager.netlistIdTable[netlistId];
+    const netlistData = dataManager.rowItems[rowId];
     let redraw        = false;
     let valueIndex    = -1;
     if (!netlistData) {return;}
@@ -478,7 +480,8 @@ export class Viewport {
 
   handleValueLink(netlistId: NetlistId, time: number, snapToTime: number) {
 
-    const netlistData = dataManager.rowItems[netlistId];
+    const rowId = dataManager.netlistIdTable[netlistId];
+    const netlistData = dataManager.rowItems[rowId];
 
     if (!netlistData) {return;}
     if (netlistData.valueLinkCommand === "") {return;}
@@ -623,7 +626,8 @@ export class Viewport {
     const endIndex    = Math.ceil((scrollTop + viewerHeightMinusRuler) / 28);
 
     viewerState.displayedSignals.forEach((netlistId, i) => {
-      const netlistData = dataManager.rowItems[netlistId];
+      const rowId = dataManager.netlistIdTable[netlistId];
+      const netlistData = dataManager.rowItems[rowId];
 
       if (!skipRendered && netlistData.wasRendered) {return;}
 
@@ -638,7 +642,8 @@ export class Viewport {
 
   async annotateWaveform(netlistId: NetlistId, valueList: string[]) {
 
-    const netlistData     = dataManager.rowItems[netlistId];
+    const rowId           = dataManager.netlistIdTable[netlistId];
+    const netlistData     = dataManager.rowItems[rowId];
     if (!netlistData) {return;}
     const signalId        = netlistData.signalId;
     const data            = dataManager.valueChangeData[signalId];
@@ -668,7 +673,8 @@ export class Viewport {
     arrayMove(children, oldIndex, newIndex);
     this.waveformArea.replaceChildren(...children);
 
-    const netlistElement = dataManager.rowItems[viewerState.displayedSignals[newIndex]];
+    const rowId = dataManager.netlistIdTable[viewerState.displayedSignals[newIndex]];
+    const netlistElement = dataManager.rowItems[rowId];
     if (!netlistElement) {return;}
     if (!netlistElement.wasRendered) {netlistElement.renderWaveform();}
   }
@@ -680,7 +686,8 @@ export class Viewport {
     });
     this.waveformArea.replaceChildren(...children);
     this.renderAllWaveforms(false);
-    const netlistElement = dataManager.rowItems[netlistId];
+    const rowId = dataManager.netlistIdTable[netlistId];
+    const netlistElement = dataManager.rowItems[rowId];
     if (!netlistElement) {return;}
     if (netlistElement.canvas) {netlistElement.canvas.remove();}
     this.waveformsHeight = this.contentArea.getBoundingClientRect().height;
@@ -959,7 +966,8 @@ export class Viewport {
     if (viewerState.markerTime !== null) {
       labelsPanel.valueAtMarker[netlistId] = dataManager.getValueAtTime(netlistId, viewerState.markerTime);
     }
-    dataManager.rowItems[netlistId].renderWaveform();
+    const rowId = dataManager.netlistIdTable[netlistId];
+    dataManager.rowItems[rowId].renderWaveform();
   }
 
   updateViewportWidth() {

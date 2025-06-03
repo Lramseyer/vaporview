@@ -122,7 +122,8 @@ export class ControlBar {
 
     if (viewerState.markerTime === null) {return;}
 
-    const signalId = dataManager.rowItems[viewerState.selectedSignal].signalId;
+    const rowId    = dataManager.netlistIdTable[viewerState.selectedSignal];
+    const signalId = dataManager.rowItems[rowId].signalId;
     const data     = dataManager.valueChangeData[signalId];
     const time     = viewerState.markerTime;
     let timeIndex;
@@ -255,7 +256,8 @@ export class ControlBar {
     //console.log(viewerState.selectedSignal);
     //console.log(this.searchState);
     if (viewerState.selectedSignal !== null) {
-      const format = dataManager.rowItems[viewerState.selectedSignal].valueFormat;
+      const rowId  = dataManager.netlistIdTable[viewerState.selectedSignal];
+      const format = dataManager.rowItems[rowId].valueFormat;
       const checkValid = format.checkValid;
       const parseValue = format.parseValueForSearch;
   
@@ -292,7 +294,8 @@ export class ControlBar {
     let startTime = viewerState.markerTime;
     if (startTime === null) {startTime = 0;}
   
-    const signalId = dataManager.rowItems[viewerState.selectedSignal].signalId;
+    const rowId  = dataManager.netlistIdTable[viewerState.selectedSignal];
+    const signalId = dataManager.rowItems[rowId].signalId;
   
     if (this.searchState === SearchState.Time && direction === 1) {
       this.events.dispatch(ActionType.MarkerSet, parseInt(this.parsedSearchValue), 0);
@@ -336,13 +339,15 @@ export class ControlBar {
       return;
     }
 
-    this.updateButtonsForSelectedWaveform(dataManager.rowItems[netlistId].signalWidth);
-    this.valueEqualsSymbol.textContent = dataManager.rowItems[netlistId]?.valueFormat.symbolText;
+    const rowId  = dataManager.netlistIdTable[netlistId];
+    this.updateButtonsForSelectedWaveform(dataManager.rowItems[rowId].signalWidth);
+    this.valueEqualsSymbol.textContent = dataManager.rowItems[rowId]?.valueFormat.symbolText;
   }
 
   handleRedrawVariable(netlistId: NetlistId) {
     if (netlistId === viewerState.selectedSignal) {
-      this.valueEqualsSymbol.textContent = dataManager.rowItems[netlistId]?.valueFormat.symbolText;
+      const rowId  = dataManager.netlistIdTable[netlistId];
+      this.valueEqualsSymbol.textContent = dataManager.rowItems[rowId]?.valueFormat.symbolText;
     }
   }
 

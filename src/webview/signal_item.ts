@@ -64,6 +64,7 @@ export class VariableItem extends SignalItem {
 
   public createLabelElement(isSelected: boolean) {
 
+    const rowId         = dataManager.netlistIdTable[this.netlistId];
     const selectorClass = isSelected ? 'is-selected' : '';
     const signalName    = htmlSafe(this.signalName);
     const scopePath     = htmlSafe(this.scopePath + '.');
@@ -78,6 +79,7 @@ export class VariableItem extends SignalItem {
   public createValueDisplayElement(value: any, isSelected: boolean) {
     if (value === undefined) {value = [];}
 
+    const rowId         = dataManager.netlistIdTable[this.netlistId];
     const selectorClass = isSelected ? 'is-selected' : 'is-idle';
     const joinString    = '<p style="color:var(--vscode-foreground)">-></p>';
     const parseValue    = this.valueFormat.formatString;

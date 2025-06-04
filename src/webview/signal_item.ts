@@ -1,4 +1,4 @@
-import { dataManager, viewport } from "./vaporview";
+import { dataManager, viewport, CollapseState } from "./vaporview";
 import { formatBinary, formatHex, formatString, ValueFormat } from "./value_format";
 import { WaveformRenderer } from "./renderer";
 import { customColorKey } from "./data_manager";
@@ -17,6 +17,7 @@ export abstract class SignalItem {
   public valueDisplayElement: HTMLElement | null = null
   public viewportElement: HTMLElement | null = null
   public vscodeContext: string = "";
+  public wasRendered: boolean = false;
 
   public abstract createLabelElement(isSelected: boolean)
   public abstract createValueDisplayElement(value: any, isSelected: boolean)
@@ -70,7 +71,7 @@ export class VariableItem extends SignalItem {
     const scopePath     = htmlSafe(this.scopePath + '.');
     const fullPath      = htmlAttributeSafe(scopePath + signalName);
     const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
-    return `<div class="waveform-label is-idle ${selectorClass}" id="label-${this.netlistId}" title="${tooltip}" data-vscode-context=${this.vscodeContext}>
+    return `<div class="waveform-label is-idle ${selectorClass}" id="label-${rowId}" title="${tooltip}" data-vscode-context=${this.vscodeContext}>
               <div class='codicon codicon-grabber'></div>
               <p style="opacity:50%">${scopePath}</p><p>${signalName}</p>
             </div>`;
@@ -91,7 +92,7 @@ export class VariableItem extends SignalItem {
       return `<p style="color:${colorStyle}">${displayValue}</p>`;
     }).join(joinString);
 
-    return `<div class="waveform-label ${selectorClass}" id="value-${this.netlistId}" data-vscode-context=${this.vscodeContext}>${pElement}</div>`;
+    return `<div class="waveform-label ${selectorClass}" id="value-${rowId}" data-vscode-context=${this.vscodeContext}>${pElement}</div>`;
   }
 
   public setSignalContextAttribute() {
@@ -182,4 +183,44 @@ export class VariableItem extends SignalItem {
     if (!this.canvas || !this.ctx) {return;}
     viewport.resizeCanvas(this.canvas, this.ctx, viewport.viewerWidth, 20);
   }
+}
+
+export class SignalGroup extends SignalItem {
+
+  public collapseState: CollapseState = CollapseState.Expanded;
+  public children: SignalItem[] = [];
+
+  constructor(
+    public rowId: number,
+    public label: string
+  ) {super();}
+
+  public createLabelElement(isSelected: boolean) {
+
+    const selectorClass = isSelected ? 'is-selected' : '';
+    //const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
+    return `<div class="waveform-label is-idle ${selectorClass}" id="label-${this.rowId}" data-vscode-context=${this.vscodeContext}>
+              <div class='codicon codicon-grabber'></div>
+              <p>${this.label}</p>
+            </div>`;
+    }
+
+  public createValueDisplayElement(value: any, isSelected: boolean) {
+
+    const selectorClass = isSelected ? 'is-selected' : 'is-idle';
+    return `<div class="waveform-label ${selectorClass}" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}></div>`;
+  }
+
+  public setSignalContextAttribute() {
+    this.vscodeContext = `${JSON.stringify({
+      webviewSection: "signal-group",
+      preventDefaultContextMenuItems: true,
+      rowId: this.rowId,
+    }).replace(/\s/g, '%x20')}`;
+  }
+
+  public renderWaveform() {this.wasRendered = true;}
+  public setColorFromColorIndex() {return;}
+  public async cacheValueFormat() {return new Promise<void>((resolve) => {return;});}
+  public resize() {return;}
 }

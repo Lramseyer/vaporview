@@ -84,6 +84,7 @@ export class WaveformDataManager {
     let selectedSignal = viewerState.selectedSignal;
     const signalIdList: any  = [];
     const netlistIdList: any = [];
+    const rowIdList: any     = [];
 
     signalList.forEach((signal: any) => {
 
@@ -111,9 +112,10 @@ export class WaveformDataManager {
 
       this.rowItems[rowId] = varItem;
       netlistIdList.push(netlistId);
+      rowIdList.push(rowId);
 
       if (this.valueChangeData[signalId] !== undefined) {
-        selectedSignal = netlistId;
+        selectedSignal = rowId;
         updateFlag     = true;
         varItem.cacheValueFormat();
       } else if (this.valueChangeDataTemp[signalId] !== undefined) {
@@ -128,7 +130,7 @@ export class WaveformDataManager {
     });
 
     this.request(signalIdList);
-    viewerState.displayedSignals = viewerState.displayedSignals.concat(netlistIdList);
+    viewerState.displayedSignals = viewerState.displayedSignals.concat(rowIdList);
     this.events.dispatch(ActionType.AddVariable, netlistIdList, updateFlag);
     this.events.dispatch(ActionType.SignalSelect, selectedSignal);
 
@@ -377,9 +379,10 @@ export class WaveformDataManager {
   
     // Populate the waveDrom names with the selected signals
     const waveDromData: any = {};
-    viewerState.displayedSignals.forEach((netlistId) => {
-      const rowId = this.netlistIdTable[netlistId];
-      const netlistItem: any     = this.rowItems[rowId];
+    viewerState.displayedSignals.forEach((rowId) => {
+
+      const netlistItem: any = this.rowItems[rowId];
+      const netlistId       = netlistItem.netlistId;
       const signalName      = netlistItem.scopePath + "." + netlistItem.signalName;
       const signalId        = netlistItem.signalId;
       const transitionData  = this.valueChangeData[signalId].transitionData;
@@ -416,8 +419,8 @@ export class WaveformDataManager {
         if (time !== currentTime) {
           currentTime = time;
           transitionCount++;
-          viewerState.displayedSignals.forEach((n) => {
-            const rowId = this.netlistIdTable[n];
+          viewerState.displayedSignals.forEach((rowId) => {
+            const n = this.rowItems[rowId].netlistId;
             const signal = waveDromData[n];
             const parseValue = this.rowItems[rowId].valueFormat.formatString;
             const valueIs9State = this.rowItems[rowId].valueFormat.is9State;
@@ -445,8 +448,9 @@ export class WaveformDataManager {
         if (index === clockEdges.length - 1) {nextEdge = timeWindow[1];}
         else {nextEdge    = clockEdges[index + 1][0];}
         if (currentTime >= timeWindow[1] || transitionCount >= MAX_TRANSITIONS) {break;}
-        viewerState.displayedSignals.forEach((n) => {
-          const rowId = this.netlistIdTable[n];
+        viewerState.displayedSignals.forEach((rowId) => {
+
+          const n = this.rowItems[rowId].netlistId;
           const signal = waveDromData[n];
           const signalData = signal.signalData;
           const parseValue = this.rowItems[rowId].valueFormat.formatString;
@@ -477,7 +481,8 @@ export class WaveformDataManager {
   
     // write the waveDrom JSON to the clipboard
     let result = '{"signal": [\n';
-    viewerState.displayedSignals.forEach((netlistId) => {
+    viewerState.displayedSignals.forEach((rowId) => {
+      const netlistId = this.rowItems[rowId].netlistId;
       const signalData = waveDromData[netlistId].json;
       result += '  ' + JSON.stringify(signalData) + ',\n';
     });

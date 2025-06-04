@@ -126,18 +126,25 @@ export function sendDisplayedSignals() {
 }
 
 function createWebviewContext() {
+  let selectedNetlistId: any = null; 
+  if (viewerState.selectedSignal !== null) {
+    const data = dataManager.rowItems[viewerState.selectedSignal];
+    if (data) {
+      selectedNetlistId = data.netlistId;
+    }
+  }
   return  {
     markerTime: viewerState.markerTime,
     altMarkerTime: viewerState.altMarkerTime,
     displayTimeUnit: viewport.displayTimeUnit,
-    selectedSignal: viewerState.selectedSignal,
+    selectedSignal: selectedNetlistId,
     zoomRatio: vaporview.viewport.zoomRatio,
     scrollLeft: vaporview.viewport.pseudoScrollLeft,
-    displayedSignals: viewerState.displayedSignals.map((id: NetlistId) => {
-      const rowId = dataManager.netlistIdTable[id];
-      const data  = dataManager.rowItems[rowId];
+    displayedSignals: viewerState.displayedSignals.map((id: RowId) => {
+      const data  = dataManager.rowItems[id];
+      const netlistId = data.netlistId;
       return {
-        netlistId:        id,
+        netlistId:        netlistId,
         name:             data.scopePath + "." + data.signalName,
         numberFormat:     data.valueFormat.id,
         colorIndex:       data.colorIndex,
@@ -427,12 +434,12 @@ class VaporviewWebview {
     });
   }
 
-  handleSignalSelect(netlistId: NetlistId | null) {
-    if (netlistId === null) {return;}
-    const rowId = dataManager.netlistIdTable[netlistId];
+  handleSignalSelect(rowId: RowId | null) {
+    if (rowId === null) {return;}
     const netlistData = dataManager.rowItems[rowId];
     sendWebviewContext();
     if (netlistData === undefined) {return;}
+    const netlistId = netlistData.netlistId;
 
     let instancePath = netlistData.scopePath + '.' + netlistData.signalName;
     if (netlistData.scopePath === "") {instancePath = netlistData.signalName;}
@@ -499,8 +506,10 @@ class VaporviewWebview {
   // We need to let the extension know that we are removing a variable so that
   // it can update the views. Rather than handling it and telling the extension,
   // we just have the extension handle it as normal.
-  removeVariableInternal(netlistId: NetlistId | null) {
-    if (netlistId === null) {return;}
+  removeVariableInternal(rowId: RowId | null) {
+    if (rowId === null) {return;}
+    const netlistId = dataManager.rowItems[rowId].netlistId;
+    if (netlistId === undefined) {return;}
     vscode.postMessage({
       command: 'removeVariable',
       netlistId: netlistId
@@ -509,7 +518,10 @@ class VaporviewWebview {
 
   removeVariable(netlistId: NetlistId | null) {
     if (netlistId === null) {return;}
-    const index = viewerState.displayedSignals.findIndex((id: NetlistId) => id === netlistId);
+
+    const index = viewerState.displayedSignals.findIndex((rowId: RowId) => {
+      dataManager.rowItems[rowId].netlistId === netlistId
+    });
     //console.log('deleting signal' + message.signalId + 'at index' + index);
     if (index === -1) {
       return;
@@ -517,8 +529,8 @@ class VaporviewWebview {
       const newindex = Math.min(viewerState.displayedSignals.length - 2, index);
       this.events.dispatch(ActionType.RemoveVariable, netlistId);
       if (viewerState.selectedSignal === netlistId) {
-        const newNetlistId = viewerState.displayedSignals[newindex];
-        this.events.dispatch(ActionType.SignalSelect, newNetlistId);
+        const newRowId = viewerState.displayedSignals[newindex];
+        this.events.dispatch(ActionType.SignalSelect, newRowId);
       }
     }
   }
@@ -532,11 +544,10 @@ class VaporviewWebview {
     }
   }
 
-  handleSetSelectedSignal(netlistId: NetlistId) {
-    if (netlistId === null) {return;}
-    const rowId = dataManager.netlistIdTable[netlistId];
+  handleSetSelectedSignal(rowId: RowId | null) {
+    if (rowId === null) {return;}
     if (dataManager.rowItems[rowId] === undefined) {return;}
-    this.events.dispatch(ActionType.SignalSelect, netlistId);
+    this.events.dispatch(ActionType.SignalSelect, rowId);
   }
 
   handleMessage(e: any) {

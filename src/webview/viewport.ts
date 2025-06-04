@@ -1,4 +1,4 @@
-import { vscode, WaveformData, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState } from "./vaporview";
+import { vscode, WaveformData, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { labelsPanel } from "./vaporview";
@@ -303,7 +303,7 @@ export class Viewport {
         this.resizeCanvas(canvas, netlistData.ctx, this.viewerWidth, 20);
       }
       const waveformContainer = document.createElement('div');
-      waveformContainer.setAttribute('id', 'waveform-' + netlistId);
+      waveformContainer.setAttribute('id', 'waveform-' + rowId);
       waveformContainer.classList.add('waveform-container');
       waveformContainer.appendChild(canvas);
       waveformContainer.setAttribute("data-vscode-context", netlistData.vscodeContext);
@@ -450,9 +450,10 @@ export class Viewport {
     let snapToTime = time;
 
     // Get the signal id of the click
-    let netlistId: any     = null;
+    let rowId: any    = null;
     const containerId = event.target?.closest('.waveform-container');
-    if (containerId) {netlistId = parseInt(containerId.id.split('-').slice(1));}
+    if (containerId) {rowId = parseInt(containerId.id.split('-').slice(1));}
+    let netlistId = dataManager.rowItems[rowId]?.netlistId;
     if (netlistId !== undefined && netlistId !== null && netlistId >= 0) {
 
       // Snap to the nearest transition if the click is close enough
@@ -471,7 +472,7 @@ export class Viewport {
       }
 
       if (button === 0) {
-        this.events.dispatch(ActionType.SignalSelect, netlistId);
+        this.events.dispatch(ActionType.SignalSelect, rowId);
       }
     } else if (isNaN(netlistId)) {return;}
 
@@ -625,8 +626,7 @@ export class Viewport {
     const startIndex  = Math.floor(scrollTop / 28);
     const endIndex    = Math.ceil((scrollTop + viewerHeightMinusRuler) / 28);
 
-    viewerState.displayedSignals.forEach((netlistId, i) => {
-      const rowId = dataManager.netlistIdTable[netlistId];
+    viewerState.displayedSignals.forEach((rowId, i) => {
       const netlistData = dataManager.rowItems[rowId];
 
       if (!skipRendered && netlistData.wasRendered) {return;}
@@ -673,7 +673,7 @@ export class Viewport {
     arrayMove(children, oldIndex, newIndex);
     this.waveformArea.replaceChildren(...children);
 
-    const rowId = dataManager.netlistIdTable[viewerState.displayedSignals[newIndex]];
+    const rowId = viewerState.displayedSignals[newIndex];
     const netlistElement = dataManager.rowItems[rowId];
     if (!netlistElement) {return;}
     if (!netlistElement.wasRendered) {netlistElement.renderWaveform();}
@@ -739,13 +739,13 @@ export class Viewport {
     this.scrollbarCanvas.stroke();
   }
 
-  handleSignalSelect(netlistId: NetlistId | null) {
+  handleSignalSelect(rowId: RowId | null) {
 
-    if (netlistId === null) {return;}
+    if (rowId === null) {return;}
 
     let element = document.getElementById('waveform-' + viewerState.selectedSignal);
     if (element && viewerState.selectedSignal !== null) {element.classList.remove('is-selected');}
-    element = document.getElementById('waveform-' + netlistId);
+    element = document.getElementById('waveform-' + rowId);
     if (element) {element.classList.add('is-selected');}
   }
 
@@ -964,7 +964,8 @@ export class Viewport {
 
   handleRedrawSignal(netlistId: NetlistId) {
     if (viewerState.markerTime !== null) {
-      labelsPanel.valueAtMarker[netlistId] = dataManager.getValueAtTime(netlistId, viewerState.markerTime);
+      const rowId = dataManager.netlistIdTable[netlistId];
+      labelsPanel.valueAtMarker[rowId] = dataManager.getValueAtTime(netlistId, viewerState.markerTime);
     }
     const rowId = dataManager.netlistIdTable[netlistId];
     dataManager.rowItems[rowId].renderWaveform();

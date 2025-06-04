@@ -1,5 +1,5 @@
 import { commands } from 'vscode';
-import {ActionType, EventHandler, NetlistId, viewerState, viewport, dataManager, vscode} from './vaporview';
+import {ActionType, EventHandler, NetlistId, viewerState, viewport, dataManager, vscode, RowId} from './vaporview';
 
 enum ButtonState {
   Disabled = 0,
@@ -333,15 +333,20 @@ export class ControlBar {
     }
   }
 
-  handleSignalSelect(netlistId: NetlistId) {
-    if (netlistId === null || netlistId === undefined) {
+  handleSignalSelect(rowId: RowId) {
+    if (rowId === null || rowId === undefined) {
       this.updateButtonsForSelectedWaveform(null);
       return;
     }
 
-    const rowId  = dataManager.netlistIdTable[netlistId];
-    this.updateButtonsForSelectedWaveform(dataManager.rowItems[rowId].signalWidth);
-    this.valueEqualsSymbol.textContent = dataManager.rowItems[rowId]?.valueFormat.symbolText;
+    const signalItem = dataManager.rowItems[rowId];
+    if (signalItem === undefined) {
+      this.updateButtonsForSelectedWaveform(null);
+      return;
+    }
+
+    this.updateButtonsForSelectedWaveform(signalItem.signalWidth);
+    this.valueEqualsSymbol.textContent = signalItem.valueFormat.symbolText;
   }
 
   handleRedrawVariable(netlistId: NetlistId) {

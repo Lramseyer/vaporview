@@ -1,4 +1,4 @@
-import { EventHandler, viewport, arrayMove, NetlistId, ActionType, viewerState, dataManager} from './vaporview';
+import { EventHandler, viewport, arrayMove, NetlistId, ActionType, viewerState, dataManager, RowId} from './vaporview';
 import { ValueFormat } from './value_format';
 import { vscode } from './vaporview';
 
@@ -84,12 +84,11 @@ export class LabelsPanels {
   renderLabelsPanels() {
     this.labelsList  = [];
     const transitions: string[] = [];
-    viewerState.displayedSignals.forEach((netlistId, index) => {
-      const isSelected  = (netlistId === viewerState.selectedSignal);
-      const rowId       = dataManager.netlistIdTable[netlistId];
+    viewerState.displayedSignals.forEach((rowId, index) => {
+      const isSelected  = (rowId === viewerState.selectedSignal);
       const netlistData = dataManager.rowItems[rowId];
       this.labelsList.push(netlistData.createLabelElement(isSelected));
-      transitions.push(netlistData.createValueDisplayElement(this.valueAtMarker[netlistId], isSelected));
+      transitions.push(netlistData.createValueDisplayElement(this.valueAtMarker[rowId], isSelected));
     });
     this.labels.innerHTML            = this.labelsList.join('');
     this.transitionDisplay.innerHTML = transitions.join('');
@@ -106,10 +105,10 @@ export class LabelsPanels {
   copyValueAtMarker(netlistId: NetlistId | undefined) {
 
     if (netlistId === undefined) {return;}
-    const value = this.valueAtMarker[netlistId];
+    const rowId = dataManager.netlistIdTable[netlistId];
+    const value = this.valueAtMarker[rowId];
     if (value === undefined) {return;}
 
-    const rowId          = dataManager.netlistIdTable[netlistId];
     const formatString   = dataManager.rowItems[rowId].valueFormat.formatString;
     const width          = dataManager.rowItems[rowId].signalWidth;
     const bitVector      = value[value.length - 1];
@@ -259,7 +258,9 @@ export class LabelsPanels {
   }
 
   handleRemoveVariable(netlistId: NetlistId) {
-    const index = viewerState.displayedSignals.findIndex((id: NetlistId) => id === netlistId);
+    const index = viewerState.displayedSignals.findIndex((id: RowId) => {
+      dataManager.rowItems[id].netlistId === netlistId
+    });
     viewerState.displayedSignals.splice(index, 1);
     this.renderLabelsPanels();
   }
@@ -284,20 +285,21 @@ export class LabelsPanels {
     if (time > viewport.timeStop || time < 0) {return;}
 
     if (markerType === 0) {
-      viewerState.displayedSignals.forEach((netlistId) => {
-        this.valueAtMarker[netlistId] = dataManager.getValueAtTime(netlistId, time);
+      viewerState.displayedSignals.forEach((rowId) => {
+        const netlistId = dataManager.rowItems[rowId].netlistId;
+        this.valueAtMarker[rowId] = dataManager.getValueAtTime(netlistId, time);
       });
 
       this.renderLabelsPanels();
     }
   }
 
-  handleSignalSelect(netlistId: NetlistId | null) {
+  handleSignalSelect(rowId: RowId | null) {
 
-    if (netlistId === null) {return;}
+    if (rowId === null) {return;}
 
-    viewerState.selectedSignal      = netlistId;
-    viewerState.selectedSignalIndex = viewerState.displayedSignals.findIndex((signal) => {return signal === netlistId;});
+    viewerState.selectedSignal      = rowId;
+    viewerState.selectedSignalIndex = viewerState.displayedSignals.findIndex((signal) => {return signal === rowId;});
     if (viewerState.selectedSignalIndex === -1) {viewerState.selectedSignalIndex = null;}
   
     this.renderLabelsPanels();

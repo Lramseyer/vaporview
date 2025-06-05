@@ -253,14 +253,13 @@ export class LabelsPanels {
     }
   }
 
-  handleAddVariable(netlistIdList: NetlistId[], updateFlag: boolean) {
+  handleAddVariable(rowIdList: RowId[], updateFlag: boolean) {
     this.renderLabelsPanels();
   }
 
-  handleRemoveVariable(netlistId: NetlistId) {
-    const index = viewerState.displayedSignals.findIndex((id: RowId) => {
-      dataManager.rowItems[id].netlistId === netlistId
-    });
+  handleRemoveVariable(rowId: any) {
+    const index = viewerState.displayedSignals.findIndex((id: any) => {return id === rowId;});
+    if (index === -1) {return;}
     viewerState.displayedSignals.splice(index, 1);
     this.renderLabelsPanels();
   }
@@ -286,8 +285,7 @@ export class LabelsPanels {
 
     if (markerType === 0) {
       viewerState.displayedSignals.forEach((rowId) => {
-        const netlistId = dataManager.rowItems[rowId].netlistId;
-        this.valueAtMarker[rowId] = dataManager.getValueAtTime(netlistId, time);
+        this.valueAtMarker[rowId] = dataManager.getValueAtTime(rowId, time);
       });
 
       this.renderLabelsPanels();
@@ -305,7 +303,7 @@ export class LabelsPanels {
     this.renderLabelsPanels();
   }
 
-  handleRedrawVariable(netlistId: NetlistId) {
+  handleRedrawVariable(rowId: RowId) {
     this.renderLabelsPanels();
   }
 

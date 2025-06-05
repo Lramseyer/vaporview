@@ -1,5 +1,5 @@
 import { commands } from 'vscode';
-import {ActionType, EventHandler, NetlistId, viewerState, viewport, dataManager, vscode, RowId} from './vaporview';
+import {ActionType, EventHandler, viewerState, viewport, dataManager, vscode, RowId} from './vaporview';
 
 enum ButtonState {
   Disabled = 0,
@@ -122,7 +122,7 @@ export class ControlBar {
 
     if (viewerState.markerTime === null) {return;}
 
-    const rowId    = dataManager.netlistIdTable[viewerState.selectedSignal];
+    const rowId    = viewerState.selectedSignal;
     const signalId = dataManager.rowItems[rowId].signalId;
     const data     = dataManager.valueChangeData[signalId];
     const time     = viewerState.markerTime;
@@ -256,7 +256,7 @@ export class ControlBar {
     //console.log(viewerState.selectedSignal);
     //console.log(this.searchState);
     if (viewerState.selectedSignal !== null) {
-      const rowId  = dataManager.netlistIdTable[viewerState.selectedSignal];
+      const rowId  = viewerState.selectedSignal;
       const format = dataManager.rowItems[rowId].valueFormat;
       const checkValid = format.checkValid;
       const parseValue = format.parseValueForSearch;
@@ -294,7 +294,7 @@ export class ControlBar {
     let startTime = viewerState.markerTime;
     if (startTime === null) {startTime = 0;}
   
-    const rowId  = dataManager.netlistIdTable[viewerState.selectedSignal];
+    const rowId  = viewerState.selectedSignal;
     const signalId = dataManager.rowItems[rowId].signalId;
   
     if (this.searchState === SearchState.Time && direction === 1) {
@@ -349,9 +349,8 @@ export class ControlBar {
     this.valueEqualsSymbol.textContent = signalItem.valueFormat.symbolText;
   }
 
-  handleRedrawVariable(netlistId: NetlistId) {
-    if (netlistId === viewerState.selectedSignal) {
-      const rowId  = dataManager.netlistIdTable[netlistId];
+  handleRedrawVariable(rowId: RowId) {
+    if (rowId === viewerState.selectedSignal) {
       this.valueEqualsSymbol.textContent = dataManager.rowItems[rowId]?.valueFormat.symbolText;
     }
   }

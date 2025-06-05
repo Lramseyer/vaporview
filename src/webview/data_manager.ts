@@ -131,7 +131,7 @@ export class WaveformDataManager {
 
     this.request(signalIdList);
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowIdList);
-    this.events.dispatch(ActionType.AddVariable, netlistIdList, updateFlag);
+    this.events.dispatch(ActionType.AddVariable, rowIdList, updateFlag);
     this.events.dispatch(ActionType.SignalSelect, selectedSignal);
 
     sendWebviewContext();
@@ -197,8 +197,8 @@ export class WaveformDataManager {
     this.valueChangeDataTemp[signalId] = undefined;
 
     netlistIdList.forEach((netlistId: NetlistId) => {
-      this.events.dispatch(ActionType.RedrawVariable, netlistId);
       const rowId = this.netlistIdTable[netlistId];
+      this.events.dispatch(ActionType.RedrawVariable, rowId);
       this.rowItems[rowId].cacheValueFormat();
     });
   }
@@ -288,14 +288,14 @@ export class WaveformDataManager {
     }
 
     if (message.annotateValue !== undefined) {
-      viewport.annotateWaveform(netlistId, message.annotateValue);
+      viewport.annotateWaveform(rowId, message.annotateValue);
       viewport.updateBackgroundCanvas();
     }
 
     sendWebviewContext();
 
     netlistData.setSignalContextAttribute();
-    this.events.dispatch(ActionType.RedrawVariable, netlistId);
+    this.events.dispatch(ActionType.RedrawVariable, rowId);
   }
 
   getNearestTransitionIndex(signalId: SignalId, time: number) {
@@ -313,10 +313,9 @@ export class WaveformDataManager {
     return transitionIndex;
   }
 
-  getValueAtTime(netlistId: NetlistId, time: number) {
+  getValueAtTime(rowId: RowId, time: number) {
 
     const result: string[] = [];
-    const rowId    = this.netlistIdTable[netlistId];
     const signalId = this.rowItems[rowId].signalId;
     const data     = this.valueChangeData[signalId];
   

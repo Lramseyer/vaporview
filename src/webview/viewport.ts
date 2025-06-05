@@ -287,9 +287,8 @@ export class Viewport {
     ctx.scale(this.pixelRatio, this.pixelRatio);
   }
 
-  handleAddVariable(netlistIdList: NetlistId[], updateFlag: boolean) {
-    netlistIdList.forEach((netlistId) => {
-      const rowId = dataManager.netlistIdTable[netlistId];
+  handleAddVariable(rowIdList: RowId[], updateFlag: boolean) {
+    rowIdList.forEach((rowId) => {
       if (!dataManager.rowItems[rowId]) {return;}
       this.removeNetlistLink();
       const netlistData = dataManager.rowItems[rowId];
@@ -382,8 +381,7 @@ export class Viewport {
 
   mouseOverHandler(event: MouseEvent, checkBounds: boolean) {
     if (!event.target) {return;}
-    const netlistId   = parseInt(event.target.id.split('-').pop());
-    const rowId       = dataManager.netlistIdTable[netlistId];
+    const rowId   = parseInt(event.target.id.split('-').pop());
     const netlistData = dataManager.rowItems[rowId];
     let redraw        = false;
     let valueIndex    = -1;
@@ -640,9 +638,8 @@ export class Viewport {
     });
   }
 
-  async annotateWaveform(netlistId: NetlistId, valueList: string[]) {
+  async annotateWaveform(rowId: RowId, valueList: string[]) {
 
-    const rowId           = dataManager.netlistIdTable[netlistId];
     const netlistData     = dataManager.rowItems[rowId];
     if (!netlistData) {return;}
     const signalId        = netlistData.signalId;
@@ -679,14 +676,13 @@ export class Viewport {
     if (!netlistElement.wasRendered) {netlistElement.renderWaveform();}
   }
 
-  handleRemoveVariable(netlistId: NetlistId) {
+  handleRemoveVariable(rowId: RowId) {
 
     const children = Array.from(this.waveformArea.children).filter((element) => {
-      return element.id !== `waveform-${netlistId}`;
+      return element.id !== `waveform-${rowId}`;
     });
     this.waveformArea.replaceChildren(...children);
     this.renderAllWaveforms(false);
-    const rowId = dataManager.netlistIdTable[netlistId];
     const netlistElement = dataManager.rowItems[rowId];
     if (!netlistElement) {return;}
     if (netlistElement.canvas) {netlistElement.canvas.remove();}
@@ -962,12 +958,10 @@ export class Viewport {
     this.updatePending = false;
   }
 
-  handleRedrawSignal(netlistId: NetlistId) {
+  handleRedrawSignal(rowId: RowId) {
     if (viewerState.markerTime !== null) {
-      const rowId = dataManager.netlistIdTable[netlistId];
-      labelsPanel.valueAtMarker[rowId] = dataManager.getValueAtTime(netlistId, viewerState.markerTime);
+      labelsPanel.valueAtMarker[rowId] = dataManager.getValueAtTime(rowId, viewerState.markerTime);
     }
-    const rowId = dataManager.netlistIdTable[netlistId];
     dataManager.rowItems[rowId].renderWaveform();
   }
 

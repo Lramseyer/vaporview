@@ -413,7 +413,7 @@ class VaporviewWebview {
 
   // #region Global Events
   reorderSignals(oldIndex: number, newIndex: number) {
-    //arrayMove(viewerState.displayedSignals, oldIndex, newIndex);
+    arrayMove(viewerState.displayedSignals, oldIndex, newIndex);
     this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignals[newIndex]);
   }
 
@@ -510,6 +510,7 @@ class VaporviewWebview {
     if (rowId === null) {return;}
     const netlistId = dataManager.rowItems[rowId].netlistId;
     if (netlistId === undefined) {return;}
+
     vscode.postMessage({
       command: 'removeVariable',
       netlistId: netlistId
@@ -519,16 +520,16 @@ class VaporviewWebview {
   removeVariable(netlistId: NetlistId | null) {
     if (netlistId === null) {return;}
 
-    const index = viewerState.displayedSignals.findIndex((rowId: RowId) => {
-      dataManager.rowItems[rowId].netlistId === netlistId
-    });
-    //console.log('deleting signal' + message.signalId + 'at index' + index);
-    if (index === -1) {
+    const rowId = dataManager.netlistIdTable[netlistId];
+    const index = viewerState.displayedSignals.indexOf(rowId);
+    console.log('deleting signal ' + netlistId + ' at index' + index);
+    if (rowId === undefined || index < 0) {
       return;
     } else {
       const newindex = Math.min(viewerState.displayedSignals.length - 2, index);
-      this.events.dispatch(ActionType.RemoveVariable, netlistId);
-      if (viewerState.selectedSignal === netlistId) {
+      console.log('removing signal with Row ID ' + netlistId + ' at index ' + index + ' and moving to index ' + newindex);
+      this.events.dispatch(ActionType.RemoveVariable, rowId);
+      if (viewerState.selectedSignal === rowId) {
         const newRowId = viewerState.displayedSignals[newindex];
         this.events.dispatch(ActionType.SignalSelect, newRowId);
       }

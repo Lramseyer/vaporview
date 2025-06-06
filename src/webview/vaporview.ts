@@ -413,7 +413,7 @@ class VaporviewWebview {
 
   // #region Global Events
   reorderSignals(oldIndex: number, newIndex: number) {
-    arrayMove(viewerState.displayedSignals, oldIndex, newIndex);
+    //arrayMove(viewerState.displayedSignals, oldIndex, newIndex);
     this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignals[newIndex]);
   }
 

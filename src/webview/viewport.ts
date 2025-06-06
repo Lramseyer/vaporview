@@ -451,11 +451,13 @@ export class Viewport {
     let rowId: any    = null;
     const containerId = event.target?.closest('.waveform-container');
     if (containerId) {rowId = parseInt(containerId.id.split('-').slice(1));}
-    let netlistId = dataManager.rowItems[rowId]?.netlistId;
+    const signalItem = dataManager.rowItems[rowId];
+    if (!signalItem) {return;}
+    let netlistId = signalItem.netlistId;
     if (netlistId !== undefined && netlistId !== null && netlistId >= 0) {
 
       // Snap to the nearest transition if the click is close enough
-      const nearestTransition = dataManager.getNearestTransition(netlistId, time);
+      const nearestTransition = signalItem.getNearestTransition(time);
 
       if (nearestTransition === null) {return;}
 
@@ -960,7 +962,9 @@ export class Viewport {
 
   handleRedrawSignal(rowId: RowId) {
     if (viewerState.markerTime !== null) {
-      labelsPanel.valueAtMarker[rowId] = dataManager.getValueAtTime(rowId, viewerState.markerTime);
+      const signalItem = dataManager.rowItems[rowId];
+      if (!signalItem) {return;}
+      labelsPanel.valueAtMarker[rowId] = signalItem.getValueAtTime(viewerState.markerTime);
     }
     dataManager.rowItems[rowId].renderWaveform();
   }

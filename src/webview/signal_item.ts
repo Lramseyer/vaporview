@@ -21,7 +21,9 @@ export abstract class SignalItem {
 
   public abstract createLabelElement(isSelected: boolean)
   public abstract createValueDisplayElement(value: any, isSelected: boolean)
-  public abstract renderWaveform()
+  public abstract getValueAtTime(time: number): string[]
+  public getNearestTransition(time: number) {return null}
+  public renderWaveform() {return;}
   public abstract resize()
 }
 
@@ -153,6 +155,53 @@ export class VariableItem extends SignalItem {
     this.wasRendered = true;
   }
 
+  public getValueAtTime(time: number) {
+  
+    const result: string[] = [];
+    const signalId = this.signalId;
+    const data     = dataManager.valueChangeData[signalId];
+  
+    if (!data) {return result;}
+  
+    const transitionData  = data.transitionData;
+    const transitionIndex = dataManager.getNearestTransitionIndex(signalId, time);
+
+    if (transitionIndex === -1) {return result;}
+    if (transitionIndex > 0) {
+      result.push(transitionData[transitionIndex - 1][1]);
+    }
+  
+    if (transitionData[transitionIndex][0] === time) {
+      result.push(transitionData[transitionIndex][1]);
+    }
+  
+    return result;
+  }
+
+  public getNearestTransition(time: number) {
+
+    const signalId = this.signalId;
+    const result = null;
+    if (time === null) {return result;}
+
+    const data  = dataManager.valueChangeData[signalId].transitionData;
+    const index = dataManager.getNearestTransitionIndex(signalId, time);
+    
+    if (index === -1) {return result;}
+    if (data[index][0] === time) {
+      return data[index];
+    }
+  
+    const timeBefore = time - data[index - 1][0];
+    const timeAfter  = data[index][0] - time;
+  
+    if (timeBefore < timeAfter) {
+      return data[index - 1];
+    } else {
+      return data[index];
+    }
+  }
+
   public setColorFromColorIndex() {
     const colorIndex = this.colorIndex;
     if (colorIndex < 4) {
@@ -219,7 +268,8 @@ export class SignalGroup extends SignalItem {
     }).replace(/\s/g, '%x20')}`;
   }
 
-  public renderWaveform() {this.wasRendered = true;}
+  //public renderWaveform() {this.wasRendered = true;}
+  public getValueAtTime(time: number): string[] {return [""];}
   public setColorFromColorIndex() {return;}
   public async cacheValueFormat() {return new Promise<void>((resolve) => {return;});}
   public resize() {return;}

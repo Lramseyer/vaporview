@@ -313,54 +313,6 @@ export class WaveformDataManager {
     return transitionIndex;
   }
 
-  getValueAtTime(rowId: RowId, time: number) {
-
-    const result: string[] = [];
-    const signalId = this.rowItems[rowId].signalId;
-    const data     = this.valueChangeData[signalId];
-  
-    if (!data) {return result;}
-  
-    const transitionData  = data.transitionData;
-    const transitionIndex = this.getNearestTransitionIndex(signalId, time);
-
-    if (transitionIndex === -1) {return result;}
-    if (transitionIndex > 0) {
-      result.push(transitionData[transitionIndex - 1][1]);
-    }
-  
-    if (transitionData[transitionIndex][0] === time) {
-      result.push(transitionData[transitionIndex][1]);
-    }
-  
-    return result;
-  }
-
-  getNearestTransition(netlistId: NetlistId, time: number) {
-
-    const rowId = this.netlistIdTable[netlistId];
-    const signalId = this.rowItems[rowId].signalId;
-    const result = null;
-    if (time === null) {return result;}
-
-    const data  = this.valueChangeData[signalId].transitionData;
-    const index = this.getNearestTransitionIndex(signalId, time);
-    
-    if (index === -1) {return result;}
-    if (data[index][0] === time) {
-      return data[index];
-    }
-  
-    const timeBefore = time - data[index - 1][0];
-    const timeAfter  = data[index][0] - time;
-  
-    if (timeBefore < timeAfter) {
-      return data[index - 1];
-    } else {
-      return data[index];
-    }
-  }
-
   copyWaveDrom() {
 
     // Maximum number of transitions to display

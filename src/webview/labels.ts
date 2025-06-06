@@ -285,7 +285,8 @@ export class LabelsPanels {
 
     if (markerType === 0) {
       viewerState.displayedSignals.forEach((rowId) => {
-        this.valueAtMarker[rowId] = dataManager.getValueAtTime(rowId, time);
+        const signalItem = dataManager.rowItems[rowId];
+        this.valueAtMarker[rowId] = signalItem.getValueAtTime(time);
       });
 
       this.renderLabelsPanels();

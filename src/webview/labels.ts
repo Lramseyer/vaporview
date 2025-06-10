@@ -9,9 +9,9 @@ export class LabelsPanels {
 
   webview: HTMLElement;
   labels: HTMLElement;
-  transitionDisplay: HTMLElement;
+  valueDisplay: HTMLElement;
   labelsScroll: HTMLElement;
-  transitionScroll: HTMLElement;
+  valuesScroll: HTMLElement;
   resize1: HTMLElement;
   resize2: HTMLElement;
 
@@ -30,25 +30,25 @@ export class LabelsPanels {
   constructor(events: EventHandler) {
     this.events = events;
 
-    const webview           = document.getElementById('vaporview-top');
-    const labels            = document.getElementById('waveform-labels');
-    const transitionDisplay = document.getElementById('transition-display');
-    const labelsScroll      = document.getElementById('waveform-labels-container');
-    const transitionScroll  = document.getElementById('transition-display-container');
-    const resize1           = document.getElementById("resize-1");
-    const resize2           = document.getElementById("resize-2");
+    const webview      = document.getElementById('vaporview-top');
+    const labels       = document.getElementById('waveform-labels');
+    const valueDisplay = document.getElementById('value-display');
+    const labelsScroll = document.getElementById('waveform-labels-container');
+    const valuesScroll = document.getElementById('value-display-container');
+    const resize1      = document.getElementById("resize-1");
+    const resize2      = document.getElementById("resize-2");
 
-    if (webview === null || labels === null || transitionDisplay === null || labelsScroll === null || transitionScroll === null || resize1 === null || resize2 === null) {
+    if (webview === null || labels === null || valueDisplay === null || labelsScroll === null || valuesScroll === null || resize1 === null || resize2 === null) {
       throw new Error("Could not find all required elements");
     }
 
-    this.webview           = webview;
-    this.labels            = labels;
-    this.transitionDisplay = transitionDisplay;
-    this.labelsScroll      = labelsScroll;
-    this.transitionScroll  = transitionScroll;
-    this.resize1           = resize1;
-    this.resize2           = resize2;
+    this.webview      = webview;
+    this.labels       = labels;
+    this.valueDisplay = valueDisplay;
+    this.labelsScroll = labelsScroll;
+    this.valuesScroll = valuesScroll;
+    this.resize1      = resize1;
+    this.resize2      = resize2;
 
     this.dragMove              = this.dragMove.bind(this);
     this.resize                = this.resize.bind(this);
@@ -66,8 +66,8 @@ export class LabelsPanels {
     // click and drag handlers to rearrange the order of waveform signals
     labels.addEventListener('mousedown', (e) => {this.dragStart(e);});
     // Event handlers to handle clicking on a waveform label to select a signal
-    labels.addEventListener(           'click', (e) => this.clicklabel(e, labels));
-    transitionDisplay.addEventListener('click', (e) => this.clicklabel(e, transitionDisplay));
+    labels.addEventListener(      'click', (e) => this.clicklabel(e, labels));
+    valueDisplay.addEventListener('click', (e) => this.clicklabel(e, valueDisplay));
     // resize handler to handle column resizing
     resize1.addEventListener("mousedown",   (e) => {this.handleResizeMousedown(e, resize1, 1);});
     resize2.addEventListener("mousedown",   (e) => {this.handleResizeMousedown(e, resize2, 2);});
@@ -90,8 +90,8 @@ export class LabelsPanels {
       this.labelsList.push(netlistData.createLabelElement(isSelected));
       transitions.push(netlistData.createValueDisplayElement(this.valueAtMarker[rowId], isSelected));
     });
-    this.labels.innerHTML            = this.labelsList.join('');
-    this.transitionDisplay.innerHTML = transitions.join('');
+    this.labels.innerHTML       = this.labelsList.join('');
+    this.valueDisplay.innerHTML = transitions.join('');
   }
 
   clicklabel (event: any, containerElement: HTMLElement) {

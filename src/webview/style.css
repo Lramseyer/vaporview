@@ -210,7 +210,7 @@ body {
   left: 150px;
 }
 
-#transition-display-container {
+#value-display-container {
   grid-column-start: 2;
   grid-column-end: 3;
   grid-row-start: 2;

@@ -975,6 +975,17 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
   }
 
+  public newSignalGroup(e: any) {
+    if (!this.activeWebview) {return;}
+    if (!this.activeDocument) {return;}
+    if (!this.activeWebview.visible) {return;}
+
+    const panel      = this.activeWebview;
+    panel.webview.postMessage({
+      command: 'newSignalGroup',
+    });
+  }
+
   public setValueFormat(id: NetlistId | undefined, properties: any) {
     if (id === undefined) {return;}
     if (!this.activeWebview) {return;}

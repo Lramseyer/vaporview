@@ -197,7 +197,7 @@ In no particular order of priority, here's a list of features that are on my rad
 - Add support for remote sessions to save on memory
 - **1.4.0** - Link netlist to RTL tokens so that signals can be connected back to RTL locations - rtlbrowse stems file support (this may require interoperability with another extension)
 - **1.4.0** - Allow users to link .objdump files to a program counter value for a more integrated debug experience
-- Signal groups
+- **1.4.0** - Signal groups
 
 # About This Extension
 

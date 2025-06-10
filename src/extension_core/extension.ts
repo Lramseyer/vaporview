@@ -109,6 +109,10 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.newSignalGroup', (e) => {
+    viewerProvider.newSignalGroup(e);
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.addSelected', (e) => {
     viewerProvider.filterAddSignalsInNetlist(viewerProvider.netlistViewSelectedSignals, false);
   }));

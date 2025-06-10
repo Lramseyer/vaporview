@@ -1,10 +1,10 @@
-import { time } from 'console';
-import { NetlistData } from './vaporview';
+//import { NetlistData } from './vaporview';
+import { VariableItem } from './signal_item';
 import { Viewport } from './viewport';
 
 export interface WaveformRenderer {
   id: string;
-  draw(valueChangeChunk: any, netlistData: NetlistData, viewport: Viewport): void;
+  draw(valueChangeChunk: any, netlistData: VariableItem, viewport: Viewport): void;
 }
 
 // This function actually creates the individual bus elements, and has can
@@ -47,7 +47,7 @@ function busValue(time: number, deltaTime: number, displayValue: string, viewpor
 export const multiBitWaveformRenderer: WaveformRenderer = {
   id: "multiBit",
 
-  draw(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: Viewport) {
+  draw(valueChangeChunk: any, netlistData: VariableItem, viewportSpecs: Viewport) {
 
     const ctx            = netlistData.ctx;
     if (!ctx) {return;}
@@ -266,7 +266,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
 export const binaryWaveformRenderer: WaveformRenderer = {
   id: "binary",
 
-  draw(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: Viewport) {
+  draw(valueChangeChunk: any, netlistData: VariableItem, viewportSpecs: Viewport) {
 
     const ctx            = netlistData.ctx;
     if (!ctx) {return;}
@@ -445,7 +445,7 @@ export const binaryWaveformRenderer: WaveformRenderer = {
   }
 };
 
-function createSvgWaveform(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: any, stepped: boolean, evalCoordinates: (v: string) => number) {
+function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, viewportSpecs: any, stepped: boolean, evalCoordinates: (v: string) => number) {
 
   const ctx            = netlistData.ctx;
   if (!ctx) {return;}
@@ -643,7 +643,7 @@ function getEval(type: string, width: number, signed: boolean) {
 export const linearWaveformRenderer: WaveformRenderer = {
   id: "linear",
 
-  draw(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: any) {
+  draw(valueChangeChunk: any, netlistData: VariableItem, viewportSpecs: any) {
     const evalCoordinates = getEval(valueChangeChunk.encoding, netlistData.signalWidth, false);
     return createSvgWaveform(valueChangeChunk, netlistData, viewportSpecs, false, evalCoordinates);
   }
@@ -652,7 +652,7 @@ export const linearWaveformRenderer: WaveformRenderer = {
 export const signedLinearWaveformRenderer: WaveformRenderer = {
   id: "linearSigned",
 
-  draw(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: any) {
+  draw(valueChangeChunk: any, netlistData: VariableItem, viewportSpecs: any) {
     const evalCoordinates = getEval(valueChangeChunk.encoding, netlistData.signalWidth, true);
     return createSvgWaveform(valueChangeChunk, netlistData, viewportSpecs, false, evalCoordinates);
   }
@@ -661,7 +661,7 @@ export const signedLinearWaveformRenderer: WaveformRenderer = {
 export const steppedrWaveformRenderer: WaveformRenderer = {
   id: "stepped",
 
-  draw(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: any) {
+  draw(valueChangeChunk: any, netlistData: VariableItem, viewportSpecs: any) {
     const evalCoordinates = getEval(valueChangeChunk.encoding, netlistData.signalWidth, false);
     return createSvgWaveform(valueChangeChunk, netlistData, viewportSpecs, true, evalCoordinates);
   }
@@ -670,7 +670,7 @@ export const steppedrWaveformRenderer: WaveformRenderer = {
 export const signedSteppedrWaveformRenderer: WaveformRenderer = {
   id: "steppedSigned",
 
-  draw(valueChangeChunk: any, netlistData: NetlistData, viewportSpecs: any) {
+  draw(valueChangeChunk: any, netlistData: VariableItem, viewportSpecs: any) {
     const evalCoordinates = getEval(valueChangeChunk.encoding, netlistData.signalWidth, true);
     return createSvgWaveform(valueChangeChunk, netlistData, viewportSpecs, true, evalCoordinates);
   }

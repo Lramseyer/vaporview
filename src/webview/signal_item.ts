@@ -268,6 +268,11 @@ export class SignalGroup extends SignalItem {
     }).replace(/\s/g, '%x20')}`;
   }
 
+  public expand() {
+    this.collapseState = CollapseState.Expanded;
+    
+  }
+
   //public renderWaveform() {this.wasRendered = true;}
   public getValueAtTime(time: number): string[] {return [""];}
   public setColorFromColorIndex() {return;}

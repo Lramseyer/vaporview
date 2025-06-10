@@ -339,6 +339,11 @@
           "group": "2_variables@4"
         },
         {
+          "command": "vaporview.newSignalGroup",
+          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "group": "2_variables@5"
+        },
+        {
           "command": "vaporview.saveViewerSettings",
           "group": "3_saveLoad@1",
           "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
@@ -618,6 +623,10 @@
       {
         "command": "vaporview.copyValueAtMarker",
         "title": "Copy Value at Marker"
+      },
+      {
+        "command": "vaporview.newSignalGroup",
+        "title": "New Group"
       },
       {
         "command": "vaporview.displayAsBinary",

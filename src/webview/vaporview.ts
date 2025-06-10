@@ -171,7 +171,7 @@ class VaporviewWebview {
   // HTML Elements
   webview: HTMLElement;
   labelsScroll: HTMLElement;
-  transitionScroll: HTMLElement;
+  valuesScroll: HTMLElement;
   scrollArea: HTMLElement;
   contentArea: HTMLElement;
   scrollbar: HTMLElement;
@@ -196,24 +196,24 @@ class VaporviewWebview {
     this.viewport   = viewport;
     this.controlBar = controlBar;
     // Assuming you have a reference to the webview element
-    const webview           = document.getElementById('vaporview-top');
-    const labelsScroll      = document.getElementById('waveform-labels-container');
-    const transitionScroll  = document.getElementById('transition-display-container');
-    const scrollArea        = document.getElementById('scrollArea');
-    const contentArea       = document.getElementById('contentArea');
-    const scrollbar         = document.getElementById('scrollbar');
+    const webview       = document.getElementById('vaporview-top');
+    const labelsScroll  = document.getElementById('waveform-labels-container');
+    const valuesScroll  = document.getElementById('value-display-container');
+    const scrollArea    = document.getElementById('scrollArea');
+    const contentArea   = document.getElementById('contentArea');
+    const scrollbar     = document.getElementById('scrollbar');
 
-    if (webview === null || labelsScroll === null || transitionScroll === null ||
+    if (webview === null || labelsScroll === null || valuesScroll === null ||
       scrollArea === null || contentArea === null || scrollbar === null) {
       throw new Error("Could not find all required elements");
     }
 
-    this.webview          = webview;
-    this.labelsScroll     = labelsScroll;
-    this.transitionScroll = transitionScroll;
-    this.scrollArea       = scrollArea;
-    this.contentArea      = contentArea;
-    this.scrollbar        = scrollbar;
+    this.webview      = webview;
+    this.labelsScroll = labelsScroll;
+    this.valuesScroll = valuesScroll;
+    this.scrollArea   = scrollArea;
+    this.contentArea  = contentArea;
+    this.scrollbar    = scrollbar;
 
     webview.style.gridTemplateColumns = `150px 50px auto`;
  
@@ -223,14 +223,14 @@ class VaporviewWebview {
     window.addEventListener('keyup',   (e) => {this.keyUpHandler(e);});
     window.addEventListener('mouseup', (e) => {this.handleMouseUp(e, false);});
     window.addEventListener('resize',  ()  => {this.handleResizeViewer();}, false);
-    this.scrollArea.addEventListener(      'wheel', (e) => {this.scrollHandler(e);});
-    this.scrollArea.addEventListener(      'scroll', () => {this.handleViewportScroll();});
-    this.labelsScroll.addEventListener(    'wheel', (e) => {this.syncVerticalScroll(e, labelsScroll.scrollTop);});
-    this.transitionScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, transitionScroll.scrollTop);});
+    this.scrollArea.addEventListener(  'wheel', (e) => {this.scrollHandler(e);});
+    this.scrollArea.addEventListener(  'scroll', () => {this.handleViewportScroll();});
+    this.labelsScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, labelsScroll.scrollTop);});
+    this.valuesScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, valuesScroll.scrollTop);});
 
-    this.handleMarkerSet          = this.handleMarkerSet.bind(this);
-    this.handleSignalSelect       = this.handleSignalSelect.bind(this);
-    this.reorderSignals           = this.reorderSignals.bind(this);
+    this.handleMarkerSet    = this.handleMarkerSet.bind(this);
+    this.handleSignalSelect = this.handleSignalSelect.bind(this);
+    this.reorderSignals     = this.reorderSignals.bind(this);
 
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
@@ -278,7 +278,7 @@ class VaporviewWebview {
       e.stopPropagation();
       this.scrollArea.scrollTop      += deltaY || deltaX;
       this.labelsScroll.scrollTop     = this.scrollArea.scrollTop;
-      this.transitionScroll.scrollTop = this.scrollArea.scrollTop;
+      this.valuesScroll.scrollTop = this.scrollArea.scrollTop;
     } else if (e.ctrlKey) {
       if      (this.viewport.updatePending) {return;}
       // Touchpad mode detection returns false positives with pinches, so we
@@ -303,7 +303,7 @@ class VaporviewWebview {
       //  this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + e.deltaX);
       //  this.scrollArea.scrollTop       += e.deltaY;
       //  this.labelsScroll.scrollTop      = this.scrollArea.scrollTop;
-      //  this.transitionScroll.scrollTop  = this.scrollArea.scrollTop;
+      //  this.valuesScroll.scrollTop  = this.scrollArea.scrollTop;
       //} else {
       //  this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + deltaY);
       //}
@@ -313,9 +313,9 @@ class VaporviewWebview {
 
       if (e.deltaX !== 0 || isTouchpad) {
         this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + deltaX);
-        this.scrollArea.scrollTop       += e.deltaY;
-        this.labelsScroll.scrollTop      = this.scrollArea.scrollTop;
-        this.transitionScroll.scrollTop  = this.scrollArea.scrollTop;
+        this.scrollArea.scrollTop  += e.deltaY;
+        this.labelsScroll.scrollTop = this.scrollArea.scrollTop;
+        this.valuesScroll.scrollTop = this.scrollArea.scrollTop;
       } else {
         this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + deltaY);
       }
@@ -469,22 +469,22 @@ class VaporviewWebview {
   syncVerticalScroll(e: any, scrollLevel: number) {
     const deltaY = e.deltaY;
     if (this.viewport.updatePending) {return;}
-    this.viewport.updatePending     = true;
-    this.labelsScroll.scrollTop     = scrollLevel + deltaY;
-    this.transitionScroll.scrollTop = scrollLevel + deltaY;
-    this.scrollArea.scrollTop       = scrollLevel + deltaY;
+    this.viewport.updatePending = true;
+    this.labelsScroll.scrollTop = scrollLevel + deltaY;
+    this.valuesScroll.scrollTop = scrollLevel + deltaY;
+    this.scrollArea.scrollTop   = scrollLevel + deltaY;
     viewport.renderAllWaveforms(false);
     labelsPanel.dragMove(e);
-    this.viewport.updatePending     = false;
+    this.viewport.updatePending = false;
   }
 
   handleViewportScroll() {
     if (this.viewport.updatePending) {return;}
-    this.viewport.updatePending     = true;
-    this.labelsScroll.scrollTop     = this.scrollArea.scrollTop;
-    this.transitionScroll.scrollTop = this.scrollArea.scrollTop;
+    this.viewport.updatePending = true;
+    this.labelsScroll.scrollTop = this.scrollArea.scrollTop;
+    this.valuesScroll.scrollTop = this.scrollArea.scrollTop;
     viewport.renderAllWaveforms(false);
-    this.viewport.updatePending     = false;
+    this.viewport.updatePending = false;
   }
 
   unload() {

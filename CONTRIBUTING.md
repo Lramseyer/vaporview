@@ -164,13 +164,13 @@ For pretty much everything, I used the same colors and fonts as per the VScode t
 
 ## How it all gets rendered
 
-The webview is split up into 4 main panes that are part of a CSS grid. There's a `control-bar`, the `waveform-labels-container`, the `transition-display-container`, and the `scrollArea` (where all of the waveforms are displayed)
+The webview is split up into 4 main panes that are part of a CSS grid. There's a `control-bar`, the `waveform-labels-container`, the `value-display-container`, and the `scrollArea` (where all of the waveforms are displayed)
 
 The `control-bar` is more or less static content. Sure there are button event handlers with hover effects and a text entry, but it's largely uninteresting
 
 The `waveform-labels-container` is also more or less static content, except that the labels can be rearranged. For that, I have click and drag handlers: `dragStart()`, `dragMove()`, and `dragEnd()`. And when a user rearranges signals, we have to call a function called `reorderSignals()` which triggers a whole bunch of DOM accesses across the webview.
 
-The `transition-display-container` really just updates to the signal values every time the marker is updated.
+The `value-display-container` really just updates to the signal values every time the marker is updated.
 
 The `scrollArea` is where most of the complexity lies, and will have it's own section...
 
@@ -245,7 +245,7 @@ Here are some of the important structures for the viewer:
 
 ### Scroll position management
 - #waveform-labels-container: scroll
-- #transition-display-container: scroll
+- #value-display-container: scroll
 - #scrollArea: scroll
 - #scrollArea: wheel
 - window: resize
@@ -299,7 +299,7 @@ Here are some of the important structures for the viewer:
 
 ### Event handlers to handle clicking on a waveform label to select a signal
 - #waveform-labels: click
-- #transition-display: click
+- #value-display: click
 
 
 

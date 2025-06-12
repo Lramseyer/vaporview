@@ -102,7 +102,6 @@ export class VariableItem extends SignalItem implements RowItem {
     const fullPath      = htmlAttributeSafe(scopePath + signalName);
     const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
     return `<div class="waveform-label is-idle ${selectorClass}" id="label-${rowId}" title="${tooltip}" data-vscode-context=${this.vscodeContext}>
-              <div class='codicon codicon-grabber'></div>
               <p style="opacity:50%">${scopePath}</p><p>${signalName}</p>
             </div>`;
     }
@@ -260,7 +259,7 @@ export class VariableItem extends SignalItem implements RowItem {
   public async cacheValueFormat() {
     return new Promise<void>((resolve) => {
       const valueChangeData = dataManager.valueChangeData[this.signalId];
-      if (valueChangeData === undefined)            {resolve(); return;}
+      if (valueChangeData === undefined)     {resolve(); return;}
       if (this.renderType.id !== "multiBit") {resolve(); return;}
       if (this.formatValid)                  {resolve(); return;}
 
@@ -438,8 +437,9 @@ export class SignalGroup extends SignalItem implements RowItem {
 
     const selectorClass = isSelected ? 'is-selected' : '';
     //const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
+    // <div class='codicon codicon-chevron-down'></div>
     return `<div class="waveform-label is-idle ${selectorClass}" id="label-${this.rowId}" data-vscode-context=${this.vscodeContext}>
-              <div class='codicon codicon-grabber'></div>
+              <div class='codicon codicon-chevron-down'></div>
               <p>${this.label}</p>
             </div>`;
     }

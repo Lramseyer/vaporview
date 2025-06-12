@@ -26,6 +26,9 @@ export class LabelsPanels {
   pointerStartY: any         = null;
   scrollStartY: any          = null;
   resizeIndex: any           = null;
+  dragInProgress: boolean    = false;
+  dragFreeze: boolean        = true;
+  dragFreezeTimeout: any     = null;
   valueAtMarker: any         = {};
 
   constructor(events: EventHandler) {
@@ -169,23 +172,28 @@ export class LabelsPanels {
     }
   }
 
-  dragStart(event: any) {
-    event.preventDefault();
-    this.labelsList    = Array.from(this.labels.querySelectorAll('.waveform-label'));
-
-    if (event.target.classList.contains('codicon-grabber')) {
-      this.draggableItem = event.target.closest('.waveform-label');
-    }
-
+  setDraggableItemClasses() {
     if (!this.draggableItem) {return;}
-
-    this.pointerStartX = event.clientX;
-    this.pointerStartY = event.clientY;
-    this.scrollStartY  = this.labelsScroll.scrollTop;
-
     this.draggableItem.classList.remove('is-idle');
     this.draggableItem.classList.remove('is-selected');
     this.draggableItem.classList.add('is-draggable');
+    this.dragInProgress = true;
+  }
+
+  dragStart(event: any) {
+    event.preventDefault();
+    this.labelsList    = Array.from(this.labels.querySelectorAll('.waveform-label'));
+    this.draggableItem = event.target.closest('.waveform-label');
+
+    if (!this.draggableItem) {return;}
+
+    this.draggableItem.classList.remove('is-idle');
+    this.pointerStartX     = event.clientX;
+    this.pointerStartY     = event.clientY;
+    this.scrollStartY      = this.labelsScroll.scrollTop;
+    this.dragInProgress    = false;
+    this.dragFreeze        = true;
+    this.dragFreezeTimeout = setTimeout(() => {this.dragFreeze = false;}, 160);
 
     document.addEventListener('mousemove', this.dragMove);
 
@@ -197,6 +205,10 @@ export class LabelsPanels {
 
   dragMove(event: MouseEvent | any) {
     if (!this.draggableItem) {return;}
+    if (this.dragFreeze) {return;}
+    if (!this.dragInProgress) {
+      this.setDraggableItemClasses();
+    }
 
     const scrollOffsetY  = this.labelsScroll.scrollTop - this.scrollStartY;
     const pointerOffsetX = event.clientX - this.pointerStartX;
@@ -214,8 +226,10 @@ export class LabelsPanels {
     this.idleItems.forEach((item: any) => {item.style = null;});
     document.removeEventListener('mousemove', this.dragMove);
     if (!abort) {
+      console.log(`Reordered signals from index ${this.draggableItemIndex} to ${this.draggableItemNewIndex}`);
       this.events.dispatch(ActionType.ReorderSignals, this.draggableItemIndex, this.draggableItemNewIndex);
     }
+
 
     this.labelsList            = [];
     this.idleItems             = [];
@@ -224,6 +238,7 @@ export class LabelsPanels {
     this.pointerStartX         = null;
     this.pointerStartY         = null;
     this.draggableItem         = null;
+    clearTimeout(this.dragFreezeTimeout);
 
     if (abort) {this.renderLabelsPanels();}
   }

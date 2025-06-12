@@ -366,7 +366,7 @@ body {
   transition: 0.25s ease transform;
 }
 
-.waveform-label .codicon-grabber {
+.waveform-label .codicon-chevron-down {
   color:       var(--vscode-editorLineNumber-foreground);
   position:    absolute;
   left:        0;
@@ -375,33 +375,11 @@ body {
   z-index:     10;
 }
 
-.waveform-label.is-idle:hover .codicon-grabber {
-  opacity: 1;
-  background-color: var(--vscode-editor-background);
-}
-
-.waveform-label.is-selected:hover .codicon-grabber {
-  opacity: 1;
-  background-color: var(--vscode-editor-background);
-}
-
-.waveform-label.is-idle .codicon-grabber {
-  cursor: grab;
-}
-
-.waveform-label.is-selected .codicon-grabber {
-  cursor: grab;
-}
-
 .waveform-label.is-draggable {
   background-color:  var(--vscode-editor-inactiveSelectionBackground);
   opacity: 0.75;
   z-index: 10;
   border-radius: 8px;
-  cursor: grabbing;
-}
-
-.waveform-label.is-draggable .codicon-grabber {
   cursor: grabbing;
 }
 

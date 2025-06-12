@@ -90,7 +90,7 @@ Zooming can be done one of 3 ways:
 
 ![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/rearrange.gif?raw=true)
 
-To rearrange signals, hover over the signal name, and you will see a rearrange grabber indicator on the left. Click and drag to rearrange.
+To rearrange signals, simply click on the label and drag the signal to where you want it.
 
 Alternatively, you can select a signal, hold **Alt**, and press the **Up** or **Down** Arrows to reorder (similar to how you reorder lines in the text editor)
 

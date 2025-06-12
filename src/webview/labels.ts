@@ -1,6 +1,7 @@
 import { EventHandler, viewport, arrayMove, NetlistId, ActionType, viewerState, dataManager, RowId} from './vaporview';
 import { ValueFormat } from './value_format';
 import { vscode } from './vaporview';
+import { VariableItem } from './signal_item';
 
 export class LabelsPanels {
 
@@ -108,9 +109,11 @@ export class LabelsPanels {
     const rowId = dataManager.netlistIdTable[netlistId];
     const value = this.valueAtMarker[rowId];
     if (value === undefined) {return;}
+    const variableItem = dataManager.rowItems[rowId];
+    if (!(variableItem instanceof VariableItem)) {return;}
 
-    const formatString   = dataManager.rowItems[rowId].valueFormat.formatString;
-    const width          = dataManager.rowItems[rowId].signalWidth;
+    const formatString   = variableItem.valueFormat.formatString;
+    const width          = variableItem.signalWidth;
     const bitVector      = value[value.length - 1];
     const formattedValue = formatString(bitVector, width, true);
 

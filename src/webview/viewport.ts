@@ -148,8 +148,6 @@ export class Viewport {
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
     this.handleMarkerSet = this.handleMarkerSet.bind(this);
     this.handleReorderSignals = this.handleReorderSignals.bind(this);
-    this.handleValueLinkMouseOver = this.handleValueLinkMouseOver.bind(this);
-    this.handleValueLinkMouseExit = this.handleValueLinkMouseExit.bind(this);
     this.highlightZoom = this.highlightZoom.bind(this);
     this.drawHighlightZoom = this.drawHighlightZoom.bind(this);
     this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
@@ -292,21 +290,9 @@ export class Viewport {
       if (!dataManager.rowItems[rowId]) {return;}
       this.removeNetlistLink();
       const netlistData = dataManager.rowItems[rowId];
-      // create a canvas element and add it to the scroll area
-      const canvas = document.createElement('canvas');
-      canvas.setAttribute('id', 'waveform-canvas-' + rowId);
-      canvas.classList.add('waveform-canvas');
-      netlistData.canvas = canvas;
-      netlistData.ctx = canvas.getContext('2d');
-      if (netlistData.ctx) {
-        this.resizeCanvas(canvas, netlistData.ctx, this.viewerWidth, 20);
-      }
-      const waveformContainer = document.createElement('div');
-      waveformContainer.setAttribute('id', 'waveform-' + rowId);
-      waveformContainer.classList.add('waveform-container');
-      waveformContainer.appendChild(canvas);
-      waveformContainer.setAttribute("data-vscode-context", netlistData.vscodeContext);
-      this.waveformArea.appendChild(waveformContainer);
+      netlistData.createViewportElement(rowId);
+      if (netlistData.viewportElement === null) {return;}
+      this.waveformArea.appendChild(netlistData.viewportElement);
       if (updateFlag) {netlistData.renderWaveform();}
     });
     this.waveformsHeight = this.contentArea.getBoundingClientRect().height;
@@ -361,14 +347,6 @@ export class Viewport {
     return moveViewer;
   }
 
-  handleValueLinkMouseOver(event: MouseEvent) {
-    this.mouseOverHandler(event, true);
-  }
-
-  handleValueLinkMouseExit(event: MouseEvent) {
-    this.mouseOverHandler(event, false);
-  }
-
   setValueLinkCursor(keyDown: boolean) {
     if (this.valueLinkObject === null) {return;}
     if (!this.valueLinkObject.canvas)  {return;}
@@ -376,46 +354,6 @@ export class Viewport {
       this.valueLinkObject.canvas.classList.add('waveform-link');
     } else {
       this.valueLinkObject.canvas.classList.remove('waveform-link');
-    }
-  }
-
-  mouseOverHandler(event: MouseEvent, checkBounds: boolean) {
-    if (!event.target) {return;}
-    const rowId   = parseInt(event.target.id.split('-').pop());
-    const netlistData = dataManager.rowItems[rowId];
-    let redraw        = false;
-    let valueIndex    = -1;
-    if (!netlistData) {return;}
-
-    if (checkBounds) {
-      const elementX    = event.pageX - this.scrollAreaBounds.left;
-      netlistData.valueLinkBounds.forEach(([min, max], i) => {
-        if (elementX >= min && elementX <= max) {
-          valueIndex = i;
-        }
-      })
-    }
-
-    // store a pointer to the netlistData object for a keydown event handler
-    if (valueIndex >= 0) {
-      this.valueLinkObject = netlistData;
-    } else {
-      this.valueLinkObject = null;
-    }
-
-    // Check to change cursor to a pointer
-    if (valueIndex >= 0 && (event.ctrlKey || event.metaKey)) {
-      netlistData.canvas?.classList.add('waveform-link');
-    } else {
-      netlistData.canvas?.classList.remove('waveform-link');
-    }
-
-    if (valueIndex !== netlistData.valueLinkIndex) {redraw = true;}
-    netlistData.valueLinkIndex = valueIndex;
-
-    if (redraw) {
-      netlistData.wasRendered = false;
-      netlistData.renderWaveform();
     }
   }
 
@@ -467,51 +405,16 @@ export class Viewport {
       if (pixelDistance < snapToDistance) {snapToTime = nearestTime;}
 
       if (button === 0 && (event.ctrlKey || event.metaKey)) {
-        this.handleValueLink(netlistId, time, snapToTime);
+        signalItem.handleValueLink(time, snapToTime);
         return;
       }
 
       if (button === 0) {
         this.events.dispatch(ActionType.SignalSelect, rowId);
       }
-    } else if (isNaN(netlistId)) {return;}
+    } else if (isNaN(netlistId || NaN)) {return;}
 
     this.events.dispatch(ActionType.MarkerSet, snapToTime, button);
-  }
-
-  handleValueLink(netlistId: NetlistId, time: number, snapToTime: number) {
-
-    const rowId = dataManager.netlistIdTable[netlistId];
-    const netlistData = dataManager.rowItems[rowId];
-
-    if (!netlistData) {return;}
-    if (netlistData.valueLinkCommand === "") {return;}
-    if (netlistData.renderType.id !== 'multiBit') {return;}
-    if (netlistData.valueLinkIndex < 0) {return;}
-    if (time !== snapToTime) {return;}
-
-    const command        = netlistData.valueLinkCommand;
-    const signalId       = netlistData.signalId;
-    const index          = dataManager.getNearestTransitionIndex(signalId, time) - 1;
-    const valueChange    = dataManager.valueChangeData[signalId].transitionData[index];
-    const timeValue      = valueChange[0];
-    const value          = valueChange[1];
-    const formattedValue = netlistData.formattedValues[index];
-
-    const event = {
-      netlistId: netlistId,
-      scopePath: netlistData.scopePath,
-      signalName: netlistData.signalName,
-      type: netlistData.variableType,
-      width: netlistData.signalWidth,
-      encoding: netlistData.encoding,
-      numberFormat: netlistData.valueFormat.id,
-      value: value,
-      formattedValue: formattedValue,
-      time: timeValue,
-    }
-
-    vscode.postMessage({ command: 'executeCommand', commandName: command, args: event });
   }
 
   updateScrollbarResize() {
@@ -642,28 +545,9 @@ export class Viewport {
 
   async annotateWaveform(rowId: RowId, valueList: string[]) {
 
-    const netlistData     = dataManager.rowItems[rowId];
+    const netlistData = dataManager.rowItems[rowId];
     if (!netlistData) {return;}
-    const signalId        = netlistData.signalId;
-    const data            = dataManager.valueChangeData[signalId];
-    if (!data) {return;}
-    const valueChangeData = data.transitionData;
-    this.annotateTime     = [];
-
-    if (valueList.length > 0) {
-      if (netlistData.signalWidth === 1) {
-        valueChangeData.forEach((valueChange) => {
-          valueList.forEach((value) => {
-            if (valueChange[1] === value) {
-              this.annotateTime.push(valueChange[0]);
-            }
-          });
-        });
-      } else {
-        valueChangeData.forEach(([time, _value]) => {this.annotateTime.push(time);});
-      }
-    }
-
+    this.annotateTime = netlistData.getAllEdges(valueList);
     this.updateBackgroundCanvas();
   }
 
@@ -687,7 +571,7 @@ export class Viewport {
     this.renderAllWaveforms(false);
     const netlistElement = dataManager.rowItems[rowId];
     if (!netlistElement) {return;}
-    if (netlistElement.canvas) {netlistElement.canvas.remove();}
+    netlistElement.dispose();
     this.waveformsHeight = this.contentArea.getBoundingClientRect().height;
     this.updateBackgroundCanvas();
 

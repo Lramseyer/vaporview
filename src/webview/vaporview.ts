@@ -5,6 +5,7 @@ import { ControlBar } from './control_bar';
 import { formatBinary, formatHex, ValueFormat, valueFormatList } from './value_format';
 import { WaveformDataManager } from './data_manager';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
+import { VariableItem } from './signal_item';
 
 declare function acquireVsCodeApi(): VsCodeApi;
 export const vscode = acquireVsCodeApi();
@@ -142,6 +143,8 @@ function createWebviewContext() {
     scrollLeft: vaporview.viewport.pseudoScrollLeft,
     displayedSignals: viewerState.displayedSignals.map((id: RowId) => {
       const data  = dataManager.rowItems[id];
+      if(!(data instanceof VariableItem)) {return;}
+
       const netlistId = data.netlistId;
       return {
         netlistId:        netlistId,
@@ -361,8 +364,8 @@ class VaporviewWebview {
     else if (e.key === 'End')  {this.events.dispatch(ActionType.MarkerSet, this.viewport.timeStop, 0);}
 
     // "N" and Shoft + "N" go to the next transition
-    else if (e.key === 'n') {controlBar.goToNextTransition(1);}
-    else if (e.key === 'N') {controlBar.goToNextTransition(-1);}
+    else if (e.key === 'n') {controlBar.goToNextTransition(1, []);}
+    else if (e.key === 'N') {controlBar.goToNextTransition(-1, []);}
 
     else if (e.key === 'Escape') {this.handleMouseUp(e, true);}
     else if (e.key === 'Delete' || e.key === 'Backspace') {this.removeVariableInternal(viewerState.selectedSignal);}
@@ -372,8 +375,8 @@ class VaporviewWebview {
 
   externalKeyDownHandler(e: any) {
     if (viewerState.markerTime !== null) {
-      if (e.keyCommand == 'nextEdge') {controlBar.goToNextTransition(1);}
-      else if (e.keyCommand == 'previousEdge') {controlBar.goToNextTransition(-1);}
+      if (e.keyCommand == 'nextEdge') {controlBar.goToNextTransition(1, []);}
+      else if (e.keyCommand == 'previousEdge') {controlBar.goToNextTransition(-1, []);}
     }
   }
 
@@ -438,19 +441,6 @@ class VaporviewWebview {
     if (rowId === null) {return;}
     const netlistData = dataManager.rowItems[rowId];
     sendWebviewContext();
-    if (netlistData === undefined) {return;}
-    const netlistId = netlistData.netlistId;
-
-    let instancePath = netlistData.scopePath + '.' + netlistData.signalName;
-    if (netlistData.scopePath === "") {instancePath = netlistData.signalName;}
-
-    vscode.postMessage({
-      command: 'emitEvent',
-      eventType: 'signalSelect',
-      uri: viewerState.uri,
-      isntancePath: instancePath,
-      netlistId: netlistId,
-    });
 
     const waveHeight = 28;
     if (viewerState.selectedSignalIndex !== null) {
@@ -462,6 +452,20 @@ class VaporviewWebview {
       console.log('newScrollTop: ' + newScrollTop);
       this.syncVerticalScroll({deltaY: 0}, newScrollTop);
     }
+
+    if (netlistData === undefined) {return;}
+    const netlistId = netlistData.netlistId;
+    if (!(netlistData instanceof VariableItem)) {return;}
+    let instancePath = netlistData.scopePath + '.' + netlistData.signalName;
+    if (netlistData.scopePath === "") {instancePath = netlistData.signalName;}
+
+    vscode.postMessage({
+      command: 'emitEvent',
+      eventType: 'signalSelect',
+      uri: viewerState.uri,
+      isntancePath: instancePath,
+      netlistId: netlistId,
+    });
   }
 
 // #region Helper Functions
@@ -563,6 +567,7 @@ class VaporviewWebview {
       case 'add-variable':          {dataManager.addVariable(message.signalList); break;}
       case 'remove-signal':         {this.removeVariable(message.netlistId); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}
+      case 'newSignalGroup':        {dataManager.addSignalGroup(message.parentGroupId, message.groupName); break;}
       case 'handle-keypress':       {this.externalKeyDownHandler(message); break;}
       //case 'update-waveform-full':  {dataManager.updateWaveformFull(message); break;}
       case 'setDisplayFormat':      {dataManager.setDisplayFormat(message); break;}

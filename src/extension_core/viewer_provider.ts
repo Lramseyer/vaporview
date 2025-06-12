@@ -983,6 +983,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     const panel      = this.activeWebview;
     panel.webview.postMessage({
       command: 'newSignalGroup',
+      parentGroupId: e.parentGroupId,
+      groupName: e.name,
     });
   }
 

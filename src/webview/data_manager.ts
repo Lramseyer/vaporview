@@ -143,9 +143,10 @@ export class WaveformDataManager {
     const rowId = this.nextRowId;
     const groupName = name !== undefined ? name : "Group " + groupId;
 
+    viewerState.displayedSignals = viewerState.displayedSignals.concat(rowId);
     const groupItem = new SignalGroup(rowId, groupName, groupId);
-
     this.rowItems[rowId] = groupItem;
+    this.events.dispatch(ActionType.AddVariable, [rowId], false);
 
     this.nextGroupId++;
     this.nextRowId++;

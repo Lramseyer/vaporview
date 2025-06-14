@@ -185,6 +185,12 @@ export class LabelsPanels {
     this.labelsList    = Array.from(this.labels.querySelectorAll('.waveform-label'));
     this.draggableItem = event.target.closest('.waveform-label');
 
+    //if (event.target.classList.contains('.codicon-chevron-down') || 
+    //    event.target.classList.contains('.codicon-chevron-right')) {
+    //  // If the click is on the chevron, we don't start dragging
+    //  return;
+    //}
+
     if (!this.draggableItem) {return;}
 
     this.draggableItem.classList.remove('is-idle');

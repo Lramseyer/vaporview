@@ -832,7 +832,7 @@
   },
   "dependencies": {
     "@vscode/codicons": "0.0.35",
-    "@vscode/wasm-component-model": "1.0.1",
+    "@vscode/wasm-component-model": "1.0.2",
     "node-addon-api": "^8.3.1"
   },
   "devDependencies": {

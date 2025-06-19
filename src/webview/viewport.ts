@@ -454,7 +454,7 @@ export class Viewport {
     this.scrollbarStartX = event.clientX;
     this.scrollbar.classList.add('is-dragging');
 
-    document.addEventListener('mousemove', this.handleScrollbarMove, false);
+    document.addEventListener('mousemove', this.handleScrollbarMove);
     viewerState.mouseupEventType = 'scroll';
   }
 

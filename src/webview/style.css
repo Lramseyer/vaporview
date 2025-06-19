@@ -342,31 +342,49 @@ body {
 
 #waveform-labels {
   color: var(--vscode-textLink-foreground);
+  position: relative;
 }
 
-.waveform-label {
-  position:        relative;
-  will-change:     transform;
-  font-size:       var(--vscode-editor-font-size);
-  font-family:     var(--vscode-editor-font-family);
+.waveform-row {
+  min-height:  var(--waveform-height);
+  max-height:  var(--waveform-height);
   display:         flex;
   align-items:     center;
   justify-content: right;
-  user-select:     none;
   padding-right:   4px;
-
-  min-height:  var(--waveform-height);
-  max-height:  var(--waveform-height);
-
   box-sizing: border-box;
   -webkit-box-sizing: border-box;
+  font-size:       var(--vscode-editor-font-size);
+  font-family:     var(--vscode-editor-font-family);
+  position:        relative;
+  user-select:     none;
+}
+
+#drag-divider {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  z-index: 100;
+  overflow: visible;
+  stroke-width: 2px;
+  width: 100%;
+  stroke: var(--vscode-editorCursor-foreground);
+  stroke-dasharray: 2 2;
+}
+
+.waveform-label {
+
+  box-sizing:      border-box;
+  -webkit-box-sizing: border-box;
+  will-change:     transform;
+  user-select:     none;
 }
 
 .waveform-label.is-idle {
   transition: 0.25s ease transform;
 }
 
-.waveform-label .codicon-chevron-down {
+.waveform-label .codicon {
   color:       var(--vscode-icon-foreground);
   position:    absolute;
   left:        0;
@@ -382,10 +400,23 @@ body {
   cursor: grabbing;
 }
 
-.waveform-label p {
+.waveform-row p {
   margin:      0;
   white-space: nowrap;
   color:       inherit;
+}
+
+.value-display-item {
+  display:         flex;
+  align-items:     center;
+  justify-content: right;
+  min-height:      var(--waveform-height);
+  max-height:      var(--waveform-height);
+  padding-right:   4px;
+  box-sizing:      border-box;
+  -webkit-box-sizing: border-box;
+  font-size:       var(--vscode-editor-font-size);
+  font-family:     var(--vscode-editor-font-family);
 }
 
 .ruler-spacer {

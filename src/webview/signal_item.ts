@@ -2,7 +2,8 @@ import { dataManager, viewport, CollapseState, NetlistId } from "./vaporview";
 import { formatBinary, formatHex, formatString, ValueFormat } from "./value_format";
 import { WaveformRenderer } from "./renderer";
 import { customColorKey } from "./data_manager";
-import { vscode } from "./vaporview";
+import { vscode, labelsPanel } from "./vaporview";
+import { LabelsPanels } from "./labels";
 
 export function htmlSafe(string: string) {
   return string.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -101,8 +102,10 @@ export class VariableItem extends SignalItem implements RowItem {
     const scopePath     = htmlSafe(this.scopePath + '.');
     const fullPath      = htmlAttributeSafe(scopePath + signalName);
     const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
-    return `<div class="waveform-label is-idle ${selectorClass}" id="label-${rowId}" title="${tooltip}" data-vscode-context=${this.vscodeContext}>
-              <p style="opacity:50%">${scopePath}</p><p>${signalName}</p>
+    return `<div class="waveform-label is-idle" id="label-${rowId}" title="${tooltip}" data-vscode-context=${this.vscodeContext}>
+              <div class='waveform-row ${selectorClass}'>
+                <p style="opacity:50%">${scopePath}</p><p>${signalName}</p>
+              </div>
             </div>`;
     }
 
@@ -121,7 +124,7 @@ export class VariableItem extends SignalItem implements RowItem {
       return `<p style="color:${colorStyle}">${displayValue}</p>`;
     }).join(joinString);
 
-    return `<div class="waveform-label ${selectorClass}" id="value-${rowId}" data-vscode-context=${this.vscodeContext}>${pElement}</div>`;
+    return `<div class="value-display-item ${selectorClass}" id="value-${rowId}" data-vscode-context=${this.vscodeContext}>${pElement}</div>`;
   }
 
   public createViewportElement(rowId: number) {
@@ -420,8 +423,6 @@ export class VariableItem extends SignalItem implements RowItem {
   }
 }
 
-
-
 export class SignalGroup extends SignalItem implements RowItem {
 
   public collapseState: CollapseState = CollapseState.Expanded;
@@ -435,19 +436,24 @@ export class SignalGroup extends SignalItem implements RowItem {
 
   public createLabelElement(isSelected: boolean) {
 
+    let childElements = '';
+
     const selectorClass = isSelected ? 'is-selected' : '';
     //const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
-    // <div class='codicon codicon-chevron-down'></div>
-    return `<div class="waveform-label is-idle ${selectorClass}" id="label-${this.rowId}" data-vscode-context=${this.vscodeContext}>
-              <div class='codicon codicon-chevron-down'></div>
-              <p>${this.label}</p>
+    const icon = this.collapseState === CollapseState.Expanded ? 'codicon-chevron-down' : 'codicon-chevron-right';
+    return `<div class="waveform-label is-idle" id="label-${this.rowId}" data-vscode-context=${this.vscodeContext}>
+              <div class="waveform-row ${selectorClass}">
+                <div class='codicon ${icon}'></div>
+                <p>${this.label}</p>
+              </div>
+             ${childElements}
             </div>`;
     }
 
   public createValueDisplayElement(value: any, isSelected: boolean) {
 
-    const selectorClass = isSelected ? 'is-selected' : 'is-idle';
-    return `<div class="waveform-label ${selectorClass}" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}></div>`;
+    const selectorClass = isSelected ? 'is-selected' : '';
+    return `<div class="value-display-item ${selectorClass}" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}></div>`;
   }
 
   public createViewportElement(rowId: number) {
@@ -468,7 +474,20 @@ export class SignalGroup extends SignalItem implements RowItem {
 
   public expand() {
     this.collapseState = CollapseState.Expanded;
+    labelsPanel.renderLabelsPanels();
+  }
 
+  public collapse() {
+    this.collapseState = CollapseState.Collapsed;
+    labelsPanel.renderLabelsPanels();
+  }
+
+  public toggleCollapse() {
+    if (this.collapseState === CollapseState.Expanded) {
+      this.collapse();
+    } else {
+      this.expand();
+    }
   }
 
   //public renderWaveform() {this.wasRendered = true;}

@@ -219,7 +219,7 @@ class VaporviewWebview {
     this.scrollbar    = scrollbar;
 
     webview.style.gridTemplateColumns = `150px 50px auto`;
- 
+
     // #region Primitive Handlers
     window.addEventListener('message', (e) => {this.handleMessage(e);});
     window.addEventListener('keydown', (e) => {this.keyDownHandler(e);});
@@ -395,7 +395,7 @@ class VaporviewWebview {
       this.handleResizeViewer();
     } else if (viewerState.mouseupEventType === 'scroll') {
       this.scrollbar.classList.remove('is-dragging');
-      document.removeEventListener('mousemove', this.viewport.handleScrollbarMove, false);
+      document.removeEventListener('mousemove', this.viewport.handleScrollbarMove);
       this.viewport.scrollbarMoved = false;
     } else if (viewerState.mouseupEventType === 'highlightZoom') {
       this.scrollArea.removeEventListener('mousemove', viewport.drawHighlightZoom, false);
@@ -475,6 +475,8 @@ class VaporviewWebview {
     this.labelsScroll.scrollTop = scrollLevel + deltaY;
     this.valuesScroll.scrollTop = scrollLevel + deltaY;
     this.scrollArea.scrollTop   = scrollLevel + deltaY;
+    // labelsScroll position = relative, which allows it to scroll past the bottom
+    this.labelsScroll.scrollTop = this.scrollArea.scrollTop;
     viewport.renderAllWaveforms(false);
     labelsPanel.dragMove(e);
     this.viewport.updatePending = false;

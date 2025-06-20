@@ -2,6 +2,7 @@ import { EventHandler, viewport, arrayMove, NetlistId, ActionType, viewerState, 
 import { ValueFormat } from './value_format';
 import { vscode } from './vaporview';
 import { SignalGroup, VariableItem } from './signal_item';
+import { clear } from 'console';
 
 export class LabelsPanels {
 
@@ -105,8 +106,8 @@ export class LabelsPanels {
 
   clickValueDisplay(event: any) {
     console.log("valueDisplay click event", event);
-    const labelsList   = Array.from(this.valueDisplay.querySelectorAll('.waveform-label'));
-    const clickedLabel = event.target.closest('.waveform-label');
+    const labelsList   = Array.from(this.valueDisplay.querySelectorAll('.value-display-item'));
+    const clickedLabel = event.target.closest('.value-display-item');
     const itemIndex    = labelsList.indexOf(clickedLabel);
     if (itemIndex === -1) {return;}
     const rowId = viewerState.displayedSignals[itemIndex];
@@ -226,6 +227,7 @@ export class LabelsPanels {
     this.scrollStartY      = this.labelsScroll.scrollTop;
     this.dragInProgress    = false;
     this.dragFreeze        = true;
+    clearTimeout(this.dragFreezeTimeout);
     this.dragFreezeTimeout = setTimeout(() => {this.dragFreeze = false;}, 160);
 
     document.addEventListener('mousemove', this.dragMove);
@@ -260,12 +262,12 @@ export class LabelsPanels {
     this.idleItems.forEach((item: any) => {item.style = null;});
     document.removeEventListener('mousemove', this.dragMove);
     if (!abort) {
-      console.log(`Reordered signals from index ${this.draggableItemIndex} to ${this.draggableItemNewIndex}`);
       this.events.dispatch(ActionType.ReorderSignals, this.draggableItemIndex, this.draggableItemNewIndex);
     }
 
     this.labelsList            = [];
     this.idleItems             = [];
+    this.dragInProgress        = false;
     this.draggableItemIndex    = null;
     this.draggableItemNewIndex = null;
     this.pointerStartX         = null;

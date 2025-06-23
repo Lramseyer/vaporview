@@ -1,4 +1,4 @@
-import { dataManager, viewport, CollapseState, NetlistId } from "./vaporview";
+import { dataManager, viewport, CollapseState, NetlistId, RowId } from "./vaporview";
 import { formatBinary, formatHex, formatString, ValueFormat } from "./value_format";
 import { WaveformRenderer } from "./renderer";
 import { customColorKey } from "./data_manager";
@@ -47,6 +47,8 @@ export interface RowItem {
   createViewportElement(rowId: number): void;
   setSignalContextAttribute(): void;
   getValueAtTime(time: number): string[];
+  getFlattenedRowIdList(ignoreCollapsed: boolean): number[];
+  findParentGroupId(rowId: RowId): number | null;
   getAllEdges(valueList: string[]): number[];
   getNextEdge(time: number, direction: number, valueList: string[]): number | null;
   getNearestTransition(time: number): [number, string] | null;
@@ -157,6 +159,13 @@ export class VariableItem extends SignalItem implements RowItem {
       netlistId: this.netlistId,
     }).replace(/\s/g, '%x20')}`;
   }
+
+  public getFlattenedRowIdList(ignoreCollapsed: boolean): number[] {
+    const rowId = dataManager.netlistIdTable[this.netlistId];
+    return [rowId];
+  }
+
+  public findParentGroupId(rowId: RowId): number | null {return null;}
 
   public renderWaveform() {
     const signalId = this.signalId;
@@ -426,7 +435,7 @@ export class VariableItem extends SignalItem implements RowItem {
 export class SignalGroup extends SignalItem implements RowItem {
 
   public collapseState: CollapseState = CollapseState.Expanded;
-  public children: SignalItem[] = [];
+  public children: RowId[] = [];
 
   constructor(
     public rowId: number,
@@ -437,7 +446,10 @@ export class SignalGroup extends SignalItem implements RowItem {
   public createLabelElement(isSelected: boolean) {
 
     let childElements = '';
-
+    this.children.forEach((childRowId) => {
+      const signalItem = dataManager.rowItems[childRowId];
+      childElements += signalItem.createLabelElement(isSelected);
+    });
     const selectorClass = isSelected ? 'is-selected' : '';
     //const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
     const icon = this.collapseState === CollapseState.Expanded ? 'codicon-chevron-down' : 'codicon-chevron-right';
@@ -446,7 +458,9 @@ export class SignalGroup extends SignalItem implements RowItem {
                 <div class='codicon ${icon}'></div>
                 <p>${this.label}</p>
               </div>
-             ${childElements}
+              <div class="labels-container">
+                ${childElements}
+              </div>
             </div>`;
     }
 
@@ -470,6 +484,31 @@ export class SignalGroup extends SignalItem implements RowItem {
       preventDefaultContextMenuItems: true,
       rowId: this.rowId,
     }).replace(/\s/g, '%x20')}`;
+  }
+
+  public getFlattenedRowIdList(ignoreCollapsed: boolean): number[] {
+    let result: number[] = [this.rowId];
+    if (!ignoreCollapsed || this.collapseState === CollapseState.Expanded) {
+      this.children.forEach((rowId) => {
+        const signalItem = dataManager.rowItems[rowId];
+        result = result.concat(signalItem.getFlattenedRowIdList(ignoreCollapsed));
+      });
+    }
+    return result;
+  }
+
+  public findParentGroupId(rowId: RowId): number | null {
+    if (this.children.includes(rowId)) {
+      return this.groupId;
+    }
+    this.children.forEach((childRowId) => {
+      const signalItem = dataManager.rowItems[childRowId];
+      const parentGroupId = signalItem.findParentGroupId(rowId);
+      if (parentGroupId !== null) {
+        return parentGroupId;
+      }
+    });
+    return null;
   }
 
   public expand() {

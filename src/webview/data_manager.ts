@@ -15,6 +15,7 @@ export class WaveformDataManager {
   valueChangeData: WaveformData[] = [];
   rowItems: RowItem[]             = [];
   netlistIdTable: RowId[]         = [];
+  groupIdTable: RowId[]           = [];
   valueChangeDataTemp: any        = [];
   private nextRowId: number       = 0;
   private nextGroupId: number     = 1;
@@ -145,6 +146,7 @@ export class WaveformDataManager {
 
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowId);
     const groupItem = new SignalGroup(rowId, groupName, groupId);
+    this.groupIdTable[groupId] = rowId;
     this.rowItems[rowId] = groupItem;
     this.events.dispatch(ActionType.AddVariable, [rowId], false);
 

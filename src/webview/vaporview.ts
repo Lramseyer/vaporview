@@ -5,7 +5,7 @@ import { ControlBar } from './control_bar';
 import { formatBinary, formatHex, ValueFormat, valueFormatList } from './value_format';
 import { WaveformDataManager } from './data_manager';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
-import { VariableItem } from './signal_item';
+import { VariableItem, SignalGroup } from './signal_item';
 
 declare function acquireVsCodeApi(): VsCodeApi;
 export const vscode = acquireVsCodeApi();
@@ -60,6 +60,7 @@ export interface ViewerState {
   selectedSignal: number | null;
   selectedSignalIndex: number | null;
   displayedSignals: number[];
+  displayedSignalsFlat: number[];
   zoomRatio: number;
   scrollLeft: number;
   touchpadScrolling: boolean;
@@ -74,6 +75,7 @@ export const viewerState: ViewerState = {
   selectedSignal: null,
   selectedSignalIndex: -1,
   displayedSignals: [],
+  displayedSignalsFlat: [],
   zoomRatio: 1,
   scrollLeft: 0,
   touchpadScrolling: false,
@@ -113,6 +115,29 @@ export function arrayMove(array: any[], fromIndex: number, toIndex: number) {
   const element = array[fromIndex];
   array.splice(fromIndex, 1);
   array.splice(toIndex, 0, element);
+}
+
+export function updateDisplayedSignalsFlat() {
+  viewerState.displayedSignalsFlat = [];
+  viewerState.displayedSignals.forEach((rowId) => {
+    const signalItem = dataManager.rowItems[rowId];
+    viewerState.displayedSignalsFlat = viewerState.displayedSignalsFlat.concat(signalItem.getFlattenedRowIdList(true));
+  });
+  console.log(viewerState.displayedSignalsFlat);
+}
+
+export function getParentGroupId(rowId: RowId) {
+  if (viewerState.displayedSignalsFlat.includes(rowId)) {
+    return 0;
+  }
+  viewerState.displayedSignalsFlat.forEach((id) => {
+    const signalItem = dataManager.rowItems[id];
+    const parentGroupId = signalItem.findParentGroupId(rowId);
+    if (parentGroupId !== null) {
+      return parentGroupId;
+    }
+  });
+  return null;
 }
 
 // ----------------------------------------------------------------------------
@@ -371,6 +396,43 @@ class VaporviewWebview {
     else if (e.key === 'Delete' || e.key === 'Backspace') {this.removeVariableInternal(viewerState.selectedSignal);}
 
     else if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(true);}
+  }
+
+  handleReorderArrowKeys(direction: number) {
+    const rowId = viewerState.selectedSignal;
+    let newIndex = 0;
+    if (rowId === null) {return;}
+    let parentGroupId = getParentGroupId(rowId);
+    let parentList: RowId[] = [];
+    if (parentGroupId === null) {return;}
+    if (parentGroupId === 0) {
+      parentList = viewerState.displayedSignals;
+    } else {
+      const parentRowId = dataManager.groupIdTable[parentGroupId];
+      const parentItem = dataManager.rowItems[parentRowId];
+      if (!(parentItem instanceof SignalGroup)) {return;}
+      parentList = parentItem.children;
+    }
+
+    const localIndex = parentList.indexOf(rowId);
+    if (localIndex + direction < 0 || localIndex + direction >= parentList.length) {
+      let grandParentList: RowId[] = [];
+      const grandparentGroupId = getParentGroupId(parentGroupId);
+      if (grandparentGroupId === null) {return;}
+      if (grandparentGroupId === 0) {
+        grandParentList = viewerState.displayedSignals;
+      } else {
+        const grandparentRowId = dataManager.groupIdTable[grandparentGroupId];
+        const grandparentItem = dataManager.rowItems[grandparentRowId];
+        if (!(grandparentItem instanceof SignalGroup)) {return;}
+        grandParentList = grandparentItem.children;
+      }
+      newIndex = grandParentList.indexOf(parentGroupId);
+    } else {
+      newIndex = localIndex + direction;
+    }
+    this.events.dispatch(ActionType.ReorderSignals, rowId, parentGroupId, newIndex);
+
   }
 
   externalKeyDownHandler(e: any) {

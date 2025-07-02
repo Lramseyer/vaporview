@@ -362,3 +362,14 @@ export class NetlistItem extends vscode.TreeItem {
     this._onDidChangeCheckboxState.fire(this);
   }
 }
+
+export const netlistItemDragAndDropController: vscode.TreeDragAndDropController<NetlistItem> = {
+  dragMimeTypes: ['application/vnd.code.tree.waveformviewernetlistview.netlistid', 'application/vnd.code.tree.waveformviewernetlistview'],
+  dropMimeTypes: [],
+  handleDrag: (source: readonly NetlistItem[], dataTransfer: vscode.DataTransfer, token: vscode.CancellationToken) => {
+    const netlistIdList = source.map(item => item.netlistId);
+    dataTransfer.set('application/vnd.code.tree.waveformviewernetlistview.netlistid', new vscode.DataTransferItem(netlistIdList.join(',')));
+    return Promise.resolve()
+  },
+  handleDrop: (target: NetlistItem | undefined, dataTransfer: vscode.DataTransfer, token: vscode.CancellationToken) => {return Promise.resolve()},
+}

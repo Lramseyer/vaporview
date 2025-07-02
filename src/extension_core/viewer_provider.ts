@@ -3,7 +3,7 @@ import { Worker } from 'worker_threads';
 import * as fs from 'fs';
 
 import { VaporviewDocument, VaporviewDocumentFsdb, VaporviewDocumentWasm } from './document';
-import { NetlistTreeDataProvider, DisplayedSignalsViewProvider, NetlistItem, WebviewCollection } from './tree_view';
+import { NetlistTreeDataProvider, DisplayedSignalsViewProvider, NetlistItem, WebviewCollection, netlistItemDragAndDropController } from './tree_view';
 
 export type NetlistId = number;
 export type SignalId  = number;
@@ -109,6 +109,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       treeDataProvider: this.netlistTreeDataProvider,
       manageCheckboxStateManually: true,
       canSelectMany: true,
+      showCollapseAll: true,
+      dragAndDropController: netlistItemDragAndDropController
     });
     this._context.subscriptions.push(this.netlistView);
 
@@ -208,6 +210,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'fetchTransitionData': {document.getSignalData(e.signalIdList); break;}
         case 'removeVariable':      {this.removeSignalFromDocument(e.netlistId); break;}
         case 'close-webview':       {webviewPanel.dispose(); break;}
+        case 'handleDrop':          {this.handleWebviewDrop(e); break;}
         default: {this.log.appendLine('Unknown webview message type: ' + e.command); break;}
       }
 
@@ -782,6 +785,16 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   public handleKeyBinding(e: any, keyCommand: string) {
     if (!this.activeWebview) {return;}
     this.activeWebview.webview.postMessage({command: 'handle-keypress', keyCommand: keyCommand});
+  }
+
+  private handleWebviewDrop(e: any) {
+    if (!this.activeDocument) {return;}
+    if (!this.activeWebview?.visible) {return;}
+    if (!e.instancePaths) {return;}
+
+    e.instancePaths.forEach((instancePath: string) => {
+      this.addSignalByNameToDocument(instancePath);
+    });
   }
 
   private addSignalsToDocument(document: VaporviewDocument, netlistElements: NetlistItem[]) {

@@ -1,4 +1,4 @@
-import { dataManager, viewport, CollapseState, NetlistId, RowId } from "./vaporview";
+import { dataManager, viewport, CollapseState, NetlistId, RowId, viewerState } from "./vaporview";
 import { formatBinary, formatHex, formatString, ValueFormat } from "./value_format";
 import { WaveformRenderer } from "./renderer";
 import { customColorKey } from "./data_manager";
@@ -21,8 +21,8 @@ export abstract class SignalItem {
   public vscodeContext: string = "";
   public wasRendered: boolean = false;
 
-  public abstract createLabelElement(isSelected: boolean)
-  public abstract createValueDisplayElement(value: any, isSelected: boolean)
+  public abstract createLabelElement()
+  public abstract createValueDisplayElement()
   public abstract getValueAtTime(time: number): string[]
   public getNearestTransition(time: number) {return null}
   public formatVlaue(value: any): string {return "";}
@@ -42,8 +42,8 @@ export interface RowItem {
   wasRendered: boolean;
   netlistId?: NetlistId;
 
-  createLabelElement(isSelected: boolean): string;
-  createValueDisplayElement(value: any, isSelected: boolean): string;
+  createLabelElement(): string;
+  createValueDisplayElement(): string;
   createViewportElement(rowId: number): void;
   setSignalContextAttribute(): void;
   getValueAtTime(time: number): string[];
@@ -96,9 +96,10 @@ export class VariableItem extends SignalItem implements RowItem {
     this.setColorFromColorIndex();
   }
 
-  public createLabelElement(isSelected: boolean) {
+  public createLabelElement() {
 
     const rowId         = dataManager.netlistIdTable[this.netlistId];
+    const isSelected    = viewerState.selectedSignal === rowId;
     const selectorClass = isSelected ? 'is-selected' : '';
     const signalName    = htmlSafe(this.signalName);
     const scopePath     = htmlSafe(this.scopePath + '.');
@@ -111,10 +112,11 @@ export class VariableItem extends SignalItem implements RowItem {
             </div>`;
     }
 
-  public createValueDisplayElement(value: any, isSelected: boolean) {
+  public createValueDisplayElement() {
+    const rowId = dataManager.netlistIdTable[this.netlistId];
+    let   value = labelsPanel.valueAtMarker[rowId];
     if (value === undefined) {value = [];}
-
-    const rowId         = dataManager.netlistIdTable[this.netlistId];
+    const isSelected    = viewerState.selectedSignal === rowId;
     const selectorClass = isSelected ? 'is-selected' : 'is-idle';
     const joinString    = '<p style="color:var(--vscode-foreground)">-></p>';
     const parseValue    = this.valueFormat.formatString;
@@ -168,6 +170,7 @@ export class VariableItem extends SignalItem implements RowItem {
   public findParentGroupId(rowId: RowId): number | null {return null;}
 
   public renderWaveform() {
+
     const signalId = this.signalId;
     const data     = dataManager.valueChangeData[signalId];
 
@@ -443,13 +446,16 @@ export class SignalGroup extends SignalItem implements RowItem {
     public readonly groupId: number
   ) {super();}
 
-  public createLabelElement(isSelected: boolean) {
+  public createLabelElement() {
 
     let childElements = '';
-    this.children.forEach((childRowId) => {
-      const signalItem = dataManager.rowItems[childRowId];
-      childElements += signalItem.createLabelElement(isSelected);
-    });
+    if (this.collapseState === CollapseState.Expanded) {
+      this.children.forEach((childRowId) => {
+        const signalItem = dataManager.rowItems[childRowId];
+        childElements += signalItem.createLabelElement();
+      });
+    }
+    const isSelected = viewerState.selectedSignal === this.rowId;
     const selectorClass = isSelected ? 'is-selected' : '';
     //const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
     const icon = this.collapseState === CollapseState.Expanded ? 'codicon-chevron-down' : 'codicon-chevron-right';
@@ -458,16 +464,26 @@ export class SignalGroup extends SignalItem implements RowItem {
                 <div class='codicon ${icon}'></div>
                 <p>${this.label}</p>
               </div>
-              <div class="labels-container">
+              <div class="labels-group child-group">
                 ${childElements}
               </div>
             </div>`;
     }
 
-  public createValueDisplayElement(value: any, isSelected: boolean) {
+  public createValueDisplayElement() {
 
+    let   value = labelsPanel.valueAtMarker[this.rowId];
+    const isSelected = viewerState.selectedSignal === this.rowId;
     const selectorClass = isSelected ? 'is-selected' : '';
-    return `<div class="value-display-item ${selectorClass}" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}></div>`;
+    let result = `<div class="value-display-item ${selectorClass}" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}></div>`;
+    if (value === undefined) {value = [];}
+    if (this.collapseState === CollapseState.Expanded) {
+      this.children.forEach((childRowId) => {
+        const signalItem = dataManager.rowItems[childRowId];
+        result += signalItem.createValueDisplayElement();
+      });
+    }
+    return result;
   }
 
   public createViewportElement(rowId: number) {
@@ -511,14 +527,28 @@ export class SignalGroup extends SignalItem implements RowItem {
     return null;
   }
 
+  private showHideViewportRows() {
+    const childRows = this.getFlattenedRowIdList(false);
+    const style = this.collapseState === CollapseState.Expanded ? 'flex' : 'none';
+    childRows.forEach((rowId) => {
+      if (rowId === this.rowId) {return;} // Skip the group row itself
+      const viewportRow = document.getElementById(`waveform-${rowId}`);
+      if (!viewportRow) {return;}
+      viewportRow.style.display = style;
+    });
+    viewport.renderAllWaveforms(false);
+  }
+
   public expand() {
     this.collapseState = CollapseState.Expanded;
     labelsPanel.renderLabelsPanels();
+    this.showHideViewportRows();
   }
 
   public collapse() {
     this.collapseState = CollapseState.Collapsed;
     labelsPanel.renderLabelsPanels();
+    this.showHideViewportRows();
   }
 
   public toggleCollapse() {

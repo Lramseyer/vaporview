@@ -183,6 +183,12 @@ body {
   display: none;
 }
 
+.child-group {
+  margin-left: 8px;
+  border-left: 1px solid var(--vscode-editorIndentGuide-background1);
+  padding-left: 4px;
+}
+
 #waveform-labels-container {
   grid-column-start: 1;
   grid-column-end: 2;
@@ -378,6 +384,7 @@ body {
   -webkit-box-sizing: border-box;
   will-change:     transform;
   user-select:     none;
+  overflow: hidden;
 }
 
 .waveform-label.is-idle {

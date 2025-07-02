@@ -95,10 +95,9 @@ export class LabelsPanels {
     const transitions: string[] = [];
     this.labelsList.push('<svg id="drag-divider" style="top: 0px; display:none"><line x1="0" y1="0" x2="100%" y2="0"></line></svg>');
     viewerState.displayedSignals.forEach((rowId, index) => {
-      const isSelected  = (rowId === viewerState.selectedSignal);
       const netlistData = dataManager.rowItems[rowId];
-      this.labelsList.push(netlistData.createLabelElement(isSelected));
-      transitions.push(netlistData.createValueDisplayElement(this.valueAtMarker[rowId], isSelected));
+      this.labelsList.push(netlistData.createLabelElement());
+      transitions.push(netlistData.createValueDisplayElement());
     });
     this.labels.innerHTML       = this.labelsList.join('');
     this.valueDisplay.innerHTML = transitions.join('');

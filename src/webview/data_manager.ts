@@ -1,4 +1,4 @@
-import { SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId } from './vaporview';
+import { SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat } from './vaporview';
 import { formatBinary, formatHex, ValueFormat, formatString, valueFormatList } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer, signedLinearWaveformRenderer, signedSteppedrWaveformRenderer } from './renderer';
 import { SignalGroup, VariableItem, RowItem } from './signal_item';
@@ -76,7 +76,7 @@ export class WaveformDataManager {
     });
   }
 
-  addVariable(signalList: any) {
+  addVariable(signalList: any, parentGroupId: number | undefined) {
     // Handle rendering a signal, e.g., render the signal based on message content
     //console.log(message);
 
@@ -132,7 +132,16 @@ export class WaveformDataManager {
     });
 
     this.request(signalIdList);
-    viewerState.displayedSignals = viewerState.displayedSignals.concat(rowIdList);
+    if (parentGroupId !== undefined && this.groupIdTable[parentGroupId] !== undefined) {
+      const parentRowId = this.groupIdTable[parentGroupId];
+      const parentGroup = this.rowItems[parentRowId];
+      if (parentGroup instanceof SignalGroup) {
+        parentGroup.children = parentGroup.children.concat(rowIdList);
+      }
+    } else {
+      viewerState.displayedSignals = viewerState.displayedSignals.concat(rowIdList);
+    }
+    updateDisplayedSignalsFlat();
     this.events.dispatch(ActionType.AddVariable, rowIdList, updateFlag);
     this.events.dispatch(ActionType.SignalSelect, selectedSignal);
 

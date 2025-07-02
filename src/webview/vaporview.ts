@@ -255,6 +255,7 @@ class VaporviewWebview {
     this.scrollArea.addEventListener(  'scroll', () => {this.handleViewportScroll();});
     this.labelsScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, labelsScroll.scrollTop);});
     this.valuesScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, valuesScroll.scrollTop);});
+    this.webview.addEventListener('drop', (e) => {this.handleDrop(e);});
 
     this.handleMarkerSet    = this.handleMarkerSet.bind(this);
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
@@ -617,6 +618,39 @@ class VaporviewWebview {
     this.events.dispatch(ActionType.SignalSelect, rowId);
   }
 
+  handleDrop(e: DragEvent) {
+    e.preventDefault();
+
+    if (!e.dataTransfer) return;
+    const types = e.dataTransfer.types;
+    let metadata: any = {};
+
+    for (const type of types) {
+      const data = e.dataTransfer.getData(type);
+      if (type === 'application/vnd.code.tree.waveformviewernetlistview') {
+        if (data !== '') {metadata = JSON.parse(data);}
+      }
+    }
+
+    let instancePaths: string[] = [];
+    if (!metadata.itemHandles) {return;}
+    if (!Array.isArray(metadata.itemHandles)) {return;}
+    for (const handles of metadata.itemHandles) {
+
+      const noPrefix     = handles.replace(/\d+\/\d+:/, '');
+      const scopes       = noPrefix.split('/0:');
+      const instancePath = scopes.join('.').replace(/\s+/, '');
+      instancePaths.push(instancePath);
+      //console.log(instancePath);
+    }
+
+    vscode.postMessage({
+      command: 'handleDrop',
+      instancePaths: instancePaths
+    });
+  }
+
+
   handleMessage(e: any) {
     const message = e.data;
 
@@ -626,7 +660,7 @@ class VaporviewWebview {
       case 'setConfigSettings':     {this.handleSetConfigSettings(message); break;}
       case 'getContext':            {sendWebviewContext(); break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
-      case 'add-variable':          {dataManager.addVariable(message.signalList); break;}
+      case 'add-variable':          {dataManager.addVariable(message.signalList, 1); break;}
       case 'remove-signal':         {this.removeVariable(message.netlistId); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}
       case 'newSignalGroup':        {dataManager.addSignalGroup(message.parentGroupId, message.groupName); break;}

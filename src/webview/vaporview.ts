@@ -61,6 +61,7 @@ export interface ViewerState {
   selectedSignalIndex: number | null;
   displayedSignals: number[];
   displayedSignalsFlat: number[];
+  visibleSignalsFlat: number[]
   zoomRatio: number;
   scrollLeft: number;
   touchpadScrolling: boolean;
@@ -76,6 +77,7 @@ export const viewerState: ViewerState = {
   selectedSignalIndex: -1,
   displayedSignals: [],
   displayedSignalsFlat: [],
+  visibleSignalsFlat: [],
   zoomRatio: 1,
   scrollLeft: 0,
   touchpadScrolling: false,
@@ -119,24 +121,25 @@ export function arrayMove(array: any[], fromIndex: number, toIndex: number) {
 
 export function updateDisplayedSignalsFlat() {
   viewerState.displayedSignalsFlat = [];
+  viewerState.visibleSignalsFlat = [];
   viewerState.displayedSignals.forEach((rowId) => {
     const signalItem = dataManager.rowItems[rowId];
-    viewerState.displayedSignalsFlat = viewerState.displayedSignalsFlat.concat(signalItem.getFlattenedRowIdList(true));
+    viewerState.displayedSignalsFlat = viewerState.displayedSignalsFlat.concat(signalItem.getFlattenedRowIdList(false));
+    viewerState.visibleSignalsFlat = viewerState.visibleSignalsFlat.concat(signalItem.getFlattenedRowIdList(true));
   });
-  console.log(viewerState.displayedSignalsFlat);
 }
 
 export function getParentGroupId(rowId: RowId) {
-  if (viewerState.displayedSignalsFlat.includes(rowId)) {
+  if (viewerState.displayedSignals.includes(rowId)) {
     return 0;
   }
-  viewerState.displayedSignalsFlat.forEach((id) => {
+  for (const id in viewerState.displayedSignals) {
     const signalItem = dataManager.rowItems[id];
     const parentGroupId = signalItem.findParentGroupId(rowId);
     if (parentGroupId !== null) {
       return parentGroupId;
     }
-  });
+  };
   return null;
 }
 
@@ -255,6 +258,7 @@ class VaporviewWebview {
     this.scrollArea.addEventListener(  'scroll', () => {this.handleViewportScroll();});
     this.labelsScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, labelsScroll.scrollTop);});
     this.valuesScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, valuesScroll.scrollTop);});
+    //this.webview.addEventListener('dragover', (e) => {labelsPanel.updateIdleItemsStateAndPosition(e);});
     this.webview.addEventListener('drop', (e) => {this.handleDrop(e);});
 
     this.handleMarkerSet    = this.handleMarkerSet.bind(this);

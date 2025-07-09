@@ -1,6 +1,6 @@
 import { EventHandler, viewport, arrayMove, NetlistId, ActionType, viewerState, dataManager, RowId} from './vaporview';
 import { ValueFormat } from './value_format';
-import { vscode } from './vaporview';
+import { vscode, getParentGroupId } from './vaporview';
 import { SignalGroup, VariableItem } from './signal_item';
 import { clear } from 'console';
 
@@ -22,8 +22,11 @@ export class LabelsPanels {
   labelsList: any            = [];
   idleItems: any             = [];
   draggableItem: any         = null;
+  draggableItemParentGroup: any = null;
   draggableItemIndex: any    = null;
   draggableItemNewIndex: any = null;
+  closestItemAbove: any      = null;
+  closestItemBelow: any      = null;
   pointerStartX: any         = null;
   pointerStartY: any         = null;
   scrollStartY: any          = null;
@@ -148,13 +151,14 @@ export class LabelsPanels {
     vscode.postMessage({command: 'copyToClipboard', text: formattedValue});
   }
 
-  updateIdleItemsStateAndPosition() {
-    const draggableItemRect = this.draggableItem.getBoundingClientRect();
+  updateIdleItemsStateAndPosition(e) {
+    //const draggableItemRect = this.draggableItem.getBoundingClientRect();
+    //const draggableItemY    = draggableItemRect.top + draggableItemRect.height / 2;
     const labelsRect        = this.labels.getBoundingClientRect();
-    const draggableItemY    = draggableItemRect.top + draggableItemRect.height / 2;
+    const draggableItemY    = e.clientY;
 
-    let closestItemAbove: any = null;
-    let closestItemBelow: any = null;
+    this.closestItemAbove  = null;
+    this.closestItemBelow  = null;
     let closestItemAboveRect: any = null;
     let closestItemBelowRect: any = null;
     let closestDistanceAbove  = Infinity;
@@ -167,38 +171,26 @@ export class LabelsPanels {
       if (draggableItemY >= itemY) {
         const distance = draggableItemY - itemY;
         if (distance < closestDistanceAbove) {
-          closestDistanceAbove = distance;
-          closestItemAbove     = item;
-          closestItemAboveRect = itemRect;
+          closestDistanceAbove  = distance;
+          this.closestItemAbove = item;
+          closestItemAboveRect  = itemRect;
         }
       } else if (draggableItemY < itemY) {
         const distance = itemY - draggableItemY;
         if (distance < closestDistanceBelow) {
-          closestDistanceBelow = distance;
-          closestItemBelow     = item;
-          closestItemBelowRect = itemRect;
+          closestDistanceBelow  = distance;
+          this.closestItemBelow = item;
+          closestItemBelowRect  = itemRect;
         }
       }
     });
 
-    const closestItemAboveIndex = Math.max(this.labelsList.indexOf(closestItemAbove), 0);
-    let closestItemBelowIndex = this.labelsList.indexOf(closestItemBelow);
-    if (closestItemBelowIndex === -1) {closestItemBelowIndex = this.labelsList.length - 1;}
-    
     if (this.dragDivider !== null) {
-      if (closestItemBelow !== null) {
+      if (this.closestItemBelow !== null) {
         this.dragDivider.style.top = `${closestItemBelowRect.top - labelsRect.top}px`;
-      } else if (closestItemAbove !== null) {
+      } else if (this.closestItemAbove !== null) {
         this.dragDivider.style.top = `${closestItemAboveRect.top - labelsRect.top + closestItemAboveRect.height}px`;
       }
-    }
-
-    if (this.draggableItemIndex < closestItemAboveIndex) {
-      this.draggableItemNewIndex = closestItemAboveIndex;
-    } else if (this.draggableItemIndex > closestItemBelowIndex) {
-      this.draggableItemNewIndex = closestItemBelowIndex;
-    } else {
-      this.draggableItemNewIndex = this.draggableItemIndex;
     }
   }
 
@@ -211,6 +203,13 @@ export class LabelsPanels {
     if (this.dragDivider) {this.dragDivider.style.display = 'block'};
     this.dragInProgress = true;
   }
+
+  setTreeItemDraggableClasses() {
+    this.idleItems   = this.labelsList.filter((item: any) => {return item.classList.contains('is-idle');});
+    this.dragDivider = this.labels.querySelector('#drag-divider');
+    if (this.dragDivider) {this.dragDivider.style.display = 'block'};
+  }
+
 
   dragStart(event: any) {
     if (event.button !== 0) {return;} // Only allow left mouse button drag
@@ -232,8 +231,6 @@ export class LabelsPanels {
     document.addEventListener('mousemove', this.dragMove);
 
     viewerState.mouseupEventType = 'rearrange';
-    this.draggableItemIndex    = this.labelsList.indexOf(this.draggableItem);
-    this.draggableItemNewIndex = this.draggableItemIndex;
     this.idleItems             = this.labelsList.filter((item: any) => {return item.classList.contains('is-idle');});
   }
 
@@ -250,13 +247,29 @@ export class LabelsPanels {
 
     this.draggableItem.style.transform = `translate(${pointerOffsetX}px, ${pointerOffsetY}px)`;
 
-    this.updateIdleItemsStateAndPosition();
+    this.updateIdleItemsStateAndPosition(event);
   }
 
   dragEnd(event: MouseEvent | KeyboardEvent, abort) {
     if (!this.dragInProgress) {return;}
     if (!this.draggableItem) {return;}
     event.preventDefault();
+
+    const draggableItemRowId   = parseInt(this.draggableItem.id.split('-')[1]);
+    this.draggableItemParentGroup = getParentGroupId(draggableItemRowId);
+    this.draggableItemIndex    = this.labelsList.indexOf(this.draggableItem);
+    this.draggableItemNewIndex = this.draggableItemIndex;
+    const closestItemAboveIndex = Math.max(this.labelsList.indexOf(this.closestItemAbove), 0);
+    let closestItemBelowIndex = this.labelsList.indexOf(this.closestItemBelow);
+    if (closestItemBelowIndex === -1) {closestItemBelowIndex = this.labelsList.length - 1;}
+
+    if (this.draggableItemIndex < closestItemAboveIndex) {
+      this.draggableItemNewIndex = closestItemAboveIndex;
+    } else if (this.draggableItemIndex > closestItemBelowIndex) {
+      this.draggableItemNewIndex = closestItemBelowIndex;
+    } else {
+      this.draggableItemNewIndex = this.draggableItemIndex;
+    }
 
     this.idleItems.forEach((item: any) => {item.style = null;});
     document.removeEventListener('mousemove', this.dragMove);

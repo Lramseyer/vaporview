@@ -1,4 +1,4 @@
-import { dataManager, viewport, CollapseState, NetlistId, RowId, viewerState } from "./vaporview";
+import { dataManager, viewport, CollapseState, NetlistId, RowId, viewerState, updateDisplayedSignalsFlat } from "./vaporview";
 import { formatBinary, formatHex, formatString, ValueFormat } from "./value_format";
 import { WaveformRenderer } from "./renderer";
 import { customColorKey } from "./data_manager";
@@ -536,6 +536,7 @@ export class SignalGroup extends SignalItem implements RowItem {
       if (!viewportRow) {return;}
       viewportRow.style.display = style;
     });
+    updateDisplayedSignalsFlat();
     viewport.renderAllWaveforms(false);
   }
 

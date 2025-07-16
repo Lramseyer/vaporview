@@ -165,9 +165,13 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       },
       emitEvent: (e: any) => {this.emitEvent(e);},
       removeFromCollection: (uri: vscode.Uri, document: VaporviewDocument) => {
-        const entry = { resource: uri.toString(), document: document };
-        this.documentCollection.delete(entry);
-        this._numDocuments--;
+        for (const entry of this.documentCollection) {
+          if (entry.resource === uri.toString() && entry.document === document) {
+            this.documentCollection.delete(entry);
+            this._numDocuments--;
+            return;
+          }
+        }
       }
     };
 

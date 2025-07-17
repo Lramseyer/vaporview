@@ -47,7 +47,8 @@ export interface RowItem {
   createViewportElement(rowId: number): void;
   setSignalContextAttribute(): void;
   getValueAtTime(time: number): string[];
-  getFlattenedRowIdList(ignoreCollapsed: boolean): number[];
+  getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[];
+  rowIdCount(ignoreCollapsed: boolean): number
   findParentGroupId(rowId: RowId): number | null;
   getAllEdges(valueList: string[]): number[];
   getNextEdge(time: number, direction: number, valueList: string[]): number | null;
@@ -162,9 +163,14 @@ export class VariableItem extends SignalItem implements RowItem {
     }).replace(/\s/g, '%x20')}`;
   }
 
-  public getFlattenedRowIdList(ignoreCollapsed: boolean): number[] {
+  public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {
+    if (ignoreRowId === this.netlistId) {return [];}
     const rowId = dataManager.netlistIdTable[this.netlistId];
     return [rowId];
+  }
+
+  public rowIdCount(ignoreCollapsed: boolean): number {
+    return 1;
   }
 
   public findParentGroupId(rowId: RowId): number | null {return null;}
@@ -449,17 +455,20 @@ export class SignalGroup extends SignalItem implements RowItem {
   public createLabelElement() {
 
     let childElements = '';
+    let icon = 'codicon-chevron-right';
+    let groupClass = 'collapsed-group';
     if (this.collapseState === CollapseState.Expanded) {
       this.children.forEach((childRowId) => {
         const signalItem = dataManager.rowItems[childRowId];
         childElements += signalItem.createLabelElement();
       });
+      icon = 'codicon-chevron-down';
+      groupClass = 'expanded-group';
     }
     const isSelected = viewerState.selectedSignal === this.rowId;
     const selectorClass = isSelected ? 'is-selected' : '';
     //const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
-    const icon = this.collapseState === CollapseState.Expanded ? 'codicon-chevron-down' : 'codicon-chevron-right';
-    return `<div class="waveform-label is-idle" id="label-${this.rowId}" data-vscode-context=${this.vscodeContext}>
+    return `<div class="waveform-label waveform-group is-idle ${groupClass}" id="label-${this.rowId}" data-vscode-context=${this.vscodeContext}>
               <div class="waveform-row ${selectorClass}">
                 <div class='codicon ${icon}'></div>
                 <p>${this.label}</p>
@@ -502,15 +511,27 @@ export class SignalGroup extends SignalItem implements RowItem {
     }).replace(/\s/g, '%x20')}`;
   }
 
-  public getFlattenedRowIdList(ignoreCollapsed: boolean): number[] {
+  public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {
     let result: number[] = [this.rowId];
     if (!ignoreCollapsed || this.collapseState === CollapseState.Expanded) {
       this.children.forEach((rowId) => {
+        if (rowId === ignoreRowId) {return;} // Skip the ignored rowId
         const signalItem = dataManager.rowItems[rowId];
-        result = result.concat(signalItem.getFlattenedRowIdList(ignoreCollapsed));
+        result = result.concat(signalItem.getFlattenedRowIdList(ignoreCollapsed, ignoreRowId));
       });
     }
     return result;
+  }
+
+  public rowIdCount(ignoreCollapsed: boolean): number {
+    let total = 1; // Count the group row itself
+    if (!ignoreCollapsed || this.collapseState === CollapseState.Expanded) {
+      this.children.forEach((rowId) => {
+        const signalItem = dataManager.rowItems[rowId];
+        total += signalItem.rowIdCount(ignoreCollapsed);
+      });
+    }
+    return total;
   }
 
   public findParentGroupId(rowId: RowId): number | null {
@@ -528,7 +549,7 @@ export class SignalGroup extends SignalItem implements RowItem {
   }
 
   private showHideViewportRows() {
-    const childRows = this.getFlattenedRowIdList(false);
+    const childRows = this.getFlattenedRowIdList(false, -1);
     const style = this.collapseState === CollapseState.Expanded ? 'flex' : 'none';
     childRows.forEach((rowId) => {
       if (rowId === this.rowId) {return;} // Skip the group row itself

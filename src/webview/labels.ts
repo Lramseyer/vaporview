@@ -1,8 +1,9 @@
-import { EventHandler, viewport, arrayMove, NetlistId, ActionType, viewerState, dataManager, RowId} from './vaporview';
+import { EventHandler, viewport, arrayMove, NetlistId, ActionType, viewerState, dataManager, RowId, getChildrenByGroupId, getIndexInGroup} from './vaporview';
 import { ValueFormat } from './value_format';
 import { vscode, getParentGroupId } from './vaporview';
 import { SignalGroup, VariableItem } from './signal_item';
 import { clear } from 'console';
+import { sign } from 'crypto';
 
 export class LabelsPanels {
 
@@ -21,16 +22,18 @@ export class LabelsPanels {
   // drag handler variables
   labelsList: any            = [];
   idleItems: any             = [];
+  idleGroups: any            = [];
   draggableItem: any         = null;
-  draggableItemParentGroup: any = null;
-  draggableItemIndex: any    = null;
-  draggableItemNewIndex: any = null;
   closestItemAbove: any      = null;
   closestItemBelow: any      = null;
+  closestItem: any           = null;
+  groupContainer: any        = null;
+  indexOffset: number        = 0;
   pointerStartX: any         = null;
   pointerStartY: any         = null;
   scrollStartY: any          = null;
   resizeIndex: any           = null;
+  defaultDragDividerY: number= 0;
   dragInProgress: boolean    = false;
   dragFreeze: boolean        = true;
   dragFreezeTimeout: any     = null;
@@ -68,7 +71,8 @@ export class LabelsPanels {
     this.handleResizeMousedown = this.handleResizeMousedown.bind(this);
     this.handleMarkerSet       = this.handleMarkerSet.bind(this);
     this.handleSignalSelect    = this.handleSignalSelect.bind(this);
-    this.handleReorderSignals  = this.handleReorderSignals.bind(this);
+    //this.handleReorderSignals  = this.handleReorderSignals.bind(this);
+    this.handleReorderSignalsHierarchy  = this.handleReorderSignalsHierarchy.bind(this);
     this.handleRemoveVariable  = this.handleRemoveVariable.bind(this);
     this.handleAddVariable     = this.handleAddVariable.bind(this);
     this.handleRedrawVariable  = this.handleRedrawVariable.bind(this);
@@ -86,7 +90,8 @@ export class LabelsPanels {
 
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
-    this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
+    //this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
+    this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignalsHierarchy);
     this.events.subscribe(ActionType.AddVariable, this.handleAddVariable);
     this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
     this.events.subscribe(ActionType.RedrawVariable, this.handleRedrawVariable);
@@ -96,7 +101,7 @@ export class LabelsPanels {
   renderLabelsPanels() {
     this.labelsList  = [];
     const transitions: string[] = [];
-    this.labelsList.push('<svg id="drag-divider" style="top: 0px; display:none"><line x1="0" y1="0" x2="100%" y2="0"></line></svg>');
+    this.labelsList.push('<svg id="drag-divider" style="top: 0px; display:none; pointer-events: none;"><line x1="0" y1="0" x2="100%" y2="0"></line></svg>');
     viewerState.displayedSignals.forEach((rowId, index) => {
       const netlistData = dataManager.rowItems[rowId];
       this.labelsList.push(netlistData.createLabelElement());
@@ -117,11 +122,9 @@ export class LabelsPanels {
   }
 
   clicklabel (event: any) {
-    const labelsList   = Array.from(this.labels.querySelectorAll('.waveform-label'));
     const clickedLabel = event.target.closest('.waveform-label');
-    const itemIndex    = labelsList.indexOf(clickedLabel);
-    if (itemIndex === -1) {return;}
-    const rowId = viewerState.displayedSignals[itemIndex];
+    const rowId = parseInt(clickedLabel.id.split('-')[1]);
+    if (isNaN(rowId)) {return;}
 
     if (event.target.classList.contains('codicon-chevron-down') ||
         event.target.classList.contains('codicon-chevron-right')) {
@@ -151,49 +154,6 @@ export class LabelsPanels {
     vscode.postMessage({command: 'copyToClipboard', text: formattedValue});
   }
 
-  updateIdleItemsStateAndPosition(e) {
-    //const draggableItemRect = this.draggableItem.getBoundingClientRect();
-    //const draggableItemY    = draggableItemRect.top + draggableItemRect.height / 2;
-    const labelsRect        = this.labels.getBoundingClientRect();
-    const draggableItemY    = e.clientY;
-
-    this.closestItemAbove  = null;
-    this.closestItemBelow  = null;
-    let closestItemAboveRect: any = null;
-    let closestItemBelowRect: any = null;
-    let closestDistanceAbove  = Infinity;
-    let closestDistanceBelow  = Infinity;
-
-    this.idleItems.forEach((item: any) => {
-      item.style.border = 'none';
-      const itemRect = item.getBoundingClientRect();
-      const itemY = itemRect.top + itemRect.height / 2;
-      if (draggableItemY >= itemY) {
-        const distance = draggableItemY - itemY;
-        if (distance < closestDistanceAbove) {
-          closestDistanceAbove  = distance;
-          this.closestItemAbove = item;
-          closestItemAboveRect  = itemRect;
-        }
-      } else if (draggableItemY < itemY) {
-        const distance = itemY - draggableItemY;
-        if (distance < closestDistanceBelow) {
-          closestDistanceBelow  = distance;
-          this.closestItemBelow = item;
-          closestItemBelowRect  = itemRect;
-        }
-      }
-    });
-
-    if (this.dragDivider !== null) {
-      if (this.closestItemBelow !== null) {
-        this.dragDivider.style.top = `${closestItemBelowRect.top - labelsRect.top}px`;
-      } else if (this.closestItemAbove !== null) {
-        this.dragDivider.style.top = `${closestItemAboveRect.top - labelsRect.top + closestItemAboveRect.height}px`;
-      }
-    }
-  }
-
   setDraggableItemClasses() {
     if (!this.draggableItem) {return;}
     this.draggableItem.classList.remove('is-idle');
@@ -218,6 +178,8 @@ export class LabelsPanels {
     this.draggableItem = event.target.closest('.waveform-label');
 
     if (!this.draggableItem) {return;}
+    const rowId = parseInt(this.draggableItem.id.split('-')[1]);
+    if (isNaN(rowId)) {return;}
 
     this.draggableItem.classList.remove('is-idle');
     this.pointerStartX     = event.clientX;
@@ -225,13 +187,33 @@ export class LabelsPanels {
     this.scrollStartY      = this.labelsScroll.scrollTop;
     this.dragInProgress    = false;
     this.dragFreeze        = true;
+    this.defaultDragDividerY = this.draggableItem.getBoundingClientRect().top;
     clearTimeout(this.dragFreezeTimeout);
-    this.dragFreezeTimeout = setTimeout(() => {this.dragFreeze = false;}, 160);
-
+    this.dragFreezeTimeout = setTimeout(() => {this.dragFreeze = false;}, 100);
     document.addEventListener('mousemove', this.dragMove);
-
     viewerState.mouseupEventType = 'rearrange';
-    this.idleItems             = this.labelsList.filter((item: any) => {return item.classList.contains('is-idle');});
+
+    // find all idle items and idle expanded dropus
+    this.idleItems = [];
+    this.idleGroups = [];
+    let idleRowIds: number[] = [];
+    viewerState.displayedSignals.forEach((id: RowId) => {
+      if (id === rowId) {return;} // Skip the dragged item itself
+      const signalItem = dataManager.rowItems[id];
+      const rowIdList = signalItem.getFlattenedRowIdList(true, rowId);
+      idleRowIds = idleRowIds.concat(rowIdList);
+    });
+
+    idleRowIds.forEach((id: RowId) => {
+      const element = this.labels.querySelector(`#label-${id}`);
+      const signalItem = dataManager.rowItems[id];
+      if (signalItem instanceof SignalGroup) {
+        if (element) {this.idleGroups.push(element);}
+      }
+      if (element && element.classList.contains('is-idle')) {
+        this.idleItems.push(element);
+      }
+    });
   }
 
   dragMove(event: MouseEvent | any) {
@@ -250,44 +232,166 @@ export class LabelsPanels {
     this.updateIdleItemsStateAndPosition(event);
   }
 
+  updateIdleItemsStateAndPosition(e) {
+    //const draggableItemRect = this.draggableItem.getBoundingClientRect();
+    //const draggableItemY    = draggableItemRect.top + draggableItemRect.height / 2;
+    const labelsRect        = this.labels.getBoundingClientRect();
+    const draggableItemY    = e.clientY;
+
+    this.closestItemAbove  = null;
+    this.closestItemBelow  = null;
+    let closestItemAboveRect: any = null;
+    let closestItemBelowRect: any = null;
+    let closestDistanceAbove  = Infinity;
+    let closestDistanceBelow  = Infinity;
+    this.groupContainer = null;
+    let groupContainerBox: any = labelsRect;
+    let nearestLabel: any = null;
+
+    this.idleGroups.forEach((item: any) => {
+      item.style.backgroundColor = 'transparent';
+    });
+    this.groupContainer = e.target.closest('.expanded-group.is-idle');
+    nearestLabel   = e.target.closest('.waveform-label');
+    let idleItems: any  = [];
+    let width = 0;
+    if (this.groupContainer) {
+      this.groupContainer.style.backgroundColor = 'var(--vscode-list-dropBackground)';
+      groupContainerBox = this.groupContainer.children[1].getBoundingClientRect();
+      width = groupContainerBox.left;
+      idleItems = Array.from(this.groupContainer.children[1].children);
+      this.closestItem = null;
+    } else {
+      idleItems = Array.from(this.labels.children);
+    }
+
+    let breakFlag = false;
+    this.indexOffset = 0;
+    let dragDividerY: number | null = groupContainerBox.top - labelsRect.top;
+
+    idleItems.forEach((item: any) => {
+      if (breakFlag) {return;}
+      if (item.classList.contains('is-idle') === false) {return;}
+      const itemRect = item.getBoundingClientRect();
+      if (draggableItemY >= itemRect.top && draggableItemY < itemRect.bottom) {
+        dragDividerY = itemRect.top - labelsRect.top;
+        const itemY = itemRect.top + itemRect.height / 2;
+        if (draggableItemY >= itemY) {
+          this.indexOffset = 1;
+          dragDividerY += itemRect.height;
+        }
+        breakFlag = true;
+        this.closestItem = item;
+      }
+      //if (draggableItemY >= itemY) {
+      //  const distance = draggableItemY - itemY;
+      //  if (distance < closestDistanceAbove) {
+      //    closestDistanceAbove  = distance;
+      //    this.closestItemAbove = item;
+      //    closestItemAboveRect  = itemRect;
+      //  }
+      //} else if (draggableItemY < itemY) {
+      //  const distance = itemY - draggableItemY;
+      //  if (distance < closestDistanceBelow) {
+      //    closestDistanceBelow  = distance;
+      //    this.closestItemBelow = item;
+      //    closestItemBelowRect  = itemRect;
+      //  }
+      //}
+    });
+    
+    if (!breakFlag) {
+
+      if (draggableItemY >= groupContainerBox.bottom) {
+        dragDividerY = groupContainerBox.bottom - labelsRect.top;
+        this.closestItem = idleItems[idleItems.length - 1];
+        this.indexOffset = 1;
+      } else if (draggableItemY < groupContainerBox.top) {
+        dragDividerY = groupContainerBox.top - labelsRect.top;
+        this.closestItem = idleItems[0];
+        this.indexOffset = 0;
+      } else {
+        dragDividerY = this.defaultDragDividerY - labelsRect.top;
+        this.closestItem = null;
+        this.indexOffset = 0;
+      }
+    }
+
+    if (this.dragDivider !== null && dragDividerY !== null) {
+      //if (this.closestItemBelow !== null) {
+      //  this.dragDivider.style.top = `${closestItemBelowRect.top - labelsRect.top}px`;
+      //} else if (this.closestItemAbove !== null) {
+      //  this.dragDivider.style.top = `${closestItemAboveRect.top - labelsRect.top + closestItemAboveRect.height}px`;
+      //}
+      this.dragDivider.style.top = `${dragDividerY}px`;
+      this.dragDivider.style.left = width + 'px';
+    }
+  }
+
   dragEnd(event: MouseEvent | KeyboardEvent, abort) {
+    document.removeEventListener('mousemove', this.dragMove);
     if (!this.dragInProgress) {return;}
     if (!this.draggableItem) {return;}
     event.preventDefault();
 
-    const draggableItemRowId   = parseInt(this.draggableItem.id.split('-')[1]);
-    this.draggableItemParentGroup = getParentGroupId(draggableItemRowId);
-    this.draggableItemIndex    = this.labelsList.indexOf(this.draggableItem);
-    this.draggableItemNewIndex = this.draggableItemIndex;
-    const closestItemAboveIndex = Math.max(this.labelsList.indexOf(this.closestItemAbove), 0);
-    let closestItemBelowIndex = this.labelsList.indexOf(this.closestItemBelow);
-    if (closestItemBelowIndex === -1) {closestItemBelowIndex = this.labelsList.length - 1;}
-
-    if (this.draggableItemIndex < closestItemAboveIndex) {
-      this.draggableItemNewIndex = closestItemAboveIndex;
-    } else if (this.draggableItemIndex > closestItemBelowIndex) {
-      this.draggableItemNewIndex = closestItemBelowIndex;
-    } else {
-      this.draggableItemNewIndex = this.draggableItemIndex;
+    const draggableItemRowId = this.getRowIdFromElement(this.draggableItem);
+    if (draggableItemRowId === null || isNaN(draggableItemRowId)) {
+      throw new Error("Invalid draggable item row ID: " + draggableItemRowId);
+    }
+    const draggableItemIndex = getIndexInGroup(draggableItemRowId) || 0;
+    const newIndex = this.getRowIdFromElement(this.closestItem) || 0 + this.indexOffset;
+    const newGroupRowId = this.getRowIdFromElement(this.groupContainer);
+    let newGroupId = 0;
+    if (newGroupRowId !== null) {
+      newGroupId = dataManager.groupIdTable.indexOf(newGroupRowId);
+      if (newGroupId === -1) {
+        newGroupId = 0; // If the group is not found, default to group 0
+      }
     }
 
+    //let draggableItemNewIndex = -1;
+    //const closestRowId = this.closestItem.id.split('-')[1];
+    //const closestItemAboveIndex = Math.max(this.labelsList.indexOf(this.closestItemAbove), 0);
+    //let closestItemBelowIndex = this.labelsList.indexOf(this.closestItemBelow);
+    //if (closestItemBelowIndex === -1) {closestItemBelowIndex = this.labelsList.length - 1;}
+    //if (draggableItemIndex < closestItemAboveIndex) {
+    //  draggableItemNewIndex = closestItemAboveIndex;
+    //} else if (draggableItemIndex > closestItemBelowIndex) {
+    //  draggableItemNewIndex = closestItemBelowIndex;
+    //} else {
+    //  draggableItemNewIndex = draggableItemIndex;
+    //}
+
+    //let newGroupId = 0;
     this.idleItems.forEach((item: any) => {item.style = null;});
-    document.removeEventListener('mousemove', this.dragMove);
+    
     if (!abort) {
-      this.events.dispatch(ActionType.ReorderSignals, this.draggableItemIndex, this.draggableItemNewIndex);
+      console.log("draggable Item Row ", draggableItemRowId, " in group ", newGroupId, " at index ", newIndex);
+      // new
+      this.events.dispatch(ActionType.ReorderSignals, draggableItemRowId, newGroupId, newIndex);
+      // old
+      //this.events.dispatch(ActionType.ReorderSignals, draggableItemIndex, newIndex);
     }
 
     this.labelsList            = [];
     this.idleItems             = [];
     this.dragInProgress        = false;
-    this.draggableItemIndex    = null;
-    this.draggableItemNewIndex = null;
     this.pointerStartX         = null;
     this.pointerStartY         = null;
     this.draggableItem         = null;
     clearTimeout(this.dragFreezeTimeout);
 
     if (abort) {this.renderLabelsPanels();}
+  }
+
+  getRowIdFromElement(element: HTMLElement | null): RowId | null {
+    console.log(element);
+    if (!element) {return null;}
+    const id = element.id.split('-')[1];
+    if (!id) {return null;}
+    const rowId = parseInt(id);
+    if (isNaN(rowId)) {return null;}
+    return rowId;
   }
 
   handleResizeMousedown(event: MouseEvent, element: HTMLElement, index: number) {
@@ -341,6 +445,27 @@ export class LabelsPanels {
 
     arrayMove(this.labelsList, oldIndex, newIndex);
     arrayMove(viewerState.displayedSignals, oldIndex, newIndex);
+    this.renderLabelsPanels();
+  }
+
+  handleReorderSignalsHierarchy(rowId: number, newGroupId: number, newIndex: number) {
+
+    const oldGroupId = getParentGroupId(rowId) || 0;
+    const oldGroupChildren = getChildrenByGroupId(oldGroupId);
+    const oldIndex = oldGroupChildren.indexOf(rowId);
+    if (oldIndex === -1) {return;}
+    if (oldGroupId === newGroupId) {
+      arrayMove(oldGroupChildren, oldIndex, newIndex);
+    } else {
+      oldGroupChildren.splice(oldIndex, 1);
+      const newGroupChildren = getChildrenByGroupId(newGroupId);
+      if (newIndex >= newGroupChildren.length) {
+        newGroupChildren.push(rowId);
+      } else {
+        newGroupChildren.splice(newIndex, 0, rowId);
+      }
+    }
+
     this.renderLabelsPanels();
   }
 

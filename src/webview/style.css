@@ -403,7 +403,7 @@ body {
   background-color:  var(--vscode-editor-inactiveSelectionBackground);
   opacity: 0.75;
   z-index: 10;
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: grabbing;
 }
 
@@ -458,9 +458,13 @@ body {
   cursor: pointer;
 }
 
-.is-selected{
+.is-selected {
   border-top: 4px solid var(--vscode-editor-lineHighlightBorder);
   border-bottom: 4px solid var(--vscode-editor-lineHighlightBorder);
+}
+
+.is-selected-new {
+  background-color: var(--vscode-list-activeSelectionBackground);
 }
 
 .time-marker {

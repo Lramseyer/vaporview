@@ -14,8 +14,8 @@ export class WaveformDataManager {
 
   valueChangeData: WaveformData[] = [];
   rowItems: RowItem[]             = [];
-  netlistIdTable: RowId[]         = [];
-  groupIdTable: RowId[]           = [];
+  netlistIdTable: RowId[]         = []; // netlist ID is the key/index, rowId is the value
+  groupIdTable: RowId[]           = []; // group ID is the key/index, rowId is the value
   valueChangeDataTemp: any        = [];
   private nextRowId: number       = 0;
   private nextGroupId: number     = 1;

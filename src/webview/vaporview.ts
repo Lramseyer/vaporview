@@ -124,8 +124,8 @@ export function updateDisplayedSignalsFlat() {
   viewerState.visibleSignalsFlat = [];
   viewerState.displayedSignals.forEach((rowId) => {
     const signalItem = dataManager.rowItems[rowId];
-    viewerState.displayedSignalsFlat = viewerState.displayedSignalsFlat.concat(signalItem.getFlattenedRowIdList(false));
-    viewerState.visibleSignalsFlat = viewerState.visibleSignalsFlat.concat(signalItem.getFlattenedRowIdList(true));
+    viewerState.displayedSignalsFlat = viewerState.displayedSignalsFlat.concat(signalItem.getFlattenedRowIdList(false, -1));
+    viewerState.visibleSignalsFlat = viewerState.visibleSignalsFlat.concat(signalItem.getFlattenedRowIdList(true, -1));
   });
 }
 
@@ -141,6 +141,31 @@ export function getParentGroupId(rowId: RowId) {
     }
   };
   return null;
+}
+
+export function getIndexInGroup(rowId: RowId) {
+  const parentGroupId = getParentGroupId(rowId);
+  if (parentGroupId === null) {
+    return -1;
+  }
+  const groupRowId = dataManager.groupIdTable[parentGroupId];
+  const groupItem = dataManager.rowItems[groupRowId];
+  if (!(groupItem instanceof SignalGroup)) {
+    return -1;
+  }
+  return groupItem.children.indexOf(rowId);
+}
+
+export function getChildrenByGroupId(groupId: number) {
+  if (groupId === 0) {
+    return viewerState.displayedSignals;
+  }
+  const groupRowId = dataManager.groupIdTable[groupId];
+  const groupItem = dataManager.rowItems[groupRowId];
+  if (!(groupItem instanceof SignalGroup)) {
+    return [];
+  }
+  return groupItem.children;
 }
 
 // ----------------------------------------------------------------------------
@@ -483,6 +508,7 @@ class VaporviewWebview {
 
   // #region Global Events
   reorderSignals(oldIndex: number, newIndex: number) {
+    return;
     //arrayMove(viewerState.displayedSignals, oldIndex, newIndex);
     this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignals[newIndex]);
   }
@@ -664,7 +690,7 @@ class VaporviewWebview {
       case 'setConfigSettings':     {this.handleSetConfigSettings(message); break;}
       case 'getContext':            {sendWebviewContext(); break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
-      case 'add-variable':          {dataManager.addVariable(message.signalList, 1); break;}
+      case 'add-variable':          {dataManager.addVariable(message.signalList, 0); break;}
       case 'remove-signal':         {this.removeVariable(message.netlistId); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}
       case 'newSignalGroup':        {dataManager.addSignalGroup(message.parentGroupId, message.groupName); break;}

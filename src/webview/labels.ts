@@ -24,8 +24,6 @@ export class LabelsPanels {
   idleItems: any             = [];
   idleGroups: any            = [];
   draggableItem: any         = null;
-  closestItemAbove: any      = null;
-  closestItemBelow: any      = null;
   closestItem: any           = null;
   groupContainer: any        = null;
   indexOffset: number        = 0;
@@ -208,11 +206,19 @@ export class LabelsPanels {
       const element = this.labels.querySelector(`#label-${id}`);
       const signalItem = dataManager.rowItems[id];
       if (signalItem instanceof SignalGroup) {
-        if (element) {this.idleGroups.push(element);}
+        if (element) {
+          const boundingBox = element.getBoundingClientRect();
+          this.idleGroups.push({
+            element: element,
+            top: boundingBox.top + this.labels.scrollTop,
+            bottom: boundingBox.bottom + this.labels.scrollTop,
+            left: boundingBox.left,
+          });
+        }
       }
-      if (element && element.classList.contains('is-idle')) {
-        this.idleItems.push(element);
-      }
+      //if (element && element.classList.contains('is-idle')) {
+      //  this.idleItems.push(element);
+      //}
     });
   }
 
@@ -233,32 +239,36 @@ export class LabelsPanels {
   }
 
   updateIdleItemsStateAndPosition(e) {
-    //const draggableItemRect = this.draggableItem.getBoundingClientRect();
-    //const draggableItemY    = draggableItemRect.top + draggableItemRect.height / 2;
+
     const labelsRect        = this.labels.getBoundingClientRect();
     const draggableItemY    = e.clientY;
-
-    this.closestItemAbove  = null;
-    this.closestItemBelow  = null;
-    let closestItemAboveRect: any = null;
-    let closestItemBelowRect: any = null;
-    let closestDistanceAbove  = Infinity;
-    let closestDistanceBelow  = Infinity;
-    this.groupContainer = null;
+    const pointerY          = draggableItemY + this.labelsScroll.scrollTop;
+    this.groupContainer     = null;
     let groupContainerBox: any = labelsRect;
-    let nearestLabel: any = null;
-
-    this.idleGroups.forEach((item: any) => {
-      item.style.backgroundColor = 'transparent';
-    });
-    this.groupContainer = e.target.closest('.expanded-group.is-idle');
-    nearestLabel   = e.target.closest('.waveform-label');
-    let idleItems: any  = [];
+    let smallestGroupBox: any = Infinity;
     let width = 0;
+
+    // Reset all idle items and groups
+    if (e.clientX <= labelsRect.right) {
+      this.idleGroups.forEach((item: any) => {
+        if (item.element.classList.contains('is-idle') === false) {return;}
+        if (item.element.classList.contains('expanded-group') === false) {return;}
+        item.element.style.backgroundColor = 'transparent';
+        if (item.top < pointerY && item.bottom > pointerY && e.clientX > item.left) {
+          const groupHeight = item.bottom - item.top;
+          if (groupHeight < smallestGroupBox) {
+            smallestGroupBox = groupHeight;
+            this.groupContainer = item.element;
+            width = item.left;
+          }
+        }
+      });
+    }
+
+    let idleItems: any  = [];
     if (this.groupContainer) {
       this.groupContainer.style.backgroundColor = 'var(--vscode-list-dropBackground)';
       groupContainerBox = this.groupContainer.children[1].getBoundingClientRect();
-      width = groupContainerBox.left;
       idleItems = Array.from(this.groupContainer.children[1].children);
       this.closestItem = null;
     } else {
@@ -283,25 +293,9 @@ export class LabelsPanels {
         breakFlag = true;
         this.closestItem = item;
       }
-      //if (draggableItemY >= itemY) {
-      //  const distance = draggableItemY - itemY;
-      //  if (distance < closestDistanceAbove) {
-      //    closestDistanceAbove  = distance;
-      //    this.closestItemAbove = item;
-      //    closestItemAboveRect  = itemRect;
-      //  }
-      //} else if (draggableItemY < itemY) {
-      //  const distance = itemY - draggableItemY;
-      //  if (distance < closestDistanceBelow) {
-      //    closestDistanceBelow  = distance;
-      //    this.closestItemBelow = item;
-      //    closestItemBelowRect  = itemRect;
-      //  }
-      //}
     });
     
     if (!breakFlag) {
-
       if (draggableItemY >= groupContainerBox.bottom) {
         dragDividerY = groupContainerBox.bottom - labelsRect.top;
         this.closestItem = idleItems[idleItems.length - 1];
@@ -318,11 +312,6 @@ export class LabelsPanels {
     }
 
     if (this.dragDivider !== null && dragDividerY !== null) {
-      //if (this.closestItemBelow !== null) {
-      //  this.dragDivider.style.top = `${closestItemBelowRect.top - labelsRect.top}px`;
-      //} else if (this.closestItemAbove !== null) {
-      //  this.dragDivider.style.top = `${closestItemAboveRect.top - labelsRect.top + closestItemAboveRect.height}px`;
-      //}
       this.dragDivider.style.top = `${dragDividerY}px`;
       this.dragDivider.style.left = width + 'px';
     }
@@ -338,7 +327,7 @@ export class LabelsPanels {
     if (draggableItemRowId === null || isNaN(draggableItemRowId)) {
       throw new Error("Invalid draggable item row ID: " + draggableItemRowId);
     }
-    const draggableItemIndex = getIndexInGroup(draggableItemRowId) || 0;
+    //const draggableItemIndex = getIndexInGroup(draggableItemRowId) || 0;
     const newIndex = this.getRowIdFromElement(this.closestItem) || 0 + this.indexOffset;
     const newGroupRowId = this.getRowIdFromElement(this.groupContainer);
     let newGroupId = 0;
@@ -349,22 +338,8 @@ export class LabelsPanels {
       }
     }
 
-    //let draggableItemNewIndex = -1;
-    //const closestRowId = this.closestItem.id.split('-')[1];
-    //const closestItemAboveIndex = Math.max(this.labelsList.indexOf(this.closestItemAbove), 0);
-    //let closestItemBelowIndex = this.labelsList.indexOf(this.closestItemBelow);
-    //if (closestItemBelowIndex === -1) {closestItemBelowIndex = this.labelsList.length - 1;}
-    //if (draggableItemIndex < closestItemAboveIndex) {
-    //  draggableItemNewIndex = closestItemAboveIndex;
-    //} else if (draggableItemIndex > closestItemBelowIndex) {
-    //  draggableItemNewIndex = closestItemBelowIndex;
-    //} else {
-    //  draggableItemNewIndex = draggableItemIndex;
-    //}
-
-    //let newGroupId = 0;
     this.idleItems.forEach((item: any) => {item.style = null;});
-    
+
     if (!abort) {
       console.log("draggable Item Row ", draggableItemRowId, " in group ", newGroupId, " at index ", newIndex);
       // new

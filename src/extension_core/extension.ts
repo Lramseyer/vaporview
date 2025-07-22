@@ -348,7 +348,11 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.log.appendLine("Command called: 'vaporview.dummy' " + JSON.stringify(e));
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.openRemoteViewer', async () => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.openRemoteViewer', async (e) => {
+    if (e && e.url) {
+      viewerProvider.openRemoteViewer(e.url);
+      return;
+    }
     const serverUrl = await vscode.window.showInputBox({
       prompt: 'Enter the Surfer server URL',
       value: ''

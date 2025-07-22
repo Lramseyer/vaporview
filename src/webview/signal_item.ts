@@ -538,13 +538,13 @@ export class SignalGroup extends SignalItem implements RowItem {
     if (this.children.includes(rowId)) {
       return this.groupId;
     }
-    this.children.forEach((childRowId) => {
+    for (const childRowId of this.children) {
       const signalItem = dataManager.rowItems[childRowId];
       const parentGroupId = signalItem.findParentGroupId(rowId);
       if (parentGroupId !== null) {
         return parentGroupId;
       }
-    });
+    }
     return null;
   }
 

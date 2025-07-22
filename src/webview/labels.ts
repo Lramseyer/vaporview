@@ -120,9 +120,10 @@ export class LabelsPanels {
   }
 
   clicklabel (event: any) {
+    if (this.dragInProgress) {return;}
     const clickedLabel = event.target.closest('.waveform-label');
-    const rowId = parseInt(clickedLabel.id.split('-')[1]);
-    if (isNaN(rowId)) {return;}
+    const rowId = this.getRowIdFromElement(clickedLabel);
+    if (rowId === null || isNaN(rowId)) {return;}
 
     if (event.target.classList.contains('codicon-chevron-down') ||
         event.target.classList.contains('codicon-chevron-right')) {
@@ -212,7 +213,7 @@ export class LabelsPanels {
             element: element,
             top: boundingBox.top + this.labels.scrollTop,
             bottom: boundingBox.bottom + this.labels.scrollTop,
-            left: boundingBox.left,
+            left: element.children[1].getBoundingClientRect().left,
           });
         }
       }
@@ -302,11 +303,11 @@ export class LabelsPanels {
         this.indexOffset = 1;
       } else if (draggableItemY < groupContainerBox.top) {
         dragDividerY = groupContainerBox.top - labelsRect.top;
-        this.closestItem = idleItems[0];
+        this.closestItem = idleItems[0] || null;
         this.indexOffset = 0;
       } else {
         dragDividerY = this.defaultDragDividerY - labelsRect.top;
-        this.closestItem = null;
+        this.closestItem = this.draggableItem;
         this.indexOffset = 0;
       }
     }
@@ -327,8 +328,7 @@ export class LabelsPanels {
     if (draggableItemRowId === null || isNaN(draggableItemRowId)) {
       throw new Error("Invalid draggable item row ID: " + draggableItemRowId);
     }
-    //const draggableItemIndex = getIndexInGroup(draggableItemRowId) || 0;
-    const newIndex = this.getRowIdFromElement(this.closestItem) || 0 + this.indexOffset;
+
     const newGroupRowId = this.getRowIdFromElement(this.groupContainer);
     let newGroupId = 0;
     if (newGroupRowId !== null) {
@@ -338,14 +338,19 @@ export class LabelsPanels {
       }
     }
 
+    let newIndex = 0;
+    const closestItemRowId = this.getRowIdFromElement(this.closestItem);
+    if (closestItemRowId === null || isNaN(closestItemRowId)) {
+      newIndex = 0;
+    } else{
+      newIndex = getIndexInGroup(closestItemRowId, newGroupId) || 0 + this.indexOffset;
+    }
+
     this.idleItems.forEach((item: any) => {item.style = null;});
 
     if (!abort) {
       console.log("draggable Item Row ", draggableItemRowId, " in group ", newGroupId, " at index ", newIndex);
-      // new
       this.events.dispatch(ActionType.ReorderSignals, draggableItemRowId, newGroupId, newIndex);
-      // old
-      //this.events.dispatch(ActionType.ReorderSignals, draggableItemIndex, newIndex);
     }
 
     this.labelsList            = [];
@@ -360,7 +365,6 @@ export class LabelsPanels {
   }
 
   getRowIdFromElement(element: HTMLElement | null): RowId | null {
-    console.log(element);
     if (!element) {return null;}
     const id = element.id.split('-')[1];
     if (!id) {return null;}
@@ -428,6 +432,7 @@ export class LabelsPanels {
     const oldGroupId = getParentGroupId(rowId) || 0;
     const oldGroupChildren = getChildrenByGroupId(oldGroupId);
     const oldIndex = oldGroupChildren.indexOf(rowId);
+
     if (oldIndex === -1) {return;}
     if (oldGroupId === newGroupId) {
       arrayMove(oldGroupChildren, oldIndex, newIndex);
@@ -449,7 +454,7 @@ export class LabelsPanels {
     if (time > viewport.timeStop || time < 0) {return;}
 
     if (markerType === 0) {
-      viewerState.displayedSignals.forEach((rowId) => {
+      viewerState.displayedSignalsFlat.forEach((rowId) => {
         const signalItem = dataManager.rowItems[rowId];
         this.valueAtMarker[rowId] = signalItem.getValueAtTime(time);
       });

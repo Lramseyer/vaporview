@@ -568,16 +568,22 @@ export class Viewport {
     const signalItem = dataManager.rowItems[rowId];
     const groupRowId = dataManager.groupIdTable[newGroupId];
     const indexFlat  = viewerState.displayedSignalsFlat.indexOf(rowId);
-    let newIndexFlat = viewerState.displayedSignalsFlat.indexOf(groupRowId);
+    let newIndexFlat = 0;
+    if (newGroupId > 0) {
+      newIndexFlat = viewerState.displayedSignalsFlat.indexOf(groupRowId) + 1;
+    }
+
     if (indexFlat === -1) {return;}
     if (newIndexFlat === -1) {return;}
     if (!signalItem) {return;}
-    if (!groupRowId) {return;}
+
     newIndexFlat += newIndex;
     const rowCount = signalItem.rowIdCount(false);
-    if (newIndexFlat < indexFlat) {
+    if (newIndexFlat > indexFlat) {
       newIndexFlat -= rowCount;
     }
+
+    console.log(`indexFlat: ${indexFlat} newIndexFlat: ${newIndexFlat} groupRowId: ${groupRowId}`);
 
     const children    = Array.from(this.waveformArea.children);
     const splicedRows = children.splice(indexFlat, rowCount);

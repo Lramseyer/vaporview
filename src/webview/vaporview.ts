@@ -133,7 +133,7 @@ export function getParentGroupId(rowId: RowId) {
   if (viewerState.displayedSignals.includes(rowId)) {
     return 0;
   }
-  for (const id in viewerState.displayedSignals) {
+  for (const id of viewerState.displayedSignals) {
     const signalItem = dataManager.rowItems[id];
     const parentGroupId = signalItem.findParentGroupId(rowId);
     if (parentGroupId !== null) {
@@ -143,11 +143,11 @@ export function getParentGroupId(rowId: RowId) {
   return null;
 }
 
-export function getIndexInGroup(rowId: RowId) {
-  const parentGroupId = getParentGroupId(rowId);
-  if (parentGroupId === null) {
-    return -1;
-  }
+export function getIndexInGroup(rowId: RowId, groupId: number | null) {
+  let parentGroupId = groupId;
+  if (parentGroupId === null) {parentGroupId = getParentGroupId(rowId);}
+  if (parentGroupId === null) {return -1;}
+  if (parentGroupId === 0) {return viewerState.displayedSignals.indexOf(rowId);}
   const groupRowId = dataManager.groupIdTable[parentGroupId];
   const groupItem = dataManager.rowItems[groupRowId];
   if (!(groupItem instanceof SignalGroup)) {

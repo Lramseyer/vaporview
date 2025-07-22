@@ -226,6 +226,8 @@ impl Guest for Filecontext {
                     let time_unit = match time_scale_data {
                       Some(scale) => {
                         match scale.unit {
+                          TimescaleUnit::ZeptoSeconds => "zs".to_string(),
+                          TimescaleUnit::AttoSeconds => "as".to_string(),
                           TimescaleUnit::FemtoSeconds => "fs".to_string(),
                           TimescaleUnit::PicoSeconds => "ps".to_string(),
                           TimescaleUnit::NanoSeconds => "ns".to_string(),
@@ -474,6 +476,8 @@ impl Guest for Filecontext {
     let time_unit = match time_scale_data {
       Some(scale) => {
         match scale.unit {
+          TimescaleUnit::ZeptoSeconds => "zs".to_string(),
+          TimescaleUnit::AttoSeconds => "as".to_string(),
           TimescaleUnit::FemtoSeconds => "fs".to_string(),
           TimescaleUnit::PicoSeconds => "ps".to_string(),
           TimescaleUnit::NanoSeconds => "ns".to_string(),

@@ -10,11 +10,25 @@ use std::io::{self, BufReader, Cursor, Read, Seek, SeekFrom};
 //use std::result;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
-use wellen::{FileFormat, Hierarchy, ScopeRef, SignalRef, SignalSource, TimeTable, TimescaleUnit, WellenError, VarRef};
+use wellen::{FileFormat, Hierarchy, ScopeRef, SignalRef, SignalSource, TimeTable, TimescaleUnit, WellenError, VarRef, CompressedTimeTable};
 use wellen::viewers::{read_body, read_header, ReadBodyContinuation, HeaderResult};
 use wellen::LoadOptions;
 use std::sync::Arc;
 use core::ops::Index;
+use serde::Deserialize;
+use bincode::Options;
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
+
+
+#[derive(Deserialize, Debug)]
+struct SurferStatus {
+    bytes: u64,
+    bytes_loaded: u64,
+    filename: String,
+    wellen_version: String,
+    surfer_version: String,
+    file_format: String,
+}
 
 enum ReadBodyEnum {
   Static(ReadBodyContinuation<Cursor<Vec<u8>>>),
@@ -30,7 +44,7 @@ enum HeaderResultType {
 
 lazy_static! {
   //static ref _file: Mutex<Option<WasmFileReader>> = Mutex::new(None);
-
+  pub static ref BINCODE_OPTIONS: bincode::DefaultOptions = bincode::DefaultOptions::new();
   static ref _file_format : Mutex<FileFormat> = Mutex::new(FileFormat::Unknown);
   static ref _hierarchy: Mutex<Option<Hierarchy>> = Mutex::new(None);
   static ref _body: Mutex<ReadBodyEnum> = Mutex::new(ReadBodyEnum::None);
@@ -54,6 +68,7 @@ impl WasmFileReader {
   }
 }
 
+#[derive(Deserialize, Debug)]
 struct VarData {
   name: String,
   id: u32,
@@ -65,6 +80,7 @@ struct VarData {
   lsb: i32,
 }
 
+#[derive(Deserialize, Debug)]
 struct ScopeData {
   name: String,
   id: u32,
@@ -170,6 +186,226 @@ impl Seek for WasmFileReader {
 struct Filecontext;
 
 impl Guest for Filecontext {
+
+  fn loadremotestatus(status_data: String) -> String {
+    let status: SurferStatus = serde_json::from_str(&status_data).unwrap();
+    outputlog(&format!("Connected to Surfer server: {}", status.filename));
+    outputlog(&format!("File format: {}, Wellen version: {}, Surfer version: {}", 
+        status.file_format, status.wellen_version, status.surfer_version));
+    outputlog(&format!("Bytes loaded: {}/{}", status.bytes_loaded, status.bytes));
+    return status.filename;
+  }
+
+  fn loadremotehierarchy(hierarchy_data: String) {
+    match BASE64.decode(&hierarchy_data) {
+      Ok(compressed) => {
+        match lz4_flex::decompress_size_prepended(&compressed) {
+          Ok(raw) => {
+            let mut reader = std::io::Cursor::new(raw);
+            let opts = BINCODE_OPTIONS.allow_trailing_bytes();
+            
+            // Deserialize file format first
+            let file_format_result: Result<FileFormat, _> = opts.deserialize_from(&mut reader);
+            match file_format_result {
+              Ok(file_format) => {
+                // Deserialize hierarchy
+                let hierarchy_result: Result<Hierarchy, _> = BINCODE_OPTIONS.deserialize_from(&mut reader);
+                match hierarchy_result {
+                  Ok(hierarchy) => {
+                    let mut global_hierarchy = _hierarchy.lock().unwrap();
+                    let mut global_file_format = _file_format.lock().unwrap();
+                    *global_hierarchy = Some(hierarchy);
+                    *global_file_format = file_format;
+                    outputlog(&format!("Successfully loaded remote hierarchy ({} bytes compressed)", compressed.len()));
+                    
+                    // Set metadata like in loadfile
+                    let hier = global_hierarchy.as_ref().unwrap();
+                    let scope_count = hier.iter_scopes().count() as u32;
+                    let var_count = hier.iter_vars().count() as u32;
+                    let time_scale_data = hier.timescale();
+                    let time_unit = match time_scale_data {
+                      Some(scale) => {
+                        match scale.unit {
+                          TimescaleUnit::FemtoSeconds => "fs".to_string(),
+                          TimescaleUnit::PicoSeconds => "ps".to_string(),
+                          TimescaleUnit::NanoSeconds => "ns".to_string(),
+                          TimescaleUnit::MicroSeconds => "us".to_string(),
+                          TimescaleUnit::MilliSeconds => "ms".to_string(),
+                          TimescaleUnit::Seconds => "s".to_string(),
+                          TimescaleUnit::Unknown => "s".to_string()
+                        }
+                      },
+                      None => "s".to_string(),
+                    };
+                    let time_scale = match time_scale_data {
+                      Some(scale) => scale.factor,
+                      None => 1,
+                    } as u32;
+                    setmetadata(scope_count, var_count, time_scale, time_unit.as_str());
+                    
+                    // Set scope and var data
+                    for s in hier.scopes() {
+                      let scope_data = get_scope_data(&hier, s);
+                      setscopetop(&scope_data.name, scope_data.id, &scope_data.tpe);
+                    }
+                    
+                    for v in hier.vars() {
+                      let var_data = get_var_data(&hier, v);
+                      setvartop(&var_data.name, var_data.id, var_data.signal_id, &var_data.tpe, &var_data.encoding, var_data.width, var_data.msb, var_data.lsb);
+                    }
+                  },
+                  Err(e) => outputlog(&format!("Failed to deserialize hierarchy: {:?}", e))
+                }
+              },
+              Err(e) => outputlog(&format!("Failed to deserialize file format: {:?}", e))
+            }
+          },
+          Err(e) => outputlog(&format!("Failed to decompress hierarchy data: {:?}", e))
+        }
+      },
+      Err(e) => outputlog(&format!("Failed to decode base64 hierarchy data: {:?}", e))
+    }
+  }
+
+  fn loadremotetimetable(timetable_data: String) {
+    match BASE64.decode(&timetable_data) {
+      Ok(compressed_data) => {
+        let compressed_result: Result<CompressedTimeTable, _> = BINCODE_OPTIONS.deserialize(&compressed_data);
+        match compressed_result {
+          Ok(compressed) => {
+            let time_table = compressed.uncompress();
+            let mut global_time_table = _time_table.lock().unwrap();
+            *global_time_table = Some(time_table);
+            
+            let tt = global_time_table.as_ref().unwrap();
+            let mut min_timestamp = 9999999;
+            let event_count = tt.len();
+            let time_table_length = tt.len();
+            let time_end = tt[time_table_length - 1];
+            let time_end_extend = time_end + (time_end as f32 / time_table_length as f32).ceil() as u64;
+            
+            if event_count <= 128 {
+              min_timestamp = tt[event_count - 1];
+            } else {
+              for i in 128..event_count {
+                let rolling_time_step = tt[i] - tt[i - 128];
+                min_timestamp = std::cmp::min(rolling_time_step, min_timestamp);
+              }
+            }
+            
+            setchunksize(min_timestamp, time_end_extend, time_table_length as u64);
+            outputlog(&format!("Successfully loaded remote time table ({} events)", event_count));
+          },
+          Err(e) => outputlog(&format!("Failed to deserialize time table: {:?}", e))
+        }
+      },
+      Err(e) => outputlog(&format!("Failed to decode base64 time table data: {:?}", e))
+    }
+  }
+
+  fn loadremotesignals(signals_data: String) {
+    match BASE64.decode(&signals_data) {
+      Ok(data) => {
+        let mut reader = std::io::Cursor::new(data);
+        
+        // Read number of signals using LEB128
+        let num_ids_result: Result<u64, _> = leb128::read::unsigned(&mut reader);
+        match num_ids_result {
+          Ok(num_ids) => {
+            if num_ids == 0 {
+              outputlog("No signals in remote response");
+              return;
+            }
+            
+            let opts = BINCODE_OPTIONS.allow_trailing_bytes();
+            let mut signals = Vec::new();
+            
+            // Deserialize all but the last signal with trailing bytes allowed
+            for i in 0..(num_ids - 1) {
+              let compressed_result: Result<wellen::CompressedSignal, _> = opts.deserialize_from(&mut reader);
+              match compressed_result {
+                Ok(compressed) => {
+                  let signal = compressed.uncompress();
+                  signals.push((signal.signal_ref(), signal));
+                },
+                Err(e) => {
+                  outputlog(&format!("Failed to deserialize signal {}: {:?}", i, e));
+                  return;
+                }
+              }
+            }
+            
+            // Deserialize the final signal (should consume all remaining bytes)
+            let final_compressed_result: Result<wellen::CompressedSignal, _> = BINCODE_OPTIONS.deserialize_from(&mut reader);
+            match final_compressed_result {
+              Ok(compressed) => {
+                let signal = compressed.uncompress();
+                signals.push((signal.signal_ref(), signal));
+                
+                // Process the signals and send transition data chunks
+                let global_time_table = _time_table.lock().unwrap();
+                match global_time_table.as_ref() {
+                  Some(time_table) => {
+                    outputlog(&format!("Processing {} remote signals", signals.len()));
+                    
+                    // Process each signal similar to getsignaldata
+                    signals.iter().for_each(|(signal_ref, signal)| {
+                      let signalid = signal_ref.index() as u32;
+                      let mut result = String::new();
+                      result.push_str("[");
+
+                      let transitions = signal.iter_changes();
+                      let time_index = signal.time_indices();
+
+                      let mut i: usize = 0;
+                      let mut min: f64 = 0.0;
+                      let mut max: f64 = 0.0;
+                      for (_, value) in transitions {
+                        let v = value.to_string();
+                        let time = time_table[time_index[i] as usize];
+                        match value {
+                          wellen::SignalValue::Real(v) => {
+                            min = f64::min(min, v);
+                            max = f64::max(max, v);
+                          },
+                          _ => {}
+                        }
+                        result.push_str(&format!("[{:?},{:?}],", time, v));
+                        i += 1;
+                      }
+
+                      // Close the array
+                      if result.len() > 1 {result.pop();}
+                      result.push_str("]");
+
+                      // Send the data in chunks
+                      let max_return_length = 65000;
+                      let result_length = result.len();
+                      let chunk_count = (result_length as f32 / max_return_length as f32).ceil() as u32;
+                      for i in 0..chunk_count {
+                        let start = i * max_return_length;
+                        let end = std::cmp::min((i + 1) * max_return_length, result_length as u32);
+                        let chunk = &result[start as usize..end as usize];
+                        sendtransitiondatachunk(signalid, chunk_count, i as u32, min, max, chunk);
+                      }
+                    });
+                    
+                    outputlog(&format!("Successfully processed {} remote signals", signals.len()));
+                  },
+                  None => {
+                    outputlog("Warning: No time table available to process remote signals");
+                  }
+                }
+              },
+              Err(e) => outputlog(&format!("Failed to deserialize final signal: {:?}", e))
+            }
+          },
+          Err(e) => outputlog(&format!("Failed to read signal count: {:?}", e))
+        }
+      },
+      Err(e) => outputlog(&format!("Failed to decode base64 signal data: {:?}", e))
+    }
+  }
 
   fn loadfile(size: u64, fd: u32, loadstatic: bool, buffersize: u32) {
 

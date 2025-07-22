@@ -33,4 +33,8 @@ world filehandler {
   export getchildren: func(id: u32, startindex: u32) -> string;
   export getsignaldata: func(signalidlist: list<u32>);
   export getvaluesattime: func(time: u64, paths: string) -> string;
+  export loadremotestatus: func(status: string) -> string;
+  export loadremotehierarchy: func(hierarchy: string);
+  export loadremotetimetable: func(timetable: string);
+  export loadremotesignals: func(signals: string);
 }

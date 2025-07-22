@@ -3,6 +3,7 @@ import { Worker } from 'worker_threads';
 import * as fs from 'fs';
 
 import { VaporviewDocument, VaporviewDocumentFsdb, VaporviewDocumentWasm } from './document';
+import { SurferDocument } from './surfer_document';
 import { NetlistTreeDataProvider, DisplayedSignalsViewProvider, NetlistItem, WebviewCollection, netlistItemDragAndDropController } from './tree_view';
 
 export type NetlistId = number;
@@ -293,6 +294,73 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     let document = this.getDocumentFromOptionalUri(uri);
     if (!document) {return;}
     return document.getSettings();
+  }
+
+  public async openRemoteViewer(serverUrl: string) {
+    try {
+      // Create a synthetic URI for the remote server connection
+      const remoteUri = vscode.Uri.parse(`surfer://${serverUrl.replace(/[^a-zA-Z0-9]/g, '_')}`);
+      
+      // Create delegate for the remote document
+      const delegate = {
+        addSignalByNameToDocument: this.addSignalByNameToDocument.bind(this),
+        logOutputChannel: (message: string) => {this.log.appendLine(message);},
+        getViewerContext: async () => {
+          const webviewsForDocument = Array.from(this.webviews.get(remoteUri));
+          if (!webviewsForDocument.length) {
+            throw new Error('Could not find webview to save for');
+          }
+          const panel = webviewsForDocument[0];
+          const response = await this.postMessageWithResponse<number[]>(panel, 'getContext', {});
+          return new Uint8Array(response);
+        },
+        updateViews: (uri: vscode.Uri) => {
+          if (this.activeDocument?.uri !== uri) {return;}
+          this.netlistTreeDataProvider.loadDocument(document);
+          this.displayedSignalsTreeDataProvider.setTreeData(document.displayedSignals);
+        },
+        emitEvent: (e: any) => {this.emitEvent(e);},
+        removeFromCollection: (uri: vscode.Uri, document: VaporviewDocument) => {
+          for (const entry of this.documentCollection) {
+            if (entry.resource === uri.toString() && entry.document === document) {
+              this.documentCollection.delete(entry);
+              this._numDocuments--;
+              return;
+            }
+          }
+        }
+      };
+
+      // Create WASM worker
+      const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
+      const wasmWorker = new Worker(workerFile);
+      
+      // Create remote document
+      const document = await SurferDocument.create(remoteUri, serverUrl, wasmWorker, this.wasmModule, delegate);
+      
+      // Create and show webview panel manually
+      const webviewPanel = vscode.window.createWebviewPanel(
+        'vaporview.waveformViewer',
+        `Remote Viewer - ${serverUrl}`,
+        vscode.ViewColumn.One,
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+        }
+      );
+      
+      // Use the existing resolveCustomEditor to set up the webview
+      await this.resolveCustomEditor(document, webviewPanel, new vscode.CancellationTokenSource().token);
+      
+      this.activeWebview = webviewPanel;
+      this.activeDocument = document;
+      
+      this.log.appendLine(`Opened remote viewer for ${serverUrl}`);
+      
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to open remote viewer: ${error}`);
+      this.log.appendLine(`Failed to open remote viewer: ${error}`);
+    }
   }
 
   public saveSettingsToFile() {

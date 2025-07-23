@@ -217,9 +217,6 @@ export class LabelsPanels {
           });
         }
       }
-      //if (element && element.classList.contains('is-idle')) {
-      //  this.idleItems.push(element);
-      //}
     });
   }
 

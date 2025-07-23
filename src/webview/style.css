@@ -462,13 +462,14 @@ body {
   cursor: pointer;
 }
 
-.is-selected-old {
+.is-selected {
   border-top: 4px solid var(--vscode-editor-lineHighlightBorder);
   border-bottom: 4px solid var(--vscode-editor-lineHighlightBorder);
 }
 
-.is-selected {
-  background-color: var(--vscode-list-activeSelectionBackground);
+.is-selected-new {
+  /*background-color: var(--vscode-list-activeSelectionBackground);*/
+  background-color: var(--vscode-editor-lineHighlightBorder);
 }
 
 .time-marker {

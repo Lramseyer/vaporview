@@ -1,4 +1,4 @@
-import { SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove } from './vaporview';
+import { SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove, labelsPanel } from './vaporview';
 import { formatBinary, formatHex, ValueFormat, formatString, valueFormatList } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer, signedLinearWaveformRenderer, signedSteppedrWaveformRenderer } from './renderer';
 import { SignalGroup, VariableItem, RowItem } from './signal_item';
@@ -164,6 +164,29 @@ export class WaveformDataManager {
 
     this.nextGroupId++;
     this.nextRowId++;
+  }
+
+  renameSignalGroup(groupId: number | undefined, name: string | undefined) {
+    let rowId: number
+    if (groupId) {
+      rowId = this.groupIdTable[groupId];
+      if (rowId === undefined) {return;}
+    }
+    else {
+      if (viewerState.selectedSignal && viewerState.selectedSignal > 0) {
+        rowId = viewerState.selectedSignal;
+      } else {
+        return;
+      }
+    }
+    const groupItem = this.rowItems[rowId];
+    if (groupItem instanceof SignalGroup === false) {return;}
+    if (name !== undefined && name !== "") {
+      groupItem.label = name;
+      labelsPanel.renderLabelsPanels();
+    } else {
+      groupItem.showRenameInput();
+    }
   }
 
   updateWaveformChunk(message: any) {

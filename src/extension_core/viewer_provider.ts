@@ -18,6 +18,8 @@ export interface VaporviewDocumentDelegate {
 
 export function scaleFromUnits(unit: string | undefined) {
   switch (unit) {
+    case 'zs': return 1e-21;
+    case 'as': return 1e-18;
     case 'fs': return 1e-15;
     case 'ps': return 1e-12;
     case 'ns': return 1e-9;
@@ -32,6 +34,8 @@ export function scaleFromUnits(unit: string | undefined) {
 
 export function logScaleFromUnits(unit: string | undefined) {
   switch (unit) {
+    case 'zs': return -21;
+    case 'as': return -18;
     case 'fs': return -15;
     case 'ps': return -12;
     case 'ns': return -9;
@@ -1001,6 +1005,19 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     panel.webview.postMessage({
       command: 'newSignalGroup',
       parentGroupId: e.parentGroupId,
+      groupName: e.name,
+    });
+  }
+
+  public renameSignalGroup(e: any) {
+    if (!this.activeWebview) {return;}
+    if (!this.activeDocument) {return;}
+    if (!this.activeWebview.visible) {return;}
+
+    const panel      = this.activeWebview;
+    panel.webview.postMessage({
+      command: 'renameSignalGroup',
+      groupId: e.groupId,
       groupName: e.name,
     });
   }

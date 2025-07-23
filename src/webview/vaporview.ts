@@ -678,7 +678,6 @@ class VaporviewWebview {
     });
   }
 
-
   handleMessage(e: any) {
     const message = e.data;
 
@@ -692,6 +691,7 @@ class VaporviewWebview {
       case 'remove-signal':         {this.removeVariable(message.netlistId); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}
       case 'newSignalGroup':        {dataManager.addSignalGroup(message.parentGroupId, message.groupName); break;}
+      case 'renameSignalGroup':     {dataManager.renameSignalGroup(message.groupId, message.groupName); break;}
       case 'handle-keypress':       {this.externalKeyDownHandler(message); break;}
       //case 'update-waveform-full':  {dataManager.updateWaveformFull(message); break;}
       case 'setDisplayFormat':      {dataManager.setDisplayFormat(message); break;}

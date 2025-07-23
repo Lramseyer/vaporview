@@ -341,22 +341,27 @@
         {
           "command": "vaporview.newSignalGroup",
           "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "2_variables@5"
+          "group": "3_groups@1"
+        },
+        {
+          "command": "vaporview.renameSignalGroup",
+          "when": "false && webviewSection == 'signal-group' && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "group": "3_groups@2"
         },
         {
           "command": "vaporview.saveViewerSettings",
-          "group": "3_saveLoad@1",
+          "group": "4_saveLoad@1",
           "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
         },
         {
           "command": "vaporview.loadViewerSettings",
-          "group": "3_saveLoad@2",
+          "group": "4_saveLoad@2",
           "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
         },
         {
           "submenu": "vaporview.waveDrom",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "4_waveDrom"
+          "group": "5_waveDrom"
         }
       ],
       "vaporview.valueFormat": [
@@ -627,6 +632,10 @@
       {
         "command": "vaporview.newSignalGroup",
         "title": "New Group"
+      },
+      {
+        "command": "vaporview.renameSignalGroup",
+        "title": "Rename Group"
       },
       {
         "command": "vaporview.displayAsBinary",

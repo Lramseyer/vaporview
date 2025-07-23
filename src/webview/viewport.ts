@@ -647,6 +647,8 @@ export class Viewport {
 
   logScaleFromUnits(unit: string | undefined) {
     switch (unit) {
+      case 'zs': return -21;
+      case 'as': return -18;
       case 'fs': return -15;
       case 'ps': return -12;
       case 'ns': return -9;

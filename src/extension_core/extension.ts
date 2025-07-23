@@ -113,6 +113,10 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.newSignalGroup(e);
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.renameSignalGroup', (e) => {
+    viewerProvider.renameSignalGroup(e);
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.addSelected', (e) => {
     viewerProvider.filterAddSignalsInNetlist(viewerProvider.netlistViewSelectedSignals, false);
   }));

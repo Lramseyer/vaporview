@@ -4,6 +4,7 @@ import { WaveformRenderer } from "./renderer";
 import { customColorKey } from "./data_manager";
 import { vscode, labelsPanel } from "./vaporview";
 import { LabelsPanels } from "./labels";
+import { group } from "console";
 
 export function htmlSafe(string: string) {
   return string.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -450,7 +451,10 @@ export class SignalGroup extends SignalItem implements RowItem {
     public rowId: number,
     public label: string,
     public readonly groupId: number
-  ) {super();}
+  ) {
+    super();
+    this.setSignalContextAttribute();
+  }
 
   public createLabelElement() {
 
@@ -506,9 +510,18 @@ export class SignalGroup extends SignalItem implements RowItem {
   public setSignalContextAttribute() {
     this.vscodeContext = `${JSON.stringify({
       webviewSection: "signal-group",
+      groupId: this.groupId,
       preventDefaultContextMenuItems: true,
       rowId: this.rowId,
     }).replace(/\s/g, '%x20')}`;
+  }
+
+  public showRenameInput() {
+    this.labelElement = document.getElementById(`label-${this.rowId}`);
+    if (!this.labelElement) {return;}
+    const waveformRow = this.labelElement.querySelector('.waveform-row');
+    if (!waveformRow) {return;}
+    console.log("showRenameInput", waveformRow);
   }
 
   public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {

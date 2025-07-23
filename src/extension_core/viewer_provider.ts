@@ -296,7 +296,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     return document.getSettings();
   }
 
-  public async openRemoteViewer(serverUrl: string) {
+  public async openRemoteViewer(serverUrl: string, bearerToken?: string) {
     try {
       // Create a synthetic URI for the remote server connection
       const remoteUri = vscode.Uri.parse(`surfer://${serverUrl.replace(/[^a-zA-Z0-9]/g, '_')}`);
@@ -316,11 +316,13 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         },
         updateViews: (uri: vscode.Uri) => {
           if (this.activeDocument?.uri !== uri) {return;}
+          console.log("updateViews", uri.toString());
           this.netlistTreeDataProvider.loadDocument(document);
           this.displayedSignalsTreeDataProvider.setTreeData(document.displayedSignals);
         },
         emitEvent: (e: any) => {this.emitEvent(e);},
         removeFromCollection: (uri: vscode.Uri, document: VaporviewDocument) => {
+          console.log("removeFromCollection", uri.toString(), document);
           for (const entry of this.documentCollection) {
             if (entry.resource === uri.toString() && entry.document === document) {
               this.documentCollection.delete(entry);
@@ -336,7 +338,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       const wasmWorker = new Worker(workerFile);
       
       // Create remote document
-      const document = await SurferDocument.create(remoteUri, serverUrl, wasmWorker, this.wasmModule, delegate);
+      const document = await SurferDocument.create(remoteUri, serverUrl, wasmWorker, this.wasmModule, delegate, bearerToken);
       
       // Create and show webview panel manually
       const webviewPanel = vscode.window.createWebviewPanel(

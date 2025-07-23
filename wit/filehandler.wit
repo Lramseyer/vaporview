@@ -33,8 +33,11 @@ world filehandler {
   export getchildren: func(id: u32, startindex: u32) -> string;
   export getsignaldata: func(signalidlist: list<u32>);
   export getvaluesattime: func(time: u64, paths: string) -> string;
-  export loadremotestatus: func(status: string) -> string;
-  export loadremotehierarchy: func(hierarchy: string);
-  export loadremotetimetable: func(timetable: string);
-  export loadremotesignals: func(signals: string);
+  export loadremotestatus: func(status: list<u8>) -> string;
+  export loadremotehierarchy: func(hierarchy: list<u8>);
+  export loadremotetimetable: func(timetable: list<u8>);
+  export loadremotesignals: func(signals: list<u8>);
+  export loadremotehierarchychunk: func(chunk-data: list<u8>, chunk-index: u32, total-chunks: u32);
+  export loadremotetimetablechunk: func(chunk-data: list<u8>, chunk-index: u32, total-chunks: u32);
+  export loadremotesignalschunk: func(chunk-data: list<u8>, chunk-index: u32, total-chunks: u32);
 }

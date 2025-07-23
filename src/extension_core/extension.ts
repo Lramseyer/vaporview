@@ -350,7 +350,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.openRemoteViewer', async (e) => {
     if (e && e.url) {
-      viewerProvider.openRemoteViewer(e.url);
+      viewerProvider.openRemoteViewer(e.url, e.bearerToken);
       return;
     }
     const serverUrl = await vscode.window.showInputBox({
@@ -358,9 +358,17 @@ export async function activate(context: vscode.ExtensionContext) {
       value: ''
     });
     
-    if (serverUrl) {
-      viewerProvider.openRemoteViewer(serverUrl);
+    if (!serverUrl) {
+      return;
     }
+    
+    const bearerToken = await vscode.window.showInputBox({
+      prompt: 'Enter bearer token (optional)',
+      password: true,
+      value: ''
+    });
+    
+    viewerProvider.openRemoteViewer(serverUrl, bearerToken);
   }));
 
   return {

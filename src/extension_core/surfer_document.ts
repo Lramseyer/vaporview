@@ -8,6 +8,7 @@ import { loadRemoteStatus, loadRemoteHierarchy, loadRemoteTimeTable, loadRemoteS
 
 export class SurferDocument extends VaporviewDocument implements vscode.CustomDocument {
   private serverUrl: string;
+  private bearerToken?: string;
   public _wasmWorker: Worker;
   public wasmApi: any;
 
@@ -17,8 +18,9 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
     wasmWorker: Worker,
     wasmModule: WebAssembly.Module,
     delegate: VaporviewDocumentDelegate,
+    bearerToken?: string,
   ): Promise<SurferDocument | PromiseLike<SurferDocument>> {
-    const document = new SurferDocument(uri, serverUrl, wasmWorker, delegate);
+    const document = new SurferDocument(uri, serverUrl, wasmWorker, delegate, bearerToken);
     await document.createWasmApi(wasmModule);
     document.load();
     return document;
@@ -29,9 +31,11 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
     serverUrl: string,
     _wasmWorker: Worker,
     delegate: VaporviewDocumentDelegate,
+    bearerToken?: string,
   ) {
     super(uri, delegate);
     this.serverUrl = serverUrl;
+    this.bearerToken = bearerToken;
     this._wasmWorker = _wasmWorker;
   }
 
@@ -46,14 +50,14 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
     }, async () => {
       try {
         // Load status first to verify connection
-        const filename = await loadRemoteStatus(this.serverUrl, this.wasmApi);
+        const filename = await loadRemoteStatus(this.serverUrl, this.wasmApi, this.bearerToken);
         this._delegate.logOutputChannel("Connected to file: " + filename);
         
         // Load hierarchy
-        await loadRemoteHierarchy(this.serverUrl, this.wasmApi);
+        await loadRemoteHierarchy(this.serverUrl, this.wasmApi, this.bearerToken);
         
         // Load time table  
-        await loadRemoteTimeTable(this.serverUrl, this.wasmApi);
+        await loadRemoteTimeTable(this.serverUrl, this.wasmApi, this.bearerToken);
         
       } catch (error) {
         this._delegate.logOutputChannel("Failed to connect to remote server: " + error);
@@ -78,7 +82,16 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
     outputlog: (msg: string) => { this._delegate.logOutputChannel(msg); },
     fsread: (fd: number, offset: bigint, length: number): Uint8Array => {
       // Remote server doesn't use direct file reads, return empty buffer
-      return new Uint8Array(0);
+      // Log the call to understand if this is causing issues
+      this._delegate.logOutputChannel(`fsread called with fd=${fd}, offset=${offset}, length=${length} (remote server shouldn't need this)`);
+      
+      // Validate length parameter to prevent invalid Uint8Array creation
+      if (length < 0 || length > 1024 * 1024) {
+        this._delegate.logOutputChannel(`fsread: invalid length ${length}, returning empty buffer`);
+        return new Uint8Array(0);
+      }
+      
+      return new Uint8Array(Math.max(0, length));
     },
     getsize: (fd: number): bigint => {
       // Remote server doesn't use direct file access
@@ -86,21 +99,26 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
     },
     setscopetop: (name: string, id: number, tpe: string) => {
       const scope = createScope(name, tpe, "", id, -1);
+      console.log("setscopetop")
       this.treeData.push(scope);
       this._netlistIdTable[id] = { netlistItem: scope, displayedItem: undefined, signalId: 0 };
     },
     setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number) => {
       const varItem = createVar(name, tpe, encoding, "", id, signalid, width, msb, lsb, false /*isFsdb*/);
+      console.log("setvartop")
       this.treeData.push(varItem);
       this._netlistIdTable[id] = { netlistItem: varItem, displayedItem: undefined, signalId: signalid };
     },
     setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
+      console.log("setmetadata")
       this.setMetadata(scopecount, varcount, timescale, timeunit);
     },
     setchunksize: (chunksize: bigint, timeend: bigint, timetablelength: bigint) => {
+      console.log("setchunksize")
       this.setChunkSize(chunksize, timeend, timetablelength);
     },
     sendtransitiondatachunk: (signalid: number, totalchunks: number, chunknum: number, min: number, max: number, transitionData: string) => {
+      console.log("sendtransitiondatachunk")
       this.webviewPanel?.webview.postMessage({
         command: 'update-waveform-chunk',
         signalId: signalid,
@@ -191,7 +209,7 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
   public async getSignalData(signalIdList: SignalId[]) {
     try {
       // Load signals from remote server
-      await loadRemoteSignals(this.serverUrl, this.wasmApi, signalIdList);
+      await loadRemoteSignals(this.serverUrl, this.wasmApi, this.bearerToken, signalIdList);
       
       // The WASM API will handle processing and sending the data to the webview
       // via the sendtransitiondatachunk callback

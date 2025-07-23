@@ -507,10 +507,8 @@ class VaporviewWebview {
   }
 
   // #region Global Events
-  reorderSignals(oldIndex: number, newIndex: number) {
-    return;
-    //arrayMove(viewerState.displayedSignals, oldIndex, newIndex);
-    this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignals[newIndex]);
+  reorderSignals(rowId: number, newGroupId: number, newIndex: number) {
+    this.events.dispatch(ActionType.SignalSelect, rowId);
   }
 
   handleResizeViewer() {

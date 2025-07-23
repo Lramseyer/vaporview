@@ -224,6 +224,7 @@ export class LabelsPanels {
   }
 
   dragMove(event: MouseEvent | any) {
+
     if (!this.draggableItem) {return;}
     if (this.dragFreeze) {return;}
     if (!this.dragInProgress) {
@@ -319,6 +320,7 @@ export class LabelsPanels {
   }
 
   dragEnd(event: MouseEvent | KeyboardEvent, abort) {
+
     document.removeEventListener('mousemove', this.dragMove);
     if (!this.dragInProgress) {return;}
     if (!this.draggableItem) {return;}
@@ -353,12 +355,12 @@ export class LabelsPanels {
       this.events.dispatch(ActionType.ReorderSignals, draggableItemRowId, newGroupId, newIndex);
     }
 
-    this.labelsList            = [];
-    this.idleItems             = [];
-    this.dragInProgress        = false;
-    this.pointerStartX         = null;
-    this.pointerStartY         = null;
-    this.draggableItem         = null;
+    this.labelsList     = [];
+    this.idleItems      = [];
+    this.dragInProgress = false;
+    this.pointerStartX  = null;
+    this.pointerStartY  = null;
+    this.draggableItem  = null;
     clearTimeout(this.dragFreezeTimeout);
 
     if (abort) {this.renderLabelsPanels();}
@@ -412,40 +414,20 @@ export class LabelsPanels {
     this.renderLabelsPanels();
   }
 
-  handleReorderSignals(oldIndex: number, newIndex: number) {
-
-    if (this.draggableItem) {
-      this.draggableItem.style   = null;
-      this.draggableItem.classList.remove('is-draggable');
-      this.draggableItem.classList.add('is-idle');
-    } else {
-      this.labelsList = Array.from(this.labels.querySelectorAll('.waveform-label'));
-    }
-
-    arrayMove(this.labelsList, oldIndex, newIndex);
-    arrayMove(viewerState.displayedSignals, oldIndex, newIndex);
-    this.renderLabelsPanels();
-  }
+  //handleReorderSignals(oldIndex: number, newIndex: number) {
+  //  if (this.draggableItem) {
+  //    this.draggableItem.style   = null;
+  //    this.draggableItem.classList.remove('is-draggable');
+  //    this.draggableItem.classList.add('is-idle');
+  //  } else {
+  //    this.labelsList = Array.from(this.labels.querySelectorAll('.waveform-label'));
+  //  }
+  //  arrayMove(this.labelsList, oldIndex, newIndex);
+  //  arrayMove(viewerState.displayedSignals, oldIndex, newIndex);
+  //  this.renderLabelsPanels();
+  //}
 
   handleReorderSignalsHierarchy(rowId: number, newGroupId: number, newIndex: number) {
-
-    const oldGroupId = getParentGroupId(rowId) || 0;
-    const oldGroupChildren = getChildrenByGroupId(oldGroupId);
-    const oldIndex = oldGroupChildren.indexOf(rowId);
-
-    if (oldIndex === -1) {return;}
-    if (oldGroupId === newGroupId) {
-      arrayMove(oldGroupChildren, oldIndex, newIndex);
-    } else {
-      oldGroupChildren.splice(oldIndex, 1);
-      const newGroupChildren = getChildrenByGroupId(newGroupId);
-      if (newIndex >= newGroupChildren.length) {
-        newGroupChildren.push(rowId);
-      } else {
-        newGroupChildren.splice(newIndex, 0, rowId);
-      }
-    }
-
     this.renderLabelsPanels();
   }
 
@@ -465,6 +447,7 @@ export class LabelsPanels {
 
   handleSignalSelect(rowId: RowId | null) {
 
+    if (this.dragDivider) {this.dragDivider.style.display = 'none'};
     if (rowId === null) {return;}
 
     viewerState.selectedSignal      = rowId;

@@ -364,6 +364,7 @@ body {
   font-family:     var(--vscode-editor-font-family);
   position:        relative;
   user-select:     none;
+  overflow:        hidden;
 }
 
 #drag-divider {
@@ -378,13 +379,16 @@ body {
   stroke-dasharray: 2 2;
 }
 
+.waveform-group {
+  overflow: visible;
+}
+
 .waveform-label {
 
   box-sizing:      border-box;
   -webkit-box-sizing: border-box;
   will-change:     transform;
   user-select:     none;
-  overflow: hidden;
 }
 
 .waveform-label.is-idle {
@@ -458,12 +462,12 @@ body {
   cursor: pointer;
 }
 
-.is-selected {
+.is-selected-old {
   border-top: 4px solid var(--vscode-editor-lineHighlightBorder);
   border-bottom: 4px solid var(--vscode-editor-lineHighlightBorder);
 }
 
-.is-selected-new {
+.is-selected {
   background-color: var(--vscode-list-activeSelectionBackground);
 }
 

@@ -48,7 +48,7 @@ export interface RowItem {
   setSignalContextAttribute(): void;
   getValueAtTime(time: number): string[];
   getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[];
-  rowIdCount(ignoreCollapsed: boolean): number
+  rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number
   findParentGroupId(rowId: RowId): number | null;
   getAllEdges(valueList: string[]): number[];
   getNextEdge(time: number, direction: number, valueList: string[]): number | null;
@@ -169,7 +169,7 @@ export class VariableItem extends SignalItem implements RowItem {
     return [rowId];
   }
 
-  public rowIdCount(ignoreCollapsed: boolean): number {
+  public rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number {
     return 1;
   }
 
@@ -523,12 +523,13 @@ export class SignalGroup extends SignalItem implements RowItem {
     return result;
   }
 
-  public rowIdCount(ignoreCollapsed: boolean): number {
+  public rowIdCount(ignoreCollapsed: boolean, stopIndex): number {
     let total = 1; // Count the group row itself
     if (!ignoreCollapsed || this.collapseState === CollapseState.Expanded) {
-      this.children.forEach((rowId) => {
+      this.children.forEach((rowId, i) => {
+        if (i >= stopIndex) {return;}
         const signalItem = dataManager.rowItems[rowId];
-        total += signalItem.rowIdCount(ignoreCollapsed);
+        total += signalItem.rowIdCount(ignoreCollapsed, Infinity);
       });
     }
     return total;

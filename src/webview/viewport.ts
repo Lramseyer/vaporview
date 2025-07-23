@@ -553,43 +553,26 @@ export class Viewport {
     this.updateBackgroundCanvas();
   }
 
-  handleReorderSignals(oldIndex: number, newIndex: number) {
-    const children       = Array.from(this.waveformArea.children);
-    arrayMove(children, oldIndex, newIndex);
-    this.waveformArea.replaceChildren(...children);
-
-    const rowId = viewerState.displayedSignals[newIndex];
-    const netlistElement = dataManager.rowItems[rowId];
-    if (!netlistElement) {return;}
-    if (!netlistElement.wasRendered) {netlistElement.renderWaveform();}
-  }
+  //handleReorderSignals(oldIndex: number, newIndex: number) {
+  //  const children       = Array.from(this.waveformArea.children);
+  //  arrayMove(children, oldIndex, newIndex);
+  //  this.waveformArea.replaceChildren(...children);
+  //  const rowId = viewerState.displayedSignals[newIndex];
+  //  const netlistElement = dataManager.rowItems[rowId];
+  //  if (!netlistElement) {return;}
+  //  if (!netlistElement.wasRendered) {netlistElement.renderWaveform();}
+  //}
 
   handleReorderSignalsHierarchy(rowId: number, newGroupId: number, newIndex: number) {
-    const signalItem = dataManager.rowItems[rowId];
-    const groupRowId = dataManager.groupIdTable[newGroupId];
-    const indexFlat  = viewerState.displayedSignalsFlat.indexOf(rowId);
-    let newIndexFlat = 0;
-    if (newGroupId > 0) {
-      newIndexFlat = viewerState.displayedSignalsFlat.indexOf(groupRowId) + 1;
-    }
 
-    if (indexFlat === -1) {return;}
-    if (newIndexFlat === -1) {return;}
-    if (!signalItem) {return;}
-
-    newIndexFlat += newIndex;
-    const rowCount = signalItem.rowIdCount(false);
-    if (newIndexFlat > indexFlat) {
-      newIndexFlat -= rowCount;
-    }
-
-    console.log(`indexFlat: ${indexFlat} newIndexFlat: ${newIndexFlat} groupRowId: ${groupRowId}`);
-
-    const children    = Array.from(this.waveformArea.children);
-    const splicedRows = children.splice(indexFlat, rowCount);
-    children.splice(newIndexFlat, 0, ...splicedRows);
-    this.waveformArea.replaceChildren(...children);
     updateDisplayedSignalsFlat();
+    const newChildren: HTMLElement[] = [];
+    viewerState.displayedSignalsFlat.forEach((rowId, i) => {
+      const element = dataManager.rowItems[rowId].viewportElement;
+      if (!element) {return;}
+      newChildren.push(element);
+    });
+    this.waveformArea.replaceChildren(...newChildren);
     this.renderAllWaveforms(false);
   }
 

@@ -1,4 +1,4 @@
-import { SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat } from './vaporview';
+import { SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove } from './vaporview';
 import { formatBinary, formatHex, ValueFormat, formatString, valueFormatList } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer, signedLinearWaveformRenderer, signedSteppedrWaveformRenderer } from './renderer';
 import { SignalGroup, VariableItem, RowItem } from './signal_item';
@@ -12,8 +12,8 @@ export class WaveformDataManager {
   requestActive: boolean = false;
   requestStart: number = 0;
 
-  valueChangeData: WaveformData[] = [];
-  rowItems: RowItem[]             = [];
+  valueChangeData: WaveformData[] = []; // signalId is the key/index, WaveformData is the value
+  rowItems: RowItem[]             = []; // rowId is the key/index, RowItem is the value
   netlistIdTable: RowId[]         = []; // netlist ID is the key/index, rowId is the value
   groupIdTable: RowId[]           = []; // group ID is the key/index, rowId is the value
   valueChangeDataTemp: any        = [];
@@ -33,7 +33,10 @@ export class WaveformDataManager {
     if (this.contentArea === null) {throw new Error("Could not find contentArea");}
 
     this.handleColorChange = this.handleColorChange.bind(this);
+    this.handleReorderSignals = this.handleReorderSignals.bind(this);
+
     this.events.subscribe(ActionType.updateColorTheme, this.handleColorChange);
+    this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
   }
 
   unload() {
@@ -262,6 +265,26 @@ export class WaveformDataManager {
       if (data instanceof VariableItem === false) {return;}
       data.setColorFromColorIndex();
     });
+  }
+
+  handleReorderSignals(rowId: number, newGroupId: number, newIndex: number) {
+
+    const oldGroupId = getParentGroupId(rowId) || 0;
+    const oldGroupChildren = getChildrenByGroupId(oldGroupId);
+    const oldIndex = oldGroupChildren.indexOf(rowId);
+
+    if (oldIndex === -1) {return;}
+    if (oldGroupId === newGroupId) {
+      arrayMove(oldGroupChildren, oldIndex, newIndex);
+    } else {
+      oldGroupChildren.splice(oldIndex, 1);
+      const newGroupChildren = getChildrenByGroupId(newGroupId);
+      if (newIndex >= newGroupChildren.length) {
+        newGroupChildren.push(rowId);
+      } else {
+        newGroupChildren.splice(newIndex, 0, rowId);
+      }
+    }
   }
 
   setDisplayFormat(message: any) {

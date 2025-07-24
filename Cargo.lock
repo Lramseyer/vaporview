@@ -80,6 +80,7 @@ name = "filehandler"
 version = "0.1.0"
 dependencies = [
  "lazy_static",
+ "lz4_flex",
  "wellen",
  "wit-bindgen",
 ]

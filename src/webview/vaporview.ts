@@ -690,6 +690,7 @@ class VaporviewWebview {
       case 'add-variable':          {dataManager.addVariable(message.signalList, 0); break;}
       case 'remove-signal':         {this.removeVariable(message.netlistId); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}
+      case 'update-waveform-chunk-compressed': {dataManager.updateWaveformChunkCompressed(message); break;}
       case 'newSignalGroup':        {dataManager.addSignalGroup(message.parentGroupId, message.groupName); break;}
       case 'renameSignalGroup':     {dataManager.renameSignalGroup(message.groupId, message.groupName); break;}
       case 'handle-keypress':       {this.externalKeyDownHandler(message); break;}

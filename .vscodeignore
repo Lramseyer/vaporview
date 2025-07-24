@@ -1,6 +1,5 @@
-target/debug/**
-target/release/**
-target/wasm32-unknown-unknown/debug/**
+target/**
+!target/wasm32-unknown-unknown/release/filehandler.wasm
 .vscode/**
 .gitignore
 .DS_Store
@@ -9,3 +8,4 @@ node_modules/**
 out/**/*.map
 dist/**/*.map
 *.vsix
+toDo*

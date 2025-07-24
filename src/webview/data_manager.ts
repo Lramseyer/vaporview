@@ -1,7 +1,9 @@
-import { SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove, labelsPanel } from './vaporview';
+import { SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove, labelsPanel, outputLog } from './vaporview';
 import { formatBinary, formatHex, ValueFormat, formatString, valueFormatList } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer, signedLinearWaveformRenderer, signedSteppedrWaveformRenderer } from './renderer';
 import { SignalGroup, VariableItem, RowItem } from './signal_item';
+// @ts-ignore
+import * as LZ4 from 'lz4js';
 
 // This will be populated when a custom color is set
 export let customColorKey = [];
@@ -211,11 +213,83 @@ export class WaveformDataManager {
     const transitionData = JSON.parse(this.valueChangeDataTemp[signalId].chunkData.join(""));
 
     if (!this.requestActive) {
-      //console.log("Request complete, time: " + (Date.now() - this.requestStart) / 1000 + " seconds");
+      outputLog("Request complete, time: " + (Date.now() - this.requestStart) / 1000 + " seconds");
       this.requestStart = 0;
     }
 
     this.updateWaveform(signalId, transitionData, message.min, message.max);
+  }
+
+  updateWaveformChunkCompressed(message: any) {
+    const signalId = message.signalId;
+    
+    if (this.valueChangeDataTemp[signalId].totalChunks === 0) {
+      this.valueChangeDataTemp[signalId].totalChunks = message.totalChunks;
+      this.valueChangeDataTemp[signalId].chunkLoaded = new Array(message.totalChunks).fill(false);
+      this.valueChangeDataTemp[signalId].compressedChunks = new Array(message.totalChunks);
+      this.valueChangeDataTemp[signalId].originalSize = message.originalSize;
+    }
+
+    // Store the compressed chunk as Uint8Array
+    this.valueChangeDataTemp[signalId].compressedChunks[message.chunkNum] = new Uint8Array(message.compressedDataChunk);
+    this.valueChangeDataTemp[signalId].chunkLoaded[message.chunkNum] = true;
+    const allChunksLoaded = this.valueChangeDataTemp[signalId].chunkLoaded.every((chunk: any) => {return chunk;});
+
+    if (!allChunksLoaded) {return;}
+
+    //console.log('all compressed chunks loaded');
+
+    this.receive(signalId);
+
+    try {
+      // Concatenate all compressed chunks
+      const totalCompressedSize = this.valueChangeDataTemp[signalId].compressedChunks.reduce((total: number, chunk: Uint8Array) => total + chunk.length, 0);
+      const fullCompressedData = new Uint8Array(totalCompressedSize);
+      let offset = 0;
+      
+      for (const chunk of this.valueChangeDataTemp[signalId].compressedChunks) {
+        fullCompressedData.set(chunk, offset);
+        offset += chunk.length;
+      }
+
+      // Decompress the LZ4 frame data (size is included in frame header)
+      const originalSize = this.valueChangeDataTemp[signalId].originalSize;
+      const decompressedData = LZ4.decompress(fullCompressedData);
+      const byteIncrement = 8 + message.signalWidth;
+      let time = 0;
+      let transitionData: any[] = [];
+      
+      // Create DataView once from the entire decompressed data
+      const dataView = new DataView(decompressedData.buffer, decompressedData.byteOffset, decompressedData.byteLength);
+      
+      for (let i = 0; i < decompressedData.length; i += byteIncrement) {
+        const j = i + 8;
+        // Read u64 directly from the DataView at offset i
+        const deltaTime = dataView.getBigUint64(i, true);
+        const value = String.fromCharCode(...decompressedData.slice(j, j + message.signalWidth));
+        time += Number(deltaTime);
+        transitionData.push([time, value]);
+      }
+
+      if (!this.requestActive) {
+        outputLog("Compressed request complete, time: " + (Date.now() - this.requestStart) / 1000 + " seconds");
+        this.requestStart = 0;
+      }
+
+      this.updateWaveform(signalId, transitionData, message.min, message.max);
+
+    } catch (error) {
+      console.error('Failed to decompress waveform data for signal', signalId + ':', error);
+      console.error('Compressed data size:', this.valueChangeDataTemp[signalId].compressedChunks?.length, 'chunks');
+      console.error('Expected original size:', this.valueChangeDataTemp[signalId].originalSize);
+      
+      // Clean up the failed attempt
+      this.valueChangeDataTemp[signalId] = undefined;
+      
+      // Could potentially request the data again using the fallback method here
+      // For now, just log the error and let the user know something went wrong
+      console.error('Signal data loading failed for signal ID', signalId, '- you may need to reload the file');
+    }
   }
 
   //updateWaveformFull(message: any) {

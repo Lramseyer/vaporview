@@ -99,26 +99,21 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
     },
     setscopetop: (name: string, id: number, tpe: string) => {
       const scope = createScope(name, tpe, "", id, -1);
-      console.log("setscopetop")
       this.treeData.push(scope);
       this._netlistIdTable[id] = { netlistItem: scope, displayedItem: undefined, signalId: 0 };
     },
     setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number) => {
       const varItem = createVar(name, tpe, encoding, "", id, signalid, width, msb, lsb, false /*isFsdb*/);
-      console.log("setvartop")
       this.treeData.push(varItem);
       this._netlistIdTable[id] = { netlistItem: varItem, displayedItem: undefined, signalId: signalid };
     },
     setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
-      console.log("setmetadata")
       this.setMetadata(scopecount, varcount, timescale, timeunit);
     },
     setchunksize: (chunksize: bigint, timeend: bigint, timetablelength: bigint) => {
-      console.log("setchunksize")
       this.setChunkSize(chunksize, timeend, timetablelength);
     },
     sendtransitiondatachunk: (signalid: number, totalchunks: number, chunknum: number, min: number, max: number, transitionData: string) => {
-      console.log("sendtransitiondatachunk")
       this.webviewPanel?.webview.postMessage({
         command: 'update-waveform-chunk',
         signalId: signalid,
@@ -209,7 +204,10 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
   public async getSignalData(signalIdList: SignalId[]) {
     try {
       // Load signals from remote server
+      console.log("getSignalData", this.bearerToken);
+      console.log("getSignalData", this.serverUrl);
       await loadRemoteSignals(this.serverUrl, this.wasmApi, this.bearerToken, signalIdList);
+      console.log("getSignalData done");
       
       // The WASM API will handle processing and sending the data to the webview
       // via the sendtransitiondatachunk callback

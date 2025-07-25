@@ -407,11 +407,11 @@ class VaporviewWebview {
     } else if ((e.key === 'ArrowUp') && (viewerState.selectedSignalIndex !== null)) {
       const newIndex = Math.max(viewerState.selectedSignalIndex - 1, 0);
       if (e.altKey) {this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignalIndex, newIndex);}
-      else          {this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignals[newIndex]);}
+      else          {this.events.dispatch(ActionType.SignalSelect, viewerState.visibleSignalsFlat[newIndex]);}
     } else if ((e.key === 'ArrowDown') && (viewerState.selectedSignalIndex !== null)) {
-      const newIndex = Math.min(viewerState.selectedSignalIndex + 1, viewerState.displayedSignals.length - 1);
+      const newIndex = Math.min(viewerState.selectedSignalIndex + 1, viewerState.visibleSignalsFlat.length - 1);
       if (e.altKey) {this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignalIndex, newIndex);}
-      else          {this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignals[newIndex]);}
+      else          {this.events.dispatch(ActionType.SignalSelect, viewerState.visibleSignalsFlat[newIndex]);}
     }
 
     // handle Home and End keys to move to the start and end of the waveform
@@ -426,6 +426,40 @@ class VaporviewWebview {
     else if (e.key === 'Delete' || e.key === 'Backspace') {this.removeVariableInternal(viewerState.selectedSignal);}
 
     else if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(true);}
+  }
+
+  handleUpDownArrowKeys(direction: number, rowId: RowId | null) {
+
+    if (rowId === null) {return;}
+    const parentGroupId = getParentGroupId(rowId);
+    if (parentGroupId === null) {return;}
+    const localIndex = getIndexInGroup(rowId, parentGroupId);
+    if (localIndex < 0) {return;}
+    const parentList = getChildrenByGroupId(parentGroupId);
+    const newIndex = localIndex + direction;
+    const parentGroupRowId = dataManager.groupIdTable[parentGroupId];
+
+    // if we selected a group item
+    const signalItem = dataManager.rowItems[rowId];
+    if (signalItem instanceof SignalGroup
+      && signalItem.children.length > 0
+      && signalItem.collapseState === CollapseState.Expanded
+      && direction === 1) {
+        this.events.dispatch(ActionType.SignalSelect, signalItem.children[0]);
+        return;
+    }
+
+    // if the new index is out of bounds, we handle it by selecting the parent group recursively
+    if (newIndex === -1) {
+      if (parentGroupRowId === undefined) {return;}
+      this.events.dispatch(ActionType.SignalSelect, parentGroupRowId);
+    } else if (newIndex >= parentList.length) {
+      if (parentGroupRowId === undefined) {return;}
+      this.handleUpDownArrowKeys(direction, parentGroupRowId);
+    } else {
+      this.events.dispatch(ActionType.SignalSelect, parentList[newIndex]);
+      return;
+    }
   }
 
   handleReorderArrowKeys(direction: number) {
@@ -535,7 +569,8 @@ class VaporviewWebview {
 
     const waveHeight = 28;
     if (viewerState.selectedSignalIndex !== null) {
-      const yPosition    = viewerState.selectedSignalIndex * waveHeight;
+      const index        = viewerState.visibleSignalsFlat.indexOf(rowId);
+      const yPosition    = index * waveHeight;
       const maxScrollTop = yPosition - (viewport.viewerHeight - (3 * waveHeight));
       const minScrollTop = yPosition - waveHeight;
       const newScrollTop = Math.max(maxScrollTop, Math.min(minScrollTop, this.labelsScroll.scrollTop));
@@ -708,7 +743,7 @@ class VaporviewWebview {
   }
 }
 
-const events             = new EventHandler();
+export const events      = new EventHandler();
 export const dataManager = new WaveformDataManager(events);
 export const controlBar  = new ControlBar(events);
 export const viewport    = new Viewport(events);

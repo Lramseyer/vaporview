@@ -448,7 +448,7 @@ export class LabelsPanels {
     if (rowId === null) {return;}
 
     viewerState.selectedSignal      = rowId;
-    viewerState.selectedSignalIndex = viewerState.displayedSignals.findIndex((signal) => {return signal === rowId;});
+    viewerState.selectedSignalIndex = viewerState.visibleSignalsFlat.findIndex((signal) => {return signal === rowId;});
     if (viewerState.selectedSignalIndex === -1) {viewerState.selectedSignalIndex = null;}
   
     this.renderLabelsPanels();

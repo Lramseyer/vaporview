@@ -1,4 +1,4 @@
-import { dataManager, viewport, CollapseState, NetlistId, RowId, viewerState, updateDisplayedSignalsFlat } from "./vaporview";
+import { dataManager, viewport, CollapseState, NetlistId, RowId, viewerState, updateDisplayedSignalsFlat, events, ActionType } from "./vaporview";
 import { formatBinary, formatHex, formatString, ValueFormat } from "./value_format";
 import { WaveformRenderer } from "./renderer";
 import { customColorKey } from "./data_manager";
@@ -583,6 +583,10 @@ export class SignalGroup extends SignalItem implements RowItem {
 
   public collapse() {
     this.collapseState = CollapseState.Collapsed;
+    const childRows = this.getFlattenedRowIdList(false, -1);
+    if (viewerState.selectedSignal !== null && childRows.includes(viewerState.selectedSignal)) {
+      events.dispatch(ActionType.SignalSelect, this.rowId);
+    }
     labelsPanel.renderLabelsPanels();
     this.showHideViewportRows();
   }

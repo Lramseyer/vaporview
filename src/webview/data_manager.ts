@@ -162,6 +162,8 @@ export class WaveformDataManager {
     const groupItem = new SignalGroup(rowId, groupName, groupId);
     this.groupIdTable[groupId] = rowId;
     this.rowItems[rowId] = groupItem;
+
+    updateDisplayedSignalsFlat();
     this.events.dispatch(ActionType.AddVariable, [rowId], false);
 
     this.nextGroupId++;

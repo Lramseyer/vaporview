@@ -578,6 +578,7 @@ export class Viewport {
 
   handleRemoveVariable(rowId: RowId) {
 
+    updateDisplayedSignalsFlat();
     const children = Array.from(this.waveformArea.children).filter((element) => {
       return element.id !== `waveform-${rowId}`;
     });

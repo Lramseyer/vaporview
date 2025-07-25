@@ -41,6 +41,7 @@ async function httpFetch(server: string, path: string, bearerToken?: string): Pr
     return response;
 }
 
+// get_status does have real use in the extension but is here for completeness
 export async function loadRemoteStatus(server: string, wasmApi: filehandler.Exports, bearerToken?: string): Promise<any> {
     const status = await httpFetch(server, 'get_status', bearerToken);
     const statusText = await status.text();

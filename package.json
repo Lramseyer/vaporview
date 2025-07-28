@@ -33,6 +33,17 @@
   "browser": "./dist/extension",
   "activationEvents": [],
   "contributes": {
+    "resourceLabelFormatters": [
+      {
+        "scheme": "vaporview-remote",
+        "formatting": {
+          "label": "${path}",
+          "separator": "/",
+          "tildify": false,
+          "workspaceSuffix": "VaporView Remote"
+        }
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {

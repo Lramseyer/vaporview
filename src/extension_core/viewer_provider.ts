@@ -70,7 +70,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     readonly document: VaporviewDocument;
   }>();
 
-  // Store remote server connection info for surfer:// URIs
+  // Store remote server connection info for vaporview-remote:// URIs
   private readonly remoteConnections = new Map<string, {
     serverUrl: string;
     bearerToken?: string;
@@ -177,8 +177,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
             this.documentCollection.delete(entry);
             this._numDocuments--;
             
-            // Clean up remote connection info if this is a surfer:// URI
-            if (uri.scheme === 'surfer') {
+            // Clean up remote connection info if this is a vaporview-remote:// URI
+            if (uri.scheme === 'vaporview-remote') {
               this.remoteConnections.delete(uri.toString());
               console.log("Cleaned up remote connection info for:", uri.toString());
             }
@@ -190,8 +190,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     let document: VaporviewDocument;
     
-    if (uri.scheme === 'surfer') {
-      // Handle remote surfer:// URIs
+    if (uri.scheme === 'vaporview-remote') {
+      // Handle remote vaporview-remote:// URIs
       const connectionInfo = this.remoteConnections.get(uri.toString());
       if (!connectionInfo) {
         throw new Error(`No connection info found for remote URI: ${uri.toString()}`);
@@ -324,10 +324,12 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
   public async openRemoteViewer(serverUrl: string, bearerToken?: string) {
     try {
-      // Create a synthetic URI for the remote server connection
-      // Use the server URL as the path to make it more recognizable in VS Code
+      // Create a URI with the custom vaporview-remote scheme
       const sanitizedUrl = serverUrl.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const remoteUri = vscode.Uri.parse(`surfer://remote/${sanitizedUrl}`);
+
+      // This can be changed to the actual filename of the remote file
+      // This is simpler so we avoid another http request
+      const remoteUri = vscode.Uri.parse(`vaporview-remote://${sanitizedUrl}/remote-waveforms.vcd`).with({scheme: 'vaporview-remote'});
       
       // Store connection info for use in openCustomDocument
       this.remoteConnections.set(remoteUri.toString(), {

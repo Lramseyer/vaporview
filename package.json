@@ -853,10 +853,6 @@
         "title": "Reload File"
       },
       {
-        "command": "vaporview.getSurferStatus",
-        "title": "Get Surfer Status"
-      },
-      {
         "command": "vaporview.openRemoteViewer",
         "title": "Open Remote Viewer"
       }

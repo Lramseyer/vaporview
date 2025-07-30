@@ -180,6 +180,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
             // Clean up remote connection info if this is a vaporview-remote:// URI
             if (uri.scheme === 'vaporview-remote') {
               this.remoteConnections.delete(uri.toString());
+              // Also clean up persisted state
+              this._context.globalState.update(`remote-connection-${uri.toString()}`, undefined);
             }
             return;
           }
@@ -190,10 +192,27 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     let document: VaporviewDocument;
     
     if (uri.scheme === 'vaporview-remote') {
-      // Handle remote vaporview-remote:// URIs
-      const connectionInfo = this.remoteConnections.get(uri.toString());
+      let connectionInfo = this.remoteConnections.get(uri.toString());
+      
       if (!connectionInfo) {
-        throw new Error(`No connection info found for remote URI: ${uri.toString()}`);
+        // Try to restore connection info from extension state
+        const persistedConnection = this._context.globalState.get<{serverUrl: string, bearerToken?: string}>(`remote-connection-${uri.toString()}`);
+        if (persistedConnection) {
+          connectionInfo = persistedConnection;
+          this.remoteConnections.set(uri.toString(), connectionInfo);
+        } else {
+          // Prompt user to reconnect
+          const action = await vscode.window.showErrorMessage(
+            `Remote connection lost for ${uri.path}. Please reconnect.`,
+            'Reconnect', 'Close Tab'
+          );
+          if (action === 'Reconnect') {
+            // Close the current tab and show reconnection dialog
+            await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+            await vscode.commands.executeCommand('vaporview.openRemoteViewer');
+          }
+          throw new Error(`Remote connection lost and user chose not to reconnect`);
+        }
       }
       
       // Load the Wasm worker
@@ -331,10 +350,11 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       const remoteUri = vscode.Uri.parse(`vaporview-remote://${sanitizedUrl}/remote-waveforms.vcd`).with({scheme: 'vaporview-remote'});
       
       // Store connection info for use in openCustomDocument
-      this.remoteConnections.set(remoteUri.toString(), {
-        serverUrl,
-        bearerToken
-      });
+      const connectionInfo = { serverUrl, bearerToken };
+      this.remoteConnections.set(remoteUri.toString(), connectionInfo);
+      
+      // Persist connection info to extension state for reload recovery
+      await this._context.globalState.update(`remote-connection-${remoteUri.toString()}`, connectionInfo);
       
       // Use VS Code's standard document opening mechanism
       await vscode.commands.executeCommand('vscode.openWith', remoteUri, WaveformViewerProvider.viewType);

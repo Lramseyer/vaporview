@@ -1,4 +1,4 @@
-import { vscode, WaveformData, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId } from "./vaporview";
+import { vscode, WaveformData, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId, updateDisplayedSignalsFlat } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { labelsPanel } from "./vaporview";
@@ -147,7 +147,8 @@ export class Viewport {
     this.handleZoom = this.handleZoom.bind(this);
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
     this.handleMarkerSet = this.handleMarkerSet.bind(this);
-    this.handleReorderSignals = this.handleReorderSignals.bind(this);
+    //this.handleReorderSignals = this.handleReorderSignals.bind(this);
+    this.handleReorderSignalsHierarchy = this.handleReorderSignalsHierarchy.bind(this);
     this.highlightZoom = this.highlightZoom.bind(this);
     this.drawHighlightZoom = this.drawHighlightZoom.bind(this);
     this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
@@ -158,7 +159,8 @@ export class Viewport {
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
     this.events.subscribe(ActionType.Zoom, this.handleZoom);
-    this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
+    //this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
+    this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignalsHierarchy);
     this.events.subscribe(ActionType.AddVariable, this.handleAddVariable);
     this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
     this.events.subscribe(ActionType.RedrawVariable, this.handleRedrawSignal);
@@ -551,19 +553,32 @@ export class Viewport {
     this.updateBackgroundCanvas();
   }
 
-  handleReorderSignals(oldIndex: number, newIndex: number) {
-    const children       = Array.from(this.waveformArea.children);
-    arrayMove(children, oldIndex, newIndex);
-    this.waveformArea.replaceChildren(...children);
+  //handleReorderSignals(oldIndex: number, newIndex: number) {
+  //  const children       = Array.from(this.waveformArea.children);
+  //  arrayMove(children, oldIndex, newIndex);
+  //  this.waveformArea.replaceChildren(...children);
+  //  const rowId = viewerState.displayedSignals[newIndex];
+  //  const netlistElement = dataManager.rowItems[rowId];
+  //  if (!netlistElement) {return;}
+  //  if (!netlistElement.wasRendered) {netlistElement.renderWaveform();}
+  //}
 
-    const rowId = viewerState.displayedSignals[newIndex];
-    const netlistElement = dataManager.rowItems[rowId];
-    if (!netlistElement) {return;}
-    if (!netlistElement.wasRendered) {netlistElement.renderWaveform();}
+  handleReorderSignalsHierarchy(rowId: number, newGroupId: number, newIndex: number) {
+
+    updateDisplayedSignalsFlat();
+    const newChildren: HTMLElement[] = [];
+    viewerState.displayedSignalsFlat.forEach((rowId, i) => {
+      const element = dataManager.rowItems[rowId].viewportElement;
+      if (!element) {return;}
+      newChildren.push(element);
+    });
+    this.waveformArea.replaceChildren(...newChildren);
+    this.renderAllWaveforms(false);
   }
 
   handleRemoveVariable(rowId: RowId) {
 
+    updateDisplayedSignalsFlat();
     const children = Array.from(this.waveformArea.children).filter((element) => {
       return element.id !== `waveform-${rowId}`;
     });
@@ -633,6 +648,8 @@ export class Viewport {
 
   logScaleFromUnits(unit: string | undefined) {
     switch (unit) {
+      case 'zs': return -21;
+      case 'as': return -18;
       case 'fs': return -15;
       case 'ps': return -12;
       case 'ns': return -9;

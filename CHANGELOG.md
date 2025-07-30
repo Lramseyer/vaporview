@@ -1,13 +1,14 @@
 # Change Log
 
-# Release Version TBD
+# Upcoming Release - 1.4.0
 
 - Added edge guides
-- Upgraded to wellen 0.15.0
+- Upgraded to wellen 0.17.1
 - Added Escape Key to abort some user actions
 - Fix renderer floating point math errors causing jitter
 - Fixed revealing signals in viewport behavior
 - Drag to reorder signals now responds to scroll
+- Added ability to group signals in the viewer
 
 # 1.3.4 - Latest Release
 

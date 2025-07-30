@@ -122,8 +122,8 @@ export function updateDisplayedSignalsFlat() {
   viewerState.visibleSignalsFlat = [];
   viewerState.displayedSignals.forEach((rowId) => {
     const signalItem = dataManager.rowItems[rowId];
-    viewerState.displayedSignalsFlat = viewerState.displayedSignalsFlat.concat(signalItem.getFlattenedRowIdList(false));
-    viewerState.visibleSignalsFlat = viewerState.visibleSignalsFlat.concat(signalItem.getFlattenedRowIdList(true));
+    viewerState.displayedSignalsFlat = viewerState.displayedSignalsFlat.concat(signalItem.getFlattenedRowIdList(false, -1));
+    viewerState.visibleSignalsFlat = viewerState.visibleSignalsFlat.concat(signalItem.getFlattenedRowIdList(true, -1));
   });
 }
 
@@ -131,7 +131,7 @@ export function getParentGroupId(rowId: RowId) {
   if (viewerState.displayedSignals.includes(rowId)) {
     return 0;
   }
-  for (const id in viewerState.displayedSignals) {
+  for (const id of viewerState.displayedSignals) {
     const signalItem = dataManager.rowItems[id];
     const parentGroupId = signalItem.findParentGroupId(rowId);
     if (parentGroupId !== null) {
@@ -139,6 +139,31 @@ export function getParentGroupId(rowId: RowId) {
     }
   };
   return null;
+}
+
+export function getIndexInGroup(rowId: RowId, groupId: number | null) {
+  let parentGroupId = groupId;
+  if (parentGroupId === null) {parentGroupId = getParentGroupId(rowId);}
+  if (parentGroupId === null) {return -1;}
+  if (parentGroupId === 0) {return viewerState.displayedSignals.indexOf(rowId);}
+  const groupRowId = dataManager.groupIdTable[parentGroupId];
+  const groupItem = dataManager.rowItems[groupRowId];
+  if (!(groupItem instanceof SignalGroup)) {
+    return -1;
+  }
+  return groupItem.children.indexOf(rowId);
+}
+
+export function getChildrenByGroupId(groupId: number) {
+  if (groupId === 0) {
+    return viewerState.displayedSignals;
+  }
+  const groupRowId = dataManager.groupIdTable[groupId];
+  const groupItem = dataManager.rowItems[groupRowId];
+  if (!(groupItem instanceof SignalGroup)) {
+    return [];
+  }
+  return groupItem.children;
 }
 
 // ----------------------------------------------------------------------------
@@ -380,11 +405,11 @@ class VaporviewWebview {
     } else if ((e.key === 'ArrowUp') && (viewerState.selectedSignalIndex !== null)) {
       const newIndex = Math.max(viewerState.selectedSignalIndex - 1, 0);
       if (e.altKey) {this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignalIndex, newIndex);}
-      else          {this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignals[newIndex]);}
+      else          {this.events.dispatch(ActionType.SignalSelect, viewerState.visibleSignalsFlat[newIndex]);}
     } else if ((e.key === 'ArrowDown') && (viewerState.selectedSignalIndex !== null)) {
-      const newIndex = Math.min(viewerState.selectedSignalIndex + 1, viewerState.displayedSignals.length - 1);
+      const newIndex = Math.min(viewerState.selectedSignalIndex + 1, viewerState.visibleSignalsFlat.length - 1);
       if (e.altKey) {this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignalIndex, newIndex);}
-      else          {this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignals[newIndex]);}
+      else          {this.events.dispatch(ActionType.SignalSelect, viewerState.visibleSignalsFlat[newIndex]);}
     }
 
     // handle Home and End keys to move to the start and end of the waveform
@@ -399,6 +424,40 @@ class VaporviewWebview {
     else if (e.key === 'Delete' || e.key === 'Backspace') {this.removeVariableInternal(viewerState.selectedSignal);}
 
     else if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(true);}
+  }
+
+  handleUpDownArrowKeys(direction: number, rowId: RowId | null) {
+
+    if (rowId === null) {return;}
+    const parentGroupId = getParentGroupId(rowId);
+    if (parentGroupId === null) {return;}
+    const localIndex = getIndexInGroup(rowId, parentGroupId);
+    if (localIndex < 0) {return;}
+    const parentList = getChildrenByGroupId(parentGroupId);
+    const newIndex = localIndex + direction;
+    const parentGroupRowId = dataManager.groupIdTable[parentGroupId];
+
+    // if we selected a group item
+    const signalItem = dataManager.rowItems[rowId];
+    if (signalItem instanceof SignalGroup
+      && signalItem.children.length > 0
+      && signalItem.collapseState === CollapseState.Expanded
+      && direction === 1) {
+        this.events.dispatch(ActionType.SignalSelect, signalItem.children[0]);
+        return;
+    }
+
+    // if the new index is out of bounds, we handle it by selecting the parent group recursively
+    if (newIndex === -1) {
+      if (parentGroupRowId === undefined) {return;}
+      this.events.dispatch(ActionType.SignalSelect, parentGroupRowId);
+    } else if (newIndex >= parentList.length) {
+      if (parentGroupRowId === undefined) {return;}
+      this.handleUpDownArrowKeys(direction, parentGroupRowId);
+    } else {
+      this.events.dispatch(ActionType.SignalSelect, parentList[newIndex]);
+      return;
+    }
   }
 
   handleReorderArrowKeys(direction: number) {
@@ -480,9 +539,8 @@ class VaporviewWebview {
   }
 
   // #region Global Events
-  reorderSignals(oldIndex: number, newIndex: number) {
-    //arrayMove(viewerState.displayedSignals, oldIndex, newIndex);
-    this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignals[newIndex]);
+  reorderSignals(rowId: number, newGroupId: number, newIndex: number) {
+    this.events.dispatch(ActionType.SignalSelect, rowId);
   }
 
   handleResizeViewer() {
@@ -509,7 +567,8 @@ class VaporviewWebview {
 
     const waveHeight = 28;
     if (viewerState.selectedSignalIndex !== null) {
-      const yPosition    = viewerState.selectedSignalIndex * waveHeight;
+      const index        = viewerState.visibleSignalsFlat.indexOf(rowId);
+      const yPosition    = index * waveHeight;
       const maxScrollTop = yPosition - (viewport.viewerHeight - (3 * waveHeight));
       const minScrollTop = yPosition - waveHeight;
       const newScrollTop = Math.max(maxScrollTop, Math.min(minScrollTop, this.labelsScroll.scrollTop));
@@ -652,7 +711,6 @@ class VaporviewWebview {
     });
   }
 
-
   handleMessage(e: any) {
     const message = e.data;
 
@@ -662,10 +720,12 @@ class VaporviewWebview {
       case 'setConfigSettings':     {this.handleSetConfigSettings(message); break;}
       case 'getContext':            {sendWebviewContext(); break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
-      case 'add-variable':          {dataManager.addVariable(message.signalList, 1); break;}
+      case 'add-variable':          {dataManager.addVariable(message.signalList, 0); break;}
       case 'remove-signal':         {this.removeVariable(message.netlistId); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}
+      case 'update-waveform-chunk-compressed': {dataManager.updateWaveformChunkCompressed(message); break;}
       case 'newSignalGroup':        {dataManager.addSignalGroup(message.parentGroupId, message.groupName); break;}
+      case 'renameSignalGroup':     {dataManager.renameSignalGroup(message.groupId, message.groupName); break;}
       case 'handle-keypress':       {this.externalKeyDownHandler(message); break;}
       //case 'update-waveform-full':  {dataManager.updateWaveformFull(message); break;}
       case 'setDisplayFormat':      {dataManager.setDisplayFormat(message); break;}
@@ -681,7 +741,7 @@ class VaporviewWebview {
   }
 }
 
-const events             = new EventHandler();
+export const events      = new EventHandler();
 export const dataManager = new WaveformDataManager(events);
 export const controlBar  = new ControlBar(events);
 export const viewport    = new Viewport(events);

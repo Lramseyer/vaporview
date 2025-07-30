@@ -37,14 +37,17 @@ Custom context menu items can be added to the waveform viewer webview. All attri
   - **Submenu vaporview.valueColor** - Render Type
   - **Submenu vaporview.renderType** - Color
 - 2_variables
-    - Show In Netlist View
-    - Remove Variable
-    - Copy Name
-    - Copy Value
-- 3_saveLoad
-    - Save Viewer Settings
-    - Load Viewer Settings
-- 4_waveDrom
+  - Show In Netlist View
+  - Remove Variable
+  - Copy Name
+  - Copy Value
+- 3_groups
+  - New Group
+  - Rename Group
+- 4_saveLoad
+  - Save Viewer Settings
+  - Load Viewer Settings
+- 5_waveDrom
   - **Submenu vaporview.waveDrom** -  WaveDrom
 
 ### Signal Item Attributes - data-vscode-context

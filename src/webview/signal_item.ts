@@ -1,9 +1,10 @@
-import { dataManager, viewport, CollapseState, NetlistId, RowId, viewerState, updateDisplayedSignalsFlat } from "./vaporview";
+import { dataManager, viewport, CollapseState, NetlistId, RowId, viewerState, updateDisplayedSignalsFlat, events, ActionType } from "./vaporview";
 import { formatBinary, formatHex, formatString, ValueFormat } from "./value_format";
 import { WaveformRenderer } from "./renderer";
 import { customColorKey } from "./data_manager";
 import { vscode, labelsPanel } from "./vaporview";
 import { LabelsPanels } from "./labels";
+import { group } from "console";
 
 export function htmlSafe(string: string) {
   return string.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -47,7 +48,8 @@ export interface RowItem {
   createViewportElement(rowId: number): void;
   setSignalContextAttribute(): void;
   getValueAtTime(time: number): string[];
-  getFlattenedRowIdList(ignoreCollapsed: boolean): number[];
+  getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[];
+  rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number
   findParentGroupId(rowId: RowId): number | null;
   getAllEdges(valueList: string[]): number[];
   getNextEdge(time: number, direction: number, valueList: string[]): number | null;
@@ -162,9 +164,14 @@ export class VariableItem extends SignalItem implements RowItem {
     }).replace(/\s/g, '%x20')}`;
   }
 
-  public getFlattenedRowIdList(ignoreCollapsed: boolean): number[] {
+  public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {
+    if (ignoreRowId === this.netlistId) {return [];}
     const rowId = dataManager.netlistIdTable[this.netlistId];
     return [rowId];
+  }
+
+  public rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number {
+    return 1;
   }
 
   public findParentGroupId(rowId: RowId): number | null {return null;}
@@ -444,22 +451,28 @@ export class SignalGroup extends SignalItem implements RowItem {
     public rowId: number,
     public label: string,
     public readonly groupId: number
-  ) {super();}
+  ) {
+    super();
+    this.setSignalContextAttribute();
+  }
 
   public createLabelElement() {
 
     let childElements = '';
+    let icon = 'codicon-chevron-right';
+    let groupClass = 'collapsed-group';
     if (this.collapseState === CollapseState.Expanded) {
       this.children.forEach((childRowId) => {
         const signalItem = dataManager.rowItems[childRowId];
         childElements += signalItem.createLabelElement();
       });
+      icon = 'codicon-chevron-down';
+      groupClass = 'expanded-group';
     }
     const isSelected = viewerState.selectedSignal === this.rowId;
     const selectorClass = isSelected ? 'is-selected' : '';
     //const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
-    const icon = this.collapseState === CollapseState.Expanded ? 'codicon-chevron-down' : 'codicon-chevron-right';
-    return `<div class="waveform-label is-idle" id="label-${this.rowId}" data-vscode-context=${this.vscodeContext}>
+    return `<div class="waveform-label waveform-group is-idle ${groupClass}" id="label-${this.rowId}" data-vscode-context=${this.vscodeContext}>
               <div class="waveform-row ${selectorClass}">
                 <div class='codicon ${icon}'></div>
                 <p>${this.label}</p>
@@ -497,38 +510,60 @@ export class SignalGroup extends SignalItem implements RowItem {
   public setSignalContextAttribute() {
     this.vscodeContext = `${JSON.stringify({
       webviewSection: "signal-group",
+      groupId: this.groupId,
       preventDefaultContextMenuItems: true,
       rowId: this.rowId,
     }).replace(/\s/g, '%x20')}`;
   }
 
-  public getFlattenedRowIdList(ignoreCollapsed: boolean): number[] {
+  public showRenameInput() {
+    this.labelElement = document.getElementById(`label-${this.rowId}`);
+    if (!this.labelElement) {return;}
+    const waveformRow = this.labelElement.querySelector('.waveform-row');
+    if (!waveformRow) {return;}
+    console.log("showRenameInput", waveformRow);
+  }
+
+  public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {
     let result: number[] = [this.rowId];
     if (!ignoreCollapsed || this.collapseState === CollapseState.Expanded) {
       this.children.forEach((rowId) => {
+        if (rowId === ignoreRowId) {return;} // Skip the ignored rowId
         const signalItem = dataManager.rowItems[rowId];
-        result = result.concat(signalItem.getFlattenedRowIdList(ignoreCollapsed));
+        result = result.concat(signalItem.getFlattenedRowIdList(ignoreCollapsed, ignoreRowId));
       });
     }
     return result;
+  }
+
+  public rowIdCount(ignoreCollapsed: boolean, stopIndex): number {
+    let total = 1; // Count the group row itself
+    if (!ignoreCollapsed || this.collapseState === CollapseState.Expanded) {
+      this.children.forEach((rowId, i) => {
+        if (i >= stopIndex) {return;}
+        const signalItem = dataManager.rowItems[rowId];
+        total += signalItem.rowIdCount(ignoreCollapsed, Infinity);
+      });
+    }
+    return total;
   }
 
   public findParentGroupId(rowId: RowId): number | null {
     if (this.children.includes(rowId)) {
       return this.groupId;
     }
-    this.children.forEach((childRowId) => {
+    for (const childRowId of this.children) {
       const signalItem = dataManager.rowItems[childRowId];
       const parentGroupId = signalItem.findParentGroupId(rowId);
       if (parentGroupId !== null) {
         return parentGroupId;
       }
-    });
+    }
     return null;
   }
 
   private showHideViewportRows() {
-    const childRows = this.getFlattenedRowIdList(false);
+    const childRows = this.getFlattenedRowIdList(false, -1);
     const style = this.collapseState === CollapseState.Expanded ? 'flex' : 'none';
     childRows.forEach((rowId) => {
       if (rowId === this.rowId) {return;} // Skip the group row itself
@@ -548,6 +583,10 @@ export class SignalGroup extends SignalItem implements RowItem {
 
   public collapse() {
     this.collapseState = CollapseState.Collapsed;
+    const childRows = this.getFlattenedRowIdList(false, -1);
+    if (viewerState.selectedSignal !== null && childRows.includes(viewerState.selectedSignal)) {
+      events.dispatch(ActionType.SignalSelect, this.rowId);
+    }
     labelsPanel.renderLabelsPanels();
     this.showHideViewportRows();
   }

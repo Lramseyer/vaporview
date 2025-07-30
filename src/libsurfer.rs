@@ -1,7 +1,7 @@
 use wellen::{FileFormat, Hierarchy, TimescaleUnit, CompressedTimeTable};
 use bincode::Options;
 
-use crate::{BINCODE_OPTIONS, _hierarchy, _file_format, _time_table, _hierarchy_chunks, _hierarchy_total_chunks, _timetable_chunks, _timetable_total_chunks, _signals_chunks, _signals_total_chunks, get_scope_data, get_var_data, outputlog, setmetadata, setscopetop, setvartop, setchunksize, sendtransitiondatachunk, SurferStatus};
+use crate::{BINCODE_OPTIONS, _hierarchy, _file_format, _time_table, _chunks, _total_chunks, get_scope_data, get_var_data, outputlog, setmetadata, setscopetop, setvartop, setchunksize, sendtransitiondatachunk, SurferStatus};
 
 const MAX_CHUNK_SIZE: u32 = 1024 * 32;
 
@@ -22,30 +22,24 @@ pub struct SurferRemote;
 
 impl SurferRemote {
   fn handle_chunk(chunk_type: ChunkType, chunk_data: Vec<u8>, chunk_index: u32, total_chunks: u32) {
-    match chunk_type {
-      ChunkType::Hierarchy => {
-        Self::handle_chunk_impl(&_hierarchy_chunks, &_hierarchy_total_chunks, Self::loadremotehierarchy, chunk_data, chunk_index, total_chunks);
-      },
-      ChunkType::TimeTable => {
-        Self::handle_chunk_impl(&_timetable_chunks, &_timetable_total_chunks, Self::loadremotetimetable, chunk_data, chunk_index, total_chunks);
-      },
-      ChunkType::Signals => {
-        Self::handle_chunk_impl(&_signals_chunks, &_signals_total_chunks, Self::loadremotesignals, chunk_data, chunk_index, total_chunks);
-      },
-    }
+    let process_fn = match chunk_type {
+      ChunkType::Hierarchy => Self::loadremotehierarchy,
+      ChunkType::TimeTable => Self::loadremotetimetable,
+      ChunkType::Signals => Self::loadremotesignals,
+    };
+    
+    Self::handle_chunk_impl(process_fn, chunk_data, chunk_index, total_chunks);
   }
 
   fn handle_chunk_impl(
-    chunks_mutex: &std::sync::Mutex<Vec<Vec<u8>>>,
-    total_chunks_mutex: &std::sync::Mutex<u32>,
     process_fn: fn(Vec<u8>),
     chunk_data: Vec<u8>,
     chunk_index: u32,
     total_chunks: u32,
   ) {
     let (mut chunks, mut total_chunks_ref) = (
-      chunks_mutex.lock().unwrap(),
-      total_chunks_mutex.lock().unwrap()
+      _chunks.lock().unwrap(),
+      _total_chunks.lock().unwrap()
     );
     
     if chunk_index == 0 {

@@ -53,12 +53,8 @@ lazy_static! {
   static ref _signal_source: Mutex<Option<SignalSource>> = Mutex::new(None);
   
   // Chunked data reassembly
-  static ref _hierarchy_chunks: Mutex<Vec<Vec<u8>>> = Mutex::new(Vec::new());
-  static ref _hierarchy_total_chunks: Mutex<u32> = Mutex::new(0);
-  static ref _timetable_chunks: Mutex<Vec<Vec<u8>>> = Mutex::new(Vec::new());
-  static ref _timetable_total_chunks: Mutex<u32> = Mutex::new(0);
-  static ref _signals_chunks: Mutex<Vec<Vec<u8>>> = Mutex::new(Vec::new());
-  static ref _signals_total_chunks: Mutex<u32> = Mutex::new(0);
+  static ref _chunks: Mutex<Vec<Vec<u8>>> = Mutex::new(Vec::new());
+  static ref _total_chunks: Mutex<u32> = Mutex::new(0);
 }
 
 struct WasmFileReader {

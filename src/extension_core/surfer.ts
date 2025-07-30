@@ -16,14 +16,12 @@ async function sendDataInChunks(
     sendChunkFn: (chunk: Uint8Array, chunkIndex: number, totalChunks: number) => void
 ): Promise<void> {
     const totalChunks = Math.ceil(data.length / CHUNK_SIZE);
-    console.log(`Sending data in ${totalChunks} chunks of max ${CHUNK_SIZE} bytes`);
     
     for (let i = 0; i < totalChunks; i++) {
         const start = i * CHUNK_SIZE;
         const end = Math.min(start + CHUNK_SIZE, data.length);
         const chunk = data.slice(start, end);
         
-        console.log(`Sending chunk ${i + 1}/${totalChunks} (${chunk.length} bytes)`);
         sendChunkFn(chunk, i, totalChunks);
     }
 }
@@ -34,7 +32,6 @@ async function httpFetch(server: string, path: string, bearerToken?: string): Pr
         headers['Authorization'] = `Bearer ${bearerToken}`;
     }
     const response = await fetch(`${server}/${path}`, { headers });
-    console.log("http path", `${server}/${path}`);
     if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
     }

@@ -3,6 +3,8 @@ use bincode::Options;
 
 use crate::{BINCODE_OPTIONS, _hierarchy, _file_format, _time_table, _hierarchy_chunks, _hierarchy_total_chunks, _timetable_chunks, _timetable_total_chunks, _signals_chunks, _signals_total_chunks, get_scope_data, get_var_data, outputlog, setmetadata, setscopetop, setvartop, setchunksize, sendtransitiondatachunk, SurferStatus};
 
+const MAX_CHUNK_SIZE: u32 = 1024 * 32;
+
 pub enum ChunkType {
   Hierarchy,
   TimeTable,
@@ -41,289 +43,251 @@ impl SurferRemote {
     chunk_index: u32,
     total_chunks: u32,
   ) {
-    let mut chunks = chunks_mutex.lock().unwrap();
-    let mut total_chunks_ref = total_chunks_mutex.lock().unwrap();
+    let (mut chunks, mut total_chunks_ref) = (
+      chunks_mutex.lock().unwrap(),
+      total_chunks_mutex.lock().unwrap()
+    );
     
-    // Initialize chunks vector if this is the first chunk
     if chunk_index == 0 {
       *total_chunks_ref = total_chunks;
       chunks.clear();
       chunks.resize(total_chunks as usize, Vec::new());
     }
     
-    // Store the chunk
     chunks[chunk_index as usize] = chunk_data;
     
-    // Check if all chunks are received
-    let all_received = chunks.iter().all(|chunk| !chunk.is_empty());
-    if all_received {
+    if chunks.iter().all(|chunk| !chunk.is_empty()) {
       let mut reassembled_data = Vec::new();
       for chunk in chunks.iter() {
-        reassembled_data.extend_from_slice(&chunk);
+        reassembled_data.extend_from_slice(chunk);
       }
       process_fn(reassembled_data);
       chunks.clear();
       *total_chunks_ref = 0;
     }
   }
+
   pub fn loadremotestatus(status_data: Vec<u8>) -> String {
-    let status_text = String::from_utf8(status_data).unwrap_or_else(|_| {
-      outputlog("Failed to decode status data as UTF-8");
-      return String::from("{}");
-    });
-    let status: SurferStatus = serde_json::from_str(&status_text).unwrap();
+    let status_text = match String::from_utf8(status_data) {
+      Ok(text) => text,
+      Err(_) => {
+        outputlog("Failed to decode status data as UTF-8");
+        return "{}".to_string();
+      }
+    };
+    
+    let status: SurferStatus = match serde_json::from_str(&status_text) {
+      Ok(status) => status,
+      Err(e) => {
+        outputlog(&format!("Failed to parse status JSON: {:?}", e));
+        return "{}".to_string();
+      }
+    };
+    
     outputlog(&format!("Connected to Surfer server: {}", status.filename));
     outputlog(&format!("File format: {}, Wellen version: {}, Surfer version: {}", 
         status.file_format, status.wellen_version, status.surfer_version));
     outputlog(&format!("Bytes loaded: {}/{}", status.bytes_loaded, status.bytes));
-    return status.filename;
+    
+    status.filename
   }
 
   pub fn loadremotehierarchy(hierarchy_data: Vec<u8>) {
-    outputlog(&format!("Loading remote hierarchy, binary data size: {}", hierarchy_data.len()));
+    let raw = match lz4_flex::decompress_size_prepended(&hierarchy_data) {
+      Ok(raw) => raw,
+      Err(e) => {
+        outputlog(&format!("Failed to decompress hierarchy data: {:?}", e));
+        return;
+      }
+    };
     
-    // Data is already binary, no need to decode from base64
-    match lz4_flex::decompress_size_prepended(&hierarchy_data) {
-      Ok(raw) => {
-        let mut reader = std::io::Cursor::new(raw);
-        
-        let opts = BINCODE_OPTIONS.allow_trailing_bytes();
-        
-        // Deserialize file format first
-        let file_format_result: Result<FileFormat, _> = opts.deserialize_from(&mut reader);
-        match file_format_result {
-          Ok(file_format) => {
-            // Deserialize hierarchy
-            let hierarchy_result: Result<Hierarchy, _> = BINCODE_OPTIONS.deserialize_from(&mut reader);
-            match hierarchy_result {
-              Ok(hierarchy) => {
-                let mut global_hierarchy = _hierarchy.lock().unwrap();
-                let mut global_file_format = _file_format.lock().unwrap();
-                *global_hierarchy = Some(hierarchy);
-                *global_file_format = file_format;
-                outputlog(&format!("Successfully loaded remote hierarchy ({} bytes binary)", hierarchy_data.len()));
-                
-                // Set metadata like in loadfile
-                let hier = global_hierarchy.as_ref().unwrap();
-                let scope_count = hier.iter_scopes().count() as u32;
-                let var_count = hier.iter_vars().count() as u32;
-                let time_scale_data = hier.timescale();
-                let time_unit = match time_scale_data {
-                  Some(scale) => {
-                    match scale.unit {
-                      TimescaleUnit::ZeptoSeconds => "zs".to_string(),
-                      TimescaleUnit::AttoSeconds => "as".to_string(),
-                      TimescaleUnit::FemtoSeconds => "fs".to_string(),
-                      TimescaleUnit::PicoSeconds => "ps".to_string(),
-                      TimescaleUnit::NanoSeconds => "ns".to_string(),
-                      TimescaleUnit::MicroSeconds => "us".to_string(),
-                      TimescaleUnit::MilliSeconds => "ms".to_string(),
-                      TimescaleUnit::Seconds => "s".to_string(),
-                      TimescaleUnit::Unknown => "s".to_string()
-                    }
-                  },
-                  None => "s".to_string(),
-                };
-                let time_scale = match time_scale_data {
-                  Some(scale) => scale.factor,
-                  None => 1,
-                } as u32;
-                setmetadata(scope_count, var_count, time_scale, time_unit.as_str());
-                
-                // Set scope and var data
-                for s in hier.scopes() {
-                  let scope_data = get_scope_data(&hier, s);
-                  setscopetop(&scope_data.name, scope_data.id, &scope_data.tpe);
-                }
-                
-                for v in hier.vars() {
-                  let var_data = get_var_data(&hier, v);
-                  setvartop(&var_data.name, var_data.id, var_data.signal_id, &var_data.tpe, &var_data.encoding, var_data.width, var_data.msb, var_data.lsb);
-                }
-                
-              },
-              Err(e) => outputlog(&format!("Failed to deserialize hierarchy: {:?}", e))
-            }
-          },
-          Err(e) => outputlog(&format!("Failed to deserialize file format: {:?}", e))
-        }
-      },
-      Err(e) => outputlog(&format!("Failed to decompress hierarchy data: {:?}", e))
+    let mut reader = std::io::Cursor::new(raw);
+    let opts = BINCODE_OPTIONS.allow_trailing_bytes();
+    
+    let file_format: FileFormat = match opts.deserialize_from(&mut reader) {
+      Ok(format) => format,
+      Err(e) => {
+        outputlog(&format!("Failed to deserialize file format: {:?}", e));
+        return;
+      }
+    };
+    
+    let hierarchy: Hierarchy = match BINCODE_OPTIONS.deserialize_from(&mut reader) {
+      Ok(hierarchy) => hierarchy,
+      Err(e) => {
+        outputlog(&format!("Failed to deserialize hierarchy: {:?}", e));
+        return;
+      }
+    };
+    
+    let mut global_hierarchy = _hierarchy.lock().unwrap();
+    let mut global_file_format = _file_format.lock().unwrap();
+    *global_hierarchy = Some(hierarchy);
+    *global_file_format = file_format;
+    
+    let hier = global_hierarchy.as_ref().unwrap();
+    let scope_count = hier.iter_scopes().count() as u32;
+    let var_count = hier.iter_vars().count() as u32;
+    
+    let time_unit = hier.timescale().map_or("s".to_string(), |scale| {
+      match scale.unit {
+        TimescaleUnit::ZeptoSeconds => "zs",
+        TimescaleUnit::AttoSeconds => "as",
+        TimescaleUnit::FemtoSeconds => "fs",
+        TimescaleUnit::PicoSeconds => "ps",
+        TimescaleUnit::NanoSeconds => "ns",
+        TimescaleUnit::MicroSeconds => "us",
+        TimescaleUnit::MilliSeconds => "ms",
+        TimescaleUnit::Seconds | TimescaleUnit::Unknown => "s",
+      }.to_string()
+    });
+    
+    let time_scale = hier.timescale().map_or(1, |scale| scale.factor) as u32;
+    setmetadata(scope_count, var_count, time_scale, &time_unit);
+    
+    for s in hier.scopes() {
+      let scope_data = get_scope_data(hier, s);
+      setscopetop(&scope_data.name, scope_data.id, &scope_data.tpe);
     }
+    
+    for v in hier.vars() {
+      let var_data = get_var_data(hier, v);
+      setvartop(&var_data.name, var_data.id, var_data.signal_id, &var_data.tpe, &var_data.encoding, var_data.width, var_data.msb, var_data.lsb);
+    }
+    
   }
 
   pub fn loadremotetimetable(timetable_data: Vec<u8>) {
-    outputlog(&format!("Loading remote time table, binary data size: {}", timetable_data.len()));
+    let compressed: CompressedTimeTable = match BINCODE_OPTIONS.deserialize(&timetable_data) {
+      Ok(compressed) => compressed,
+      Err(e) => {
+        outputlog(&format!("Failed to deserialize time table: {:?}", e));
+        return;
+      }
+    };
     
-    // Data is already binary, no need to decode from base64
-    let compressed_result: Result<CompressedTimeTable, _> = BINCODE_OPTIONS.deserialize(&timetable_data);
-    match compressed_result {
-      Ok(compressed) => {
-        let time_table = compressed.uncompress();
-        let mut global_time_table = _time_table.lock().unwrap();
-        *global_time_table = Some(time_table);
-        
-        let tt = global_time_table.as_ref().unwrap();
-        let mut min_timestamp = 9999999;
-        let event_count = tt.len();
-        let time_table_length = tt.len();
-        let time_end = tt[time_table_length - 1];
-        let time_end_extend = time_end + (time_end as f32 / time_table_length as f32).ceil() as u64;
-        
-        if event_count <= 128 {
-          min_timestamp = tt[event_count - 1];
-        } else {
-          for i in 128..event_count {
-            let rolling_time_step = tt[i] - tt[i - 128];
-            min_timestamp = std::cmp::min(rolling_time_step, min_timestamp);
-          }
-        }
-        
-        setchunksize(min_timestamp, time_end_extend, time_table_length as u64);
-        outputlog(&format!("Successfully loaded remote time table ({} events)", event_count));
-      },
-      Err(e) => outputlog(&format!("Failed to deserialize time table: {:?}", e))
-    }
+    let time_table = compressed.uncompress();
+    let mut global_time_table = _time_table.lock().unwrap();
+    *global_time_table = Some(time_table);
+    
+    let tt = global_time_table.as_ref().unwrap();
+    let event_count = tt.len();
+    
+    let min_timestamp = if event_count <= 128 {
+      tt[event_count - 1]
+    } else {
+      (128..event_count)
+        .map(|i| tt[i] - tt[i - 128])
+        .min()
+        .unwrap_or(9999999)
+    };
+    
+    let time_end = tt[event_count - 1];
+    let time_end_extend = time_end + (time_end as f32 / event_count as f32).ceil() as u64;
+    
+    setchunksize(min_timestamp, time_end_extend, event_count as u64);
   }
 
   pub fn loadremotesignals(signals_data: Vec<u8>) {
-    outputlog(&format!("Loading remote signals, binary data size: {}", signals_data.len()));
+    let mut reader = std::io::Cursor::new(signals_data);
     
-    // Check if data size is reasonable (limit to ~50MB binary data)
-    if signals_data.len() > 50 * 1024 * 1024 {
-      outputlog(&format!("Remote signals data too large: {} bytes", signals_data.len()));
+    let num_ids = match leb128::read::unsigned(&mut reader) {
+      Ok(num_ids) => num_ids,
+      Err(e) => {
+        outputlog(&format!("Failed to read signal count: {:?}", e));
+        return;
+      }
+    };
+    
+    if num_ids == 0 {
+      outputlog("No signals in remote response");
       return;
     }
     
-    // Data is already binary, no need to decode from base64  
-    let mut reader = std::io::Cursor::new(signals_data);
+    let opts = BINCODE_OPTIONS.allow_trailing_bytes();
+    let mut signals = Vec::new();
     
-    // Read number of signals using LEB128
-    let num_ids_result: Result<u64, _> = leb128::read::unsigned(&mut reader);
-    match num_ids_result {
-      Ok(num_ids) => {
-        if num_ids == 0 {
-          outputlog("No signals in remote response");
+    // Deserialize all but the last signal with trailing bytes allowed
+    for i in 0..(num_ids - 1) {
+      let compressed: wellen::CompressedSignal = match opts.deserialize_from(&mut reader) {
+        Ok(compressed) => compressed,
+        Err(e) => {
+          outputlog(&format!("Failed to deserialize signal {}: {:?}", i, e));
           return;
         }
+      };
+      
+      let signal = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| compressed.uncompress())) {
+        Ok(signal) => signal,
+        Err(_) => {
+          outputlog(&format!("Failed to uncompress signal {} (panic caught)", i));
+          return;
+        }
+      };
+      
+      signals.push((signal.signal_ref(), signal));
+    }
+    
+    // Deserialize the final signal (should consume all remaining bytes)
+    let final_compressed: wellen::CompressedSignal = match BINCODE_OPTIONS.deserialize_from(&mut reader) {
+      Ok(compressed) => compressed,
+      Err(e) => {
+        outputlog(&format!("Failed to deserialize final signal: {:?}", e));
+        return;
+      }
+    };
+    
+    let final_signal = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| final_compressed.uncompress())) {
+      Ok(signal) => signal,
+      Err(_) => {
+        outputlog("Failed to uncompress final signal (panic caught)");
+        return;
+      }
+    };
+    
+    signals.push((final_signal.signal_ref(), final_signal));
+    
+    let global_time_table = _time_table.lock().unwrap();
+    let time_table = match global_time_table.as_ref() {
+      Some(time_table) => time_table,
+      None => {
+        outputlog("Warning: No time table available to process remote signals");
+        return;
+      }
+    };
+    
+    for (signal_ref, signal) in signals.iter() {
+      let signalid = signal_ref.index() as u32;
+      let time_index = signal.time_indices();
+      let mut result = String::from("[");
+      let mut min = 0.0;
+      let mut max = 0.0;
+      
+      for (i, (_, value)) in signal.iter_changes().enumerate() {
+        let v = value.to_string();
+        let time = time_table[time_index[i] as usize];
         
-        let opts = BINCODE_OPTIONS.allow_trailing_bytes();
-        let mut signals = Vec::new();
-        
-        // Deserialize all but the last signal with trailing bytes allowed
-        for i in 0..(num_ids - 1) {
-          let compressed_result: Result<wellen::CompressedSignal, _> = opts.deserialize_from(&mut reader);
-          match compressed_result {
-            Ok(compressed) => {
-              match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                compressed.uncompress()
-              })) {
-                Ok(signal) => {
-                  outputlog(&format!("Successfully uncompressed signal {}", i));
-                  signals.push((signal.signal_ref(), signal));
-                },
-                Err(_) => {
-                  outputlog(&format!("Failed to uncompress signal {} (panic caught)", i));
-                  return;
-                }
-              }
-            },
-            Err(e) => {
-              outputlog(&format!("Failed to deserialize signal {}: {:?}", i, e));
-              return;
-            }
-          }
+        if let wellen::SignalValue::Real(v) = value {
+          min = f64::min(min, v);
+          max = f64::max(max, v);
         }
         
-        // Deserialize the final signal (should consume all remaining bytes)
-        let final_compressed_result: Result<wellen::CompressedSignal, _> = BINCODE_OPTIONS.deserialize_from(&mut reader);
-        match final_compressed_result {
-          Ok(compressed) => {
-            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-              compressed.uncompress()
-            })) {
-              Ok(signal) => {
-                outputlog("Successfully uncompressed final signal");
-                signals.push((signal.signal_ref(), signal));
-              },
-              Err(_) => {
-                outputlog("Failed to uncompress final signal (panic caught)");
-                return;
-              }
-            }
-            
-            // Process the signals and send transition data chunks
-            let global_time_table = _time_table.lock().unwrap();
-            match global_time_table.as_ref() {
-              Some(time_table) => {
-                outputlog(&format!("Processing {} remote signals", signals.len()));
-                
-                // Process each signal similar to getsignaldata
-                signals.iter().for_each(|(signal_ref, signal)| {
-                  let signalid = signal_ref.index() as u32;
-                  let transitions = signal.iter_changes();
-                  let time_index = signal.time_indices();
-                  
-                  // Check if signal has too many transitions (limit to ~1M transitions)
-                  if time_index.len() > 1_000_000 {
-                    outputlog(&format!("Signal {} has too many transitions: {}, skipping", signalid, time_index.len()));
-                    sendtransitiondatachunk(signalid, 1, 0, 0.0, 1.0, "[]");
-                    return;
-                  }
-                  
-                  let mut result = String::new();
-                  result.push_str("[");
-
-                  let mut i: usize = 0;
-                  let mut min: f64 = 0.0;
-                  let mut max: f64 = 0.0;
-                  for (_, value) in transitions {
-                    let v = value.to_string();
-                    let time = time_table[time_index[i] as usize];
-                    match value {
-                      wellen::SignalValue::Real(v) => {
-                        min = f64::min(min, v);
-                        max = f64::max(max, v);
-                      },
-                      _ => {}
-                    }
-                    result.push_str(&format!("[{:?},{:?}],", time, v));
-                    i += 1;
-                    
-                    // Prevent result string from getting too large
-                    if result.len() > 10_000_000 {
-                      outputlog(&format!("Signal {} result string getting too large, truncating", signalid));
-                      break;
-                    }
-                  }
-
-                  // Close the array
-                  if result.len() > 1 {result.pop();}
-                  result.push_str("]");
-
-                  // Send the data in chunks
-                  let max_return_length = 65000;
-                  let result_length = result.len();
-                  let chunk_count = (result_length as f32 / max_return_length as f32).ceil() as u32;
-                  for i in 0..chunk_count {
-                    let start = i * max_return_length;
-                    let end = std::cmp::min((i + 1) * max_return_length, result_length as u32);
-                    let chunk = &result[start as usize..end as usize];
-                    sendtransitiondatachunk(signalid, chunk_count, i as u32, min, max, chunk);
-                  }
-                });
-                
-                outputlog(&format!("Successfully processed {} remote signals", signals.len()));
-              },
-              None => {
-                outputlog("Warning: No time table available to process remote signals");
-              }
-            }
-          },
-          Err(e) => outputlog(&format!("Failed to deserialize final signal: {:?}", e))
-        }
-      },
-      Err(e) => outputlog(&format!("Failed to read signal count: {:?}", e))
+        result.push_str(&format!("[{:?},{:?}],", time, v));
+      }
+      
+      if result.len() > 1 { result.pop(); }
+      result.push(']');
+      
+      // Send the data in chunks
+      let result_length = result.len() as u32;
+      let chunk_count = (result_length as f32 / MAX_CHUNK_SIZE as f32).ceil() as u32;
+      
+      for i in 0..chunk_count {
+        let start = (i * MAX_CHUNK_SIZE) as usize;
+        let end = std::cmp::min(((i + 1) * MAX_CHUNK_SIZE) as usize, result.len());
+        let chunk = &result[start..end];
+        sendtransitiondatachunk(signalid, chunk_count, i, min, max, chunk);
+      }
     }
   }
 

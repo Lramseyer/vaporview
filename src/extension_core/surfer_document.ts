@@ -41,7 +41,6 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
 
   protected async load() {
     this._delegate.logOutputChannel("Connecting to remote server: " + this.serverUrl);
-    const loadTime = Date.now();
 
     await vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification,
@@ -49,14 +48,7 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
       cancellable: false
     }, async () => {
       try {
-        // Load status first to verify connection
-        const filename = await loadRemoteStatus(this.serverUrl, this.wasmApi, this.bearerToken);
-        this._delegate.logOutputChannel("Connected to file: " + filename);
-        
-        // Load hierarchy
         await loadRemoteHierarchy(this.serverUrl, this.wasmApi, this.bearerToken);
-        
-        // Load time table  
         await loadRemoteTimeTable(this.serverUrl, this.wasmApi, this.bearerToken);
         
       } catch (error) {
@@ -64,14 +56,6 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
         throw error;
       }
     });
-
-    const netlistFinishTime = Date.now();
-    const netlistTime = (netlistFinishTime - loadTime) / 1000;
-    this._delegate.logOutputChannel("Finished loading remote data");
-    this._delegate.logOutputChannel(
-      "Scope count: " + this.metadata.moduleCount + 
-      ", Variable count: " + this.metadata.netlistIdCount + 
-      ", Time: " + netlistTime + " seconds");
 
     this._delegate.updateViews(this.uri);
     this.setTerminalLinkProvider();
@@ -82,15 +66,6 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
     outputlog: (msg: string) => { this._delegate.logOutputChannel(msg); },
     fsread: (fd: number, offset: bigint, length: number): Uint8Array => {
       // Remote server doesn't use direct file reads, return empty buffer
-      // Log the call to understand if this is causing issues
-      this._delegate.logOutputChannel(`fsread called with fd=${fd}, offset=${offset}, length=${length} (remote server shouldn't need this)`);
-      
-      // Validate length parameter to prevent invalid Uint8Array creation
-      if (length < 0 || length > 1024 * 1024) {
-        this._delegate.logOutputChannel(`fsread: invalid length ${length}, returning empty buffer`);
-        return new Uint8Array(0);
-      }
-      
       return new Uint8Array(Math.max(0, length));
     },
     getsize: (fd: number): bigint => {
@@ -203,14 +178,7 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
 
   public async getSignalData(signalIdList: SignalId[]) {
     try {
-      // Load signals from remote server
-      console.log("getSignalData", this.bearerToken);
-      console.log("getSignalData", this.serverUrl);
       await loadRemoteSignals(this.serverUrl, this.wasmApi, this.bearerToken, signalIdList);
-      console.log("getSignalData done");
-      
-      // The WASM API will handle processing and sending the data to the webview
-      // via the sendtransitiondatachunk callback
     } catch (error) {
       this._delegate.logOutputChannel("Failed to get signal data from remote server: " + error);
       // Send empty signal data for failed signals

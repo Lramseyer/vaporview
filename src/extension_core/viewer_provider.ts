@@ -180,7 +180,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
             // Clean up remote connection info if this is a vaporview-remote:// URI
             if (uri.scheme === 'vaporview-remote') {
               this.remoteConnections.delete(uri.toString());
-              console.log("Cleaned up remote connection info for:", uri.toString());
             }
             return;
           }
@@ -573,8 +572,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     const maxTime   = timeUnit * timeScale * timeEnd;
     const unitsList = ['fs', 'ps', 'ns', 'µs', 'ms', 's'];
     const selectableUnits = unitsList.filter((unit) => {return scaleFromUnits(unit) <= maxTime;});
-    console.log('maxTime: ' + maxTime);
-    console.log('unitsList: ' + selectableUnits);
 
     let units: string | undefined = newUnits;
 

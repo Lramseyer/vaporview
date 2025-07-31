@@ -530,7 +530,7 @@ export class Viewport {
     const scrollTop   = this.scrollArea.scrollTop;
     const startIndex  = Math.floor(scrollTop / 28);
     const endIndex    = Math.ceil((scrollTop + viewerHeightMinusRuler) / 28);
-
+  
     viewerState.visibleSignalsFlat.forEach((rowId, i) => {
       const netlistData = dataManager.rowItems[rowId];
 

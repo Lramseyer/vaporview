@@ -1,9 +1,7 @@
 import { EventHandler, viewport, arrayMove, NetlistId, ActionType, viewerState, dataManager, RowId, getChildrenByGroupId, getIndexInGroup} from './vaporview';
 import { ValueFormat } from './value_format';
 import { vscode, getParentGroupId } from './vaporview';
-import { SignalGroup, VariableItem } from './signal_item';
-import { clear } from 'console';
-import { sign } from 'crypto';
+import { SignalGroup, VariableItem, htmlSafe } from './signal_item';
 
 export class LabelsPanels {
 
@@ -32,9 +30,11 @@ export class LabelsPanels {
   scrollStartY: any          = null;
   resizeIndex: any           = null;
   defaultDragDividerY: number= 0;
+  dragActive: boolean        = false;
   dragInProgress: boolean    = false;
   dragFreeze: boolean        = true;
   dragFreezeTimeout: any     = null;
+  renameActive: boolean      = false;
   valueAtMarker: any         = {};
 
   constructor(events: EventHandler) {
@@ -109,6 +109,10 @@ export class LabelsPanels {
     this.valueDisplay.innerHTML = transitions.join('');
   }
 
+  abortUserInteraction() {
+    this.dragEnd(null, true); // Abort any drag operation
+  }
+
   clickValueDisplay(event: any) {
     console.log("valueDisplay click event", event);
     const labelsList   = Array.from(this.valueDisplay.querySelectorAll('.value-display-item'));
@@ -121,6 +125,7 @@ export class LabelsPanels {
 
   clicklabel (event: any) {
     if (this.dragInProgress) {return;}
+    if (this.renameActive) {return;}
     const clickedLabel = event.target.closest('.waveform-label');
     const rowId = this.getRowIdFromElement(clickedLabel);
     if (rowId === null || isNaN(rowId)) {return;}
@@ -172,6 +177,7 @@ export class LabelsPanels {
 
   dragStart(event: any) {
     if (event.button !== 0) {return;} // Only allow left mouse button drag
+    if (this.renameActive) {return;} // Prevent drag if rename is active
     //event.preventDefault();
     this.labelsList    = Array.from(this.labels.querySelectorAll('.waveform-label'));
     this.draggableItem = event.target.closest('.waveform-label');
@@ -186,6 +192,7 @@ export class LabelsPanels {
     this.scrollStartY      = this.labelsScroll.scrollTop;
     this.dragInProgress    = false;
     this.dragFreeze        = true;
+    this.dragActive        = true;
     this.defaultDragDividerY = this.draggableItem.getBoundingClientRect().top;
     clearTimeout(this.dragFreezeTimeout);
     this.dragFreezeTimeout = setTimeout(() => {this.dragFreeze = false;}, 100);
@@ -222,6 +229,7 @@ export class LabelsPanels {
 
   dragMove(event: MouseEvent | any) {
 
+    if (!this.dragActive) {return;}
     if (!this.draggableItem) {return;}
     if (this.dragFreeze) {return;}
     if (!this.dragInProgress) {
@@ -316,12 +324,13 @@ export class LabelsPanels {
     }
   }
 
-  dragEnd(event: MouseEvent | KeyboardEvent, abort) {
+  dragEnd(event: MouseEvent | KeyboardEvent | null, abort) {
 
     document.removeEventListener('mousemove', this.dragMove);
+    this.dragActive = false;
     if (!this.dragInProgress) {return;}
     if (!this.draggableItem) {return;}
-    event.preventDefault();
+    if (event) {event.preventDefault();}
 
     const draggableItemRowId = this.getRowIdFromElement(this.draggableItem);
     if (draggableItemRowId === null || isNaN(draggableItemRowId)) {
@@ -361,6 +370,19 @@ export class LabelsPanels {
     clearTimeout(this.dragFreezeTimeout);
 
     if (abort) {this.renderLabelsPanels();}
+  }
+
+  public showRenameInput(rowId: RowId) {
+    this.dragEnd(null, true); // Abort any drag operation
+    const signalItem = dataManager.rowItems[rowId];
+    if (!(signalItem instanceof SignalGroup)) {return;}
+    const labelElement = document.getElementById(`label-${rowId}`);
+    if (!labelElement) {return;}
+    const waveformRow = labelElement.querySelector('.waveform-row');
+    if (!waveformRow) {return;}
+    waveformRow.classList.remove('is-selected');
+    waveformRow.innerHTML = `<textarea class="rename-input" value="${htmlSafe(signalItem.label)}"/>`;
+    this.renameActive = true;
   }
 
   getRowIdFromElement(element: HTMLElement | null): RowId | null {
@@ -444,6 +466,7 @@ export class LabelsPanels {
 
   handleSignalSelect(rowId: RowId | null) {
 
+    this.dragActive = false;
     if (this.dragDivider) {this.dragDivider.style.display = 'none'};
     if (rowId === null) {return;}
 

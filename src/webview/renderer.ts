@@ -83,6 +83,10 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     const drawColor        = netlistData.color;
     const xzColor          = viewportSpecs.xzColor;
     let parsedValue;
+    const minYPosition = 10 / viewportSpecs.zoomRatio;
+
+    let lastDrawTime = 0;
+    //const noDrawRanges: any[] = [];
 
     for (let i = startIndex; i < endIndex; i++) {
 
@@ -98,10 +102,12 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
           points.push([adjustedTime, 0]);
           endPoints.push([adjustedTime, 0]);
           moveCursor = false;
+          //noDrawRanges.push([lastDrawTime, adjustedTime]);
         }
 
         is4State     = valueIs9State(value);
         xPosition    = (elementWidth / 2) + adjustedTime;
+        //yPosition    =  Math.max(elementWidth * 2, minYPosition);
         yPosition    =  elementWidth * 2;
         if (is4State) {
           xzPoints.push([[adjustedTime, 0], [xPosition, yPosition], [adjustedTimeEnd, 0], [xPosition, -yPosition]]);
@@ -128,6 +134,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
 
         points.push([adjustedTimeEnd, 0]);
         endPoints.push([adjustedTimeEnd, 0]);
+        lastDrawTime = adjustedTimeEnd;
       } else {
         drawBackgroundStrokes = true;
         moveCursor = true;
@@ -149,6 +156,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
         points.push([adjustedTime, 0]);
         endPoints.push([adjustedTime, 0]);
         moveCursor = false;
+        //noDrawRanges.push([lastDrawTime, adjustedTime]);
       }
 
       xPosition    = (elementWidth / 2) + adjustedTime;
@@ -206,6 +214,20 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     endPoints.reverse().forEach(([x, y]) => {ctx.lineTo(x, y);});
     ctx.fill();
 
+    //const gradient = ctx.createLinearGradient(0, 2 * minYPosition, 0, -2 * minYPosition);
+    //gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+    //gradient.addColorStop(0.5, drawColor);
+    //gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+    //ctx.fillStyle = gradient;
+    //ctx.beginPath();
+    //noDrawRanges.forEach(([start, end]) => {
+    //  ctx.moveTo(start, minYPosition);
+    //  ctx.lineTo(end, minYPosition);
+    //  ctx.lineTo(end, -minYPosition);
+    //  ctx.lineTo(start, -minYPosition);
+    //});
+    //ctx.fill();
+
     // Draw non-2-state values
     ctx.fillStyle = xzColor;
     xzPoints.forEach(set => {
@@ -214,6 +236,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
       ctx.lineTo(set[1][0], set[1][1]);
       ctx.lineTo(set[2][0], set[2][1]);
       ctx.lineTo(set[3][0], set[3][1]);
+      ctx.closePath();
       ctx.fill();
     });
     ctx.restore();

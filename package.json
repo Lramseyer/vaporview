@@ -345,7 +345,7 @@
         },
         {
           "command": "vaporview.renameSignalGroup",
-          "when": "false && webviewSection == 'signal-group' && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "when": "webviewSection == 'signal-group' && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "3_groups@2"
         },
         {

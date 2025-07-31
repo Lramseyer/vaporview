@@ -129,7 +129,8 @@ export function updateDisplayedSignalsFlat() {
   });
 }
 
-export function getParentGroupId(rowId: RowId) {
+export function getParentGroupId(rowId: RowId | null): number | null {
+  if (rowId === null) {return null;}
   if (viewerState.displayedSignals.includes(rowId)) {
     return 0;
   }
@@ -406,11 +407,11 @@ class VaporviewWebview {
     // alt + up and down arrow keys reorder the selected signal up and down
     } else if ((e.key === 'ArrowUp') && (viewerState.selectedSignalIndex !== null)) {
       const newIndex = Math.max(viewerState.selectedSignalIndex - 1, 0);
-      if (e.altKey) {this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignalIndex, newIndex);}
+      if (e.altKey) {this.handleReorderArrowKeys(-1);}
       else          {this.events.dispatch(ActionType.SignalSelect, viewerState.visibleSignalsFlat[newIndex]);}
     } else if ((e.key === 'ArrowDown') && (viewerState.selectedSignalIndex !== null)) {
       const newIndex = Math.min(viewerState.selectedSignalIndex + 1, viewerState.visibleSignalsFlat.length - 1);
-      if (e.altKey) {this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignalIndex, newIndex);}
+      if (e.altKey) {this.handleReorderArrowKeys(1);}
       else          {this.events.dispatch(ActionType.SignalSelect, viewerState.visibleSignalsFlat[newIndex]);}
     }
 
@@ -422,49 +423,14 @@ class VaporviewWebview {
     else if (e.key === 'n') {controlBar.goToNextTransition(1, []);}
     else if (e.key === 'N') {controlBar.goToNextTransition(-1, []);}
 
-    else if (e.key === 'Escape') {this.handleMouseUp(e, true);}
+    else if (e.key === 'Escape') {labelsPanel.abortUserInteraction();}
     else if (e.key === 'Delete' || e.key === 'Backspace') {this.removeVariableInternal(viewerState.selectedSignal);}
 
     else if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(true);}
   }
 
-  handleUpDownArrowKeys(direction: number, rowId: RowId | null) {
-
-    if (rowId === null) {return;}
-    const parentGroupId = getParentGroupId(rowId);
-    if (parentGroupId === null) {return;}
-    const localIndex = getIndexInGroup(rowId, parentGroupId);
-    if (localIndex < 0) {return;}
-    const parentList = getChildrenByGroupId(parentGroupId);
-    const newIndex = localIndex + direction;
-    const parentGroupRowId = dataManager.groupIdTable[parentGroupId];
-
-    // if we selected a group item
-    const signalItem = dataManager.rowItems[rowId];
-    if (signalItem instanceof SignalGroup
-      && signalItem.children.length > 0
-      && signalItem.collapseState === CollapseState.Expanded
-      && direction === 1) {
-        this.events.dispatch(ActionType.SignalSelect, signalItem.children[0]);
-        return;
-    }
-
-    // if the new index is out of bounds, we handle it by selecting the parent group recursively
-    if (newIndex === -1) {
-      if (parentGroupRowId === undefined) {return;}
-      this.events.dispatch(ActionType.SignalSelect, parentGroupRowId);
-    } else if (newIndex >= parentList.length) {
-      if (parentGroupRowId === undefined) {return;}
-      this.handleUpDownArrowKeys(direction, parentGroupRowId);
-    } else {
-      this.events.dispatch(ActionType.SignalSelect, parentList[newIndex]);
-      return;
-    }
-  }
-
   handleReorderArrowKeys(direction: number) {
     const rowId = viewerState.selectedSignal;
-    let newIndex = 0;
     if (rowId === null) {return;}
     let parentGroupId = getParentGroupId(rowId);
     let parentList: RowId[] = [];
@@ -478,25 +444,34 @@ class VaporviewWebview {
       parentList = parentItem.children;
     }
 
-    const localIndex = parentList.indexOf(rowId);
-    if (localIndex + direction < 0 || localIndex + direction >= parentList.length) {
-      let grandParentList: RowId[] = [];
-      const grandparentGroupId = getParentGroupId(parentGroupId);
-      if (grandparentGroupId === null) {return;}
-      if (grandparentGroupId === 0) {
-        grandParentList = viewerState.displayedSignals;
-      } else {
-        const grandparentRowId = dataManager.groupIdTable[grandparentGroupId];
-        const grandparentItem = dataManager.rowItems[grandparentRowId];
-        if (!(grandparentItem instanceof SignalGroup)) {return;}
-        grandParentList = grandparentItem.children;
-      }
-      newIndex = grandParentList.indexOf(parentGroupId);
-    } else {
-      newIndex = localIndex + direction;
-    }
-    this.events.dispatch(ActionType.ReorderSignals, rowId, parentGroupId, newIndex);
+    const localIndex = getIndexInGroup(rowId, parentGroupId);
+    let newIndex = localIndex + direction;
 
+    // First check to see if we're moving it outside the parent group
+    if (newIndex < 0 || newIndex >= parentList.length) {
+      const parentGroupRowId = dataManager.groupIdTable[parentGroupId];
+      const grandparentGroupId = getParentGroupId(parentGroupRowId);
+      if (grandparentGroupId === null) {return;}
+      let parentIndex = getIndexInGroup(dataManager.groupIdTable[parentGroupId], grandparentGroupId);
+      newIndex = parentIndex;
+      if (direction > 0) {newIndex += direction;}
+      parentGroupId = grandparentGroupId;
+    } else {
+      // if the adjacent row is a group, we place it in the top or bottom of the group
+      let adjacentRowId = parentList[newIndex];
+      let adjacentGroupId = dataManager.groupIdTable.indexOf(adjacentRowId);
+      if (adjacentGroupId !== -1) {
+        parentGroupId = adjacentGroupId;
+        if (direction > 0) {newIndex = 0;}
+        else {
+          const adjacentGroup = dataManager.rowItems[dataManager.groupIdTable[adjacentGroupId]];
+          if (!(adjacentGroup instanceof SignalGroup)) {return;}
+          newIndex = adjacentGroup.children.length;
+        }
+      }
+    }
+
+    this.events.dispatch(ActionType.ReorderSignals, rowId, parentGroupId, newIndex);
   }
 
   externalKeyDownHandler(e: any) {

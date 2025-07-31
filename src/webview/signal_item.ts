@@ -516,14 +516,6 @@ export class SignalGroup extends SignalItem implements RowItem {
     }).replace(/\s/g, '%x20')}`;
   }
 
-  public showRenameInput() {
-    this.labelElement = document.getElementById(`label-${this.rowId}`);
-    if (!this.labelElement) {return;}
-    const waveformRow = this.labelElement.querySelector('.waveform-row');
-    if (!waveformRow) {return;}
-    console.log("showRenameInput", waveformRow);
-  }
-
   public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {
     let result: number[] = [this.rowId];
     if (!ignoreCollapsed || this.collapseState === CollapseState.Expanded) {

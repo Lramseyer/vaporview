@@ -189,7 +189,7 @@ export class WaveformDataManager {
       groupItem.label = name;
       labelsPanel.renderLabelsPanels();
     } else {
-      groupItem.showRenameInput();
+      labelsPanel.showRenameInput(rowId);
     }
   }
 

@@ -417,6 +417,26 @@ body {
   color:       inherit;
 }
 
+.rename-input {
+  align-items: center;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px var(--vscode-input-border);
+  border-radius: 2px;
+  background-color: var(--vscode-input-background);
+  resize: none;
+  height: 23px;
+  width: calc(100% - 4px);
+  font-size: var(--vscode-editor-font-size);
+  color: var(--vscode-input-foreground);
+  font-family: var(--vscode-editor-font-family);
+  overflow: hidden;
+}
+
+.rename-input:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+}
+
 .value-display-item {
   user-select:     none;
   display:         flex;

@@ -2,13 +2,17 @@
 
 # Upcoming Release - 1.4.0
 
-- Added edge guides
-- Upgraded to wellen 0.17.1
-- Added Escape Key to abort some user actions
-- Fix renderer floating point math errors causing jitter
-- Fixed revealing signals in viewport behavior
-- Drag to reorder signals now responds to scroll
-- Added ability to group signals in the viewer
+- Added
+  - Signal grouping in the viewer
+  - API for interoperability with other extensions - see API_DOCS.md for details
+  - Edge guides
+  - Escape Key to abort some user actions
+  - Drag to reorder signals now responds to scroll
+- Fixed
+  - Renderer floating point math is much more accurate resulting in less jitter
+  - Revealing signals in viewport scrolls to the signal in question
+- Upgraded to wellen 0.17.1 for miscellaneous improvements to file loading
+- Improved signal loading performance (with LZ4 compression)
 
 # 1.3.4 - Latest Release
 

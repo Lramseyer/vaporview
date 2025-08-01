@@ -563,8 +563,13 @@ export class SignalGroup extends SignalItem implements RowItem {
       const viewportRow = document.getElementById(`waveform-${rowId}`);
       if (!viewportRow) {return;}
       viewportRow.style.display = style;
+      const signalItem = dataManager.rowItems[rowId];
+      if (signalItem instanceof VariableItem) {
+        signalItem.wasRendered = false; // Reset rendering state for child signals
+      }
     });
     updateDisplayedSignalsFlat();
+    console.log(viewerState.visibleSignalsFlat);
     viewport.renderAllWaveforms(false);
   }
 

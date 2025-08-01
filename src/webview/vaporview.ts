@@ -383,7 +383,7 @@ class VaporviewWebview {
 
   keyDownHandler(e: any) {
 
-    if (controlBar.searchInFocus) {return;} 
+    if (controlBar.searchInFocus || labelsPanel.renameActive) {return;} 
     else {e.preventDefault();}
 
     // debug handler to print the data cache
@@ -457,16 +457,19 @@ class VaporviewWebview {
       if (direction > 0) {newIndex += direction;}
       parentGroupId = grandparentGroupId;
     } else {
-      // if the adjacent row is a group, we place it in the top or bottom of the group
+      // if the adjacent row is a group, and the group is expanded, we place it in the top or bottom of the group
       let adjacentRowId = parentList[newIndex];
       let adjacentGroupId = dataManager.groupIdTable.indexOf(adjacentRowId);
       if (adjacentGroupId !== -1) {
-        parentGroupId = adjacentGroupId;
-        if (direction > 0) {newIndex = 0;}
-        else {
-          const adjacentGroup = dataManager.rowItems[dataManager.groupIdTable[adjacentGroupId]];
-          if (!(adjacentGroup instanceof SignalGroup)) {return;}
-          newIndex = adjacentGroup.children.length;
+        const groupItem = dataManager.rowItems[dataManager.groupIdTable[adjacentGroupId]];
+        if (groupItem instanceof SignalGroup && groupItem.collapseState === CollapseState.Expanded) {
+          parentGroupId = adjacentGroupId;
+          if (direction > 0) {newIndex = 0;}
+          else {
+            const adjacentGroup = dataManager.rowItems[dataManager.groupIdTable[adjacentGroupId]];
+            if (!(adjacentGroup instanceof SignalGroup)) {return;}
+            newIndex = adjacentGroup.children.length;
+          }
         }
       }
     }

@@ -1009,16 +1009,19 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     });
   }
 
-  public renameSignalGroup(e: any) {
+  public renameSignalGroup(e: any | undefined) {
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}
 
+    let groupId: NetlistId | undefined = e?.groupId;
+    let groupName: string | undefined = e?.name;
+
     const panel      = this.activeWebview;
     panel.webview.postMessage({
       command: 'renameSignalGroup',
-      groupId: e.groupId,
-      groupName: e.name,
+      groupId: groupId,
+      groupName: groupName,
     });
   }
 

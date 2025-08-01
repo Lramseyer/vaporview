@@ -177,7 +177,8 @@ export class WaveformDataManager {
       if (rowId === undefined) {return;}
     }
     else {
-      if (viewerState.selectedSignal && viewerState.selectedSignal > 0) {
+      console.log(viewerState.selectedSignal);
+      if (viewerState.selectedSignal && viewerState.selectedSignal >= 0) {
         rowId = viewerState.selectedSignal;
       } else {
         return;

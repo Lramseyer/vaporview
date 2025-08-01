@@ -179,6 +179,12 @@
         "key": "ctrl+Right",
         "mac": "alt+Right",
         "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
+        "command": "vaporview.renameSignalGroup",
+        "key": "F2",
+        "mac": "F2",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
       }
     ],
     "submenus": [

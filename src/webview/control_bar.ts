@@ -125,30 +125,6 @@ export class ControlBar {
     const data  = dataManager.rowItems[rowId];
     const time  = data.getNextEdge(viewerState.markerTime, direction, edge);
     if (time === null) {return;}
-//    const signalId = dataManager.rowItems[rowId].signalId;
-//    const data     = dataManager.valueChangeData[signalId];
-//    const time     = viewerState.markerTime;
-//    let timeIndex;
-//    let indexIncrement;
-//
-//    if (edge === undefined) {
-//      timeIndex = data.transitionData.findIndex(([t, v]) => {return t >= time;});
-//      indexIncrement = 1;
-//    } else {
-//      timeIndex = data.transitionData.findIndex(([t, v]) => {return t >= time && v === edge;});
-//      indexIncrement = 2;
-//    }
-//
-//    if (timeIndex === -1) {
-//      //console.log('search found a -1 index');
-//      return;
-//    }
-//
-//    if ((direction === 1) && (time === data.transitionData[timeIndex][0])) {timeIndex += indexIncrement;}
-//    else if (direction === -1) {timeIndex -= indexIncrement;}
-//  
-//    timeIndex = Math.max(timeIndex, 0);
-//    timeIndex = Math.min(timeIndex, data.transitionData.length - 1);
 
     this.events.dispatch(ActionType.MarkerSet, time, 0);
   }

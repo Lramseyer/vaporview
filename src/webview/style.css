@@ -421,11 +421,10 @@ body {
   align-items: center;
   overflow: hidden;
   box-sizing: border-box;
-  border: 1px var(--vscode-input-border);
   border-radius: 2px;
   background-color: var(--vscode-input-background);
   resize: none;
-  height: 23px;
+  height: 20px;
   width: calc(100% - 4px);
   font-size: var(--vscode-editor-font-size);
   color: var(--vscode-input-foreground);

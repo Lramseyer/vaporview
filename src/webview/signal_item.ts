@@ -456,6 +456,12 @@ export class SignalGroup extends SignalItem implements RowItem {
     this.setSignalContextAttribute();
   }
 
+  public createWaveformRowContent() {
+    let icon = this.collapseState === CollapseState.Expanded ? 
+      'codicon-chevron-down' : 'codicon-chevron-right';
+    return `<div class='codicon ${icon}'></div><p>${this.label}</p>`;
+  }
+
   public createLabelElement() {
 
     let childElements = '';
@@ -473,13 +479,8 @@ export class SignalGroup extends SignalItem implements RowItem {
     const selectorClass = isSelected ? 'is-selected' : '';
     //const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
     return `<div class="waveform-label waveform-group is-idle ${groupClass}" id="label-${this.rowId}" data-vscode-context=${this.vscodeContext}>
-              <div class="waveform-row ${selectorClass}">
-                <div class='codicon ${icon}'></div>
-                <p>${this.label}</p>
-              </div>
-              <div class="labels-group child-group">
-                ${childElements}
-              </div>
+              <div class="waveform-row ${selectorClass}">${this.createWaveformRowContent()}</div>
+              <div class="labels-group child-group">${childElements}</div>
             </div>`;
     }
 

@@ -1,4 +1,4 @@
-import { SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove, labelsPanel, outputLog } from './vaporview';
+import { SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove, labelsPanel, outputLog, getIndexInGroup } from './vaporview';
 import { formatBinary, formatHex, ValueFormat, formatString, valueFormatList } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer, signedLinearWaveformRenderer, signedSteppedrWaveformRenderer } from './renderer';
 import { SignalGroup, VariableItem, RowItem } from './signal_item';
@@ -36,9 +36,11 @@ export class WaveformDataManager {
 
     this.handleColorChange = this.handleColorChange.bind(this);
     this.handleReorderSignals = this.handleReorderSignals.bind(this);
+    this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
 
     this.events.subscribe(ActionType.updateColorTheme, this.handleColorChange);
     this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
+    this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
   }
 
   unload() {
@@ -192,6 +194,31 @@ export class WaveformDataManager {
     } else {
       labelsPanel.showRenameInput(rowId);
     }
+  }
+
+  handleRemoveVariable(rowId: any) {
+
+    const signalItem = this.rowItems[rowId];
+    if (!signalItem) {return;}
+
+    const rowIdList = signalItem.getFlattenedRowIdList(false, -1)
+    const parentGroupId = getParentGroupId(rowId);
+    const indexInGroup = getIndexInGroup(rowId, parentGroupId);
+    if (parentGroupId === 0) {
+      viewerState.displayedSignals.splice(indexInGroup, 1);
+    } else if (parentGroupId && parentGroupId > 0) {
+      const parentGroupitem = this.rowItems[this.groupIdTable[parentGroupId]];
+      if (parentGroupitem instanceof SignalGroup) {
+        parentGroupitem.children.splice(indexInGroup, 1);
+      }
+    }
+
+    rowIdList.forEach((id: RowId) => {
+      this.rowItems[id].dispose();
+      delete this.rowItems[id];
+    });
+
+    updateDisplayedSignalsFlat();
   }
 
   updateWaveformChunk(message: any) {

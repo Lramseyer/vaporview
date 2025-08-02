@@ -629,18 +629,14 @@ class VaporviewWebview {
     if (netlistId === null) {return;}
 
     const rowId = dataManager.netlistIdTable[netlistId];
-    const index = viewerState.displayedSignals.indexOf(rowId);
-    console.log('deleting signal ' + netlistId + ' at index' + index);
-    if (rowId === undefined || index < 0) {
-      return;
-    } else {
-      const newindex = Math.min(viewerState.displayedSignals.length - 2, index);
-      console.log('removing signal with Row ID ' + netlistId + ' at index ' + index + ' and moving to index ' + newindex);
-      this.events.dispatch(ActionType.RemoveVariable, rowId);
-      if (viewerState.selectedSignal === rowId) {
-        const newRowId = viewerState.displayedSignals[newindex];
-        this.events.dispatch(ActionType.SignalSelect, newRowId);
-      }
+    const index = viewerState.visibleSignalsFlat.indexOf(rowId);
+    console.log('deleting signal ' + netlistId + ' at rowId' + rowId);
+
+    this.events.dispatch(ActionType.RemoveVariable, rowId);
+    if (viewerState.selectedSignal === rowId) {
+      const newindex = Math.max(0, Math.min(viewerState.visibleSignalsFlat.length - 2, index));
+      const newRowId = viewerState.visibleSignalsFlat[newindex];
+      this.events.dispatch(ActionType.SignalSelect, newRowId);
     }
   }
 

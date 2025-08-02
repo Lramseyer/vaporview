@@ -602,4 +602,13 @@ export class SignalGroup extends SignalItem implements RowItem {
   public setColorFromColorIndex() {return;}
   public async cacheValueFormat() {return new Promise<void>((resolve) => {return;});}
   public resize() {return;}
+
+  public dispose() {
+    //this.canvas?.remove();
+    //this.canvas = null;
+    //this.ctx = null;
+    this.labelElement = null;
+    this.valueDisplayElement = null;
+    this.viewportElement = null;
+  }
 }

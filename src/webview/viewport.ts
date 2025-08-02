@@ -578,7 +578,7 @@ export class Viewport {
 
   handleRemoveVariable(rowId: RowId) {
 
-    updateDisplayedSignalsFlat();
+    //updateDisplayedSignalsFlat();
     const children = Array.from(this.waveformArea.children).filter((element) => {
       return element.id !== `waveform-${rowId}`;
     });
@@ -586,7 +586,7 @@ export class Viewport {
     this.renderAllWaveforms(false);
     const netlistElement = dataManager.rowItems[rowId];
     if (!netlistElement) {return;}
-    netlistElement.dispose();
+    //netlistElement.dispose();
     this.waveformsHeight = this.contentArea.getBoundingClientRect().height;
     this.updateBackgroundCanvas();
 

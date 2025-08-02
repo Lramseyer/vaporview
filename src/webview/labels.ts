@@ -458,9 +458,9 @@ export class LabelsPanels {
   }
 
   handleRemoveVariable(rowId: any) {
-    const index = viewerState.displayedSignals.findIndex((id: any) => {return id === rowId;});
-    if (index === -1) {return;}
-    viewerState.displayedSignals.splice(index, 1);
+    //const index = viewerState.displayedSignals.findIndex((id: any) => {return id === rowId;});
+    //if (index === -1) {return;}
+    //viewerState.displayedSignals.splice(index, 1);
     this.renderLabelsPanels();
   }
 

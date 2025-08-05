@@ -85,7 +85,6 @@ export class WaveformDataManager {
 
   addVariable(signalList: any, parentGroupId: number | undefined) {
     // Handle rendering a signal, e.g., render the signal based on message content
-    //console.log(message);
 
     if (signalList.length === 0) {return;}
 

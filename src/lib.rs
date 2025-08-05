@@ -16,6 +16,20 @@ use wellen::LoadOptions;
 use std::sync::Arc;
 use core::ops::Index;
 use lz4_flex::frame::FrameEncoder;
+use serde::Deserialize;
+
+mod libsurfer;
+
+
+#[derive(Deserialize, Debug)]
+pub struct SurferStatus {
+    bytes: u64,
+    bytes_loaded: u64,
+    filename: String,
+    wellen_version: String,
+    surfer_version: String,
+    file_format: String,
+}
 
 enum ReadBodyEnum {
   Static(ReadBodyContinuation<Cursor<Vec<u8>>>),
@@ -31,12 +45,16 @@ enum HeaderResultType {
 
 lazy_static! {
   //static ref _file: Mutex<Option<WasmFileReader>> = Mutex::new(None);
-
+  pub static ref BINCODE_OPTIONS: bincode::DefaultOptions = bincode::DefaultOptions::new();
   static ref _file_format : Mutex<FileFormat> = Mutex::new(FileFormat::Unknown);
   static ref _hierarchy: Mutex<Option<Hierarchy>> = Mutex::new(None);
   static ref _body: Mutex<ReadBodyEnum> = Mutex::new(ReadBodyEnum::None);
   static ref _time_table: Mutex<Option<TimeTable>> = Mutex::new(None);
   static ref _signal_source: Mutex<Option<SignalSource>> = Mutex::new(None);
+  
+  // Chunked data reassembly
+  static ref _chunks: Mutex<Vec<Vec<u8>>> = Mutex::new(Vec::new());
+  static ref _total_chunks: Mutex<u32> = Mutex::new(0);
 }
 
 struct WasmFileReader {
@@ -55,7 +73,8 @@ impl WasmFileReader {
   }
 }
 
-struct VarData {
+#[derive(Deserialize, Debug)]
+pub struct VarData {
   name: String,
   id: u32,
   signal_id: u32,
@@ -66,13 +85,14 @@ struct VarData {
   lsb: i32,
 }
 
-struct ScopeData {
+#[derive(Deserialize, Debug)]
+pub struct ScopeData {
   name: String,
   id: u32,
   tpe: String,
 }
 
-fn get_var_data(hierarchy: &Hierarchy, v: VarRef) -> VarData {
+pub fn get_var_data(hierarchy: &Hierarchy, v: VarRef) -> VarData {
 
   let variable = hierarchy.index(v);
   let name = variable.name(&hierarchy).to_string();
@@ -92,7 +112,7 @@ fn get_var_data(hierarchy: &Hierarchy, v: VarRef) -> VarData {
   VarData { name, id, signal_id, tpe, encoding, width, msb, lsb }
 }
 
-fn get_scope_data(hierarchy: &Hierarchy, s: ScopeRef) -> ScopeData {
+pub fn get_scope_data(hierarchy: &Hierarchy, s: ScopeRef) -> ScopeData {
   let scope = hierarchy.index(s);
   let name = scope.name(&hierarchy).to_string();
   let id = s.index() as u32;
@@ -274,6 +294,14 @@ impl Seek for WasmFileReader {
 struct Filecontext;
 
 impl Guest for Filecontext {
+
+  fn loadremotestatus(status_data: Vec<u8>) -> String {
+    libsurfer::SurferRemote::loadremotestatus(status_data)
+  }
+
+  fn loadremotechunk(chunk_type: u32, chunk_data: Vec<u8>, chunk_index: u32, total_chunks: u32) {
+    libsurfer::SurferRemote::loadremotechunk(chunk_type, chunk_data, chunk_index, total_chunks);
+  }
 
   fn loadfile(size: u64, fd: u32, loadstatic: bool, buffersize: u32) {
 

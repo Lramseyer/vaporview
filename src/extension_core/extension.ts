@@ -360,6 +360,29 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.log.appendLine("Command called: 'vaporview.dummy' " + JSON.stringify(e));
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.openRemoteViewer', async (e) => {
+    if (e && e.url) {
+      viewerProvider.openRemoteViewer(e.url, e.bearerToken);
+      return;
+    }
+    const serverUrl = await vscode.window.showInputBox({
+      prompt: 'Enter the Surfer server URL',
+      value: ''
+    });
+    
+    if (!serverUrl) {
+      return;
+    }
+    
+    const bearerToken = await vscode.window.showInputBox({
+      prompt: 'Enter bearer token (optional)',
+      password: true,
+      value: ''
+    });
+    
+    viewerProvider.openRemoteViewer(serverUrl, bearerToken);
+  }));
+
   return {
     onDidSetMarker: markerSetEvent,
     onDidSelectSignal: signalSelectEvent,

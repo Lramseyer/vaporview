@@ -1014,7 +1014,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}
 
-    let groupId: NetlistId | undefined = e?.groupId;
+    let groupId: number | undefined = e?.groupId;
     let groupName: string | undefined = e?.name;
 
     const panel      = this.activeWebview;
@@ -1022,6 +1022,21 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       command: 'renameSignalGroup',
       groupId: groupId,
       groupName: groupName,
+    });
+  }
+
+  public deleteSignalGroup(e: any | undefined, recursive: boolean) {
+    if (!this.activeWebview) {return;}
+    if (!this.activeDocument) {return;}
+    if (!this.activeWebview.visible) {return;}
+
+    let groupId: number | undefined = e?.groupId;
+
+    const panel = this.activeWebview;
+    panel.webview.postMessage({
+      command: 'remove-group',
+      groupId: groupId,
+      recursive: recursive,
     });
   }
 

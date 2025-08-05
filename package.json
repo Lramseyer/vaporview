@@ -355,6 +355,16 @@
           "group": "3_groups@2"
         },
         {
+          "command": "vaporview.ungroupSignals",
+          "when": "webviewSection == 'signal-group' && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "group": "3_groups@3"
+        },
+        {
+          "command": "vaporview.deleteGroup",
+          "when": "webviewSection == 'signal-group' && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "group": "3_groups@3"
+        },
+        {
           "command": "vaporview.saveViewerSettings",
           "group": "4_saveLoad@1",
           "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
@@ -642,6 +652,14 @@
       {
         "command": "vaporview.renameSignalGroup",
         "title": "Rename Group"
+      },
+      {
+        "command": "vaporview.ungroupSignals",
+        "title": "Ungroup Signals"
+      },
+      {
+        "command": "vaporview.deleteGroup",
+        "title": "Delete Group"
       },
       {
         "command": "vaporview.displayAsBinary",

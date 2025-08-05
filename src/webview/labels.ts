@@ -411,8 +411,9 @@ export class LabelsPanels {
   }
 
   private finishRename(signalItem: SignalGroup, waveformRow: Element, newName: string) {
-    signalItem.label      = newName ? newName.trim() : signalItem.label;
+    if (!this.renameActive) {return;}
     this.renameActive     = false;
+    signalItem.label      = newName ? newName.trim() : signalItem.label;
     waveformRow.innerHTML = signalItem.createWaveformRowContent()
   }
 
@@ -457,25 +458,9 @@ export class LabelsPanels {
     this.renderLabelsPanels();
   }
 
-  handleRemoveVariable(rowId: any) {
-    //const index = viewerState.displayedSignals.findIndex((id: any) => {return id === rowId;});
-    //if (index === -1) {return;}
-    //viewerState.displayedSignals.splice(index, 1);
+  handleRemoveVariable(rowId: any, recursive: boolean) {
     this.renderLabelsPanels();
   }
-
-  //handleReorderSignals(oldIndex: number, newIndex: number) {
-  //  if (this.draggableItem) {
-  //    this.draggableItem.style   = null;
-  //    this.draggableItem.classList.remove('is-draggable');
-  //    this.draggableItem.classList.add('is-idle');
-  //  } else {
-  //    this.labelsList = Array.from(this.labels.querySelectorAll('.waveform-label'));
-  //  }
-  //  arrayMove(this.labelsList, oldIndex, newIndex);
-  //  arrayMove(viewerState.displayedSignals, oldIndex, newIndex);
-  //  this.renderLabelsPanels();
-  //}
 
   handleReorderSignalsHierarchy(rowId: number, newGroupId: number, newIndex: number) {
     this.renderLabelsPanels();

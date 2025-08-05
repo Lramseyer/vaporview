@@ -144,6 +144,19 @@ export function getParentGroupId(rowId: RowId | null): number | null {
   return null;
 }
 
+export function getParentGroupIdList(rowId: RowId | null): number[] {
+  let result: number[] = [];
+  if (rowId === null) {return result;}
+  const parentGroupId = getParentGroupId(rowId);
+  if (parentGroupId === null) {return result;}
+  const parentGroupRowId = dataManager.groupIdTable[parentGroupId];
+  if (parentGroupRowId === null) {return result;}
+  result = getParentGroupIdList(parentGroupRowId);
+  result.push(parentGroupId);
+
+  return result;
+}
+
 export function getIndexInGroup(rowId: RowId, groupId: number | null) {
   let parentGroupId = groupId;
   if (parentGroupId === null) {parentGroupId = getParentGroupId(rowId);}
@@ -545,13 +558,26 @@ class VaporviewWebview {
     const netlistData = dataManager.rowItems[rowId];
     sendWebviewContext();
 
+    //const parentList = getParentGroupIdList(rowId);
+    //console.log(parentList);
+
+    const labelElement = document.getElementById(`label-${rowId}`);
+    const labelsPanel = this.labelsScroll;
+    if (!labelElement) {return;}
+
+    const labelBounds  = labelElement.getBoundingClientRect();
+    const windowBounds = labelsPanel.getBoundingClientRect();
+
     const waveHeight = 28;
-    if (viewerState.selectedSignalIndex !== null) {
-      const index        = viewerState.visibleSignalsFlat.indexOf(rowId);
-      const yPosition    = index * waveHeight;
-      const maxScrollTop = yPosition - (viewport.viewerHeight - (3 * waveHeight));
-      const minScrollTop = yPosition - waveHeight;
-      const newScrollTop = Math.max(maxScrollTop, Math.min(minScrollTop, this.labelsScroll.scrollTop));
+
+    let newScrollTop = labelsPanel.scrollTop;
+    if (labelBounds.top < windowBounds.top + 40) {
+      newScrollTop = Math.max(0, labelsPanel.scrollTop + (labelBounds.top - (windowBounds.top + 40)));
+    } else if (labelBounds.bottom > windowBounds.bottom) {
+      newScrollTop = Math.min(labelsPanel.scrollHeight - labelsPanel.clientHeight, labelsPanel.scrollTop + (labelBounds.bottom - windowBounds.bottom) + waveHeight);
+    }
+
+    if (newScrollTop !== labelsPanel.scrollTop) {
       this.syncVerticalScroll({deltaY: 0}, newScrollTop);
     }
 
@@ -632,12 +658,20 @@ class VaporviewWebview {
     const index = viewerState.visibleSignalsFlat.indexOf(rowId);
     console.log('deleting signal ' + netlistId + ' at rowId' + rowId);
 
-    this.events.dispatch(ActionType.RemoveVariable, rowId);
+    this.events.dispatch(ActionType.RemoveVariable, rowId, true);
     if (viewerState.selectedSignal === rowId) {
       const newindex = Math.max(0, Math.min(viewerState.visibleSignalsFlat.length - 2, index));
       const newRowId = viewerState.visibleSignalsFlat[newindex];
       this.events.dispatch(ActionType.SignalSelect, newRowId);
     }
+  }
+
+  removeSignalGroup(groupId: number, recursive: boolean) {
+    if (groupId === 0) {return;}
+    const rowId = dataManager.groupIdTable[groupId];
+    if (rowId === undefined) {return;}
+
+    this.events.dispatch(ActionType.RemoveVariable, rowId, recursive);
   }
 
   handleSetConfigSettings(settings: any) {
@@ -649,8 +683,10 @@ class VaporviewWebview {
     }
   }
 
-  handleSetSelectedSignal(rowId: RowId | null) {
-    if (rowId === null) {return;}
+  handleSetSelectedSignal(netlistId: NetlistId | undefined) {
+    if (netlistId === undefined) {return;}
+    const rowId = dataManager.netlistIdTable[netlistId];
+    if (rowId === undefined) {return;}
     if (dataManager.rowItems[rowId] === undefined) {return;}
     this.events.dispatch(ActionType.SignalSelect, rowId);
   }
@@ -698,6 +734,7 @@ class VaporviewWebview {
       case 'getSelectionContext':   {sendWebviewContext(); break;}
       case 'add-variable':          {dataManager.addVariable(message.signalList, 0); break;}
       case 'remove-signal':         {this.removeVariable(message.netlistId); break;}
+      case 'remove-group':          {this.removeSignalGroup(message.groupId, message.recursive); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}
       case 'update-waveform-chunk-compressed': {dataManager.updateWaveformChunkCompressed(message); break;}
       case 'newSignalGroup':        {dataManager.addSignalGroup(message.parentGroupId, message.groupName); break;}

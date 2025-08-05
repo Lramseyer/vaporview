@@ -196,20 +196,26 @@ export class WaveformDataManager {
     }
   }
 
-  handleRemoveVariable(rowId: any) {
+  handleRemoveVariable(rowId: any, recursive: boolean) {
 
     const signalItem = this.rowItems[rowId];
     if (!signalItem) {return;}
-
-    const rowIdList = signalItem.getFlattenedRowIdList(false, -1)
+    let rowIdList: RowId[] = [rowId];
+    let children: number[] = []
     const parentGroupId = getParentGroupId(rowId);
     const indexInGroup = getIndexInGroup(rowId, parentGroupId);
+
+    if (recursive) {
+      rowIdList = signalItem.getFlattenedRowIdList(false, -1)
+    } else if (signalItem instanceof SignalGroup) {
+      children = signalItem.children;
+    }
     if (parentGroupId === 0) {
-      viewerState.displayedSignals.splice(indexInGroup, 1);
+      viewerState.displayedSignals.splice(indexInGroup, 1, ...children);
     } else if (parentGroupId && parentGroupId > 0) {
       const parentGroupitem = this.rowItems[this.groupIdTable[parentGroupId]];
       if (parentGroupitem instanceof SignalGroup) {
-        parentGroupitem.children.splice(indexInGroup, 1);
+        parentGroupitem.children.splice(indexInGroup, 1, ...children);
       }
     }
 
@@ -471,7 +477,7 @@ export class WaveformDataManager {
 
     if (message.annotateValue !== undefined) {
       viewport.annotateWaveform(rowId, message.annotateValue);
-      viewport.updateBackgroundCanvas();
+      viewport.updateBackgroundCanvas(false);
     }
 
     sendWebviewContext();

@@ -3,6 +3,7 @@ import { ValueFormat } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { labelsPanel } from "./vaporview";
 import { VariableItem } from "./signal_item";
+import { bool } from "@vscode/wasm-component-model";
 
 const domParser = new DOMParser();
 
@@ -260,7 +261,7 @@ export class Viewport {
     if (this.rulerLines === state) {return;}
     this.rulerLines = state;
     this.setRulerVscodeContext();
-    this.updateBackgroundCanvas();
+    this.updateBackgroundCanvas(false);
   }
 
   setRulerVscodeContext() {
@@ -297,8 +298,7 @@ export class Viewport {
       this.waveformArea.appendChild(netlistData.viewportElement);
       if (updateFlag) {netlistData.renderWaveform();}
     });
-    this.waveformsHeight = this.contentArea.getBoundingClientRect().height;
-    this.updateBackgroundCanvas();
+    this.updateBackgroundCanvas(true);
   }
 
   addNetlistLink() {
@@ -550,22 +550,10 @@ export class Viewport {
     const netlistData = dataManager.rowItems[rowId];
     if (!netlistData) {return;}
     this.annotateTime = netlistData.getAllEdges(valueList);
-    this.updateBackgroundCanvas();
+    this.updateBackgroundCanvas(false);
   }
 
-  //handleReorderSignals(oldIndex: number, newIndex: number) {
-  //  const children       = Array.from(this.waveformArea.children);
-  //  arrayMove(children, oldIndex, newIndex);
-  //  this.waveformArea.replaceChildren(...children);
-  //  const rowId = viewerState.displayedSignals[newIndex];
-  //  const netlistElement = dataManager.rowItems[rowId];
-  //  if (!netlistElement) {return;}
-  //  if (!netlistElement.wasRendered) {netlistElement.renderWaveform();}
-  //}
-
-  handleReorderSignalsHierarchy(rowId: number, newGroupId: number, newIndex: number) {
-
-    updateDisplayedSignalsFlat();
+  updateSignalOrder() {
     const newChildren: HTMLElement[] = [];
     viewerState.displayedSignalsFlat.forEach((rowId, i) => {
       const element = dataManager.rowItems[rowId].viewportElement;
@@ -576,24 +564,21 @@ export class Viewport {
     this.renderAllWaveforms(false);
   }
 
-  handleRemoveVariable(rowId: RowId) {
+  handleReorderSignalsHierarchy(rowId: number, newGroupId: number, newIndex: number) {
+
+    updateDisplayedSignalsFlat();
+    this.updateSignalOrder();
+  }
+
+  handleRemoveVariable(rowId: RowId, recursive: boolean) {
 
     //updateDisplayedSignalsFlat();
-    const children = Array.from(this.waveformArea.children).filter((element) => {
-      return element.id !== `waveform-${rowId}`;
-    });
-    this.waveformArea.replaceChildren(...children);
-    this.renderAllWaveforms(false);
-    const netlistElement = dataManager.rowItems[rowId];
-    if (!netlistElement) {return;}
-    //netlistElement.dispose();
-    this.waveformsHeight = this.contentArea.getBoundingClientRect().height;
-    this.updateBackgroundCanvas();
+    this.updateSignalOrder();
+    this.updateBackgroundCanvas(true);
 
-    if (children.length === 0) {
+    if (this.waveformArea.children.length === 0) {
       this.addNetlistLink();
     }
-
   }
 
   handleMarkerSet(time: number, markerType: number) {
@@ -744,7 +729,12 @@ export class Viewport {
     ctx.globalAlpha = 1;
   }
 
-  updateBackgroundCanvas() {
+  updateBackgroundCanvas(updateViewportHeight: boolean) {
+
+    if (updateViewportHeight) {
+      this.waveformsHeight = this.contentArea.getBoundingClientRect().height;
+    }
+
     const ctx = this.backgroundCanvas;
     ctx.strokeStyle = this.rulerGuideColor;
     ctx.lineWidth   = 1;
@@ -856,7 +846,7 @@ export class Viewport {
     this.updatePending = true;
     this.updateMarker();
     this.updateRuler();
-    this.updateBackgroundCanvas();
+    this.updateBackgroundCanvas(false);
     this.renderAllWaveforms(true);
     this.updatePending = false;
   }

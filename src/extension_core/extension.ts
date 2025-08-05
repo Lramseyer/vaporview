@@ -113,6 +113,14 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.newSignalGroup(e);
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.ungroupSignals', (e) => {
+    viewerProvider.deleteSignalGroup(e, false);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.deleteGroup', (e) => {
+    viewerProvider.deleteSignalGroup(e, true);
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.renameSignalGroup', (e) => {
     viewerProvider.renameSignalGroup(e);
   }));

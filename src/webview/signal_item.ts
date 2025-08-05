@@ -567,6 +567,7 @@ export class SignalGroup extends SignalItem implements RowItem {
       if (signalItem instanceof VariableItem) {
         signalItem.wasRendered = false; // Reset rendering state for child signals
       }
+      viewport.updateBackgroundCanvas(true);
     });
     updateDisplayedSignalsFlat();
     console.log(viewerState.visibleSignalsFlat);

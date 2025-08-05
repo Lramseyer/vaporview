@@ -215,6 +215,7 @@ This project uses the [wellen](https://github.com/ekiwi/wellen/tree/new-api) lib
 
 - [@lramseyer](https://github.com/Lramseyer) (Owner)
 - [@heyfey](https://github.com/heyfey)
+- [@marco-fr](https://github.com/marco-fr)
 
 ## Misc
 

@@ -1,5 +1,9 @@
+src/**
+!src/webview/body.html
+!src/webview/style.css
 target/**
 !target/wasm32-unknown-unknown/release/filehandler.wasm
+readme_assets/**
 .vscode/**
 .gitignore
 .DS_Store

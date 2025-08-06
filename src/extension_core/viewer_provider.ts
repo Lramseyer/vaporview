@@ -258,7 +258,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'executeCommand':      {vscode.commands.executeCommand(e.commandName, e.args); break;}
         case 'updateConfiguration': {vscode.workspace.getConfiguration('vaporview').update(e.property, e.value, vscode.ConfigurationTarget.Global); break;}
         case 'ready':               {document.onWebviewReady(webviewPanel); break;}
-        case 'restoreState':        {this.applySettings(e.state, this.getDocumentFromUri(e.uri.toString())); break;}
+        case 'restoreState':        {this.applySettingsOld(e.state, this.getDocumentFromUri(e.uri.toString())); break;}
         case 'contextUpdate':       {this.updateStatusBarItems(document, e); break;}
         case 'emitEvent':           {this.emitEvent(e); break;}
         case 'fetchTransitionData': {document.getSignalData(e.signalIdList); break;}
@@ -429,10 +429,10 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
 
     this.log.appendLine('Loading settings from file: ' + fileData.fileName);
-    this.applySettings(fileData, this.activeDocument);
+    this.applySettingsOld(fileData, this.activeDocument);
   }
 
-  public async applySettings(settings: any, document: VaporviewDocument | undefined = undefined) {
+  public async applySettingsOld(settings: any, document: VaporviewDocument | undefined = undefined) {
 
     //console.log(settings);
 
@@ -447,6 +447,76 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     const metadataList: NetlistItem[] = [];
 
     for (const signalInfo of settings.displayedSignals) {
+      if (signalInfo.dataType && signalInfo.dataType !== 'netlist-variable') {continue;}
+      const signal   = signalInfo.name;
+      const metadata = await document.findTreeItem(signal, signalInfo.msb, signalInfo.lsb);
+      if (metadata !== null) {
+        metadataList.push(metadata);
+        // We need to copy the netlistId from the existing wavefrom dump in case the circuit has changed
+        foundSignals.push({
+          netlistId: metadata.netlistId,
+          numberFormat: signalInfo.numberFormat,
+          colorIndex: signalInfo.colorIndex,
+          renderType: signalInfo.renderType,
+        });
+      } else {
+        missingSignals.push(signal);
+      }
+    }
+
+    if (settings.markerTime || settings.markerTime === 0) {
+      this.setMarkerAtTime(settings.markerTime, 0);
+    }
+    if (settings.altMarkerTime || settings.altMarkerTime === 0) {
+      this.setMarkerAtTime(settings.altMarkerTime, 1);
+    }
+
+    if (missingSignals.length > 0) {
+      this.log.appendLine('Missing signals: '+ missingSignals.join(', '));
+    }
+
+    this.filterAddSignalsInNetlist(metadataList, true);
+    for (const signalInfo of foundSignals) {
+      this.setValueFormat(signalInfo.netlistId, {
+        valueFormat:   signalInfo.numberFormat,
+        colorIndex:    signalInfo.colorIndex,
+        renderType:    signalInfo.renderType,
+        command:       signalInfo.command,
+      });
+    }
+
+    //console.log(settings.selectedSignal);
+    if (settings.selectedSignal) {
+      const s = settings.selectedSignal;
+      const metadata = await document.findTreeItem(s.name, s.msb, s.lsb);
+      if (metadata !== null) {
+        const netlistIdSelected = metadata.netlistId;
+        this.activeWebview?.webview.postMessage({
+          command: 'setSelectedSignal', 
+          netlistId: netlistIdSelected,
+        });
+      }
+    }
+
+    //this.netlistTreeDataProvider.loadDocument(document);
+  }
+
+    public async applySettings(settings: any, document: VaporviewDocument | undefined = undefined) {
+
+    //console.log(settings);
+
+    if (!settings.displayedSignals) {return;}
+    if (!document) {
+      if (!this.activeDocument) {return;}
+      document = this.activeDocument;
+    }
+
+    const missingSignals: string[] = [];
+    const foundSignals: any[] = [];
+    const metadataList: NetlistItem[] = [];
+
+    for (const signalInfo of settings.displayedSignals) {
+      if (signalInfo.dataType && signalInfo.dataType !== 'netlist-variable') {continue;}
       const signal   = signalInfo.name;
       const metadata = await document.findTreeItem(signal, signalInfo.msb, signalInfo.lsb);
       if (metadata !== null) {
@@ -516,7 +586,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.netlistTreeDataProvider.hide();
     this.displayedSignalsTreeDataProvider.hide();
     await document.reload();
-    this.applySettings(settings, this.activeDocument);
+    this.applySettingsOld(settings, this.activeDocument);
 
     //console.log(settings);
   }
@@ -907,7 +977,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     const lookup = instancePath.replace(regex, '');
     const msb   = field ? parseInt(field[1], 10) : undefined;
     const lsb   = field ? parseInt(field[2], 10) : msb;
-    //console.log('lookup: ' + lookup + ' msb: ' + msb + ' lsb: ' + lsb);
     const metadata = await document.findTreeItem(lookup, msb, lsb);
 
     if (metadata === null) {
@@ -923,8 +992,12 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
 
     //console.log('found signal ' + instancePath);
-    const netlistId   = metadata.netlistId;
-    const isDisplayed = document.webviewContext.displayedSignals.find((element: any) => element.netlistId === netlistId);
+    const netlistId = metadata.netlistId;
+    let isDisplayed = false;
+    document.displayedSignals.forEach((element: NetlistItem) => {
+      if (element.netlistId === netlistId) {isDisplayed = true;}
+    });
+
     if (isDisplayed !== undefined) {
       document.revealSignalInWebview(netlistId);
     } else {

@@ -1,11 +1,11 @@
-import { error } from 'console';
+import { error, group } from 'console';
 import { Viewport } from './viewport';
 import { LabelsPanels } from './labels';
 import { ControlBar } from './control_bar';
 import { formatBinary, formatHex, ValueFormat, valueFormatList } from './value_format';
 import { WaveformDataManager } from './data_manager';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
-import { VariableItem, SignalGroup } from './signal_item';
+import { VariableItem, SignalGroup, RowItem } from './signal_item';
 
 declare function acquireVsCodeApi(): VsCodeApi;
 export const vscode = acquireVsCodeApi();
@@ -142,11 +142,11 @@ export function getParentGroupId(rowId: RowId | null): number | null {
   return null;
 }
 
-export function getParentGroupIdList(rowId: RowId | null): number[] {
+export function getParentGroupIdList(rowId: RowId | null | undefined): number[] {
   let result: number[] = [];
-  if (rowId === null) {return result;}
+  if (rowId === null || rowId === undefined) {return result;}
   const parentGroupId = getParentGroupId(rowId);
-  if (parentGroupId === null) {return result;}
+  if (!parentGroupId) {return result;}
   const parentGroupRowId = dataManager.groupIdTable[parentGroupId];
   if (parentGroupRowId === null) {return result;}
   result = getParentGroupIdList(parentGroupRowId);
@@ -206,21 +206,35 @@ function createWebviewContext() {
     selectedSignal: selectedNetlistId,
     zoomRatio: vaporview.viewport.zoomRatio,
     scrollLeft: vaporview.viewport.pseudoScrollLeft,
-    displayedSignals: viewerState.displayedSignals.map((id: RowId) => {
-      const data  = dataManager.rowItems[id];
-      if(!(data instanceof VariableItem)) {return;}
-
-      const netlistId = data.netlistId;
-      return {
-        netlistId:        netlistId,
-        name:             data.scopePath + "." + data.signalName,
-        numberFormat:     data.valueFormat.id,
-        colorIndex:       data.colorIndex,
-        renderType:       data.renderType.id,
-        valueLinkCommand: data.valueLinkCommand,
-      };
-    }),
+    displayedSignals: signalListForSaveFile(viewerState.displayedSignals),
   }
+}
+
+function signalListForSaveFile(rowIdList: RowId[]): any[] {
+  const result: any[] = [];
+  rowIdList.forEach((rowId) => {
+    const data = dataManager.rowItems[rowId];
+    if (data instanceof SignalGroup) {
+      result.push({
+        dataType:  "signal-group",
+        groupName: data.label,
+        children:  signalListForSaveFile(data.children)
+      });
+    }
+    if (!(data instanceof VariableItem)) {return;}
+
+    const netlistId = data.netlistId;
+    result.push({
+      dataType:         "netlist-variable",
+      netlistId:        netlistId,
+      name:             data.scopePath + "." + data.signalName,
+      numberFormat:     data.valueFormat.id,
+      colorIndex:       data.colorIndex,
+      renderType:       data.renderType.id,
+      valueLinkCommand: data.valueLinkCommand,
+    });
+  });
+  return result;
 }
 
 export function sendWebviewContext() {
@@ -556,8 +570,19 @@ class VaporviewWebview {
     const netlistData = dataManager.rowItems[rowId];
     sendWebviewContext();
 
-    //const parentList = getParentGroupIdList(rowId);
-    //console.log(parentList);
+    // expand all parent groups of the selected signal
+    const parentList = getParentGroupIdList(rowId);
+
+    parentList.forEach((groupId) => {
+      const groupRowId = dataManager.groupIdTable[groupId];
+      if (groupRowId === undefined) {return;}
+      const groupItem: RowItem = dataManager.rowItems[groupRowId];
+      if (!(groupItem instanceof SignalGroup)) {return;}
+      if (groupItem.collapseState === CollapseState.Collapsed) {
+        groupItem.expand();
+      }
+    });
+
 
     const labelElement = document.getElementById(`label-${rowId}`);
     const labelsPanel = this.labelsScroll;

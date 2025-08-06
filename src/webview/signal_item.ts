@@ -611,5 +611,6 @@ export class SignalGroup extends SignalItem implements RowItem {
     this.labelElement = null;
     this.valueDisplayElement = null;
     this.viewportElement = null;
+    this.label = "";
   }
 }

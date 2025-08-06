@@ -5,14 +5,16 @@
 - Added
   - Signal grouping in the viewer
   - API for interoperability with other extensions - see API_DOCS.md for details
-  - Edge guides
+  - Edge guides feature to highlight edges of a signal
   - Escape Key to abort some user actions
   - Drag to reorder signals now responds to scroll
+  - Surfer surver support
 - Fixed
   - Renderer floating point math is much more accurate resulting in less jitter
   - Revealing signals in viewport scrolls to the signal in question
-- Upgraded to wellen 0.17.1 for miscellaneous improvements to file loading
-- Improved signal loading performance (with LZ4 compression)
+- Other Changes
+  - Upgraded to wellen 0.17.1 for miscellaneous improvements to file loading
+  - Improved signal loading performance (with LZ4 compression)
 
 # 1.3.4 - Latest Release
 

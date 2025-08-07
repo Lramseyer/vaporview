@@ -397,7 +397,9 @@ export class LabelsPanels {
     // Handle Enter key to submit rename
     textarea.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        const newName = textarea.value.trim() || signalItem.label;
+        const newNameInput = textarea.value.trim() || signalItem.label;
+        const isTaken = dataManager.findGroupIdByName(newNameInput) !== -1;
+        const newName = isTaken ? oldName : newNameInput;
         e.preventDefault();
         this.finishRename(signalItem, waveformRow, newName);
       } else if (e.key === 'Escape') {
@@ -414,7 +416,10 @@ export class LabelsPanels {
     if (!this.renameActive) {return;}
     this.renameActive     = false;
     signalItem.label      = newName ? newName.trim() : signalItem.label;
-    waveformRow.innerHTML = signalItem.createWaveformRowContent()
+    waveformRow.innerHTML = signalItem.createWaveformRowContent();
+    if (viewerState.selectedSignal === signalItem.rowId) {
+      waveformRow.classList.add('is-selected');
+    }
   }
 
   getRowIdFromElement(element: HTMLElement | null): RowId | null {

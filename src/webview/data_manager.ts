@@ -157,7 +157,12 @@ export class WaveformDataManager {
   addSignalGroup(parentGroupId: number, name: string | undefined) {
     const groupId = this.nextGroupId;
     const rowId = this.nextRowId;
-    const groupName = name !== undefined ? name : "Group " + groupId;
+    let groupName = name !== undefined ? name : "Group " + groupId;
+    let n = 1;
+    while (this.findGroupIdByName(groupName) !== -1) {
+      groupName = "Group " + groupId + ` (${n})`;
+      n++;
+    }
 
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowId);
     const groupItem = new SignalGroup(rowId, groupName, groupId);
@@ -366,6 +371,18 @@ export class WaveformDataManager {
       this.events.dispatch(ActionType.RedrawVariable, rowId);
       netlistData.cacheValueFormat();
     });
+  }
+
+  findGroupIdByName(name: string): number {
+    let result = -1;
+    this.groupIdTable.forEach((rowId, groupId) => {
+      if (result !== -1) {return;}
+      const groupItem = this.rowItems[rowId];
+      if (groupItem instanceof SignalGroup && groupItem.label === name) {
+        result = groupId;
+      }
+    });
+    return result;
   }
 
   // binary searches for a value in an array. Will return the index of the value if it exists, or the lower bound if it doesn't

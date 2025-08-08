@@ -83,7 +83,30 @@ export class WaveformDataManager {
     });
   }
 
-  addVariable(signalList: any, parentGroupId: number | undefined) {
+  getGroupByIdOrName(groupPath: string[] | undefined, parentGroupId: number | undefined): SignalGroup | null {
+  let groupId = 0;
+  let groupIsValid = false;
+  if (parentGroupId !== undefined && this.groupIdTable[parentGroupId] !== undefined) {
+    groupId = parentGroupId;
+  } else if (groupPath !== undefined && groupPath.length > 0) {
+    groupId = this.findGroupIdByNamePath(groupPath);
+  }
+
+  if (groupId > 0) {
+    const parentGroupRowId = this.groupIdTable[groupId];
+    if (parentGroupId !== undefined) {return null;}
+    const parentGroupItem = this.rowItems[parentGroupRowId];
+
+    if (parentGroupItem instanceof SignalGroup) {
+      return parentGroupItem;
+    } else {
+      return null;
+    }
+  }
+  return null;
+}
+
+  addVariable(signalList: any, groupPath: string[] | undefined, parentGroupId: number | undefined) {
     // Handle rendering a signal, e.g., render the signal based on message content
 
     if (signalList.length === 0) {return;}
@@ -138,15 +161,14 @@ export class WaveformDataManager {
     });
 
     this.request(signalIdList);
-    if (parentGroupId !== undefined && this.groupIdTable[parentGroupId] !== undefined) {
-      const parentRowId = this.groupIdTable[parentGroupId];
-      const parentGroup = this.rowItems[parentRowId];
-      if (parentGroup instanceof SignalGroup) {
-        parentGroup.children = parentGroup.children.concat(rowIdList);
-      }
-    } else {
+
+    let groupItem = this.getGroupByIdOrName(groupPath, parentGroupId);
+    if (groupItem === null) {
       viewerState.displayedSignals = viewerState.displayedSignals.concat(rowIdList);
+    } else {
+      groupItem.children = groupItem.children.concat(rowIdList);
     }
+
     updateDisplayedSignalsFlat();
     this.events.dispatch(ActionType.AddVariable, rowIdList, updateFlag);
     this.events.dispatch(ActionType.SignalSelect, selectedSignal);
@@ -157,11 +179,17 @@ export class WaveformDataManager {
   addSignalGroup(parentGroupId: number, name: string | undefined) {
     const groupId = this.nextGroupId;
     const rowId = this.nextRowId;
-    let groupName = name !== undefined ? name : "Group " + groupId;
-    let n = 1;
-    while (this.findGroupIdByName(groupName) !== -1) {
-      groupName = "Group " + groupId + ` (${n})`;
-      n++;
+    let groupName = "Group " + groupId;
+    if (name === undefined || name === "") {
+      let n = 1;
+      while (this.findGroupIdByName(groupName, parentGroupId) !== -1) {
+        groupName = "Group " + groupId + ` (${n})`;
+        n++;
+      }
+    } else {
+      groupName = name;
+      const isTaken = this.groupNameExists(groupName, parentGroupId);
+      if (isTaken) {return;}
     }
 
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowId);
@@ -373,16 +401,33 @@ export class WaveformDataManager {
     });
   }
 
-  findGroupIdByName(name: string): number {
+  groupNameExists(name: string, parentGroupId: number): boolean {
+    const groupId = this.findGroupIdByName(name, parentGroupId);
+    return groupId !== -1;
+  }
+
+
+  findGroupIdByName(name: string, parentGroupId: number): number {
     let result = -1;
-    this.groupIdTable.forEach((rowId, groupId) => {
-      if (result !== -1) {return;}
-      const groupItem = this.rowItems[rowId];
-      if (groupItem instanceof SignalGroup && groupItem.label === name) {
-        result = groupId;
-      }
+    const children = getChildrenByGroupId(parentGroupId);
+    children.forEach((rowId) => {
+      const rowItem = this.rowItems[rowId];
+      if (rowItem instanceof SignalGroup && rowItem.label === name) {result = rowItem.groupId;}
     });
     return result;
+  }
+
+  findGroupIdByNamePath(namePath: string[]): number {
+    let breakLoop = false;
+    let parentGroupId = 0;
+    namePath.forEach((name) => {
+      if (breakLoop) {return;}
+      parentGroupId = this.findGroupIdByName(name, parentGroupId);
+      if (parentGroupId === -1) {
+        breakLoop = true;
+      }
+    });
+    return parentGroupId;
   }
 
   // binary searches for a value in an array. Will return the index of the value if it exists, or the lower bound if it doesn't

@@ -755,7 +755,7 @@ class VaporviewWebview {
       case 'setConfigSettings':     {this.handleSetConfigSettings(message); break;}
       case 'getContext':            {sendWebviewContext(); break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
-      case 'add-variable':          {dataManager.addVariable(message.signalList, 0); break;}
+      case 'add-variable':          {dataManager.addVariable(message.signalList, [], undefined); break;}
       case 'remove-signal':         {this.removeVariable(message.netlistId); break;}
       case 'remove-group':          {this.removeSignalGroup(message.groupId, message.recursive); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}

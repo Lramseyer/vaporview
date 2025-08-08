@@ -398,7 +398,8 @@ export class LabelsPanels {
     textarea.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         const newNameInput = textarea.value.trim() || signalItem.label;
-        const isTaken = dataManager.findGroupIdByName(newNameInput) !== -1;
+        const parentGroupId = getParentGroupId(rowId) || 0;
+        const isTaken = dataManager.groupNameExists(newNameInput, parentGroupId);
         const newName = isTaken ? oldName : newNameInput;
         e.preventDefault();
         this.finishRename(signalItem, waveformRow, newName);

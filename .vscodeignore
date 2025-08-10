@@ -1,6 +1,4 @@
 src/**
-!src/webview/body.html
-!src/webview/style.css
 target/**
 !target/wasm32-unknown-unknown/release/filehandler.wasm
 readme_assets/**
@@ -11,5 +9,7 @@ node_modules/**
 !node_modules/@vscode/codicons/**
 out/**/*.map
 dist/**/*.map
+wit/**
 *.vsix
 toDo*
+Cargo.*

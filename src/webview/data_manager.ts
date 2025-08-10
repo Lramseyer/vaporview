@@ -278,7 +278,15 @@ export class WaveformDataManager {
 
     this.receive(signalId);
 
-    const transitionData = JSON.parse(this.valueChangeDataTemp[signalId].chunkData.join(""));
+    // const transitionData = JSON.parse(this.valueChangeDataTemp[signalId].chunkData.join(""));
+    const chunkData = this.valueChangeDataTemp[signalId].chunkData;
+    const firstChunk = chunkData?.[0];
+    let transitionData: any;
+    if (typeof firstChunk === "string") {
+      transitionData = JSON.parse(chunkData.join(""));
+    } else if (Array.isArray(firstChunk)) { // We're receiving array from fsdb worker
+      transitionData = chunkData.flat();
+    }
 
     if (!this.requestActive) {
       outputLog("Request complete, time: " + (Date.now() - this.requestStart) / 1000 + " seconds");
@@ -359,14 +367,6 @@ export class WaveformDataManager {
       console.error('Signal data loading failed for signal ID', signalId, '- you may need to reload the file');
     }
   }
-
-  //updateWaveformFull(message: any) {
-  //  const signalId = message.signalId;
-  //  this.receive(signalId);
-//
-  //  const transitionData = message.transitionData;
-  //  this.updateWaveform(signalId, transitionData, message.min, message.max);
-  //}
 
   updateWaveform(signalId: SignalId, transitionData: any[], min: number, max: number) {
     const netlistIdList = this.valueChangeDataTemp[signalId].netlistIdList;

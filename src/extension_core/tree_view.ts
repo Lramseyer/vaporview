@@ -46,6 +46,12 @@ export function createScope(name: string, type: string, path: string, netlistId:
     case 'vhdlarray':        {icon = scopeIcon; break;}
   }
 
+  // fsdb vhdlarray might contain feild, remove it to align with wellen
+  if (typename === 'vhdlarray') {
+    const regex  = /\[(\d+:)?(\d+)\]$/;
+    name = name.replace(regex, '');
+  }
+
   const module    = new NetlistItem(name, typename, 'none', 0, 0, netlistId, name, path, 0, 0, scopeOffsetIdx, [], vscode.TreeItemCollapsibleState.Collapsed);
   module.iconPath = icon;
 
@@ -76,6 +82,11 @@ export function createVar(name: string, type: string, encoding: string, path: st
 
   // field is already included in signal name for fsdb
   if (!isFsdb) label = name + field;
+
+  if (isFsdb) { // remove field from signal name for fsdb to align with wellen
+    const regex  = /\[(\d+:)?(\d+)\]$/;
+    name = name.replace(regex, '');
+  }
 
   const variable = new NetlistItem(label, type, encoding, width, signalId, netlistId, name, path, msb, lsb, -1, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked);
   const typename = type.toLocaleLowerCase();
@@ -335,7 +346,8 @@ export class NetlistItem extends vscode.TreeItem {
 
     const subModules    = label.split(".");
     const currentModule = subModules.shift();
-    if (this.children.length === 0) {
+    if (this.children.length === 0 ||
+      (document.fileType === 'fsdb' && this.fsdbVarLoaded === false)) { // For fsdb, variables are loaded on demand
       await document.getChildrenExternal(this);
     }
 

@@ -121,6 +121,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
 
   protected disposables: vscode.Disposable[] = [];
   private readonly _uri: vscode.Uri;
+  private readonly _fileType: string = 'unknown';
   // Hierarchy
   public treeData:         NetlistItem[] = [];
   public displayedSignals: NetlistItem[] = [];
@@ -153,10 +154,12 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
   constructor(uri: vscode.Uri, delegate: VaporviewDocumentDelegate) {
     super(() => this.dispose());
     this._uri = uri;
+    this._fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
     this._delegate = delegate;
   }
 
   public get uri() { return this._uri; }
+  public get fileType() { return this._fileType; }
   public get netlistIdTable(): NetlistIdTable { return this._netlistIdTable; }
   public get webviewInitialized(): boolean { return this._webviewInitialized; }
 
@@ -398,7 +401,7 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
     wasmWorker: Worker,
     wasmModule: WebAssembly.Module,
     delegate: VaporviewDocumentDelegate,
-  ): Promise<VaporviewDocument | PromiseLike<VaporviewDocument>> {
+  ): Promise<VaporviewDocumentWasm | PromiseLike<VaporviewDocumentWasm>> {
 
     const fsWrapper = await getFsWrapper(uri);
     const document  = new VaporviewDocumentWasm(uri, fsWrapper, wasmWorker, delegate);
@@ -790,9 +793,14 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
     if (!element) return;
     // Only one scope is allowed to be reading vars at a time
     this.fsdbCurrentScope = element;
+
+    let scopePath = "";
+    if (element.scopePath !== "") {scopePath += element.scopePath + ".";}
+    scopePath += element.name; // How about genblk?
+
     await this.callFsdbWorkerTask({
       command: 'readVars',
-      scopePath: element.scopePath,
+      scopePath: scopePath,
       scopeOffsetIdx: element.scopeOffsetIdx
     });
     // TODO(heyfey): Wait for all callbacks finish
@@ -819,20 +827,14 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
       });
     });
 
-    signalIdList.forEach(async (signalId) => {
+    // Map each signalId to a promise for handling its task.
+    const tasks = signalIdList.map(async (signalId) => {
       const result = await this.callFsdbWorkerTask({
         command: 'getValueChanges',
         signalId: signalId
       });
       const message = result as FsdbWorkerMessage;
       const data = message.result as FsdbWaveformData;
-      //this.webviewPanel?.webview.postMessage({
-      //  command: 'update-waveform-full',
-      //  signalId: signalId,
-      //  transitionData: data.valueChanges,
-      //  min: data.min,
-      //  max: data.max
-      //});
 
       // Since we're receiving the full set of value changes, we can hard code
       // the chunk number and total chunks
@@ -851,6 +853,8 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
         signalId: signalId
       });
     });
+    // Run all tasks concurrently and wait for them to complete.
+    // await Promise.all(tasks);
   }
 
   public async getValuesAtTime(e: any): Promise<any> {

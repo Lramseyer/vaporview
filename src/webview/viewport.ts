@@ -1,7 +1,9 @@
-import { vscode, NetlistData,  WaveformData, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState } from "./vaporview";
+import { vscode, WaveformData, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId, updateDisplayedSignalsFlat } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { labelsPanel } from "./vaporview";
+import { VariableItem } from "./signal_item";
+import { bool } from "@vscode/wasm-component-model";
 
 const domParser = new DOMParser();
 
@@ -23,7 +25,7 @@ export class Viewport {
   markerElement: HTMLElement;
   altMarkerElement: HTMLElement;
   netlistLinkElement: HTMLElement | null = null;
-  valueLinkObject: NetlistData | null = null;
+  valueLinkObject: VariableItem | null = null;
 
   highlightElement: any     = null;
   highlightEndEvent: any    = null;
@@ -146,9 +148,8 @@ export class Viewport {
     this.handleZoom = this.handleZoom.bind(this);
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
     this.handleMarkerSet = this.handleMarkerSet.bind(this);
-    this.handleReorderSignals = this.handleReorderSignals.bind(this);
-    this.handleValueLinkMouseOver = this.handleValueLinkMouseOver.bind(this);
-    this.handleValueLinkMouseExit = this.handleValueLinkMouseExit.bind(this);
+    //this.handleReorderSignals = this.handleReorderSignals.bind(this);
+    this.handleReorderSignalsHierarchy = this.handleReorderSignalsHierarchy.bind(this);
     this.highlightZoom = this.highlightZoom.bind(this);
     this.drawHighlightZoom = this.drawHighlightZoom.bind(this);
     this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
@@ -159,7 +160,8 @@ export class Viewport {
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
     this.events.subscribe(ActionType.Zoom, this.handleZoom);
-    this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
+    //this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
+    this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignalsHierarchy);
     this.events.subscribe(ActionType.AddVariable, this.handleAddVariable);
     this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
     this.events.subscribe(ActionType.RedrawVariable, this.handleRedrawSignal);
@@ -192,10 +194,10 @@ export class Viewport {
     this.addNetlistLink();
     this.getThemeColors();
     this.updateViewportWidth();
+    this.updateScrollbarResize();
     this.handleZoom(1, 0, 0);
     restoreState();
     //this.updateRuler();
-    //this.updateScrollbarResize();
     //this.updatePending = false;
   }
 
@@ -259,9 +261,8 @@ export class Viewport {
     if (this.rulerLines === state) {return;}
     this.rulerLines = state;
     this.setRulerVscodeContext();
-    this.updateBackgroundCanvas();
+    this.updateBackgroundCanvas(false);
   }
-
 
   setRulerVscodeContext() {
     const unitsList = ['fs', 'ps', 'ns', 'µs', 'ms', 's'];
@@ -279,32 +280,25 @@ export class Viewport {
     this.rulerElement.setAttribute("data-vscode-context", `${JSON.stringify(context).replace(/\s/g, '%x20')}`);
   }
 
-  handleAddVariable(netlistIdList: NetlistId[], updateFlag: boolean) {
-    netlistIdList.forEach((netlistId) => {
-      if (!dataManager.netlistData[netlistId]) {return;}
+  public resizeCanvas(canvasElement: HTMLElement, ctx: CanvasRenderingContext2D, width: number, height: number) {
+    canvasElement.setAttribute("width",  `${width * this.pixelRatio}`);
+    canvasElement.setAttribute("height", `${height * this.pixelRatio}`);
+    canvasElement.style.width  = `${width}px`;
+    canvasElement.style.height = `${height}px`;
+    ctx.scale(this.pixelRatio, this.pixelRatio);
+  }
+
+  handleAddVariable(rowIdList: RowId[], updateFlag: boolean) {
+    rowIdList.forEach((rowId) => {
+      if (!dataManager.rowItems[rowId]) {return;}
       this.removeNetlistLink();
-      const netlistData = dataManager.netlistData[netlistId];
-      // create a canvas element and add it to the scroll area
-      const canvas = document.createElement('canvas');
-      canvas.setAttribute('id', 'waveform-canvas-' + netlistId);
-      canvas.classList.add('waveform-canvas');
-      canvas.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
-      canvas.setAttribute("height", `${20 * this.pixelRatio}`);
-      canvas.style.width  = `${this.viewerWidth}px`;
-      canvas.style.height = '20px';
-      const waveformContainer = document.createElement('div');
-      waveformContainer.setAttribute('id', 'waveform-' + netlistId);
-      waveformContainer.classList.add('waveform-container');
-      waveformContainer.appendChild(canvas);
-      waveformContainer.setAttribute("data-vscode-context", netlistData.vscodeContext);
-      this.waveformArea.appendChild(waveformContainer);
-      netlistData.canvas = canvas;
-      netlistData.ctx = canvas.getContext('2d');
-      netlistData.ctx?.scale(this.pixelRatio, this.pixelRatio);
-      if (updateFlag) {this.renderWaveform(netlistData);}
+      const netlistData = dataManager.rowItems[rowId];
+      netlistData.createViewportElement(rowId);
+      if (netlistData.viewportElement === null) {return;}
+      this.waveformArea.appendChild(netlistData.viewportElement);
+      if (updateFlag) {netlistData.renderWaveform();}
     });
-    this.waveformsHeight = this.contentArea.getBoundingClientRect().height;
-    this.updateBackgroundCanvas();
+    this.updateBackgroundCanvas(true);
   }
 
   addNetlistLink() {
@@ -355,14 +349,6 @@ export class Viewport {
     return moveViewer;
   }
 
-  handleValueLinkMouseOver(event: MouseEvent) {
-    this.mouseOverHandler(event, true);
-  }
-
-  handleValueLinkMouseExit(event: MouseEvent) {
-    this.mouseOverHandler(event, false);
-  }
-
   setValueLinkCursor(keyDown: boolean) {
     if (this.valueLinkObject === null) {return;}
     if (!this.valueLinkObject.canvas)  {return;}
@@ -370,46 +356,6 @@ export class Viewport {
       this.valueLinkObject.canvas.classList.add('waveform-link');
     } else {
       this.valueLinkObject.canvas.classList.remove('waveform-link');
-    }
-  }
-
-  mouseOverHandler(event: MouseEvent, checkBounds: boolean) {
-    if (!event.target) {return;}
-    const netlistId   = parseInt(event.target.id.split('-').pop());
-    const netlistData = dataManager.netlistData[netlistId];
-    let redraw        = false;
-    let valueIndex    = -1;
-    if (!netlistData) {return;}
-
-    if (checkBounds) {
-      const elementX    = event.pageX - this.scrollAreaBounds.left;
-      netlistData.valueLinkBounds.forEach(([min, max], i) => {
-        if (elementX >= min && elementX <= max) {
-          valueIndex = i;
-        }
-      })
-    }
-
-    // store a pointer to the netlistData object for a keydown event handler
-    if (valueIndex >= 0) {
-      this.valueLinkObject = netlistData;
-    } else {
-      this.valueLinkObject = null;
-    }
-
-    // Check to change cursor to a pointer
-    if (valueIndex >= 0 && (event.ctrlKey || event.metaKey)) {
-      netlistData.canvas?.classList.add('waveform-link');
-    } else {
-      netlistData.canvas?.classList.remove('waveform-link');
-    }
-
-    if (valueIndex !== netlistData.valueLinkIndex) {redraw = true;}
-    netlistData.valueLinkIndex = valueIndex;
-
-    if (redraw) {
-      netlistData.wasRendered = false;
-      this.renderWaveform(netlistData);
     }
   }
 
@@ -442,13 +388,16 @@ export class Viewport {
     let snapToTime = time;
 
     // Get the signal id of the click
-    let netlistId: any     = null;
+    let rowId: any    = null;
     const containerId = event.target?.closest('.waveform-container');
-    if (containerId) {netlistId = parseInt(containerId.id.split('-').slice(1));}
+    if (containerId) {rowId = parseInt(containerId.id.split('-').slice(1));}
+    const signalItem = dataManager.rowItems[rowId];
+    if (!signalItem) {return;}
+    let netlistId = signalItem.netlistId;
     if (netlistId !== undefined && netlistId !== null && netlistId >= 0) {
 
       // Snap to the nearest transition if the click is close enough
-      const nearestTransition = dataManager.getNearestTransition(netlistId, time);
+      const nearestTransition = signalItem.getNearestTransition(time);
 
       if (nearestTransition === null) {return;}
 
@@ -458,65 +407,24 @@ export class Viewport {
       if (pixelDistance < snapToDistance) {snapToTime = nearestTime;}
 
       if (button === 0 && (event.ctrlKey || event.metaKey)) {
-        this.handleValueLink(netlistId, time, snapToTime);
+        signalItem.handleValueLink(time, snapToTime);
         return;
       }
 
       if (button === 0) {
-        this.events.dispatch(ActionType.SignalSelect, netlistId);
+        this.events.dispatch(ActionType.SignalSelect, rowId);
       }
-    } else if (isNaN(netlistId)) {return;}
+    } else if (isNaN(netlistId || NaN)) {return;}
 
     this.events.dispatch(ActionType.MarkerSet, snapToTime, button);
-  }
-
-  handleValueLink(netlistId: NetlistId, time: number, snapToTime: number) {
-
-    const netlistData = dataManager.netlistData[netlistId];
-
-    if (!netlistData) {return;}
-    if (netlistData.valueLinkCommand === "") {return;}
-    if (netlistData.renderType.id !== 'multiBit') {return;}
-    if (netlistData.valueLinkIndex < 0) {return;}
-    if (time !== snapToTime) {return;}
-
-    const command        = netlistData.valueLinkCommand;
-    const signalId       = netlistData.signalId;
-    const index          = dataManager.getNearestTransitionIndex(signalId, time) - 1;
-    const valueChange    = dataManager.valueChangeData[signalId].transitionData[index];
-    const timeValue      = valueChange[0];
-    const value          = valueChange[1];
-    const formattedValue = netlistData.formattedValues[index];
-
-    const event = {
-      netlistId: netlistId,
-      scopePath: netlistData.scopePath,
-      signalName: netlistData.signalName,
-      type: netlistData.variableType,
-      width: netlistData.signalWidth,
-      encoding: netlistData.encoding,
-      numberFormat: netlistData.valueFormat.id,
-      value: value,
-      formattedValue: formattedValue,
-      time: timeValue,
-    }
-
-    vscode.postMessage({ command: 'executeCommand', commandName: command, args: event });
   }
 
   updateScrollbarResize() {
     this.scrollbarWidth        = Math.max(Math.round((this.viewerWidth ** 2) / (this.timeStop * this.zoomRatio)), 17);
     this.maxScrollbarPosition  = Math.max(this.viewerWidth - this.scrollbarWidth, 0);
-
     this.updateScrollBarPosition();
     this.scrollbar.style.width  = this.scrollbarWidth + 'px';
     this.scrollbar.style.height = 10 + 'px';
-
-    this.scrollbarCanvasElement.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
-    this.scrollbarCanvasElement.setAttribute("height", `${10 * this.pixelRatio}`);
-    this.scrollbarCanvasElement.style.width  = `${this.viewerWidth}px`;
-    this.scrollbarCanvasElement.style.height = '10px';
-    this.scrollbarCanvas?.scale(this.pixelRatio, this.pixelRatio);
     this.updateScrollContainer();
   }
 
@@ -548,7 +456,7 @@ export class Viewport {
     this.scrollbarStartX = event.clientX;
     this.scrollbar.classList.add('is-dragging');
 
-    document.addEventListener('mousemove', this.handleScrollbarMove, false);
+    document.addEventListener('mousemove', this.handleScrollbarMove);
     viewerState.mouseupEventType = 'scroll';
   }
 
@@ -617,125 +525,60 @@ export class Viewport {
   }
 
   renderAllWaveforms(skipRendered: boolean) {
-    const netlistData = dataManager.netlistData;
+    //const netlistData = dataManager.netlistData;
     const viewerHeightMinusRuler = this.viewerHeight - 40;
     const scrollTop   = this.scrollArea.scrollTop;
     const startIndex  = Math.floor(scrollTop / 28);
     const endIndex    = Math.ceil((scrollTop + viewerHeightMinusRuler) / 28);
+  
+    viewerState.visibleSignalsFlat.forEach((rowId, i) => {
+      const netlistData = dataManager.rowItems[rowId];
 
-    viewerState.displayedSignals.forEach((netlistId, i) => {
-
-      if (!skipRendered && netlistData[netlistId].wasRendered) {return;}
+      if (!skipRendered && netlistData.wasRendered) {return;}
 
       if (i < startIndex || i >= endIndex) {
-        netlistData[netlistId].wasRendered = false;
+        netlistData.wasRendered = false;
         return;
       }
 
-      this.renderWaveform(netlistData[netlistId]);
+      netlistData.renderWaveform();
     });
   }
 
-  renderWaveform(netlistData: NetlistData) {
+  async annotateWaveform(rowId: RowId, valueList: string[]) {
 
-    const signalId = netlistData.signalId;
-    const data     = dataManager.valueChangeData[signalId];
-
-    if (!data) {return;}
-    if (!netlistData.ctx) {return;}
-
-    // find the closest timestampt to timeScrollLeft
-    const valueChanges = data.transitionData;
-    const startIndex   = Math.max(dataManager.binarySearch(valueChanges, this.timeScrollLeft - (2 * this.pixelTime)), 1);
-    const endIndex     = dataManager.binarySearch(valueChanges, this.timeScrollRight);
-    const initialState = valueChanges[startIndex - 1];
-    let   postState    = valueChanges[endIndex];
-
-    if (endIndex >= valueChanges.length) {
-      postState = [this.viewerWidth * this.pixelTime, ''];
-    }
-
-    const valueChangeChunk = {
-      valueChanges: valueChanges,
-      startIndex: startIndex,
-      endIndex: endIndex,
-      initialState: initialState,
-      postState: postState,
-      encoding: netlistData.encoding,
-      signalWidth: netlistData.signalWidth,
-      min: data.min,
-      max: data.max,
-    };
-  
-    // I should probably move this functionally into the data manager
-    if (netlistData.encoding !== "Real") {
-      if (netlistData.renderType.id === 'steppedSigned' || netlistData.renderType.id === 'linearSigned') {
-        valueChangeChunk.min = Math.max(-Math.pow(2, netlistData.signalWidth - 1), -128);
-        valueChangeChunk.max = Math.min(Math.pow(2, netlistData.signalWidth - 1) - 1, 127);
-      } else {
-        valueChangeChunk.min = 0;
-        valueChangeChunk.max = Math.min(Math.pow(2, netlistData.signalWidth) - 1, 255);
-      }
-    }
-
-    netlistData.renderType.draw(valueChangeChunk, netlistData, this);
-    netlistData.wasRendered = true;
-  }
-
-  async annotateWaveform(netlistId: NetlistId, valueList: string[]) {
-
-    const netlistData     = dataManager.netlistData[netlistId];
+    const netlistData = dataManager.rowItems[rowId];
     if (!netlistData) {return;}
-    const signalId        = netlistData.signalId;
-    const data            = dataManager.valueChangeData[signalId];
-    if (!data) {return;}
-    const valueChangeData = data.transitionData;
-    this.annotateTime     = [];
-
-    if (valueList.length > 0) {
-      if (netlistData.signalWidth === 1) {
-        valueChangeData.forEach((valueChange) => {
-          valueList.forEach((value) => {
-            if (valueChange[1] === value) {
-              this.annotateTime.push(valueChange[0]);
-            }
-          });
-        });
-      } else {
-        valueChangeData.forEach(([time, _value]) => {this.annotateTime.push(time);});
-      }
-    }
-
-    this.updateBackgroundCanvas();
+    this.annotateTime = netlistData.getAllEdges(valueList);
+    this.updateBackgroundCanvas(false);
   }
 
-  handleReorderSignals(oldIndex: number, newIndex: number) {
-    const children       = Array.from(this.waveformArea.children);
-    arrayMove(children, oldIndex, newIndex);
-    this.waveformArea.replaceChildren(...children);
-
-    const netlistElement = dataManager.netlistData[viewerState.displayedSignals[newIndex]];
-    if (!netlistElement) {return;}
-    if (!netlistElement.wasRendered) {this.renderWaveform(netlistElement);}
-  }
-
-  handleRemoveVariable(netlistId: NetlistId) {
-
-    const children = Array.from(this.waveformArea.children).filter((element) => {
-      return element.id !== `waveform-${netlistId}`;
+  updateSignalOrder() {
+    const newChildren: HTMLElement[] = [];
+    viewerState.displayedSignalsFlat.forEach((rowId, i) => {
+      const element = dataManager.rowItems[rowId].viewportElement;
+      if (!element) {return;}
+      newChildren.push(element);
     });
-    this.waveformArea.replaceChildren(...children);
+    this.waveformArea.replaceChildren(...newChildren);
     this.renderAllWaveforms(false);
-    const netlistElement = dataManager.netlistData[netlistId];
-    if (!netlistElement) {return;}
-    if (netlistElement.canvas) {netlistElement.canvas.remove();}
-    this.waveformsHeight = this.contentArea.getBoundingClientRect().height;
-    this.updateBackgroundCanvas();
+  }
 
-    if (children.length === 0) {
+  handleReorderSignalsHierarchy(rowId: number, newGroupId: number, newIndex: number) {
+
+    updateDisplayedSignalsFlat();
+    this.updateSignalOrder();
+  }
+
+  handleRemoveVariable(rowId: RowId, recursive: boolean) {
+
+    //updateDisplayedSignalsFlat();
+    this.updateSignalOrder();
+    this.updateBackgroundCanvas(true);
+
+    if (this.waveformArea.children.length === 0) {
       this.addNetlistLink();
     }
-
   }
 
   handleMarkerSet(time: number, markerType: number) {
@@ -778,18 +621,20 @@ export class Viewport {
     this.scrollbarCanvas.stroke();
   }
 
-  handleSignalSelect(netlistId: NetlistId | null) {
+  handleSignalSelect(rowId: RowId | null) {
 
-    if (netlistId === null) {return;}
+    if (rowId === null) {return;}
 
     let element = document.getElementById('waveform-' + viewerState.selectedSignal);
     if (element && viewerState.selectedSignal !== null) {element.classList.remove('is-selected');}
-    element = document.getElementById('waveform-' + netlistId);
+    element = document.getElementById('waveform-' + rowId);
     if (element) {element.classList.add('is-selected');}
   }
 
   logScaleFromUnits(unit: string | undefined) {
     switch (unit) {
+      case 'zs': return -21;
+      case 'as': return -18;
       case 'fs': return -15;
       case 'ps': return -12;
       case 'ns': return -9;
@@ -884,7 +729,12 @@ export class Viewport {
     ctx.globalAlpha = 1;
   }
 
-  updateBackgroundCanvas() {
+  updateBackgroundCanvas(updateViewportHeight: boolean) {
+
+    if (updateViewportHeight) {
+      this.waveformsHeight = this.contentArea.getBoundingClientRect().height;
+    }
+
     const ctx = this.backgroundCanvas;
     ctx.strokeStyle = this.rulerGuideColor;
     ctx.lineWidth   = 1;
@@ -954,7 +804,6 @@ export class Viewport {
     ctx.stroke();
   }
 
-
   handleZoom(amount: number, zoomOrigin: number, screenPosition: number) {
     // -1 zooms in, +1 zooms out
     // zoomRatio is in pixels per time unit
@@ -980,7 +829,7 @@ export class Viewport {
     this.timeScrollLeft   = this.pseudoScrollLeft * this.pixelTime;
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
     this.timeScrollRight  = this.timeScrollLeft + this.viewerWidthTime;
-    this.zoomOffset      = Math.log2(this.zoomRatio / this.defaultZoom);
+    this.zoomOffset       = Math.log2(this.zoomRatio / this.defaultZoom);
     const baseZoom        = (2 ** Math.floor(this.zoomOffset)) * this.defaultZoom;
     const spacingRatio    = 2 ** (this.zoomOffset - Math.floor(this.zoomOffset));
     this.rulerTickSpacing = this.minTickSpacing * spacingRatio;
@@ -997,16 +846,18 @@ export class Viewport {
     this.updatePending = true;
     this.updateMarker();
     this.updateRuler();
-    this.updateBackgroundCanvas();
+    this.updateBackgroundCanvas(false);
     this.renderAllWaveforms(true);
     this.updatePending = false;
   }
 
-  handleRedrawSignal(netlistId: NetlistId) {
+  handleRedrawSignal(rowId: RowId) {
     if (viewerState.markerTime !== null) {
-      labelsPanel.valueAtMarker[netlistId] = dataManager.getValueAtTime(netlistId, viewerState.markerTime);
+      const signalItem = dataManager.rowItems[rowId];
+      if (!signalItem) {return;}
+      labelsPanel.valueAtMarker[rowId] = signalItem.getValueAtTime(viewerState.markerTime);
     }
-    this.renderWaveform(dataManager.netlistData[netlistId]);
+    dataManager.rowItems[rowId].renderWaveform();
   }
 
   updateViewportWidth() {
@@ -1021,32 +872,16 @@ export class Viewport {
     this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth, 0));
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
     this.timeScrollRight  = this.timeScrollLeft + this.viewerWidthTime;
-    this.scrollbarCanvasElement.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
     this.minZoomRatio     = (this.viewerWidth) / this.timeStop;
 
-    // Update Ruler Canvas Dimensions
-    this.rulerCanvasElement.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
-    this.rulerCanvasElement.setAttribute("height", `${40 * this.pixelRatio}`);
-    this.rulerCanvasElement.style.width  = `${this.viewerWidth}px`;
-    this.rulerCanvasElement.style.height = '40px';
-    this.rulerCanvas.scale(this.pixelRatio, this.pixelRatio);
-
-    // Update Background Canvas Dimensions
-    this.backgroundCanvasElement.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
-    this.backgroundCanvasElement.setAttribute("height", `${this.viewerHeight * this.pixelRatio}`);
-    this.backgroundCanvasElement.style.width  = `${this.viewerWidth}px`;
-    this.backgroundCanvasElement.style.height = `${this.viewerHeight}px`;
-    this.backgroundCanvas.scale(this.pixelRatio, this.pixelRatio);
+    // Update Ruler Canvas, Background Canvas, and Scrollbar Canvas Dimensions
+    this.resizeCanvas(this.scrollbarCanvasElement, this.scrollbarCanvas, this.viewerWidth, 10);
+    this.resizeCanvas(this.rulerCanvasElement, this.rulerCanvas, this.viewerWidth, 40);
+    this.resizeCanvas(this.backgroundCanvasElement, this.backgroundCanvas, this.viewerWidth, this.viewerHeight);
 
     // Update Waveform Canvas Dimensions
-    dataManager.netlistData.forEach((netlistItem) => {
-      if (!netlistItem.canvas) {return;}
-      //netlistItem.canvas.setAttribute("width",  `${this.viewerWidth}`);
-      netlistItem.canvas.setAttribute("width",  `${this.viewerWidth * this.pixelRatio}`);
-      netlistItem.canvas.setAttribute("height", `${20 * this.pixelRatio}`);
-      netlistItem.canvas.style.width  = `${this.viewerWidth}px`;
-      netlistItem.canvas.style.height = '20px';
-      netlistItem.ctx?.scale(this.pixelRatio, this.pixelRatio);
+    dataManager.rowItems.forEach((netlistItem) => {
+      netlistItem.resize();
     });
 
     if (this.minZoomRatio > this.zoomRatio) {

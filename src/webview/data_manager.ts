@@ -1,9 +1,12 @@
-import { NetlistData, SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext } from './vaporview';
+import { SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove, labelsPanel, outputLog, getIndexInGroup } from './vaporview';
 import { formatBinary, formatHex, ValueFormat, formatString, valueFormatList } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer, signedLinearWaveformRenderer, signedSteppedrWaveformRenderer } from './renderer';
+import { SignalGroup, VariableItem, RowItem } from './signal_item';
+// @ts-ignore
+import * as LZ4 from 'lz4js';
 
 // This will be populated when a custom color is set
-let customColorKey = [];
+export let customColorKey = [];
 
 export class WaveformDataManager {
   requested: SignalId[] = [];
@@ -11,9 +14,13 @@ export class WaveformDataManager {
   requestActive: boolean = false;
   requestStart: number = 0;
 
-  valueChangeData: WaveformData[] = [];
-  netlistData: NetlistData[]      = [];
+  valueChangeData: WaveformData[] = []; // signalId is the key/index, WaveformData is the value
+  rowItems: RowItem[]             = []; // rowId is the key/index, RowItem is the value
+  netlistIdTable: RowId[]         = []; // netlist ID is the key/index, rowId is the value
+  groupIdTable: RowId[]           = []; // group ID is the key/index, rowId is the value
   valueChangeDataTemp: any        = [];
+  private nextRowId: number       = 0;
+  private nextGroupId: number     = 1;
 
   contentArea: HTMLElement = document.getElementById('contentArea')!;
 
@@ -28,12 +35,17 @@ export class WaveformDataManager {
     if (this.contentArea === null) {throw new Error("Could not find contentArea");}
 
     this.handleColorChange = this.handleColorChange.bind(this);
+    this.handleReorderSignals = this.handleReorderSignals.bind(this);
+    this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
+
     this.events.subscribe(ActionType.updateColorTheme, this.handleColorChange);
+    this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
+    this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
   }
 
   unload() {
     this.valueChangeData     = [];
-    this.netlistData         = [];
+    this.rowItems            = [];
     this.valueChangeDataTemp = {};
     this.waveDromClock       = {netlistId: null, edge: ""};
   }
@@ -71,63 +83,72 @@ export class WaveformDataManager {
     });
   }
 
-  addVariable(signalList: any) {
+  getGroupByIdOrName(groupPath: string[] | undefined, parentGroupId: number | undefined): SignalGroup | null {
+  let groupId = 0;
+  let groupIsValid = false;
+  if (parentGroupId !== undefined && this.groupIdTable[parentGroupId] !== undefined) {
+    groupId = parentGroupId;
+  } else if (groupPath !== undefined && groupPath.length > 0) {
+    groupId = this.findGroupIdByNamePath(groupPath);
+  }
+
+  if (groupId > 0) {
+    const parentGroupRowId = this.groupIdTable[groupId];
+    if (parentGroupId !== undefined) {return null;}
+    const parentGroupItem = this.rowItems[parentGroupRowId];
+
+    if (parentGroupItem instanceof SignalGroup) {
+      return parentGroupItem;
+    } else {
+      return null;
+    }
+  }
+  return null;
+}
+
+  addVariable(signalList: any, groupPath: string[] | undefined, parentGroupId: number | undefined) {
     // Handle rendering a signal, e.g., render the signal based on message content
-    //console.log(message);
 
     if (signalList.length === 0) {return;}
 
     let updateFlag     = false;
     let selectedSignal = viewerState.selectedSignal;
-
     const signalIdList: any  = [];
     const netlistIdList: any = [];
+    const rowIdList: any     = [];
+
     signalList.forEach((signal: any) => {
 
       const netlistId = signal.netlistId;
       const signalId  = signal.signalId;
+      let rowId       = this.nextRowId;
 
-      let valueFormat;
-      let colorIndex = 0;
-      if (signal.encoding === "String") {
-        valueFormat = formatString;
-        colorIndex  = 1;
-      } else if (signal.encoding === "Real") {
-        valueFormat = formatString;
+      if (this.netlistIdTable[netlistId] === undefined) {
+        this.netlistIdTable[netlistId] = rowId;
+        this.nextRowId++;
       } else {
-        valueFormat = signal.signalWidth === 1 ? formatBinary : formatHex;
+        rowId = this.netlistIdTable[netlistId];
       }
 
-      this.netlistData[netlistId] = {
-        signalId:     signalId,
-        signalWidth:  signal.signalWidth,
-        signalName:   signal.signalName,
-        scopePath:    signal.scopePath,
-        variableType: signal.type,
-        encoding:     signal.encoding,
-        vscodeContext: "",
-        valueLinkCommand: "",
-        valueLinkBounds: [],
-        valueLinkIndex: -1,
-        valueFormat:  valueFormat,
-        renderType:   signal.signalWidth === 1 ? binaryWaveformRenderer : multiBitWaveformRenderer,
-        colorIndex:   colorIndex,
-        color:        "",
-        wasRendered:  false,
-        formattedValues: [],
-        formatValid:  false,
-        canvas:       null,
-        ctx:          null,
-      };
+      const varItem = new VariableItem(
+        netlistId,
+        signalId,
+        signal.signalName,
+        signal.scopePath,
+        signal.signalWidth,
+        signal.type,
+        signal.encoding,
+        signal.signalWidth === 1 ? binaryWaveformRenderer : multiBitWaveformRenderer,
+      );
 
-      this.netlistData[netlistId].vscodeContext = this.setSignalContextAttribute(netlistId);
-      this.setColorFromColorIndex(this.netlistData[netlistId]);
+      this.rowItems[rowId] = varItem;
       netlistIdList.push(netlistId);
+      rowIdList.push(rowId);
 
       if (this.valueChangeData[signalId] !== undefined) {
-        selectedSignal = netlistId;
+        selectedSignal = rowId;
         updateFlag     = true;
-        this.cacheValueFormat(this.netlistData[netlistId]);
+        varItem.cacheValueFormat();
       } else if (this.valueChangeDataTemp[signalId] !== undefined) {
         this.valueChangeDataTemp[signalId].netlistIdList.push(netlistId);
       } else if (this.valueChangeDataTemp[signalId] === undefined) {
@@ -140,11 +161,102 @@ export class WaveformDataManager {
     });
 
     this.request(signalIdList);
-    viewerState.displayedSignals = viewerState.displayedSignals.concat(netlistIdList);
-    this.events.dispatch(ActionType.AddVariable, netlistIdList, updateFlag);
+
+    let groupItem = this.getGroupByIdOrName(groupPath, parentGroupId);
+    if (groupItem === null) {
+      viewerState.displayedSignals = viewerState.displayedSignals.concat(rowIdList);
+    } else {
+      groupItem.children = groupItem.children.concat(rowIdList);
+    }
+
+    updateDisplayedSignalsFlat();
+    this.events.dispatch(ActionType.AddVariable, rowIdList, updateFlag);
     this.events.dispatch(ActionType.SignalSelect, selectedSignal);
 
     sendWebviewContext();
+  }
+
+  addSignalGroup(parentGroupId: number, name: string | undefined) {
+    const groupId = this.nextGroupId;
+    const rowId = this.nextRowId;
+    let groupName = "Group " + groupId;
+    if (name === undefined || name === "") {
+      let n = 1;
+      while (this.findGroupIdByName(groupName, parentGroupId) !== -1) {
+        groupName = "Group " + groupId + ` (${n})`;
+        n++;
+      }
+    } else {
+      groupName = name;
+      const isTaken = this.groupNameExists(groupName, parentGroupId);
+      if (isTaken) {return;}
+    }
+
+    viewerState.displayedSignals = viewerState.displayedSignals.concat(rowId);
+    const groupItem = new SignalGroup(rowId, groupName, groupId);
+    this.groupIdTable[groupId] = rowId;
+    this.rowItems[rowId] = groupItem;
+
+    updateDisplayedSignalsFlat();
+    this.events.dispatch(ActionType.AddVariable, [rowId], false);
+
+    this.nextGroupId++;
+    this.nextRowId++;
+  }
+
+  renameSignalGroup(groupId: number | undefined, name: string | undefined) {
+    let rowId: number
+    if (groupId) {
+      rowId = this.groupIdTable[groupId];
+      if (rowId === undefined) {return;}
+    }
+    else {
+      console.log(viewerState.selectedSignal);
+      if (viewerState.selectedSignal && viewerState.selectedSignal >= 0) {
+        rowId = viewerState.selectedSignal;
+      } else {
+        return;
+      }
+    }
+    const groupItem = this.rowItems[rowId];
+    if (groupItem instanceof SignalGroup === false) {return;}
+    if (name !== undefined && name !== "") {
+      groupItem.label = name;
+      labelsPanel.renderLabelsPanels();
+    } else {
+      labelsPanel.showRenameInput(rowId);
+    }
+  }
+
+  handleRemoveVariable(rowId: any, recursive: boolean) {
+
+    const signalItem = this.rowItems[rowId];
+    if (!signalItem) {return;}
+    let rowIdList: RowId[] = [rowId];
+    let children: number[] = []
+    const parentGroupId = getParentGroupId(rowId);
+    const indexInGroup = getIndexInGroup(rowId, parentGroupId);
+
+    if (recursive) {
+      rowIdList = signalItem.getFlattenedRowIdList(false, -1)
+    } else if (signalItem instanceof SignalGroup) {
+      children = signalItem.children;
+    }
+    if (parentGroupId === 0) {
+      viewerState.displayedSignals.splice(indexInGroup, 1, ...children);
+    } else if (parentGroupId && parentGroupId > 0) {
+      const parentGroupitem = this.rowItems[this.groupIdTable[parentGroupId]];
+      if (parentGroupitem instanceof SignalGroup) {
+        parentGroupitem.children.splice(indexInGroup, 1, ...children);
+      }
+    }
+
+    rowIdList.forEach((id: RowId) => {
+      this.rowItems[id].dispose();
+      delete this.rowItems[id];
+    });
+
+    updateDisplayedSignalsFlat();
   }
 
   updateWaveformChunk(message: any) {
@@ -177,18 +289,93 @@ export class WaveformDataManager {
     }
 
     if (!this.requestActive) {
-      //console.log("Request complete, time: " + (Date.now() - this.requestStart) / 1000 + " seconds");
+      outputLog("Request complete, time: " + (Date.now() - this.requestStart) / 1000 + " seconds");
       this.requestStart = 0;
     }
 
     this.updateWaveform(signalId, transitionData, message.min, message.max);
   }
 
+  updateWaveformChunkCompressed(message: any) {
+    const signalId = message.signalId;
+    
+    if (this.valueChangeDataTemp[signalId].totalChunks === 0) {
+      this.valueChangeDataTemp[signalId].totalChunks = message.totalChunks;
+      this.valueChangeDataTemp[signalId].chunkLoaded = new Array(message.totalChunks).fill(false);
+      this.valueChangeDataTemp[signalId].compressedChunks = new Array(message.totalChunks);
+      this.valueChangeDataTemp[signalId].originalSize = message.originalSize;
+    }
+
+    // Store the compressed chunk as Uint8Array
+    this.valueChangeDataTemp[signalId].compressedChunks[message.chunkNum] = new Uint8Array(message.compressedDataChunk);
+    this.valueChangeDataTemp[signalId].chunkLoaded[message.chunkNum] = true;
+    const allChunksLoaded = this.valueChangeDataTemp[signalId].chunkLoaded.every((chunk: any) => {return chunk;});
+
+    if (!allChunksLoaded) {return;}
+
+    //console.log('all compressed chunks loaded');
+
+    this.receive(signalId);
+
+    try {
+      // Concatenate all compressed chunks
+      const totalCompressedSize = this.valueChangeDataTemp[signalId].compressedChunks.reduce((total: number, chunk: Uint8Array) => total + chunk.length, 0);
+      const fullCompressedData = new Uint8Array(totalCompressedSize);
+      let offset = 0;
+      
+      for (const chunk of this.valueChangeDataTemp[signalId].compressedChunks) {
+        fullCompressedData.set(chunk, offset);
+        offset += chunk.length;
+      }
+
+      // Decompress the LZ4 frame data (size is included in frame header)
+      const originalSize = this.valueChangeDataTemp[signalId].originalSize;
+      const decompressedData = LZ4.decompress(fullCompressedData);
+      const byteIncrement = 8 + message.signalWidth;
+      let time = 0;
+      let transitionData: any[] = [];
+      
+      // Create DataView once from the entire decompressed data
+      const dataView = new DataView(decompressedData.buffer, decompressedData.byteOffset, decompressedData.byteLength);
+      
+      for (let i = 0; i < decompressedData.length; i += byteIncrement) {
+        const j = i + 8;
+        // Read u64 directly from the DataView at offset i
+        const deltaTime = dataView.getBigUint64(i, true);
+        const value = String.fromCharCode(...decompressedData.slice(j, j + message.signalWidth));
+        time += Number(deltaTime);
+        transitionData.push([time, value]);
+      }
+
+      if (!this.requestActive) {
+        outputLog("Compressed request complete, time: " + (Date.now() - this.requestStart) / 1000 + " seconds");
+        this.requestStart = 0;
+      }
+
+      this.updateWaveform(signalId, transitionData, message.min, message.max);
+
+    } catch (error) {
+      console.error('Failed to decompress waveform data for signal', signalId + ':', error);
+      console.error('Compressed data size:', this.valueChangeDataTemp[signalId].compressedChunks?.length, 'chunks');
+      console.error('Expected original size:', this.valueChangeDataTemp[signalId].originalSize);
+      
+      // Clean up the failed attempt
+      this.valueChangeDataTemp[signalId] = undefined;
+      
+      // Could potentially request the data again using the fallback method here
+      // For now, just log the error and let the user know something went wrong
+      console.error('Signal data loading failed for signal ID', signalId, '- you may need to reload the file');
+    }
+  }
+
   updateWaveform(signalId: SignalId, transitionData: any[], min: number, max: number) {
     const netlistIdList = this.valueChangeDataTemp[signalId].netlistIdList;
     const netlistId     = netlistIdList[0];
     if (netlistId ===  undefined) {console.log('netlistId not found for signalId ' + signalId); return;}
-    const signalWidth  = this.netlistData[netlistId].signalWidth;
+    const rowId        = this.netlistIdTable[netlistId];
+    const netlistData  = this.rowItems[rowId];
+    if (netlistData === undefined || netlistData instanceof VariableItem === false) {return;}
+    const signalWidth  = netlistData.signalWidth;
     const nullValue = "x".repeat(signalWidth);
     if (transitionData[0][0] !== 0) {
       transitionData.unshift([0, nullValue]);
@@ -206,9 +393,41 @@ export class WaveformDataManager {
     this.valueChangeDataTemp[signalId] = undefined;
 
     netlistIdList.forEach((netlistId: NetlistId) => {
-      this.events.dispatch(ActionType.RedrawVariable, netlistId);
-      this.cacheValueFormat(this.netlistData[netlistId]);
+      const rowId = this.netlistIdTable[netlistId];
+      const netlistData = this.rowItems[rowId];
+      if (netlistData === undefined || netlistData instanceof VariableItem === false) {return;}
+      this.events.dispatch(ActionType.RedrawVariable, rowId);
+      netlistData.cacheValueFormat();
     });
+  }
+
+  groupNameExists(name: string, parentGroupId: number): boolean {
+    const groupId = this.findGroupIdByName(name, parentGroupId);
+    return groupId !== -1;
+  }
+
+
+  findGroupIdByName(name: string, parentGroupId: number): number {
+    let result = -1;
+    const children = getChildrenByGroupId(parentGroupId);
+    children.forEach((rowId) => {
+      const rowItem = this.rowItems[rowId];
+      if (rowItem instanceof SignalGroup && rowItem.label === name) {result = rowItem.groupId;}
+    });
+    return result;
+  }
+
+  findGroupIdByNamePath(namePath: string[]): number {
+    let breakLoop = false;
+    let parentGroupId = 0;
+    namePath.forEach((name) => {
+      if (breakLoop) {return;}
+      parentGroupId = this.findGroupIdByName(name, parentGroupId);
+      if (parentGroupId === -1) {
+        breakLoop = true;
+      }
+    });
+    return parentGroupId;
   }
 
   // binary searches for a value in an array. Will return the index of the value if it exists, or the lower bound if it doesn't
@@ -234,46 +453,42 @@ export class WaveformDataManager {
     return low;
   }
 
-  setColorFromColorIndex(netlistData: NetlistData | undefined) {
-    if (netlistData === undefined) {return;}
-    const colorIndex = netlistData.colorIndex;
-    if (colorIndex < 4) {
-      netlistData.color = viewport.colorKey[colorIndex];
-    } else {
-      netlistData.color = customColorKey[colorIndex - 4];
-    }
-  }
-
   handleColorChange() {
     viewport.getThemeColors();
-    this.netlistData.forEach((data) => {
-      this.setColorFromColorIndex(data);
+    this.rowItems.forEach((data) => {
+      if (data instanceof VariableItem === false) {return;}
+      data.setColorFromColorIndex();
     });
   }
 
-  async cacheValueFormat(netlistData: NetlistData) {
-    return new Promise<void>((resolve) => {
-      const valueChangeData = this.valueChangeData[netlistData.signalId];
-      if (valueChangeData === undefined)            {resolve(); return;}
-      if (netlistData.renderType.id !== "multiBit") {resolve(); return;}
-      if (netlistData.formatValid)                  {resolve(); return;}
+  handleReorderSignals(rowId: number, newGroupId: number, newIndex: number) {
 
-      netlistData.formattedValues = valueChangeData.transitionData.map(([, value]) => {
-        const is9State = netlistData.valueFormat.is9State(value);
-        return netlistData.valueFormat.formatString(value, netlistData.signalWidth, !is9State);
-      });
-      netlistData.formatValid = true;
-      resolve();
-      return;
-    });
+    const oldGroupId = getParentGroupId(rowId) || 0;
+    const oldGroupChildren = getChildrenByGroupId(oldGroupId);
+    const oldIndex = oldGroupChildren.indexOf(rowId);
+
+    if (oldIndex === -1) {return;}
+    if (oldGroupId === newGroupId) {
+      arrayMove(oldGroupChildren, oldIndex, newIndex);
+    } else {
+      oldGroupChildren.splice(oldIndex, 1);
+      const newGroupChildren = getChildrenByGroupId(newGroupId);
+      if (newIndex >= newGroupChildren.length) {
+        newGroupChildren.push(rowId);
+      } else {
+        newGroupChildren.splice(newIndex, 0, rowId);
+      }
+    }
   }
 
   setDisplayFormat(message: any) {
 
     const netlistId = message.netlistId;
     if (message.netlistId === undefined) {return;}
-    if (this.netlistData[netlistId] === undefined) {return;}
-    const netlistData = this.netlistData[netlistId];
+    const rowId = this.netlistIdTable[netlistId];
+    if (this.rowItems[rowId] === undefined) {return;}
+    const netlistData = this.rowItems[rowId];
+    if (netlistData instanceof VariableItem === false) {return;}
 
     if (message.numberFormat !== undefined) {
       let valueFormat = valueFormatList.find((format) => format.id === message.numberFormat);
@@ -281,13 +496,13 @@ export class WaveformDataManager {
       netlistData.formatValid = false;
       netlistData.formattedValues = [];
       netlistData.valueFormat = valueFormat;
-      this.cacheValueFormat(netlistData);
+      netlistData.cacheValueFormat();
     }
 
     if (message.color !== undefined) {
       customColorKey = message.customColors;
       netlistData.colorIndex = message.color;
-      this.setColorFromColorIndex(netlistData);
+      netlistData.setColorFromColorIndex();
     }
 
     if (message.renderType !== undefined) {
@@ -302,7 +517,7 @@ export class WaveformDataManager {
       }
 
       if (netlistData.renderType.id === "multiBit") {
-        this.cacheValueFormat(netlistData);
+        netlistData.cacheValueFormat();
       }
     }
 
@@ -310,11 +525,11 @@ export class WaveformDataManager {
       console.log("Value link command: " + message.valueLinkCommand);
 
       if (netlistData.valueLinkCommand === "" && message.valueLinkCommand !== "") {
-        netlistData.canvas?.addEventListener("pointermove", viewport.handleValueLinkMouseOver, true);
-        netlistData.canvas?.addEventListener("pointerleave", viewport.handleValueLinkMouseExit, true);
+        netlistData.canvas?.addEventListener("pointermove", netlistData.handleValueLinkMouseOver, true);
+        netlistData.canvas?.addEventListener("pointerleave", netlistData.handleValueLinkMouseExit, true);
       } else if (message.valueLinkCommand === "") {
-        netlistData.canvas?.removeEventListener("pointermove", viewport.handleValueLinkMouseOver, true);
-        netlistData.canvas?.removeEventListener("pointerleave", viewport.handleValueLinkMouseExit, true);
+        netlistData.canvas?.removeEventListener("pointermove", netlistData.handleValueLinkMouseOver, true);
+        netlistData.canvas?.removeEventListener("pointerleave", netlistData.handleValueLinkMouseExit, true);
       }
 
       netlistData.valueLinkCommand = message.valueLinkCommand;
@@ -322,32 +537,14 @@ export class WaveformDataManager {
     }
 
     if (message.annotateValue !== undefined) {
-      viewport.annotateWaveform(netlistId, message.annotateValue);
-      viewport.updateBackgroundCanvas();
+      viewport.annotateWaveform(rowId, message.annotateValue);
+      viewport.updateBackgroundCanvas(false);
     }
 
     sendWebviewContext();
 
-    this.netlistData[netlistId].vscodeContext = this.setSignalContextAttribute(netlistId);
-    this.events.dispatch(ActionType.RedrawVariable, netlistId);
-  }
-
-  setSignalContextAttribute(netlistId: NetlistId) {
-    const width        = this.netlistData[netlistId].signalWidth;
-    const scopePath   = this.netlistData[netlistId].scopePath;
-    const signalName   = this.netlistData[netlistId].signalName;
-    //const attribute    = `data-vscode-context=${JSON.stringify({
-      const attribute    = `${JSON.stringify({
-      webviewSection: "signal",
-      scopePath: scopePath,
-      signalName: signalName,
-      type: this.netlistData[netlistId].variableType,
-      width: width,
-      preventDefaultContextMenuItems: true,
-      commandValid: this.netlistData[netlistId].valueLinkCommand !== "",
-      netlistId: netlistId,
-    }).replace(/\s/g, '%x20')}`;
-    return attribute;
+    netlistData.setSignalContextAttribute();
+    this.events.dispatch(ActionType.RedrawVariable, rowId);
   }
 
   getNearestTransitionIndex(signalId: SignalId, time: number) {
@@ -363,53 +560,6 @@ export class WaveformDataManager {
     }
   
     return transitionIndex;
-  }
-
-  getValueAtTime(netlistId: NetlistId, time: number) {
-
-    const result: string[] = [];
-    const signalId = this.netlistData[netlistId].signalId;
-    const data     = this.valueChangeData[signalId];
-  
-    if (!data) {return result;}
-  
-    const transitionData  = data.transitionData;
-    const transitionIndex = this.getNearestTransitionIndex(signalId, time);
-
-    if (transitionIndex === -1) {return result;}
-    if (transitionIndex > 0) {
-      result.push(transitionData[transitionIndex - 1][1]);
-    }
-  
-    if (transitionData[transitionIndex][0] === time) {
-      result.push(transitionData[transitionIndex][1]);
-    }
-  
-    return result;
-  }
-
-  getNearestTransition(netlistId: NetlistId, time: number) {
-
-    const signalId = this.netlistData[netlistId].signalId;
-    const result = null;
-    if (time === null) {return result;}
-
-    const data  = this.valueChangeData[signalId].transitionData;
-    const index = this.getNearestTransitionIndex(signalId, time);
-    
-    if (index === -1) {return result;}
-    if (data[index][0] === time) {
-      return data[index];
-    }
-  
-    const timeBefore = time - data[index - 1][0];
-    const timeAfter  = data[index][0] - time;
-  
-    if (timeBefore < timeAfter) {
-      return data[index - 1];
-    } else {
-      return data[index];
-    }
   }
 
   copyWaveDrom() {
@@ -429,8 +579,11 @@ export class WaveformDataManager {
   
     // Populate the waveDrom names with the selected signals
     const waveDromData: any = {};
-    viewerState.displayedSignals.forEach((netlistId) => {
-      const netlistItem: any     = this.netlistData[netlistId];
+    viewerState.displayedSignals.forEach((rowId) => {
+
+      const netlistItem: any = this.rowItems[rowId];
+      if (netlistItem === undefined || netlistItem instanceof VariableItem === false) {return;}
+      const netlistId       = netlistItem.netlistId;
       const signalName      = netlistItem.scopePath + "." + netlistItem.signalName;
       const signalId        = netlistItem.signalId;
       const transitionData  = this.valueChangeData[signalId].transitionData;
@@ -467,10 +620,14 @@ export class WaveformDataManager {
         if (time !== currentTime) {
           currentTime = time;
           transitionCount++;
-          viewerState.displayedSignals.forEach((n) => {
+          viewerState.displayedSignals.forEach((rowId) => {
+            const varItem = this.rowItems[rowId];
+            if (varItem instanceof VariableItem === false) {return;}
+            const n = this.rowItems[rowId].netlistId;
+            if (n === undefined) {return;}
             const signal = waveDromData[n];
-            const parseValue = this.netlistData[n].valueFormat.formatString;
-            const valueIs9State = this.netlistData[n].valueFormat.is9State;
+            const parseValue = varItem.valueFormat.formatString;
+            const valueIs9State = varItem.valueFormat.is9State;
             if (signal.initialState === null) {signal.json.wave += '.';}
             else {
               if (signal.signalWidth > 1) {
@@ -495,11 +652,15 @@ export class WaveformDataManager {
         if (index === clockEdges.length - 1) {nextEdge = timeWindow[1];}
         else {nextEdge    = clockEdges[index + 1][0];}
         if (currentTime >= timeWindow[1] || transitionCount >= MAX_TRANSITIONS) {break;}
-        viewerState.displayedSignals.forEach((n) => {
+        viewerState.displayedSignals.forEach((rowId) => {
+
+          const varItem = this.rowItems[rowId];
+          if (varItem instanceof VariableItem === false) {return;}
+          const n = varItem.netlistId;
           const signal = waveDromData[n];
           const signalData = signal.signalData;
-          const parseValue = this.netlistData[n].valueFormat.formatString;
-          const valueIs9State = this.netlistData[n].valueFormat.is9State;
+          const parseValue = varItem.valueFormat.formatString;
+          const valueIs9State = varItem.valueFormat.is9State;
           if (n === this.waveDromClock.netlistId) {signal.json.wave += edge;}
           else {
             let transition = signalData.find((t: ValueChange) => t[0] >= currentTime && t[0] < nextEdge);
@@ -526,7 +687,9 @@ export class WaveformDataManager {
   
     // write the waveDrom JSON to the clipboard
     let result = '{"signal": [\n';
-    viewerState.displayedSignals.forEach((netlistId) => {
+    viewerState.displayedSignals.forEach((rowId) => {
+      const netlistId = this.rowItems[rowId].netlistId;
+      if (netlistId === undefined || waveDromData[netlistId] === undefined) {return;}
       const signalData = waveDromData[netlistId].json;
       result += '  ' + JSON.stringify(signalData) + ',\n';
     });

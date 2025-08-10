@@ -16,6 +16,7 @@ Once those are installed, make sure you install the necessary packages:
 
 - `npm install`
 - `cargo update`
+- `cargo install wasm-tools`
 
 ## building and running
 
@@ -23,15 +24,11 @@ To build and run, you should be able to use the **Run and Debug** utility in VSc
 
 ### Compile WebAssembly component
 
-This compiles Rust code to a WASM blob
-
-`cargo build --target wasm32-unknown-unknown`
-
-Note that there are 2 tpyes of WASM compile options: "debug" and "release". The debug version is much slower, but compiles faster. This is good for general debug of functionality, but is not recommended for testing large files. To build a release version, use the following command:
+This compiles Rust code to a WASM binary
 
 `cargo build --target wasm32-unknown-unknown --release`
 
-You will also need to specify the release binary in extension.ts
+Note that there are 2 types of WASM compile options: "debug" and "release". The debug version is much slower, and largely unused. This is good for general debug of functionality, but is not recommended for testing large files.
 
 ### Generate WebAssembly interface
 

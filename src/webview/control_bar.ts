@@ -1,5 +1,7 @@
 import { commands } from 'vscode';
-import {ActionType, EventHandler, NetlistId, viewerState, viewport, dataManager, vscode} from './vaporview';
+import {ActionType, EventHandler, viewerState, viewport, dataManager, vscode, RowId} from './vaporview';
+import { sign, Sign } from 'crypto';
+import { VariableItem } from './signal_item';
 
 enum ButtonState {
   Disabled = 0,
@@ -81,12 +83,12 @@ export class ControlBar {
     this.zoomInButton.addEventListener( 'click', (e) => {this.events.dispatch(ActionType.Zoom, -1, (viewport.pseudoScrollLeft + viewport.halfViewerWidth) / viewport.zoomRatio, viewport.halfViewerWidth);});
     this.zoomOutButton.addEventListener('click', (e) => {this.events.dispatch(ActionType.Zoom, 1, (viewport.pseudoScrollLeft + viewport.halfViewerWidth) / viewport.zoomRatio, viewport.halfViewerWidth);});
     this.zoomFitButton.addEventListener('click', (e) => {this.events.dispatch(ActionType.Zoom, Infinity, 0, 0);});
-    this.prevNegedge.addEventListener(  'click', (e: any) => {this.goToNextTransition(-1, '0');});
-    this.prevPosedge.addEventListener(  'click', (e: any) => {this.goToNextTransition(-1, '1');});
-    this.nextNegedge.addEventListener(  'click', (e: any) => {this.goToNextTransition( 1, '0');});
-    this.nextPosedge.addEventListener(  'click', (e: any) => {this.goToNextTransition( 1, '1');});
-    this.prevEdge.addEventListener(     'click', (e: any) => {this.goToNextTransition(-1);});
-    this.nextEdge.addEventListener(     'click', (e: any) => {this.goToNextTransition( 1);});
+    this.prevNegedge.addEventListener(  'click', (e: any) => {this.goToNextTransition(-1, ['0']);});
+    this.prevPosedge.addEventListener(  'click', (e: any) => {this.goToNextTransition(-1, ['1']);});
+    this.nextNegedge.addEventListener(  'click', (e: any) => {this.goToNextTransition( 1, ['0']);});
+    this.nextPosedge.addEventListener(  'click', (e: any) => {this.goToNextTransition( 1, ['1']);});
+    this.prevEdge.addEventListener(     'click', (e: any) => {this.goToNextTransition(-1, []);});
+    this.nextEdge.addEventListener(     'click', (e: any) => {this.goToNextTransition( 1, []);});
 
     // Search bar event handlers
     this.searchBar.addEventListener(     'focus', (e: any) => {this.handleSearchBarInFocus(true);});
@@ -115,39 +117,16 @@ export class ControlBar {
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
   }
 
-  goToNextTransition(direction: number, edge: string | undefined = undefined) {
-    if (viewerState.selectedSignal === null) {
-      return;
-    }
-
+  goToNextTransition(direction: number, edge: string[]) {
+    if (viewerState.selectedSignal === null) {return;}
     if (viewerState.markerTime === null) {return;}
-  
-    const signalId = dataManager.netlistData[viewerState.selectedSignal].signalId;
-    const data     = dataManager.valueChangeData[signalId];
-    const time     = viewerState.markerTime;
-    let timeIndex;
-    let indexIncrement;
-  
-    if (edge === undefined) {
-      timeIndex = data.transitionData.findIndex(([t, v]) => {return t >= time;});
-      indexIncrement = 1;
-    } else {
-      timeIndex = data.transitionData.findIndex(([t, v]) => {return t >= time && v === edge;});
-      indexIncrement = 2;
-    }
-  
-    if (timeIndex === -1) {
-      //console.log('search found a -1 index');
-      return;
-    }
-  
-    if ((direction === 1) && (time === data.transitionData[timeIndex][0])) {timeIndex += indexIncrement;}
-    else if (direction === -1) {timeIndex -= indexIncrement;}
-  
-    timeIndex = Math.max(timeIndex, 0);
-    timeIndex = Math.min(timeIndex, data.transitionData.length - 1);
-  
-    this.events.dispatch(ActionType.MarkerSet, data.transitionData[timeIndex][0], 0);
+
+    const rowId = viewerState.selectedSignal;
+    const data  = dataManager.rowItems[rowId];
+    const time  = data.getNextEdge(viewerState.markerTime, direction, edge);
+    if (time === null) {return;}
+
+    this.events.dispatch(ActionType.MarkerSet, time, 0);
   }
 
   handleScrollModeClick(mode: string) {
@@ -255,18 +234,21 @@ export class ControlBar {
     //console.log(viewerState.selectedSignal);
     //console.log(this.searchState);
     if (viewerState.selectedSignal !== null) {
-      const format = dataManager.netlistData[viewerState.selectedSignal].valueFormat;
-      const checkValid = format.checkValid;
-      const parseValue = format.parseValueForSearch;
-  
-      // check to see that the input is valid
-      if (this.searchState === SearchState.Time) {
-        inputValid = this.checkValidTimeString(inputText);
-      } else if (this.searchState === SearchState.Value) {
-        inputValid = checkValid(inputText);
-        if (inputValid) {this.parsedSearchValue = parseValue(inputText);}
-        //console.log(inputValid);
-        //console.log(this.parsedSearchValue);
+      const rowId  = viewerState.selectedSignal;
+      if (dataManager.rowItems[rowId] instanceof VariableItem) {
+        const format = dataManager.rowItems[rowId].valueFormat;
+        const checkValid = format.checkValid;
+        const parseValue = format.parseValueForSearch;
+
+        // check to see that the input is valid
+        if (this.searchState === SearchState.Time) {
+          inputValid = this.checkValidTimeString(inputText);
+        } else if (this.searchState === SearchState.Value) {
+          inputValid = checkValid(inputText);
+          if (inputValid) {this.parsedSearchValue = parseValue(inputText);}
+          //console.log(inputValid);
+          //console.log(this.parsedSearchValue);
+        }
       }
     }
   
@@ -292,7 +274,10 @@ export class ControlBar {
     let startTime = viewerState.markerTime;
     if (startTime === null) {startTime = 0;}
   
-    const signalId = dataManager.netlistData[viewerState.selectedSignal].signalId;
+    const rowId  = viewerState.selectedSignal;
+    const rowItem = dataManager.rowItems[rowId];
+    if (rowItem === undefined || rowItem instanceof VariableItem === false) {return;}
+    const signalId = rowItem.signalId;
   
     if (this.searchState === SearchState.Time && direction === 1) {
       this.events.dispatch(ActionType.MarkerSet, parseInt(this.parsedSearchValue), 0);
@@ -330,19 +315,27 @@ export class ControlBar {
     }
   }
 
-  handleSignalSelect(netlistId: NetlistId) {
-    if (netlistId === null || netlistId === undefined) {
+  handleSignalSelect(rowId: RowId) {
+    if (rowId === null || rowId === undefined) {
       this.updateButtonsForSelectedWaveform(null);
       return;
     }
 
-    this.updateButtonsForSelectedWaveform(dataManager.netlistData[netlistId].signalWidth);
-    this.valueEqualsSymbol.textContent = dataManager.netlistData[netlistId]?.valueFormat.symbolText;
+    const signalItem = dataManager.rowItems[rowId];
+    if (signalItem === undefined || signalItem instanceof VariableItem === false) {
+      this.updateButtonsForSelectedWaveform(null);
+      return;
+    }
+
+    this.updateButtonsForSelectedWaveform(signalItem.signalWidth);
+    this.valueEqualsSymbol.textContent = signalItem.valueFormat.symbolText;
   }
 
-  handleRedrawVariable(netlistId: NetlistId) {
-    if (netlistId === viewerState.selectedSignal) {
-      this.valueEqualsSymbol.textContent = dataManager.netlistData[netlistId]?.valueFormat.symbolText;
+  handleRedrawVariable(rowId: RowId) {
+    const rowItem = dataManager.rowItems[rowId];
+    if (rowItem === undefined || rowItem instanceof VariableItem === false) {return;}
+    if (rowId === viewerState.selectedSignal) {
+      this.valueEqualsSymbol.textContent = rowItem.valueFormat.symbolText;
     }
   }
 

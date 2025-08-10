@@ -109,6 +109,22 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.newSignalGroup', (e) => {
+    viewerProvider.newSignalGroup(e);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.ungroupSignals', (e) => {
+    viewerProvider.deleteSignalGroup(e, false);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.deleteGroup', (e) => {
+    viewerProvider.deleteSignalGroup(e, true);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.renameSignalGroup', (e) => {
+    viewerProvider.renameSignalGroup(e);
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.addSelected', (e) => {
     viewerProvider.filterAddSignalsInNetlist(viewerProvider.netlistViewSelectedSignals, false);
   }));
@@ -342,6 +358,29 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.dummy', (e) => {
     viewerProvider.log.appendLine("Command called: 'vaporview.dummy' " + JSON.stringify(e));
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.openRemoteViewer', async (e) => {
+    if (e && e.url) {
+      viewerProvider.openRemoteViewer(e.url, e.bearerToken);
+      return;
+    }
+    const serverUrl = await vscode.window.showInputBox({
+      prompt: 'Enter the Surfer server URL',
+      value: ''
+    });
+    
+    if (!serverUrl) {
+      return;
+    }
+    
+    const bearerToken = await vscode.window.showInputBox({
+      prompt: 'Enter bearer token (optional)',
+      password: true,
+      value: ''
+    });
+    
+    viewerProvider.openRemoteViewer(serverUrl, bearerToken);
   }));
 
   return {

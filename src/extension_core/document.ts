@@ -497,6 +497,20 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
         min: min,
         max: max
       });
+    },
+    sendcompressedtransitiondata: (signalid: number, signalwidth: number, totalchunks: number, chunknum: number, min: number, max: number, compresseddata: Uint8Array, originalsize: number) => {
+
+      this.webviewPanel?.webview.postMessage({
+        command: 'update-waveform-chunk-compressed',
+        signalId: signalid,
+        signalWidth: signalwidth,
+        compressedDataChunk: Array.from(compresseddata), // Convert Uint8Array to regular array for JSON serialization
+        totalChunks: totalchunks,
+        chunkNum: chunknum,
+        min: min,
+        max: max,
+        originalSize: originalsize
+      });
     }
   };
   // The implementation of the log function that is called from WASM

@@ -37,14 +37,17 @@ Custom context menu items can be added to the waveform viewer webview. All attri
   - **Submenu vaporview.valueColor** - Render Type
   - **Submenu vaporview.renderType** - Color
 - 2_variables
-    - Show In Netlist View
-    - Remove Variable
-    - Copy Name
-    - Copy Value
-- 3_saveLoad
-    - Save Viewer Settings
-    - Load Viewer Settings
-- 4_waveDrom
+  - Show In Netlist View
+  - Remove Variable
+  - Copy Name
+  - Copy Value
+- 3_groups
+  - New Group
+  - Rename Group
+- 4_saveLoad
+  - Save Viewer Settings
+  - Load Viewer Settings
+- 5_waveDrom
   - **Submenu vaporview.waveDrom** -  WaveDrom
 
 ### Signal Item Attributes - data-vscode-context
@@ -54,7 +57,7 @@ All signals in the webview will emit the following attributes when right clicked
 - **webviewSection** - "signal"
 - **scopePath** - Instance path (delimited by "." characters) without the variable name
 - **signalName** - Variable or Scope Name
-- **type** - this.netlistData[netlistId].variableType,
+- **type** - this.rowItems[netlistId].variableType,
 - **width** - BitVector Bit Width of Variable, will be 0 for Strings and Reals
 - **preventDefaultContextMenuItems** - always true
 - **netlistId** -  Variable ID in waveform dump file
@@ -297,7 +300,7 @@ A submenu or menu group will be added for Signal Item context menu, and it will 
 - **netlistId** -  Variable ID in waveform dump file
 - **scopePath** - Instance path (delimited by "." characters) without the variable name
 - **signalName** - Variable or Scope Name
-- **type** - this.netlistData[netlistId].variableType,
+- **type** - this.rowItems[netlistId].variableType,
 - **width** - BitVector Bit Width of Variable, will be 0 for Strings and Reals
 - **encoding** - "BitVector" | "Real" | "String" | "none"
 - **numberFormat** - Number format

@@ -90,7 +90,7 @@ Zooming can be done one of 3 ways:
 
 ![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/rearrange.gif?raw=true)
 
-To rearrange signals, hover over the signal name, and you will see a rearrange grabber indicator on the left. Click and drag to rearrange.
+To rearrange signals, simply click on the label and drag the signal to where you want it.
 
 Alternatively, you can select a signal, hold **Alt**, and press the **Up** or **Down** Arrows to reorder (similar to how you reorder lines in the text editor)
 
@@ -197,7 +197,7 @@ In no particular order of priority, here's a list of features that are on my rad
 - Add support for remote sessions to save on memory
 - **1.4.0** - Link netlist to RTL tokens so that signals can be connected back to RTL locations - rtlbrowse stems file support (this may require interoperability with another extension)
 - **1.4.0** - Allow users to link .objdump files to a program counter value for a more integrated debug experience
-- Signal groups
+- **1.4.0** - Signal groups
 
 # About This Extension
 
@@ -215,6 +215,7 @@ This project uses the [wellen](https://github.com/ekiwi/wellen/tree/new-api) lib
 
 - [@lramseyer](https://github.com/Lramseyer) (Owner)
 - [@heyfey](https://github.com/heyfey)
+- [@marco-fr](https://github.com/marco-fr)
 
 ## Misc
 

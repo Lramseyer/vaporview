@@ -6,15 +6,30 @@ wit_bindgen::generate!({
   world: "filehandler",
 });
 
-use std::io::{self, BufReader, Cursor, Read, Seek, SeekFrom};
+use std::io::{self, BufReader, Cursor, Read, Seek, SeekFrom, Write};
 //use std::result;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
-use wellen::{FileFormat, Hierarchy, ScopeRef, SignalRef, SignalSource, TimeTable, TimescaleUnit, WellenError, VarRef};
+use wellen::{FileFormat, Hierarchy, ScopeRef, Signal, SignalRef, SignalSource, TimeTable, TimescaleUnit, WellenError, VarRef};
 use wellen::viewers::{read_body, read_header, ReadBodyContinuation, HeaderResult};
 use wellen::LoadOptions;
 use std::sync::Arc;
 use core::ops::Index;
+use lz4_flex::frame::FrameEncoder;
+use serde::Deserialize;
+
+mod libsurfer;
+
+
+#[derive(Deserialize, Debug)]
+pub struct SurferStatus {
+    bytes: u64,
+    bytes_loaded: u64,
+    filename: String,
+    wellen_version: String,
+    surfer_version: String,
+    file_format: String,
+}
 
 enum ReadBodyEnum {
   Static(ReadBodyContinuation<Cursor<Vec<u8>>>),
@@ -30,12 +45,16 @@ enum HeaderResultType {
 
 lazy_static! {
   //static ref _file: Mutex<Option<WasmFileReader>> = Mutex::new(None);
-
+  pub static ref BINCODE_OPTIONS: bincode::DefaultOptions = bincode::DefaultOptions::new();
   static ref _file_format : Mutex<FileFormat> = Mutex::new(FileFormat::Unknown);
   static ref _hierarchy: Mutex<Option<Hierarchy>> = Mutex::new(None);
   static ref _body: Mutex<ReadBodyEnum> = Mutex::new(ReadBodyEnum::None);
   static ref _time_table: Mutex<Option<TimeTable>> = Mutex::new(None);
   static ref _signal_source: Mutex<Option<SignalSource>> = Mutex::new(None);
+  
+  // Chunked data reassembly
+  static ref _chunks: Mutex<Vec<Vec<u8>>> = Mutex::new(Vec::new());
+  static ref _total_chunks: Mutex<u32> = Mutex::new(0);
 }
 
 struct WasmFileReader {
@@ -54,7 +73,8 @@ impl WasmFileReader {
   }
 }
 
-struct VarData {
+#[derive(Deserialize, Debug)]
+pub struct VarData {
   name: String,
   id: u32,
   signal_id: u32,
@@ -65,13 +85,14 @@ struct VarData {
   lsb: i32,
 }
 
-struct ScopeData {
+#[derive(Deserialize, Debug)]
+pub struct ScopeData {
   name: String,
   id: u32,
   tpe: String,
 }
 
-fn get_var_data(hierarchy: &Hierarchy, v: VarRef) -> VarData {
+pub fn get_var_data(hierarchy: &Hierarchy, v: VarRef) -> VarData {
 
   let variable = hierarchy.index(v);
   let name = variable.name(&hierarchy).to_string();
@@ -91,12 +112,115 @@ fn get_var_data(hierarchy: &Hierarchy, v: VarRef) -> VarData {
   VarData { name, id, signal_id, tpe, encoding, width, msb, lsb }
 }
 
-fn get_scope_data(hierarchy: &Hierarchy, s: ScopeRef) -> ScopeData {
+pub fn get_scope_data(hierarchy: &Hierarchy, s: ScopeRef) -> ScopeData {
   let scope = hierarchy.index(s);
   let name = scope.name(&hierarchy).to_string();
   let id = s.index() as u32;
   let tpe = format!("{:?}", scope.scope_type());
   ScopeData { name, id, tpe }
+}
+
+fn parse_value_change_data_json(signal: &Signal, time_index: &[u32], signalid: u32) {
+  let global_time_table = _time_table.lock().unwrap();
+  let time_table = global_time_table.as_ref().unwrap();
+  let transitions = signal.iter_changes();
+
+  let mut i: usize = 0;
+  let mut min: f64 = 0.0;
+  let mut max: f64 = 0.0;
+  let mut result = String::new();
+  result.push_str("[");
+  for (_, value) in transitions {
+    let v = value.to_string();
+    let time = time_table[time_index[i] as usize];
+    match value {
+      wellen::SignalValue::Real(v) => {
+        min = f64::min(min, v);
+        max = f64::max(max, v);
+      },
+      _ => {}
+    }
+    result.push_str(&format!("[{:?},{:?}],", time, v));
+    i += 1;
+  }
+  //log(&format!("Signal Data Orgainzed!"));
+  // set last character to "]" to close the array
+  if result.len() > 1 {result.pop();}
+  result.push_str("]");
+
+  // Fallback to uncompressed chunks
+  let max_return_length = 65000;
+  let result_length = result.len();
+  let chunk_count = (result_length as f32 / max_return_length as f32).ceil() as u32;
+  for i in 0..chunk_count {
+    let start = i * max_return_length;
+    let end = std::cmp::min((i + 1) * max_return_length, result_length as u32);
+    let chunk = &result[start as usize..end as usize];
+    sendtransitiondatachunk(signalid, chunk_count, i as u32, min, max, chunk);
+  }
+}
+
+fn parse_value_change_data_lz4(signal: &Signal, time_index: &[u32], signalid: u32) {
+  let global_time_table = _time_table.lock().unwrap();
+  let time_table = global_time_table.as_ref().unwrap();
+
+  let transitions = signal.iter_changes();
+
+  let mut i: usize = 0;
+  let mut min: f64 = 0.0;
+  let mut max: f64 = 0.0;
+  let mut result = Vec::<u8>::new();
+  let mut prev_time = 0;
+  let mut v: String = String::new();
+
+  for (_, value) in transitions {
+    v = value.to_string();
+    let time = time_table[time_index[i] as usize];
+    let delta_time = time - prev_time;
+    match value {
+      wellen::SignalValue::Real(v) => {
+        min = f64::min(min, v);
+        max = f64::max(max, v);
+      },
+      _ => {}
+    }
+    // store u64 as raw bytes (8 bytes in little-endian format)
+    let delta_time_bytes = delta_time.to_le_bytes();
+    result.extend_from_slice(&delta_time_bytes);
+    result.extend_from_slice(v.as_bytes());
+
+    prev_time = time;
+    i += 1;
+  }
+  let width = v.len() as u32;
+
+  // Try LZ4 compression first, fallback to uncompressed if compression doesn't help or fails
+  let original_size = result.len();
+
+  match std::panic::catch_unwind(|| {
+    let mut encoder = FrameEncoder::new(Vec::new());
+    encoder.write_all(&result).unwrap();
+    encoder.finish().unwrap()
+  }) {
+    Ok(compressed_data) => {
+
+      let max_chunk_size = 65000;
+      let compressed_length = compressed_data.len();
+      let chunk_count_float = (compressed_length as f32) / (max_chunk_size as f32);
+      let chunk_count = chunk_count_float.ceil() as u32;
+
+      for i in 0..chunk_count {
+        let start = i as usize * max_chunk_size;
+        let end = std::cmp::min((i + 1) as usize * max_chunk_size, compressed_length);
+        let chunk = &compressed_data[start..end];
+        sendcompressedtransitiondata(signalid, width, chunk_count, i as u32, min, max, chunk, original_size as u32);
+      }
+      return; // Exit early if compression was used
+    },
+    Err(_) => {
+      outputlog(&format!("LZ4 compression failed for signal {}, falling back to uncompressed", signalid));
+    }
+  }
 }
 
 impl Read for WasmFileReader {
@@ -171,6 +295,14 @@ struct Filecontext;
 
 impl Guest for Filecontext {
 
+  fn loadremotestatus(status_data: Vec<u8>) -> String {
+    libsurfer::SurferRemote::loadremotestatus(status_data)
+  }
+
+  fn loadremotechunk(chunk_type: u32, chunk_data: Vec<u8>, chunk_index: u32, total_chunks: u32) {
+    libsurfer::SurferRemote::loadremotechunk(chunk_type, chunk_data, chunk_index, total_chunks);
+  }
+
   fn loadfile(size: u64, fd: u32, loadstatic: bool, buffersize: u32) {
 
     //log(&format!("Loading file from bytes: {:?}", size));
@@ -238,6 +370,8 @@ impl Guest for Filecontext {
     let time_unit = match time_scale_data {
       Some(scale) => {
         match scale.unit {
+          TimescaleUnit::ZeptoSeconds => "zs".to_string(),
+          TimescaleUnit::AttoSeconds => "as".to_string(),
           TimescaleUnit::FemtoSeconds => "fs".to_string(),
           TimescaleUnit::PicoSeconds => "ps".to_string(),
           TimescaleUnit::NanoSeconds => "ns".to_string(),
@@ -403,9 +537,6 @@ impl Guest for Filecontext {
     let global_hierarchy = _hierarchy.lock().unwrap();
     let hierarchy = global_hierarchy.as_ref().unwrap();
 
-    let global_time_table = _time_table.lock().unwrap();
-    let time_table = global_time_table.as_ref().unwrap();
-
     let mut signal_ref_list: Vec<SignalRef> = Vec::new();
     signalidlist.iter().for_each(|signalid| {
 
@@ -421,53 +552,34 @@ impl Guest for Filecontext {
     });
 
     let signals_loaded = signal_source.load_signals(&signal_ref_list, hierarchy, false);
-
     signals_loaded.iter().for_each(|(s, signal)| {
+
       let signalid = s.index() as u32;
-      let mut result = String::new();
-      result.push_str("[");
-
-      let transitions = signal.iter_changes();
       let time_index = signal.time_indices();
+      let value_changes = time_index.len();
+      let data_offset = signal.get_offset(0);
 
-      //log(&format!("Total Time Indices: {:?}", time_index.len()));
-      let mut i: usize = 0;
-      let mut min: f64 = 0.0;
-      let mut max: f64 = 0.0;
-      for (_, value) in transitions {
-        let v = value.to_string();
-        let time = time_table[time_index[i] as usize];
-        match value {
-          wellen::SignalValue::Real(v) => {
-            min = f64::min(min, v);
-            max = f64::max(max, v);
-          },
-          _ => {}
-        }
-        result.push_str(&format!("[{:?},{:?}],", time, v));
-        i += 1;
+      // Find out if the signal data is a real or string
+      let width = match data_offset {
+        Some(offset) => {
+          let value = signal.get_value_at(&offset, 0);
+          let bits = value.bits();
+          match bits {
+            Some(b) => b,
+            None => 0,
+          }
+        }, None => 0
+      };
+      let vc_data_size = (value_changes as u32) * (width + 8);
+      // We only want to use compression on bit vectors with lots of value changes
+      let use_compression = (width > 0) && (vc_data_size > 65000);
+
+      if use_compression {
+        parse_value_change_data_lz4(signal, &time_index, signalid);
+      } else {
+        parse_value_change_data_json(signal, &time_index, signalid);
       }
-
-      //log(&format!("Signal Data Orgainzed!"));
-
-      // set last character to "]" to close the array
-      if result.len() > 1 {result.pop();}
-      result.push_str("]");
-
-      // Send the data in chunks
-      let max_return_length = 65000;
-      let result_length = result.len();
-      let chunk_count = (result_length as f32 / max_return_length as f32).ceil() as u32;
-      for i in 0..chunk_count {
-        let start = i * max_return_length;
-        let end = std::cmp::min((i + 1) * max_return_length, result_length as u32);
-        let chunk = &result[start as usize..end as usize];
-        //log(&format!("Sending chunk: {:?} for {:?}", i, signalid));
-        sendtransitiondatachunk(signalid, chunk_count, i as u32, min, max, chunk);
-      }
-
-    //log(&format!("Signal Data Sent!"));
-
+      //log(&format!("Signal Data Sent!"));
     });
 
   }

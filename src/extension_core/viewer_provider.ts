@@ -3,7 +3,8 @@ import { Worker } from 'worker_threads';
 import * as fs from 'fs';
 
 import { VaporviewDocument, VaporviewDocumentFsdb, VaporviewDocumentWasm } from './document';
-import { NetlistTreeDataProvider, DisplayedSignalsViewProvider, NetlistItem, WebviewCollection } from './tree_view';
+import { SurferDocument } from './surfer_document';
+import { NetlistTreeDataProvider, DisplayedSignalsViewProvider, NetlistItem, WebviewCollection, netlistItemDragAndDropController } from './tree_view';
 
 export type NetlistId = number;
 export type SignalId  = number;
@@ -18,6 +19,8 @@ export interface VaporviewDocumentDelegate {
 
 export function scaleFromUnits(unit: string | undefined) {
   switch (unit) {
+    case 'zs': return 1e-21;
+    case 'as': return 1e-18;
     case 'fs': return 1e-15;
     case 'ps': return 1e-12;
     case 'ns': return 1e-9;
@@ -32,6 +35,8 @@ export function scaleFromUnits(unit: string | undefined) {
 
 export function logScaleFromUnits(unit: string | undefined) {
   switch (unit) {
+    case 'zs': return -21;
+    case 'as': return -18;
     case 'fs': return -15;
     case 'ps': return -12;
     case 'ns': return -9;
@@ -67,6 +72,12 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   private readonly documentCollection = new Set<{
     readonly resource: string;
     readonly document: VaporviewDocument;
+  }>();
+
+  // Store remote server connection info for vaporview-remote:// URIs
+  private readonly remoteConnections = new Map<string, {
+    serverUrl: string;
+    bearerToken?: string;
   }>();
 
   private activeWebview: vscode.WebviewPanel | undefined;
@@ -109,6 +120,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       treeDataProvider: this.netlistTreeDataProvider,
       manageCheckboxStateManually: true,
       canSelectMany: true,
+      showCollapseAll: true,
+      dragAndDropController: netlistItemDragAndDropController
     });
     this._context.subscriptions.push(this.netlistView);
 
@@ -163,21 +176,64 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       },
       emitEvent: (e: any) => {this.emitEvent(e);},
       removeFromCollection: (uri: vscode.Uri, document: VaporviewDocument) => {
-        const entry = { resource: uri.toString(), document: document };
-        this.documentCollection.delete(entry);
-        this._numDocuments--;
+        for (const entry of this.documentCollection) {
+          if (entry.resource === uri.toString() && entry.document === document) {
+            this.documentCollection.delete(entry);
+            this._numDocuments--;
+            
+            // Clean up remote connection info if this is a vaporview-remote:// URI
+            if (uri.scheme === 'vaporview-remote') {
+              this.remoteConnections.delete(uri.toString());
+              // Also clean up persisted state
+              this._context.globalState.update(`remote-connection-${uri.toString()}`, undefined);
+            }
+            return;
+          }
+        }
       }
     };
 
     let document: VaporviewDocument;
-    const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
-    if (fileType === 'fsdb') {
-      document = await VaporviewDocumentFsdb.create(uri, openContext.backupId, delegate);
-    } else {
+    
+    if (uri.scheme === 'vaporview-remote') {
+      let connectionInfo = this.remoteConnections.get(uri.toString());
+      
+      if (!connectionInfo) {
+        // Try to restore connection info from extension state
+        const persistedConnection = this._context.globalState.get<{serverUrl: string, bearerToken?: string}>(`remote-connection-${uri.toString()}`);
+        if (persistedConnection) {
+          connectionInfo = persistedConnection;
+          this.remoteConnections.set(uri.toString(), connectionInfo);
+        } else {
+          // Prompt user to reconnect
+          const action = await vscode.window.showErrorMessage(
+            `Remote connection lost for ${uri.path}. Please reconnect.`,
+            'Reconnect', 'Close Tab'
+          );
+          if (action === 'Reconnect') {
+            // Close the current tab and show reconnection dialog
+            await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+            await vscode.commands.executeCommand('vaporview.openRemoteViewer');
+          }
+          throw new Error(`Remote connection lost and user chose not to reconnect`);
+        }
+      }
+      
       // Load the Wasm worker
       const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
       const wasmWorker = new Worker(workerFile);
-      document = await VaporviewDocumentWasm.create(uri, openContext.backupId, wasmWorker, this.wasmModule, delegate);
+      document = await SurferDocument.create(uri, connectionInfo.serverUrl, wasmWorker, this.wasmModule, delegate, connectionInfo.bearerToken);
+    } else {
+      // Handle regular file URIs
+      const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
+      if (fileType === 'fsdb') {
+        document = await VaporviewDocumentFsdb.create(uri, openContext.backupId, delegate);
+      } else {
+        // Load the Wasm worker
+        const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
+        const wasmWorker = new Worker(workerFile);
+        document = await VaporviewDocumentWasm.create(uri, openContext.backupId, wasmWorker, this.wasmModule, delegate);
+      }
     }
 
     this.netlistTreeDataProvider.loadDocument(document);
@@ -202,12 +258,13 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'executeCommand':      {vscode.commands.executeCommand(e.commandName, e.args); break;}
         case 'updateConfiguration': {vscode.workspace.getConfiguration('vaporview').update(e.property, e.value, vscode.ConfigurationTarget.Global); break;}
         case 'ready':               {document.onWebviewReady(webviewPanel); break;}
-        case 'restoreState':        {this.applySettings(e.state, this.getDocumentFromUri(e.uri.toString())); break;}
+        case 'restoreState':        {this.applySettingsOld(e.state, this.getDocumentFromUri(e.uri.toString())); break;}
         case 'contextUpdate':       {this.updateStatusBarItems(document, e); break;}
         case 'emitEvent':           {this.emitEvent(e); break;}
         case 'fetchTransitionData': {document.getSignalData(e.signalIdList); break;}
         case 'removeVariable':      {this.removeSignalFromDocument(e.netlistId); break;}
         case 'close-webview':       {webviewPanel.dispose(); break;}
+        case 'handleDrop':          {this.handleWebviewDrop(e); break;}
         default: {this.log.appendLine('Unknown webview message type: ' + e.command); break;}
       }
 
@@ -230,7 +287,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     // Handle closing of the webview panel/document
     webviewPanel.onDidDispose(() => {
-
       if (this.activeWebview === webviewPanel) {
         this.onDidChangeViewStateInactive();
       }
@@ -272,7 +328,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     const result: any = {
       documents: [],
       lastActiveDocument: null
-    }
+    };
     this.documentCollection.forEach((entry) => {
       result.documents.push(entry.document.uri.toString());
     });
@@ -283,9 +339,36 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   }
 
   public getViewerState(uri: any) {
-    let document = this.getDocumentFromOptionalUri(uri);
+    const document = this.getDocumentFromOptionalUri(uri);
     if (!document) {return;}
     return document.getSettings();
+  }
+
+  public async openRemoteViewer(serverUrl: string, bearerToken?: string) {
+    try {
+      // Create a URI with the custom vaporview-remote scheme
+      const sanitizedUrl = serverUrl.replace(/[^a-zA-Z0-9.-]/g, '_');
+
+      // This can be changed to the actual filename of the remote file
+      // This is simpler so we avoid another http request
+      const remoteUri = vscode.Uri.parse(`vaporview-remote://${sanitizedUrl}/remote-waveforms.vcd`).with({scheme: 'vaporview-remote'});
+      
+      // Store connection info for use in openCustomDocument
+      const connectionInfo = { serverUrl, bearerToken };
+      this.remoteConnections.set(remoteUri.toString(), connectionInfo);
+      
+      // Persist connection info to extension state for reload recovery
+      await this._context.globalState.update(`remote-connection-${remoteUri.toString()}`, connectionInfo);
+      
+      // Use VS Code's standard document opening mechanism
+      await vscode.commands.executeCommand('vscode.openWith', remoteUri, WaveformViewerProvider.viewType);
+      
+      this.log.appendLine(`Opened remote viewer for ${serverUrl}`);
+      
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to open remote viewer: ${error}`);
+      this.log.appendLine(`Failed to open remote viewer: ${error}`);
+    }
   }
 
   public saveSettingsToFile() {
@@ -346,10 +429,10 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
 
     this.log.appendLine('Loading settings from file: ' + fileData.fileName);
-    this.applySettings(fileData, this.activeDocument);
+    this.applySettingsOld(fileData, this.activeDocument);
   }
 
-  public async applySettings(settings: any, document: VaporviewDocument | undefined = undefined) {
+  public async applySettingsOld(settings: any, document: VaporviewDocument | undefined = undefined) {
 
     //console.log(settings);
 
@@ -364,6 +447,76 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     const metadataList: NetlistItem[] = [];
 
     for (const signalInfo of settings.displayedSignals) {
+      if (signalInfo.dataType && signalInfo.dataType !== 'netlist-variable') {continue;}
+      const signal   = signalInfo.name;
+      const metadata = await document.findTreeItem(signal, signalInfo.msb, signalInfo.lsb);
+      if (metadata !== null) {
+        metadataList.push(metadata);
+        // We need to copy the netlistId from the existing wavefrom dump in case the circuit has changed
+        foundSignals.push({
+          netlistId: metadata.netlistId,
+          numberFormat: signalInfo.numberFormat,
+          colorIndex: signalInfo.colorIndex,
+          renderType: signalInfo.renderType,
+        });
+      } else {
+        missingSignals.push(signal);
+      }
+    }
+
+    if (settings.markerTime || settings.markerTime === 0) {
+      this.setMarkerAtTime(settings.markerTime, 0);
+    }
+    if (settings.altMarkerTime || settings.altMarkerTime === 0) {
+      this.setMarkerAtTime(settings.altMarkerTime, 1);
+    }
+
+    if (missingSignals.length > 0) {
+      this.log.appendLine('Missing signals: '+ missingSignals.join(', '));
+    }
+
+    this.filterAddSignalsInNetlist(metadataList, true);
+    for (const signalInfo of foundSignals) {
+      this.setValueFormat(signalInfo.netlistId, {
+        valueFormat:   signalInfo.numberFormat,
+        colorIndex:    signalInfo.colorIndex,
+        renderType:    signalInfo.renderType,
+        command:       signalInfo.command,
+      });
+    }
+
+    //console.log(settings.selectedSignal);
+    if (settings.selectedSignal) {
+      const s = settings.selectedSignal;
+      const metadata = await document.findTreeItem(s.name, s.msb, s.lsb);
+      if (metadata !== null) {
+        const netlistIdSelected = metadata.netlistId;
+        this.activeWebview?.webview.postMessage({
+          command: 'setSelectedSignal', 
+          netlistId: netlistIdSelected,
+        });
+      }
+    }
+
+    //this.netlistTreeDataProvider.loadDocument(document);
+  }
+
+    public async applySettings(settings: any, document: VaporviewDocument | undefined = undefined) {
+
+    //console.log(settings);
+
+    if (!settings.displayedSignals) {return;}
+    if (!document) {
+      if (!this.activeDocument) {return;}
+      document = this.activeDocument;
+    }
+
+    const missingSignals: string[] = [];
+    const foundSignals: any[] = [];
+    const metadataList: NetlistItem[] = [];
+
+    for (const signalInfo of settings.displayedSignals) {
+      if (signalInfo.dataType && signalInfo.dataType !== 'netlist-variable') {continue;}
       const signal   = signalInfo.name;
       const metadata = await document.findTreeItem(signal, signalInfo.msb, signalInfo.lsb);
       if (metadata !== null) {
@@ -433,7 +586,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.netlistTreeDataProvider.hide();
     this.displayedSignalsTreeDataProvider.hide();
     await document.reload();
-    this.applySettings(settings, this.activeDocument);
+    this.applySettingsOld(settings, this.activeDocument);
 
     //console.log(settings);
   }
@@ -513,8 +666,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     const maxTime   = timeUnit * timeScale * timeEnd;
     const unitsList = ['fs', 'ps', 'ns', 'µs', 'ms', 's'];
     const selectableUnits = unitsList.filter((unit) => {return scaleFromUnits(unit) <= maxTime;});
-    console.log('maxTime: ' + maxTime);
-    console.log('unitsList: ' + selectableUnits);
 
     let units: string | undefined = newUnits;
 
@@ -784,6 +935,16 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.activeWebview.webview.postMessage({command: 'handle-keypress', keyCommand: keyCommand});
   }
 
+  private handleWebviewDrop(e: any) {
+    if (!this.activeDocument) {return;}
+    if (!this.activeWebview?.visible) {return;}
+    if (!e.instancePaths) {return;}
+
+    e.instancePaths.forEach((instancePath: string) => {
+      this.addSignalByNameToDocument(instancePath);
+    });
+  }
+
   private addSignalsToDocument(document: VaporviewDocument, netlistElements: NetlistItem[]) {
     //if (!this.activeWebview) {return;}
     //if (!this.activeDocument) {return;}
@@ -816,7 +977,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     const lookup = instancePath.replace(regex, '');
     const msb   = field ? parseInt(field[1], 10) : undefined;
     const lsb   = field ? parseInt(field[2], 10) : msb;
-    //console.log('lookup: ' + lookup + ' msb: ' + msb + ' lsb: ' + lsb);
     const metadata = await document.findTreeItem(lookup, msb, lsb);
 
     if (metadata === null) {
@@ -832,8 +992,12 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
 
     //console.log('found signal ' + instancePath);
-    const netlistId   = metadata.netlistId;
-    const isDisplayed = document.webviewContext.displayedSignals.find((element: any) => element.netlistId === netlistId);
+    const netlistId = metadata.netlistId;
+    let isDisplayed = false;
+    document.displayedSignals.forEach((element: NetlistItem) => {
+      if (element.netlistId === netlistId) {isDisplayed = true;}
+    });
+
     if (isDisplayed !== undefined) {
       document.revealSignalInWebview(netlistId);
     } else {
@@ -973,6 +1137,50 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     } else if (view === 'displayedSignals') {
       this.removeSignalList(this.displayedSignalsViewSelectedSignals);
     }
+  }
+
+  public newSignalGroup(e: any) {
+    if (!this.activeWebview) {return;}
+    if (!this.activeDocument) {return;}
+    if (!this.activeWebview.visible) {return;}
+
+    const panel      = this.activeWebview;
+    panel.webview.postMessage({
+      command: 'newSignalGroup',
+      parentGroupId: e.parentGroupId,
+      groupName: e.name,
+    });
+  }
+
+  public renameSignalGroup(e: any | undefined) {
+    if (!this.activeWebview) {return;}
+    if (!this.activeDocument) {return;}
+    if (!this.activeWebview.visible) {return;}
+
+    let groupId: number | undefined = e?.groupId;
+    let groupName: string | undefined = e?.name;
+
+    const panel      = this.activeWebview;
+    panel.webview.postMessage({
+      command: 'renameSignalGroup',
+      groupId: groupId,
+      groupName: groupName,
+    });
+  }
+
+  public deleteSignalGroup(e: any | undefined, recursive: boolean) {
+    if (!this.activeWebview) {return;}
+    if (!this.activeDocument) {return;}
+    if (!this.activeWebview.visible) {return;}
+
+    let groupId: number | undefined = e?.groupId;
+
+    const panel = this.activeWebview;
+    panel.webview.postMessage({
+      command: 'remove-group',
+      groupId: groupId,
+      recursive: recursive,
+    });
   }
 
   public setValueFormat(id: NetlistId | undefined, properties: any) {

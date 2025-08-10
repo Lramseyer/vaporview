@@ -183,6 +183,12 @@ body {
   display: none;
 }
 
+.child-group {
+  margin-left: 8px;
+  border-left: 1px solid var(--vscode-editorIndentGuide-background1);
+  padding-left: 4px;
+}
+
 #waveform-labels-container {
   grid-column-start: 1;
   grid-column-end: 2;
@@ -210,7 +216,7 @@ body {
   left: 150px;
 }
 
-#transition-display-container {
+#value-display-container {
   grid-column-start: 2;
   grid-column-end: 3;
   grid-row-start: 2;
@@ -342,73 +348,107 @@ body {
 
 #waveform-labels {
   color: var(--vscode-textLink-foreground);
+  position: relative;
 }
 
-.waveform-label {
-  position:        relative;
-  will-change:     transform;
-  font-size:       var(--vscode-editor-font-size);
-  font-family:     var(--vscode-editor-font-family);
+.waveform-row {
+  min-height:  var(--waveform-height);
+  max-height:  var(--waveform-height);
   display:         flex;
   align-items:     center;
   justify-content: right;
-  user-select:     none;
   padding-right:   4px;
-
-  min-height:  var(--waveform-height);
-  max-height:  var(--waveform-height);
-
   box-sizing: border-box;
   -webkit-box-sizing: border-box;
+  font-size:       var(--vscode-editor-font-size);
+  font-family:     var(--vscode-editor-font-family);
+  position:        relative;
+  user-select:     none;
+  overflow:        hidden;
+}
+
+#drag-divider {
+  position: absolute;
+  top: 0;
+  height: 2px;
+  z-index: 100;
+  overflow: visible;
+  stroke-width: 2px;
+  width: 100%;
+  stroke: var(--vscode-editorCursor-foreground);
+  stroke-dasharray: 2 2;
+}
+
+.waveform-group {
+  overflow: visible;
+}
+
+.waveform-label {
+
+  box-sizing:      border-box;
+  -webkit-box-sizing: border-box;
+  will-change:     transform;
+  user-select:     none;
 }
 
 .waveform-label.is-idle {
   transition: 0.25s ease transform;
 }
 
-.waveform-label .codicon-grabber {
-  color:       var(--vscode-editorLineNumber-foreground);
+.waveform-label .codicon {
+  color:       var(--vscode-icon-foreground);
   position:    absolute;
   left:        0;
   padding:     0px 4px 0px 4px;
-  opacity:     0;
   z-index:     10;
-}
-
-.waveform-label.is-idle:hover .codicon-grabber {
-  opacity: 1;
-  background-color: var(--vscode-editor-background);
-}
-
-.waveform-label.is-selected:hover .codicon-grabber {
-  opacity: 1;
-  background-color: var(--vscode-editor-background);
-}
-
-.waveform-label.is-idle .codicon-grabber {
-  cursor: grab;
-}
-
-.waveform-label.is-selected .codicon-grabber {
-  cursor: grab;
 }
 
 .waveform-label.is-draggable {
   background-color:  var(--vscode-editor-inactiveSelectionBackground);
   opacity: 0.75;
   z-index: 10;
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: grabbing;
 }
 
-.waveform-label.is-draggable .codicon-grabber {
-  cursor: grabbing;
-}
-
-.waveform-label p {
+.waveform-row p {
   margin:      0;
   white-space: nowrap;
   color:       inherit;
+}
+
+.rename-input {
+  align-items: center;
+  overflow: hidden;
+  box-sizing: border-box;
+  border-radius: 2px;
+  background-color: var(--vscode-input-background);
+  resize: none;
+  height: 20px;
+  width: calc(100% - 4px);
+  font-size: var(--vscode-editor-font-size);
+  color: var(--vscode-input-foreground);
+  font-family: var(--vscode-editor-font-family);
+  overflow: hidden;
+}
+
+.rename-input:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+}
+
+.value-display-item {
+  user-select:     none;
+  display:         flex;
+  align-items:     center;
+  justify-content: right;
+  min-height:      var(--waveform-height);
+  max-height:      var(--waveform-height);
+  padding-right:   4px;
+  box-sizing:      border-box;
+  -webkit-box-sizing: border-box;
+  font-size:       var(--vscode-editor-font-size);
+  font-family:     var(--vscode-editor-font-family);
+  position:        relative;
 }
 
 .ruler-spacer {
@@ -441,9 +481,14 @@ body {
   cursor: pointer;
 }
 
-.is-selected{
+.is-selected {
   border-top: 4px solid var(--vscode-editor-lineHighlightBorder);
   border-bottom: 4px solid var(--vscode-editor-lineHighlightBorder);
+}
+
+.is-selected-new {
+  /*background-color: var(--vscode-list-activeSelectionBackground);*/
+  background-color: var(--vscode-editor-lineHighlightBorder);
 }
 
 .time-marker {

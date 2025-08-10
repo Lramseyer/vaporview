@@ -1,10 +1,11 @@
-import { error } from 'console';
+import { error, group } from 'console';
 import { Viewport } from './viewport';
 import { LabelsPanels } from './labels';
 import { ControlBar } from './control_bar';
 import { formatBinary, formatHex, ValueFormat, valueFormatList } from './value_format';
 import { WaveformDataManager } from './data_manager';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
+import { VariableItem, SignalGroup, RowItem } from './signal_item';
 
 declare function acquireVsCodeApi(): VsCodeApi;
 export const vscode = acquireVsCodeApi();
@@ -16,28 +17,20 @@ interface VsCodeApi {
 
 export type NetlistId = number;
 export type SignalId  = number;
+export type RowId     = number;
 export type ValueChange = [number, string];
-export type NetlistData = {
-  signalId: number;
-  signalName: string;
-  scopePath: string;
-  signalWidth: number;
-  valueFormat: ValueFormat;
-  vscodeContext: string;
-  valueLinkCommand: string;
-  valueLinkBounds: [number, number][];
-  valueLinkIndex: number;
-  variableType: string;
-  encoding: string;
-  renderType: WaveformRenderer;
-  colorIndex: number;
-  color: string;
-  formattedValues: string[];
-  formatValid: boolean;
-  wasRendered: boolean;
-  canvas: HTMLCanvasElement | null;
-  ctx: CanvasRenderingContext2D | null;
-};
+
+export enum CollapseState {
+  None      = 0,
+  Collapsed = 1,
+  Expanded  = 2,
+}
+
+export enum DataType {
+  None,
+  Variable,
+  Group,
+}
 
 export type WaveformData = {
   transitionData: any[];
@@ -67,6 +60,8 @@ export interface ViewerState {
   selectedSignal: number | null;
   selectedSignalIndex: number | null;
   displayedSignals: number[];
+  displayedSignalsFlat: number[];
+  visibleSignalsFlat: number[]
   zoomRatio: number;
   scrollLeft: number;
   touchpadScrolling: boolean;
@@ -81,6 +76,8 @@ export const viewerState: ViewerState = {
   selectedSignal: null,
   selectedSignalIndex: -1,
   displayedSignals: [],
+  displayedSignalsFlat: [],
+  visibleSignalsFlat: [],
   zoomRatio: 1,
   scrollLeft: 0,
   touchpadScrolling: false,
@@ -106,8 +103,6 @@ export class EventHandler {
 export function restoreState() {
   const state = vscode.getState();
   if (!state) {return;}
-  console.log('Restoring state: ');
-  console.log(state);
   vscode.postMessage({
     command: 'restoreState',
     state: state,
@@ -122,6 +117,69 @@ export function arrayMove(array: any[], fromIndex: number, toIndex: number) {
   array.splice(toIndex, 0, element);
 }
 
+export function updateDisplayedSignalsFlat() {
+  viewerState.displayedSignalsFlat = [];
+  viewerState.visibleSignalsFlat = [];
+  viewerState.displayedSignals.forEach((rowId) => {
+    const signalItem = dataManager.rowItems[rowId];
+    viewerState.displayedSignalsFlat = viewerState.displayedSignalsFlat.concat(signalItem.getFlattenedRowIdList(false, -1));
+    viewerState.visibleSignalsFlat = viewerState.visibleSignalsFlat.concat(signalItem.getFlattenedRowIdList(true, -1));
+  });
+}
+
+export function getParentGroupId(rowId: RowId | null): number | null {
+  if (rowId === null) {return null;}
+  if (viewerState.displayedSignals.includes(rowId)) {
+    return 0;
+  }
+  for (const id of viewerState.displayedSignals) {
+    const signalItem = dataManager.rowItems[id];
+    const parentGroupId = signalItem.findParentGroupId(rowId);
+    if (parentGroupId !== null) {
+      return parentGroupId;
+    }
+  };
+  return null;
+}
+
+export function getParentGroupIdList(rowId: RowId | null | undefined): number[] {
+  let result: number[] = [];
+  if (rowId === null || rowId === undefined) {return result;}
+  const parentGroupId = getParentGroupId(rowId);
+  if (!parentGroupId) {return result;}
+  const parentGroupRowId = dataManager.groupIdTable[parentGroupId];
+  if (parentGroupRowId === null) {return result;}
+  result = getParentGroupIdList(parentGroupRowId);
+  result.push(parentGroupId);
+
+  return result;
+}
+
+export function getIndexInGroup(rowId: RowId, groupId: number | null) {
+  let parentGroupId = groupId;
+  if (parentGroupId === null) {parentGroupId = getParentGroupId(rowId);}
+  if (parentGroupId === null) {return -1;}
+  if (parentGroupId === 0) {return viewerState.displayedSignals.indexOf(rowId);}
+  const groupRowId = dataManager.groupIdTable[parentGroupId];
+  const groupItem = dataManager.rowItems[groupRowId];
+  if (!(groupItem instanceof SignalGroup)) {
+    return -1;
+  }
+  return groupItem.children.indexOf(rowId);
+}
+
+export function getChildrenByGroupId(groupId: number) {
+  if (groupId === 0) {
+    return viewerState.displayedSignals;
+  }
+  const groupRowId = dataManager.groupIdTable[groupId];
+  const groupItem = dataManager.rowItems[groupRowId];
+  if (!(groupItem instanceof SignalGroup)) {
+    return [];
+  }
+  return groupItem.children;
+}
+
 // ----------------------------------------------------------------------------
 // Event handler helper functions
 // ----------------------------------------------------------------------------
@@ -134,25 +192,49 @@ export function sendDisplayedSignals() {
 }
 
 function createWebviewContext() {
+  let selectedNetlistId: any = null; 
+  if (viewerState.selectedSignal !== null) {
+    const data = dataManager.rowItems[viewerState.selectedSignal];
+    if (data) {
+      selectedNetlistId = data.netlistId;
+    }
+  }
   return  {
     markerTime: viewerState.markerTime,
     altMarkerTime: viewerState.altMarkerTime,
     displayTimeUnit: viewport.displayTimeUnit,
-    selectedSignal: viewerState.selectedSignal,
+    selectedSignal: selectedNetlistId,
     zoomRatio: vaporview.viewport.zoomRatio,
     scrollLeft: vaporview.viewport.pseudoScrollLeft,
-    displayedSignals: viewerState.displayedSignals.map((id: NetlistId) => {
-      const data = dataManager.netlistData[id];
-      return {
-        netlistId:        id,
-        name:             data.scopePath + "." + data.signalName,
-        numberFormat:     data.valueFormat.id,
-        colorIndex:       data.colorIndex,
-        renderType:       data.renderType.id,
-        valueLinkCommand: data.valueLinkCommand,
-      };
-    }),
+    displayedSignals: signalListForSaveFile(viewerState.displayedSignals),
   }
+}
+
+function signalListForSaveFile(rowIdList: RowId[]): any[] {
+  const result: any[] = [];
+  rowIdList.forEach((rowId) => {
+    const data = dataManager.rowItems[rowId];
+    if (data instanceof SignalGroup) {
+      result.push({
+        dataType:  "signal-group",
+        groupName: data.label,
+        children:  signalListForSaveFile(data.children)
+      });
+    }
+    if (!(data instanceof VariableItem)) {return;}
+
+    const netlistId = data.netlistId;
+    result.push({
+      dataType:         "netlist-variable",
+      netlistId:        netlistId,
+      name:             data.scopePath + "." + data.signalName,
+      numberFormat:     data.valueFormat.id,
+      colorIndex:       data.colorIndex,
+      renderType:       data.renderType.id,
+      valueLinkCommand: data.valueLinkCommand,
+    });
+  });
+  return result;
 }
 
 export function sendWebviewContext() {
@@ -171,7 +253,7 @@ class VaporviewWebview {
   // HTML Elements
   webview: HTMLElement;
   labelsScroll: HTMLElement;
-  transitionScroll: HTMLElement;
+  valuesScroll: HTMLElement;
   scrollArea: HTMLElement;
   contentArea: HTMLElement;
   scrollbar: HTMLElement;
@@ -196,41 +278,43 @@ class VaporviewWebview {
     this.viewport   = viewport;
     this.controlBar = controlBar;
     // Assuming you have a reference to the webview element
-    const webview           = document.getElementById('vaporview-top');
-    const labelsScroll      = document.getElementById('waveform-labels-container');
-    const transitionScroll  = document.getElementById('transition-display-container');
-    const scrollArea        = document.getElementById('scrollArea');
-    const contentArea       = document.getElementById('contentArea');
-    const scrollbar         = document.getElementById('scrollbar');
+    const webview       = document.getElementById('vaporview-top');
+    const labelsScroll  = document.getElementById('waveform-labels-container');
+    const valuesScroll  = document.getElementById('value-display-container');
+    const scrollArea    = document.getElementById('scrollArea');
+    const contentArea   = document.getElementById('contentArea');
+    const scrollbar     = document.getElementById('scrollbar');
 
-    if (webview === null || labelsScroll === null || transitionScroll === null ||
+    if (webview === null || labelsScroll === null || valuesScroll === null ||
       scrollArea === null || contentArea === null || scrollbar === null) {
       throw new Error("Could not find all required elements");
     }
 
-    this.webview          = webview;
-    this.labelsScroll     = labelsScroll;
-    this.transitionScroll = transitionScroll;
-    this.scrollArea       = scrollArea;
-    this.contentArea      = contentArea;
-    this.scrollbar        = scrollbar;
+    this.webview      = webview;
+    this.labelsScroll = labelsScroll;
+    this.valuesScroll = valuesScroll;
+    this.scrollArea   = scrollArea;
+    this.contentArea  = contentArea;
+    this.scrollbar    = scrollbar;
 
     webview.style.gridTemplateColumns = `150px 50px auto`;
- 
+
     // #region Primitive Handlers
     window.addEventListener('message', (e) => {this.handleMessage(e);});
     window.addEventListener('keydown', (e) => {this.keyDownHandler(e);});
     window.addEventListener('keyup',   (e) => {this.keyUpHandler(e);});
     window.addEventListener('mouseup', (e) => {this.handleMouseUp(e, false);});
     window.addEventListener('resize',  ()  => {this.handleResizeViewer();}, false);
-    this.scrollArea.addEventListener(      'wheel', (e) => {this.scrollHandler(e);});
-    this.scrollArea.addEventListener(      'scroll', () => {this.handleViewportScroll();});
-    this.labelsScroll.addEventListener(    'wheel', (e) => {this.syncVerticalScroll(e, labelsScroll.scrollTop);});
-    this.transitionScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, transitionScroll.scrollTop);});
+    this.scrollArea.addEventListener(  'wheel', (e) => {this.scrollHandler(e);});
+    this.scrollArea.addEventListener(  'scroll', () => {this.handleViewportScroll();});
+    this.labelsScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, labelsScroll.scrollTop);});
+    this.valuesScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, valuesScroll.scrollTop);});
+    //this.webview.addEventListener('dragover', (e) => {labelsPanel.updateIdleItemsStateAndPosition(e);});
+    this.webview.addEventListener('drop', (e) => {this.handleDrop(e);});
 
-    this.handleMarkerSet          = this.handleMarkerSet.bind(this);
-    this.handleSignalSelect       = this.handleSignalSelect.bind(this);
-    this.reorderSignals           = this.reorderSignals.bind(this);
+    this.handleMarkerSet    = this.handleMarkerSet.bind(this);
+    this.handleSignalSelect = this.handleSignalSelect.bind(this);
+    this.reorderSignals     = this.reorderSignals.bind(this);
 
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
@@ -267,8 +351,6 @@ class VaporviewWebview {
   scrollHandler(e: any) {
     e.preventDefault();
     //console.log(event);
-
-
     //if (!isTouchpad) {e.preventDefault();}
 
     const deltaY = e.deltaY;
@@ -280,7 +362,7 @@ class VaporviewWebview {
       e.stopPropagation();
       this.scrollArea.scrollTop      += deltaY || deltaX;
       this.labelsScroll.scrollTop     = this.scrollArea.scrollTop;
-      this.transitionScroll.scrollTop = this.scrollArea.scrollTop;
+      this.valuesScroll.scrollTop = this.scrollArea.scrollTop;
     } else if (e.ctrlKey) {
       if      (this.viewport.updatePending) {return;}
       // Touchpad mode detection returns false positives with pinches, so we
@@ -305,7 +387,7 @@ class VaporviewWebview {
       //  this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + e.deltaX);
       //  this.scrollArea.scrollTop       += e.deltaY;
       //  this.labelsScroll.scrollTop      = this.scrollArea.scrollTop;
-      //  this.transitionScroll.scrollTop  = this.scrollArea.scrollTop;
+      //  this.valuesScroll.scrollTop  = this.scrollArea.scrollTop;
       //} else {
       //  this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + deltaY);
       //}
@@ -315,9 +397,9 @@ class VaporviewWebview {
 
       if (e.deltaX !== 0 || isTouchpad) {
         this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + deltaX);
-        this.scrollArea.scrollTop       += e.deltaY;
-        this.labelsScroll.scrollTop      = this.scrollArea.scrollTop;
-        this.transitionScroll.scrollTop  = this.scrollArea.scrollTop;
+        this.scrollArea.scrollTop  += e.deltaY;
+        this.labelsScroll.scrollTop = this.scrollArea.scrollTop;
+        this.valuesScroll.scrollTop = this.scrollArea.scrollTop;
       } else {
         this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + deltaY);
       }
@@ -326,14 +408,14 @@ class VaporviewWebview {
 
   keyDownHandler(e: any) {
 
-    if (controlBar.searchInFocus) {return;} 
+    if (controlBar.searchInFocus || labelsPanel.renameActive) {return;} 
     else {e.preventDefault();}
 
     // debug handler to print the data cache
     if (e.key === 'd' && e.ctrlKey) {
       console.log(this.viewport.updatePending);
       console.log(viewerState);
-      console.log(dataManager.netlistData);
+      console.log(dataManager.rowItems);
     }
 
     // left and right arrow keys move the marker
@@ -350,12 +432,12 @@ class VaporviewWebview {
     // alt + up and down arrow keys reorder the selected signal up and down
     } else if ((e.key === 'ArrowUp') && (viewerState.selectedSignalIndex !== null)) {
       const newIndex = Math.max(viewerState.selectedSignalIndex - 1, 0);
-      if (e.altKey) {this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignalIndex, newIndex);}
-      else          {this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignals[newIndex]);}
+      if (e.altKey) {this.handleReorderArrowKeys(-1);}
+      else          {this.events.dispatch(ActionType.SignalSelect, viewerState.visibleSignalsFlat[newIndex]);}
     } else if ((e.key === 'ArrowDown') && (viewerState.selectedSignalIndex !== null)) {
-      const newIndex = Math.min(viewerState.selectedSignalIndex + 1, viewerState.displayedSignals.length - 1);
-      if (e.altKey) {this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignalIndex, newIndex);}
-      else          {this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignals[newIndex]);}
+      const newIndex = Math.min(viewerState.selectedSignalIndex + 1, viewerState.visibleSignalsFlat.length - 1);
+      if (e.altKey) {this.handleReorderArrowKeys(1);}
+      else          {this.events.dispatch(ActionType.SignalSelect, viewerState.visibleSignalsFlat[newIndex]);}
     }
 
     // handle Home and End keys to move to the start and end of the waveform
@@ -363,19 +445,67 @@ class VaporviewWebview {
     else if (e.key === 'End')  {this.events.dispatch(ActionType.MarkerSet, this.viewport.timeStop, 0);}
 
     // "N" and Shoft + "N" go to the next transition
-    else if (e.key === 'n') {controlBar.goToNextTransition(1);}
-    else if (e.key === 'N') {controlBar.goToNextTransition(-1);}
+    else if (e.key === 'n') {controlBar.goToNextTransition(1, []);}
+    else if (e.key === 'N') {controlBar.goToNextTransition(-1, []);}
 
-    else if (e.key === 'Escape') {this.handleMouseUp(e, true);}
+    else if (e.key === 'Escape') {labelsPanel.abortUserInteraction();}
     else if (e.key === 'Delete' || e.key === 'Backspace') {this.removeVariableInternal(viewerState.selectedSignal);}
 
     else if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(true);}
   }
 
+  handleReorderArrowKeys(direction: number) {
+    const rowId = viewerState.selectedSignal;
+    if (rowId === null) {return;}
+    let parentGroupId = getParentGroupId(rowId);
+    let parentList: RowId[] = [];
+    if (parentGroupId === null) {return;}
+    if (parentGroupId === 0) {
+      parentList = viewerState.displayedSignals;
+    } else {
+      const parentRowId = dataManager.groupIdTable[parentGroupId];
+      const parentItem = dataManager.rowItems[parentRowId];
+      if (!(parentItem instanceof SignalGroup)) {return;}
+      parentList = parentItem.children;
+    }
+
+    const localIndex = getIndexInGroup(rowId, parentGroupId);
+    let newIndex = localIndex + direction;
+
+    // First check to see if we're moving it outside the parent group
+    if (newIndex < 0 || newIndex >= parentList.length) {
+      const parentGroupRowId = dataManager.groupIdTable[parentGroupId];
+      const grandparentGroupId = getParentGroupId(parentGroupRowId);
+      if (grandparentGroupId === null) {return;}
+      let parentIndex = getIndexInGroup(dataManager.groupIdTable[parentGroupId], grandparentGroupId);
+      newIndex = parentIndex;
+      if (direction > 0) {newIndex += direction;}
+      parentGroupId = grandparentGroupId;
+    } else {
+      // if the adjacent row is a group, and the group is expanded, we place it in the top or bottom of the group
+      let adjacentRowId = parentList[newIndex];
+      let adjacentGroupId = dataManager.groupIdTable.indexOf(adjacentRowId);
+      if (adjacentGroupId !== -1) {
+        const groupItem = dataManager.rowItems[dataManager.groupIdTable[adjacentGroupId]];
+        if (groupItem instanceof SignalGroup && groupItem.collapseState === CollapseState.Expanded) {
+          parentGroupId = adjacentGroupId;
+          if (direction > 0) {newIndex = 0;}
+          else {
+            const adjacentGroup = dataManager.rowItems[dataManager.groupIdTable[adjacentGroupId]];
+            if (!(adjacentGroup instanceof SignalGroup)) {return;}
+            newIndex = adjacentGroup.children.length;
+          }
+        }
+      }
+    }
+
+    this.events.dispatch(ActionType.ReorderSignals, rowId, parentGroupId, newIndex);
+  }
+
   externalKeyDownHandler(e: any) {
     if (viewerState.markerTime !== null) {
-      if (e.keyCommand == 'nextEdge') {controlBar.goToNextTransition(1);}
-      else if (e.keyCommand == 'previousEdge') {controlBar.goToNextTransition(-1);}
+      if (e.keyCommand == 'nextEdge') {controlBar.goToNextTransition(1, []);}
+      else if (e.keyCommand == 'previousEdge') {controlBar.goToNextTransition(-1, []);}
     }
   }
 
@@ -394,7 +524,7 @@ class VaporviewWebview {
       this.handleResizeViewer();
     } else if (viewerState.mouseupEventType === 'scroll') {
       this.scrollbar.classList.remove('is-dragging');
-      document.removeEventListener('mousemove', this.viewport.handleScrollbarMove, false);
+      document.removeEventListener('mousemove', this.viewport.handleScrollbarMove);
       this.viewport.scrollbarMoved = false;
     } else if (viewerState.mouseupEventType === 'highlightZoom') {
       this.scrollArea.removeEventListener('mousemove', viewport.drawHighlightZoom, false);
@@ -414,9 +544,8 @@ class VaporviewWebview {
   }
 
   // #region Global Events
-  reorderSignals(oldIndex: number, newIndex: number) {
-    //arrayMove(viewerState.displayedSignals, oldIndex, newIndex);
-    this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignals[newIndex]);
+  reorderSignals(rowId: number, newGroupId: number, newIndex: number) {
+    this.events.dispatch(ActionType.SignalSelect, rowId);
   }
 
   handleResizeViewer() {
@@ -436,12 +565,48 @@ class VaporviewWebview {
     });
   }
 
-  handleSignalSelect(netlistId: NetlistId | null) {
-    if (netlistId === null) {return;}
-    const netlistData = dataManager.netlistData[netlistId];
+  handleSignalSelect(rowId: RowId | null) {
+    if (rowId === null) {return;}
+    const netlistData = dataManager.rowItems[rowId];
     sendWebviewContext();
-    if (netlistData === undefined) {return;}
 
+    // expand all parent groups of the selected signal
+    const parentList = getParentGroupIdList(rowId);
+
+    parentList.forEach((groupId) => {
+      const groupRowId = dataManager.groupIdTable[groupId];
+      if (groupRowId === undefined) {return;}
+      const groupItem: RowItem = dataManager.rowItems[groupRowId];
+      if (!(groupItem instanceof SignalGroup)) {return;}
+      if (groupItem.collapseState === CollapseState.Collapsed) {
+        groupItem.expand();
+      }
+    });
+
+
+    const labelElement = document.getElementById(`label-${rowId}`);
+    const labelsPanel = this.labelsScroll;
+    if (!labelElement) {return;}
+
+    const labelBounds  = labelElement.getBoundingClientRect();
+    const windowBounds = labelsPanel.getBoundingClientRect();
+
+    const waveHeight = 28;
+
+    let newScrollTop = labelsPanel.scrollTop;
+    if (labelBounds.top < windowBounds.top + 40) {
+      newScrollTop = Math.max(0, labelsPanel.scrollTop + (labelBounds.top - (windowBounds.top + 40)));
+    } else if (labelBounds.bottom > windowBounds.bottom) {
+      newScrollTop = Math.min(labelsPanel.scrollHeight - labelsPanel.clientHeight, labelsPanel.scrollTop + (labelBounds.bottom - windowBounds.bottom) + waveHeight);
+    }
+
+    if (newScrollTop !== labelsPanel.scrollTop) {
+      this.syncVerticalScroll({deltaY: 0}, newScrollTop);
+    }
+
+    if (netlistData === undefined) {return;}
+    const netlistId = netlistData.netlistId;
+    if (!(netlistData instanceof VariableItem)) {return;}
     let instancePath = netlistData.scopePath + '.' + netlistData.signalName;
     if (netlistData.scopePath === "") {instancePath = netlistData.signalName;}
 
@@ -452,17 +617,6 @@ class VaporviewWebview {
       isntancePath: instancePath,
       netlistId: netlistId,
     });
-
-    const waveHeight = 28;
-    if (viewerState.selectedSignalIndex !== null) {
-      const yPosition    = viewerState.selectedSignalIndex * waveHeight;
-      const maxScrollTop = yPosition - (viewport.viewerHeight - (3 * waveHeight));
-      const minScrollTop = yPosition - waveHeight;
-      const newScrollTop = Math.max(maxScrollTop, Math.min(minScrollTop, this.labelsScroll.scrollTop));
-      console.log('minScrollTop: ' + minScrollTop + '; maxScrollTop: ' + maxScrollTop);
-      console.log('newScrollTop: ' + newScrollTop);
-      this.syncVerticalScroll({deltaY: 0}, newScrollTop);
-    }
   }
 
 // #region Helper Functions
@@ -470,22 +624,24 @@ class VaporviewWebview {
   syncVerticalScroll(e: any, scrollLevel: number) {
     const deltaY = e.deltaY;
     if (this.viewport.updatePending) {return;}
-    this.viewport.updatePending     = true;
-    this.labelsScroll.scrollTop     = scrollLevel + deltaY;
-    this.transitionScroll.scrollTop = scrollLevel + deltaY;
-    this.scrollArea.scrollTop       = scrollLevel + deltaY;
+    this.viewport.updatePending = true;
+    this.labelsScroll.scrollTop = scrollLevel + deltaY;
+    this.valuesScroll.scrollTop = scrollLevel + deltaY;
+    this.scrollArea.scrollTop   = scrollLevel + deltaY;
+    // labelsScroll position = relative, which allows it to scroll past the bottom
+    this.labelsScroll.scrollTop = this.scrollArea.scrollTop;
     viewport.renderAllWaveforms(false);
     labelsPanel.dragMove(e);
-    this.viewport.updatePending     = false;
+    this.viewport.updatePending = false;
   }
 
   handleViewportScroll() {
     if (this.viewport.updatePending) {return;}
-    this.viewport.updatePending     = true;
-    this.labelsScroll.scrollTop     = this.scrollArea.scrollTop;
-    this.transitionScroll.scrollTop = this.scrollArea.scrollTop;
+    this.viewport.updatePending = true;
+    this.labelsScroll.scrollTop = this.scrollArea.scrollTop;
+    this.valuesScroll.scrollTop = this.scrollArea.scrollTop;
     viewport.renderAllWaveforms(false);
-    this.viewport.updatePending     = false;
+    this.viewport.updatePending = false;
   }
 
   unload() {
@@ -507,8 +663,11 @@ class VaporviewWebview {
   // We need to let the extension know that we are removing a variable so that
   // it can update the views. Rather than handling it and telling the extension,
   // we just have the extension handle it as normal.
-  removeVariableInternal(netlistId: NetlistId | null) {
-    if (netlistId === null) {return;}
+  removeVariableInternal(rowId: RowId | null) {
+    if (rowId === null) {return;}
+    const netlistId = dataManager.rowItems[rowId].netlistId;
+    if (netlistId === undefined) {return;}
+
     vscode.postMessage({
       command: 'removeVariable',
       netlistId: netlistId
@@ -517,18 +676,25 @@ class VaporviewWebview {
 
   removeVariable(netlistId: NetlistId | null) {
     if (netlistId === null) {return;}
-    const index = viewerState.displayedSignals.findIndex((id: NetlistId) => id === netlistId);
-    //console.log('deleting signal' + message.signalId + 'at index' + index);
-    if (index === -1) {
-      return;
-    } else {
-      const newindex = Math.min(viewerState.displayedSignals.length - 2, index);
-      this.events.dispatch(ActionType.RemoveVariable, netlistId);
-      if (viewerState.selectedSignal === netlistId) {
-        const newNetlistId = viewerState.displayedSignals[newindex];
-        this.events.dispatch(ActionType.SignalSelect, newNetlistId);
-      }
+
+    const rowId = dataManager.netlistIdTable[netlistId];
+    const index = viewerState.visibleSignalsFlat.indexOf(rowId);
+    console.log('deleting signal ' + netlistId + ' at rowId' + rowId);
+
+    this.events.dispatch(ActionType.RemoveVariable, rowId, true);
+    if (viewerState.selectedSignal === rowId) {
+      const newindex = Math.max(0, Math.min(viewerState.visibleSignalsFlat.length - 2, index));
+      const newRowId = viewerState.visibleSignalsFlat[newindex];
+      this.events.dispatch(ActionType.SignalSelect, newRowId);
     }
+  }
+
+  removeSignalGroup(groupId: number, recursive: boolean) {
+    if (groupId === 0) {return;}
+    const rowId = dataManager.groupIdTable[groupId];
+    if (rowId === undefined) {return;}
+
+    this.events.dispatch(ActionType.RemoveVariable, rowId, recursive);
   }
 
   handleSetConfigSettings(settings: any) {
@@ -540,10 +706,44 @@ class VaporviewWebview {
     }
   }
 
-  handleSetSelectedSignal(netlistId: NetlistId) {
-    if (netlistId === null) {return;}
-    if (dataManager.netlistData[netlistId] === undefined) {return;}
-    this.events.dispatch(ActionType.SignalSelect, netlistId);
+  handleSetSelectedSignal(netlistId: NetlistId | undefined) {
+    if (netlistId === undefined) {return;}
+    const rowId = dataManager.netlistIdTable[netlistId];
+    if (rowId === undefined) {return;}
+    if (dataManager.rowItems[rowId] === undefined) {return;}
+    this.events.dispatch(ActionType.SignalSelect, rowId);
+  }
+
+  handleDrop(e: DragEvent) {
+    e.preventDefault();
+
+    if (!e.dataTransfer) return;
+    const types = e.dataTransfer.types;
+    let metadata: any = {};
+
+    for (const type of types) {
+      const data = e.dataTransfer.getData(type);
+      if (type === 'application/vnd.code.tree.waveformviewernetlistview') {
+        if (data !== '') {metadata = JSON.parse(data);}
+      }
+    }
+
+    let instancePaths: string[] = [];
+    if (!metadata.itemHandles) {return;}
+    if (!Array.isArray(metadata.itemHandles)) {return;}
+    for (const handles of metadata.itemHandles) {
+
+      const noPrefix     = handles.replace(/\d+\/\d+:/, '');
+      const scopes       = noPrefix.split('/0:');
+      const instancePath = scopes.join('.').replace(/\s+/, '');
+      instancePaths.push(instancePath);
+      //console.log(instancePath);
+    }
+
+    vscode.postMessage({
+      command: 'handleDrop',
+      instancePaths: instancePaths
+    });
   }
 
   handleMessage(e: any) {
@@ -555,9 +755,13 @@ class VaporviewWebview {
       case 'setConfigSettings':     {this.handleSetConfigSettings(message); break;}
       case 'getContext':            {sendWebviewContext(); break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
-      case 'add-variable':          {dataManager.addVariable(message.signalList); break;}
+      case 'add-variable':          {dataManager.addVariable(message.signalList, [], undefined); break;}
       case 'remove-signal':         {this.removeVariable(message.netlistId); break;}
+      case 'remove-group':          {this.removeSignalGroup(message.groupId, message.recursive); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}
+      case 'update-waveform-chunk-compressed': {dataManager.updateWaveformChunkCompressed(message); break;}
+      case 'newSignalGroup':        {dataManager.addSignalGroup(message.parentGroupId, message.groupName); break;}
+      case 'renameSignalGroup':     {dataManager.renameSignalGroup(message.groupId, message.groupName); break;}
       case 'handle-keypress':       {this.externalKeyDownHandler(message); break;}
       case 'setDisplayFormat':      {dataManager.setDisplayFormat(message); break;}
       case 'setWaveDromClock':      {dataManager.waveDromClock = {netlistId: message.netlistId, edge:  message.edge,}; break;}
@@ -572,7 +776,7 @@ class VaporviewWebview {
   }
 }
 
-const events             = new EventHandler();
+export const events      = new EventHandler();
 export const dataManager = new WaveformDataManager(events);
 export const controlBar  = new ControlBar(events);
 export const viewport    = new Viewport(events);

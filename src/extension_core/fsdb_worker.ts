@@ -3,6 +3,11 @@ import { SignalId, NetlistId } from './viewer_provider';
 let fsdbAddon: any = null;
 try {
     fsdbAddon = require('../build/Release/fsdb_reader.node');
+    // fsdbAddon = require('../build/Debug/fsdb_reader.node');
+    // To debug node module:
+    // 1. Build the addon with debug symbols: `node-gyp rebuild --debug`
+    // 2. Run the extension and find PID for fsdb_worker.js: `ps aux | grep fsdb_worker`
+    // 3. Attach gdb to the worker process: `gdb -p <PID>`
 } catch (error) {
     process.send!({ command: 'require-failed', error: error });
 }
@@ -32,6 +37,7 @@ function handleMessage(message: any) {
         }
         case 'loadSignals': { fsdbAddon.loadSignals(message.signalIdList); break; }
         case 'getValueChanges': { return fsdbAddon.getValueChanges(message.signalId); }
+        case 'getValuesAtTime': { return fsdbAddon.getValuesAtTime(message.signalId, message.time); }
         case 'unloadSignal': { fsdbAddon.unloadSignal(message.signalId); break; }
         case 'unload': { fsdbAddon.unload(); break; }
     }

@@ -211,6 +211,8 @@ This extension was written by one person, with a full time job that doesn't invo
 
 This project uses the [wellen](https://github.com/ekiwi/wellen/tree/new-api) library compiled to WASM for file parsing and back-end data management.
 
+Also special thanks to the Surfer team for their support and encouragement and all they're doing in the open source community! This project is compatible with the surfer surver protocol.
+
 ## Contributors:
 
 - [@lramseyer](https://github.com/Lramseyer) (Owner)

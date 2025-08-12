@@ -4,15 +4,11 @@ import * as vscode from 'vscode';
 import { TimestampLinkProvider, NetlistLinkProvider } from './terminal_links';
 import { WaveformViewerProvider } from './viewer_provider';
 
-const wasmDebug   = 'debug';
-const wasmRelease = 'release';
-const wasmBuild   = wasmRelease;
-
 // #region activate()
 export async function activate(context: vscode.ExtensionContext) {
 
   // Load the Wasm module
-  const binaryFile = vscode.Uri.joinPath(context.extensionUri, 'target', 'wasm32-unknown-unknown', wasmBuild, 'filehandler.wasm');
+  const binaryFile = vscode.Uri.joinPath(context.extensionUri, 'target', 'wasm32-unknown-unknown', 'release', 'filehandler.wasm');
   const binaryData = await vscode.workspace.fs.readFile(binaryFile);
   const wasmModule = await WebAssembly.compile(binaryData);
 
@@ -110,7 +106,7 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.newSignalGroup', (e) => {
-    viewerProvider.newSignalGroup(e);
+    viewerProvider.newSignalGroup(e.name, e.groupPath, e.parentGroupId);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.ungroupSignals', (e) => {

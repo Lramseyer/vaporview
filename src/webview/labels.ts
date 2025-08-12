@@ -1,4 +1,4 @@
-import { EventHandler, viewport, arrayMove, NetlistId, ActionType, viewerState, dataManager, RowId, getChildrenByGroupId, getIndexInGroup} from './vaporview';
+import { EventHandler, viewport, arrayMove, NetlistId, ActionType, viewerState, dataManager, RowId, getChildrenByGroupId, getIndexInGroup, sendWebviewContext} from './vaporview';
 import { ValueFormat } from './value_format';
 import { vscode, getParentGroupId } from './vaporview';
 import { SignalGroup, VariableItem, htmlSafe } from './signal_item';
@@ -421,6 +421,7 @@ export class LabelsPanels {
     if (viewerState.selectedSignal === signalItem.rowId) {
       waveformRow.classList.add('is-selected');
     }
+    sendWebviewContext();
   }
 
   getRowIdFromElement(element: HTMLElement | null): RowId | null {

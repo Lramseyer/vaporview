@@ -755,12 +755,12 @@ class VaporviewWebview {
       case 'setConfigSettings':     {this.handleSetConfigSettings(message); break;}
       case 'getContext':            {sendWebviewContext(); break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
-      case 'add-variable':          {dataManager.addVariable(message.signalList, [], undefined); break;}
+      case 'add-variable':          {dataManager.addVariable(message.signalList, message.groupPath, undefined); break;}
       case 'remove-signal':         {this.removeVariable(message.netlistId); break;}
       case 'remove-group':          {this.removeSignalGroup(message.groupId, message.recursive); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}
       case 'update-waveform-chunk-compressed': {dataManager.updateWaveformChunkCompressed(message); break;}
-      case 'newSignalGroup':        {dataManager.addSignalGroup(message.parentGroupId, message.groupName); break;}
+      case 'newSignalGroup':        {dataManager.addSignalGroup(message.groupName, message.groupPath, message.parentGroupId); break;}
       case 'renameSignalGroup':     {dataManager.renameSignalGroup(message.groupId, message.groupName); break;}
       case 'handle-keypress':       {this.externalKeyDownHandler(message); break;}
       case 'setDisplayFormat':      {dataManager.setDisplayFormat(message); break;}

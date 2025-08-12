@@ -84,27 +84,28 @@ export class WaveformDataManager {
   }
 
   getGroupByIdOrName(groupPath: string[] | undefined, parentGroupId: number | undefined): SignalGroup | null {
-  let groupId = 0;
-  let groupIsValid = false;
-  if (parentGroupId !== undefined && this.groupIdTable[parentGroupId] !== undefined) {
-    groupId = parentGroupId;
-  } else if (groupPath !== undefined && groupPath.length > 0) {
-    groupId = this.findGroupIdByNamePath(groupPath);
-  }
+    let groupId = 0;
+    let groupIsValid = false;
 
-  if (groupId > 0) {
-    const parentGroupRowId = this.groupIdTable[groupId];
-    if (parentGroupId !== undefined) {return null;}
-    const parentGroupItem = this.rowItems[parentGroupRowId];
-
-    if (parentGroupItem instanceof SignalGroup) {
-      return parentGroupItem;
-    } else {
-      return null;
+    if (parentGroupId !== undefined && this.groupIdTable[parentGroupId] !== undefined) {
+      groupId = parentGroupId;
+    } else if (groupPath !== undefined && groupPath.length > 0) {
+      groupId = this.findGroupIdByNamePath(groupPath);
     }
+
+    if (groupId > 0) {
+      const parentGroupRowId = this.groupIdTable[groupId];
+      if (parentGroupId !== undefined) {return null;}
+      const parentGroupItem = this.rowItems[parentGroupRowId];
+
+      if (parentGroupItem instanceof SignalGroup) {
+        return parentGroupItem;
+      } else {
+        return null;
+      }
+    }
+    return null;
   }
-  return null;
-}
 
   addVariable(signalList: any, groupPath: string[] | undefined, parentGroupId: number | undefined) {
     // Handle rendering a signal, e.g., render the signal based on message content
@@ -130,6 +131,12 @@ export class WaveformDataManager {
         rowId = this.netlistIdTable[netlistId];
       }
 
+      rowIdList.push(rowId);
+
+      if (viewerState.displayedSignalsFlat.includes(rowId)) {
+        return; // Signal already displayed, skip it
+      }
+
       const varItem = new VariableItem(
         netlistId,
         signalId,
@@ -143,7 +150,6 @@ export class WaveformDataManager {
 
       this.rowItems[rowId] = varItem;
       netlistIdList.push(netlistId);
-      rowIdList.push(rowId);
 
       if (this.valueChangeData[signalId] !== undefined) {
         selectedSignal = rowId;
@@ -162,23 +168,41 @@ export class WaveformDataManager {
 
     this.request(signalIdList);
 
-    let groupItem = this.getGroupByIdOrName(groupPath, parentGroupId);
-    if (groupItem === null) {
-      viewerState.displayedSignals = viewerState.displayedSignals.concat(rowIdList);
-    } else {
-      groupItem.children = groupItem.children.concat(rowIdList);
-    }
+
+    viewerState.displayedSignals = viewerState.displayedSignals.concat(rowIdList);
+
 
     updateDisplayedSignalsFlat();
     this.events.dispatch(ActionType.AddVariable, rowIdList, updateFlag);
-    this.events.dispatch(ActionType.SignalSelect, selectedSignal);
 
+    let groupItem = this.getGroupByIdOrName(groupPath, parentGroupId);
+    if (groupItem !== null) {
+
+      const groupId = groupItem.groupId;
+      const index = groupItem.children.length;
+      rowIdList.forEach((rowId: RowId) => {
+        this.events.dispatch(ActionType.ReorderSignals, rowId, groupId, index);
+      });
+    }
+
+    this.events.dispatch(ActionType.SignalSelect, selectedSignal);
     sendWebviewContext();
   }
 
-  addSignalGroup(parentGroupId: number, name: string | undefined) {
+  addSignalGroup(name: string, groupPath: string[] | undefined, inputParentGroupId: number | undefined) {
     const groupId = this.nextGroupId;
     const rowId = this.nextRowId;
+
+    let parentGroupId = 0;
+    let reorder = false;
+    let index = viewerState.displayedSignalsFlat.length;
+    let parentGroup = this.getGroupByIdOrName(groupPath, inputParentGroupId);
+    if (parentGroup !== null) {
+      parentGroupId = parentGroup.groupId;
+      index = parentGroup.children.length;
+      reorder = true;
+    }
+
     let groupName = "Group " + groupId;
     if (name === undefined || name === "") {
       let n = 1;
@@ -199,6 +223,10 @@ export class WaveformDataManager {
 
     updateDisplayedSignalsFlat();
     this.events.dispatch(ActionType.AddVariable, [rowId], false);
+
+    if (reorder) {
+      this.events.dispatch(ActionType.ReorderSignals, rowId, parentGroupId, index);
+    }
 
     this.nextGroupId++;
     this.nextRowId++;
@@ -420,6 +448,7 @@ export class WaveformDataManager {
   findGroupIdByNamePath(namePath: string[]): number {
     let breakLoop = false;
     let parentGroupId = 0;
+
     namePath.forEach((name) => {
       if (breakLoop) {return;}
       parentGroupId = this.findGroupIdByName(name, parentGroupId);

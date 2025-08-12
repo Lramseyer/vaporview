@@ -55,8 +55,8 @@ Napi::Function fsdbVarCallback;
 Napi::Function fsdbArrayBeginCallback;
 Napi::Function fsdbArrayEndCallback;
 
-
-bool CHECK_LENGTH(const Napi::Env& env, const Napi::CallbackInfo &info, size_t size) {
+bool CHECK_LENGTH(const Napi::Env &env, const Napi::CallbackInfo &info,
+                  size_t size) {
   if (info.Length() < size) {
     Napi::TypeError::New(env, "Incorrect number of arguments")
         .ThrowAsJavaScriptException();
@@ -65,7 +65,7 @@ bool CHECK_LENGTH(const Napi::Env& env, const Napi::CallbackInfo &info, size_t s
   return true;
 }
 
-bool CHECK_STRING(const Napi::Env& env, const Napi::Value &value) {
+bool CHECK_STRING(const Napi::Env &env, const Napi::Value &value) {
   if (!value.IsString()) {
     Napi::TypeError::New(env, "Expected string").ThrowAsJavaScriptException();
     return false;
@@ -73,7 +73,7 @@ bool CHECK_STRING(const Napi::Env& env, const Napi::Value &value) {
   return true;
 }
 
-bool CHECK_NUMBER(const Napi::Env& env, const Napi::Value &value) {
+bool CHECK_NUMBER(const Napi::Env &env, const Napi::Value &value) {
   if (!value.IsNumber()) {
     Napi::TypeError::New(env, "Expected number").ThrowAsJavaScriptException();
     return false;
@@ -81,7 +81,7 @@ bool CHECK_NUMBER(const Napi::Env& env, const Napi::Value &value) {
   return true;
 }
 
-bool CHECK_FUNCTION(const Napi::Env& env, const Napi::Value &value) {
+bool CHECK_FUNCTION(const Napi::Env &env, const Napi::Value &value) {
   if (!value.IsFunction()) {
     Napi::TypeError::New(env, "Expected function").ThrowAsJavaScriptException();
     return false;
@@ -89,7 +89,7 @@ bool CHECK_FUNCTION(const Napi::Env& env, const Napi::Value &value) {
   return true;
 }
 
-bool CHECK_ARRAY(const Napi::Env& env, const Napi::Value &value) {
+bool CHECK_ARRAY(const Napi::Env &env, const Napi::Value &value) {
   if (!value.IsArray()) {
     Napi::TypeError::New(env, "Expected array").ThrowAsJavaScriptException();
     return false;
@@ -332,7 +332,7 @@ static std::string joinScopePath(std::vector<std::string> &scope_path_stack) {
   }
   std::ostringstream oss;
   oss << scope_path_stack[0];  // Add the first item without a leading
-                                // delimiter
+                               // delimiter
 
   // Append the rest with a delimiter "."
   for (size_t i = 1; i < scope_path_stack.size(); i++) {
@@ -802,6 +802,191 @@ static void __PrintTimeValChng(ffrVCTrvsHdl vc_trvs_hdl, fsdbTag64 *time,
   }
 }
 
+// TODO(heyfey): use this function in __PrintTimeValChng
+std::string getOneValue(ffrVCTrvsHdl vc_trvs_hdl, byte_T *vc_ptr) {
+  std::string value_str;
+  float vc_float;
+  double vc_double;
+
+  static byte_T buffer[FSDB_MAX_BIT_SIZE + 1];
+  //   byte_T *ret_vc; // unused
+  uint_T i;
+  fsdbVarType var_type;
+
+  switch (vc_trvs_hdl->ffrGetBytesPerBit()) {
+    case FSDB_BYTES_PER_BIT_1B:
+      //
+      // Convert each verilog bit type to corresponding
+      // character.
+      //
+      for (i = 0; i < vc_trvs_hdl->ffrGetBitSize(); i++) {
+        switch (vc_ptr[i]) {
+          case FSDB_BT_VCD_0:
+            buffer[i] = '0';
+            break;
+
+          case FSDB_BT_VCD_1:
+            buffer[i] = '1';
+            break;
+
+          case FSDB_BT_VCD_X:
+            buffer[i] = 'x';
+            break;
+
+          case FSDB_BT_VCD_Z:
+            buffer[i] = 'z';
+            break;
+
+          default:
+            //
+            // unknown verilog bit type found.
+            //
+            buffer[i] = 'u';
+        }
+      }
+      buffer[i] = '\0';
+
+      // fprintf(stderr, "time: (%u %u)  val chg: %s\n", time->H, time->L,
+      // buffer);
+      value_str = std::string(reinterpret_cast<char *>(buffer));
+      break;
+
+    case FSDB_BYTES_PER_BIT_4B:
+      //
+      // Not 0, 1, x, z since their bytes per bit is
+      // FSDB_BYTES_PER_BIT_1B.
+      //
+      // For verilog type fsdb, there is no array of
+      // real/float/double so far, so we don't have to
+      // care about that kind of case.
+      //
+
+      //
+      // The var type of memory range variable is
+      // FSDB_VT_VCD_MEMORY_DEPTH. This kind of var
+      // has two value changes at certain time step.
+      // The first value change is the index of the
+      // beginning memory variable which has a value change
+      // and the second is the index of the end memory variable
+      // which has a value change at this time step. The index
+      // is stored as an unsigned integer and its bpb is 4B.
+      //
+
+      var_type = vc_trvs_hdl->ffrGetVarType();
+      switch (var_type) {
+        case FSDB_VT_VCD_MEMORY_DEPTH:
+        case FSDB_VT_VHDL_MEMORY_DEPTH:
+          // fprintf(stderr, "time: (%u %u)", time->H, time->L);
+          // fprintf(stderr, "  begin: %d", *((int *)vc_ptr));
+          vc_ptr = vc_ptr + sizeof(uint_T);
+          // fprintf(stderr, "  end: %d\n", *((int *)vc_ptr));
+          break;
+
+        default:
+          vc_trvs_hdl->ffrGetVC(&vc_ptr);
+          // fprintf(stderr, "time: (%u %u)  val chg: %f\n", time->H, time->L,
+          // *((float *)vc_ptr));
+          vc_float = *((float *)vc_ptr);
+          value_str = std::to_string(vc_float);
+          break;
+      }
+      break;
+
+    case FSDB_BYTES_PER_BIT_8B:
+      //
+      // Not 0, 1, x, z since their bytes per bit is
+      // FSDB_BYTES_PER_BIT_1B.
+      //
+      // For verilog type fsdb, there is no array of
+      // real/float/double so far, so we don't have to
+      // care about that kind of case.
+      //
+      // fprintf(stderr, "time: (%u %u)  val chg: %e\n", time->H, time->L,
+      // *((double *)vc_ptr));
+      vc_double = *((double *)vc_ptr);
+      value_str = std::to_string(vc_double);
+      break;
+
+    default:
+      // fprintf(stderr, "Control flow should not reach here.\n");
+      break;
+  }
+  return value_str;
+}
+
+// return array of values e.g. ["0", "1", "0", "1", "x"]
+Napi::Array getValuesAtTime(const Napi::CallbackInfo &info) {
+  Napi::Env env = info.Env();
+  // TODO(heyfey): no need to use Napi::Array for temporary result
+  Napi::Array result = Napi::Array::New(env);
+
+  if (!CHECK_LENGTH(env, info, 2)) return result;
+  if (!CHECK_NUMBER(env, info[0])) return result;  // arg1: idcode
+  if (!CHECK_NUMBER(env, info[1])) return result;  // arg2: time
+
+#ifdef FSDB_USE_32B_IDCODE
+  fsdbVarIdcode var_idcode = info[0].As<Napi::Number>().Int32Value();
+#else
+  fsdbVarIdcode var_idcode = info[0].As<Napi::Number>().Int64Value();
+#endif
+
+  ulong_T time_value = info[1].As<Napi::Number>().Uint32Value();
+
+  ffrVCTrvsHdl vc_trvs_hdl = fsdb_obj->ffrCreateVCTraverseHandle(var_idcode);
+  if (vc_trvs_hdl == nullptr) {
+    Napi::TypeError::New(env, "ffrCreateVCTraverseHandle failed")
+        .ThrowAsJavaScriptException();
+    return result;
+  }
+
+  // Jump to the time (xtag).
+  fsdbTag64 time;
+  time.H = static_cast<uint_T>(time_value >> 32);
+  time.L = static_cast<uint_T>(time_value & 0xFFFFFFFF);
+  fsdbTag64 time_ori = time;
+  int glitch_num = 0;
+  if (FSDB_RC_SUCCESS != vc_trvs_hdl->ffrGotoXTag((void *)&time, &glitch_num)) {
+    // Jump failed. There is no valid value change at this time.
+    vc_trvs_hdl->ffrFree();
+    // return default value (x)
+    result.Set((uint32_t)0, Napi::String::New(env, "x"));
+    return result;
+  }
+
+  if (time_ori.H != time.H || time_ori.L != time.L) {
+    // There is no value change at this time.
+    byte_T *vc_ptr;
+    vc_trvs_hdl->ffrGetVC(&vc_ptr);
+    std::string value_str = getOneValue(vc_trvs_hdl, vc_ptr);
+    result.Set((uint32_t)0, Napi::String::New(env, value_str));
+    return result;
+  }
+
+  // Have value change(s) at this time.
+  uint32_t i = 0;
+  do {
+    // Get totally glitch_num+1 previous value changes. The last value change
+    // will be from the previous time (not current time).
+    if ((int)i > glitch_num) {
+      break;
+    }
+    byte_T *vc_ptr;
+    vc_trvs_hdl->ffrGetVC(&vc_ptr);
+    std::string value_str = getOneValue(vc_trvs_hdl, vc_ptr);
+    result.Set(i, Napi::String::New(env, value_str));
+    i++;
+  } while (FSDB_RC_SUCCESS == vc_trvs_hdl->ffrGotoPrevVC());
+
+  // reverse the result array
+  Napi::Array reversedResult = Napi::Array::New(env, result.Length());
+  for (uint32_t i = 0; i < result.Length(); i++) {
+    reversedResult.Set((uint32_t)(result.Length() - 1 - i),
+                       result.Get((uint32_t)i));
+  }
+  vc_trvs_hdl->ffrFree();
+  return reversedResult;
+}
+
 void unload(const Napi::CallbackInfo &info) {
   scope_offset.clear();
   scope_path_stack.clear();
@@ -831,6 +1016,8 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
               Napi::Function::New(env, unloadSignal));
   exports.Set(Napi::String::New(env, "getValueChanges"),
               Napi::Function::New(env, getValueChanges));
+  exports.Set(Napi::String::New(env, "getValuesAtTime"),
+              Napi::Function::New(env, getValuesAtTime));
   exports.Set(Napi::String::New(env, "unload"),
               Napi::Function::New(env, unload));
   return exports;

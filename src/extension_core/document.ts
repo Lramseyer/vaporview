@@ -13,6 +13,7 @@ import { SignalId, NetlistId, VaporviewDocumentDelegate, scaleFromUnits, logScal
 // See GETTING_STARTED.md for more details
 import { filehandler } from './filehandler';
 import { NetlistItem, createScope, createVar, getInstancePath } from './tree_view';
+import { json } from 'stream/consumers';
 
 export type NetlistIdTable = NetlistIdRef[];
 export type NetlistIdRef = {
@@ -849,10 +850,10 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
         max: data.max
       });
 
-      this.callFsdbWorkerTask({
-        command: 'unloadSignal',
-        signalId: signalId
-      });
+      // this.callFsdbWorkerTask({
+      //   command: 'unloadSignal',
+      //   signalId: signalId
+      // });
     });
     // Run all tasks concurrently and wait for them to complete.
     // await Promise.all(tasks);
@@ -862,9 +863,54 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
     let time = e.time;
     if (!e.time) {time = this.webviewContext.markerTime;}
 
-    // Implement here
+    // No time provided nor marker time set, return empty array
+    if (time === undefined || time === null) {
+      return [];
+    }
 
-    return [];
+    const instancePath2signalId: Map<string, number> = new Map();
+    const signalId2values: Map<number, any> = new Map();
+    for (const instancePath of e.instancePaths) {
+      const netlistItem = await this.findTreeItem(instancePath, undefined, undefined);
+      if (netlistItem) {
+        instancePath2signalId.set(instancePath, netlistItem.signalId);
+        signalId2values.set(netlistItem.signalId, []);
+      }
+    }
+    if (signalId2values.size === 0) {
+      return [];
+    }
+
+    const signalIdList = Array.from(signalId2values.keys());
+    await this.callFsdbWorkerTask({
+      command: 'loadSignals',
+      signalIdList: signalIdList
+    });
+
+    // call fsdbworker task for each signalId
+    await Promise.all(signalIdList.map(async (signalId) => {
+      const result = await this.callFsdbWorkerTask({
+        command: 'getValuesAtTime',
+        signalId: signalId,
+        time: time
+      });
+      const message = result as FsdbWorkerMessage;
+      // message.result is an array of values. e.g. ["0", "1", "x", "1", ...]
+      signalId2values.set(signalId, message.result);
+    }));
+
+    // Convert the map to an array of objects
+    const result = [];
+    for (const [instancePath, signalId] of instancePath2signalId.entries()) {
+      const values = signalId2values.get(signalId);
+      if (values !== undefined) {
+        result.push({
+          instancePath: instancePath,
+          value: values
+        });
+      }
+    }
+    return result;
   }
 
   public async unload() {

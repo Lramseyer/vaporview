@@ -121,7 +121,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       manageCheckboxStateManually: true,
       canSelectMany: true,
       showCollapseAll: true,
-      dragAndDropController: netlistItemDragAndDropController
+      //dragAndDropController: netlistItemDragAndDropController
     });
     this._context.subscriptions.push(this.netlistView);
 
@@ -537,7 +537,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   }
 
   public async applySettings(settings: any, document: VaporviewDocument | undefined = undefined) {
-
     //console.log(settings);
 
     if (!settings.displayedSignals) {return;}
@@ -546,30 +545,9 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       document = this.activeDocument;
     }
 
-
     const missingSignals = await this.addSignalListToDocument(settings.displayedSignals, document, []);
     const foundSignals: any[] = [];
     const metadataList: NetlistItem[] = [];
-
-    //for (const signalInfo of settings.displayedSignals) {
-    //  if (signalInfo.dataType && signalInfo.dataType !== 'netlist-variable') {
-    //    continue;
-    //  }
-    //  const signal   = signalInfo.name;
-    //  const metadata = await document.findTreeItem(signal, signalInfo.msb, signalInfo.lsb);
-    //  if (metadata !== null) {
-    //    metadataList.push(metadata);
-    //    // We need to copy the netlistId from the existing wavefrom dump in case the circuit has changed
-    //    foundSignals.push({
-    //      netlistId: metadata.netlistId,
-    //      numberFormat: signalInfo.numberFormat,
-    //      colorIndex: signalInfo.colorIndex,
-    //      renderType: signalInfo.renderType,
-    //    });
-    //  } else {
-    //    missingSignals.push(signal);
-    //  }
-    //}
 
     if (settings.markerTime || settings.markerTime === 0) {
       this.setMarkerAtTime(settings.markerTime, 0);
@@ -581,16 +559,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (missingSignals.length > 0) {
       this.log.appendLine('Missing signals: '+ missingSignals.join(', '));
     }
-
-    //this.filterAddSignalsInNetlist(metadataList, true);
-    //for (const signalInfo of foundSignals) {
-    //  this.setValueFormat(signalInfo.netlistId, {
-    //    valueFormat:   signalInfo.numberFormat,
-    //    colorIndex:    signalInfo.colorIndex,
-    //    renderType:    signalInfo.renderType,
-    //    command:       signalInfo.command,
-    //  });
-    //}
 
     //console.log(settings.selectedSignal);
     if (settings.selectedSignal) {
@@ -624,8 +592,9 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.netlistTreeDataProvider.hide();
     this.displayedSignalsTreeDataProvider.hide();
     await document.reload();
-    this.applySettings(settings, this.activeDocument);
 
+    // No need to call this, as it will be called in viewport.init()
+    //this.applySettings(settings, this.activeDocument);
     //console.log(settings);
   }
 

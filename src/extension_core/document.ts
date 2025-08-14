@@ -629,13 +629,13 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
 
   public async unload() {
     //console.log("Reloading document");
+    this.unloadWebview();
     this.unloadTreeData();
 
     this.fileReader.close(this.fileReader.fd);
     await this.wasmApi.unload();
 
     this.metadata.timeTableLoaded = false;
-    this.unloadWebview();
   }
 
   /**

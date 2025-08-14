@@ -44,6 +44,7 @@ This is a work in progress effort, and will be finalized in the 1.4 Release. Det
 ## Keyboard Shortcuts
 
 - **Ctrl + Scroll Wheel** - Zoom in and out on waveforms
+- **Ctrl + 0** - Zoom out to fit
 - **Shift + Scroll Wheel** - Scroll up and down on waveforms
 - **Up/Down Arrow** - Select signal above/below selected signal
 - **Alt + Up/Down Arrow** - Rearrange selected signal
@@ -51,6 +52,7 @@ This is a work in progress effort, and will be finalized in the 1.4 Release. Det
 - **Alt + Click or Middle Click** - Set Alt-Marker
 - **Home** and **End** - Scroll to the beginning and end (respectively) of the waveform
 - **Delete** or **Backspace** - Remove Selected Signal
+- **Escape** - Abort click and drag event (Rearranging signals, zoom, scrolling)
 
 ## Adding and Removing Signals
 

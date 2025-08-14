@@ -46,7 +46,11 @@ export class WaveformDataManager {
   unload() {
     this.valueChangeData     = [];
     this.rowItems            = [];
-    this.valueChangeDataTemp = {};
+    this.valueChangeDataTemp = [];
+    this.netlistIdTable      = [];
+    this.groupIdTable        = [];
+    this.nextRowId           = 0;
+    this.nextGroupId         = 1;
     this.waveDromClock       = {netlistId: null, edge: ""};
   }
 

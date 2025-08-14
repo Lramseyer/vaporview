@@ -6,6 +6,7 @@ import { formatBinary, formatHex, ValueFormat, valueFormatList } from './value_f
 import { WaveformDataManager } from './data_manager';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { VariableItem, SignalGroup, RowItem } from './signal_item';
+import { json } from 'stream/consumers';
 
 declare function acquireVsCodeApi(): VsCodeApi;
 export const vscode = acquireVsCodeApi();
@@ -507,6 +508,9 @@ class VaporviewWebview {
       if (e.keyCommand == 'nextEdge') {controlBar.goToNextTransition(1, []);}
       else if (e.keyCommand == 'previousEdge') {controlBar.goToNextTransition(-1, []);}
     }
+    if (e.keyCommand === 'zoomToFit') {
+      this.events.dispatch(ActionType.Zoom, Infinity, 0, 0);
+    }
   }
 
   keyUpHandler(e: any) {
@@ -650,12 +654,15 @@ class VaporviewWebview {
     viewerState.markerTime          = null;
     viewerState.altMarkerTime       = null;
     viewerState.displayedSignals    = [];
+    viewerState.displayedSignalsFlat = [];
+    viewerState.visibleSignalsFlat  = [];
+    viewerState.zoomRatio           = 1;
     dataManager.unload();
 
     //this.contentArea.style.height = '40px';
     //this.viewport.updateContentArea(0, [0, 0]);
-    this.events.dispatch(ActionType.Zoom, 1, 0, 0);
     labelsPanel.renderLabelsPanels();
+    this.events.dispatch(ActionType.Zoom, 1, 0, 0);
     this.viewport.init({defaultZoom: 1, timeScale: 1, timeEnd: 0}, viewerState.uri);
     vscode.postMessage({type: 'ready'});
   }

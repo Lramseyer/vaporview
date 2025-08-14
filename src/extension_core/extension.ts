@@ -189,6 +189,10 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.handleKeyBinding(e, "previousEdge");
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.zoomToFit', (e) => {
+    viewerProvider.handleKeyBinding(e, "zoomToFit");
+  }));
+
   // #region Marker and Timing
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.setTimeUnits', (e) => {
     viewerProvider.updateTimeUnits("");

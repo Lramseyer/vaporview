@@ -485,6 +485,8 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
   let initialTime        = initialState[0];
   let initialTimeOrStart = Math.max(initialState[0], -10);
   const minDrawWidth  = viewportSpecs.pixelTime / (viewportSpecs.pixelRatio * 4);
+  const timeScrollLeft   = viewportSpecs.timeScrollLeft;
+  const timeScrollRight  = viewportSpecs.timeScrollRight - timeScrollLeft;
   let xzPath: any        = [];
   const valueIs9State    = netlistData.valueFormat.is9State;
 
@@ -492,10 +494,8 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
     initialValue2state = "0";
   }
 
-  let accumulatedPath: any = [[0, 0]];
-
-
-  accumulatedPath.push([initialTime, evalCoordinates(initialValue2state)]);
+  let accumulatedPath: any = [[-10 * viewportSpecs.pixelTime, 0]];
+  accumulatedPath.push([initialTime - timeScrollLeft, evalCoordinates(initialValue2state)]);
 
   let value2state    = "0";
   // No Draw Code
@@ -520,15 +520,18 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
         initialValue2state = initialValue;
         if (valueIs9State(initialValue)) {initialValue2state = 0;}
 
-        noDrawPath.push([lastDrawTime, lastNoDrawTime]);
-        accumulatedPath.push([lastDrawTime, 0]);
-        accumulatedPath.push([lastNoDrawTime, 0]);
-        accumulatedPath.push([lastNoDrawTime, evalCoordinates(initialValue2state)]);
+        const adjustedLastDrawTime = lastDrawTime - timeScrollLeft;
+        const adjustedLastNoDrawTime = lastNoDrawTime - timeScrollLeft;
+        noDrawPath.push([adjustedLastDrawTime, adjustedLastNoDrawTime]);
+        accumulatedPath.push([adjustedLastDrawTime, 0]);
+        accumulatedPath.push([adjustedLastNoDrawTime, 0]);
+        accumulatedPath.push([adjustedLastNoDrawTime, evalCoordinates(initialValue2state)]);
         noDrawFlag = false;
       }
 
+      const timeLeft = time - timeScrollLeft;
       if (valueIs9State(initialValue)) {
-        xzPath.push([initialTimeOrStart, time]);
+        xzPath.push([initialTimeOrStart - timeScrollLeft, time]);
       }
 
       value2state = value;
@@ -536,9 +539,9 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
 
       // Draw the current transition to the main path
       if (stepped) {
-        accumulatedPath.push([time, evalCoordinates(initialValue2state)]);
+        accumulatedPath.push([timeLeft, evalCoordinates(initialValue2state)]);
       }
-      accumulatedPath.push([time, evalCoordinates(value2state)]);
+      accumulatedPath.push([timeLeft, evalCoordinates(value2state)]);
 
       lastDrawValue      = value2state;
       lastDrawTime       = time;
@@ -553,27 +556,30 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
   if (valueIs9State(initialValue)) {initialValue2state = '0';}
 
   if (postState[0] - initialTime < minDrawWidth) {
-    noDrawPath.push([lastDrawTime, viewportSpecs.timeScrollRight]);
-    accumulatedPath.push([lastDrawTime, 0]);
-    accumulatedPath.push([viewportSpecs.timeScrollRight, 0]);
+    const adjustedLastDrawTime = lastDrawTime - timeScrollLeft;
+    noDrawPath.push([adjustedLastDrawTime, timeScrollRight]);
+    accumulatedPath.push([adjustedLastDrawTime, 0]);
+    accumulatedPath.push([timeScrollRight, 0]);
   } else {
 
     if (noDrawFlag) {
-      noDrawPath.push([lastDrawTime, lastNoDrawTime]);
-      accumulatedPath.push([lastDrawTime, 0]);
-      accumulatedPath.push([lastNoDrawTime, 0]);
-      accumulatedPath.push([lastNoDrawTime, evalCoordinates(initialValue2state)]);
+      const adjustedLastDrawTime = lastDrawTime - timeScrollLeft;
+      const adjustedLastNoDrawTime = lastNoDrawTime - timeScrollLeft;
+      noDrawPath.push([adjustedLastDrawTime, adjustedLastNoDrawTime]);
+      accumulatedPath.push([adjustedLastDrawTime, 0]);
+      accumulatedPath.push([adjustedLastNoDrawTime, 0]);
+      accumulatedPath.push([adjustedLastNoDrawTime, evalCoordinates(initialValue2state)]);
     }
 
     if (valueIs9State(initialValue))  {
-      xzPath.push([initialTimeOrStart, viewportSpecs.timeScrollRight]);
+      xzPath.push([initialTimeOrStart - timeScrollLeft, timeScrollRight]);
     }
   }
 
   if (stepped) {
-    accumulatedPath.push([viewportSpecs.timeScrollRight + (15 * viewportSpecs.pixelTime), evalCoordinates(initialValue2state)]);
+    accumulatedPath.push([timeScrollRight + (15 * viewportSpecs.pixelTime), evalCoordinates(initialValue2state)]);
   } else {
-    accumulatedPath.push([postState[0], evalCoordinates(postState[1])]);
+    accumulatedPath.push([postState[0] - timeScrollLeft, evalCoordinates(postState[1])]);
   }
 
   accumulatedPath.push([postState[0], 0]);
@@ -590,7 +596,8 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
   ctx.save();
   ctx.strokeStyle = drawColor;
   ctx.fillStyle   = drawColor;
-  ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, translateY + 0.5);
+  //ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, translateY + 0.5);
+  ctx.translate(0.5, translateY + 0.5);
   ctx.transform(viewportSpecs.zoomRatio, 0, 0, -yScale, 0, 0);
   ctx.beginPath();
   accumulatedPath.forEach(([x, y]) => {ctx.lineTo(x, y);});
@@ -604,7 +611,8 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
 
   // NoDraw Elements
   ctx.save();
-  ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, translateY + 0.5);
+  //ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, translateY + 0.5);
+  ctx.translate(0.5, translateY + 0.5);
   ctx.transform(viewportSpecs.zoomRatio, 0, 0, -yScale, 0, 0);
   ctx.beginPath();
   noDrawPath.forEach(([startTime, endTime]) => {
@@ -623,7 +631,8 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
 
   // Non-2-state values
   ctx.save();
-  ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, translateY + 0.5);
+  //ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, translateY + 0.5);
+  ctx.translate(0.5, translateY + 0.5);
   ctx.transform(viewportSpecs.zoomRatio, 0, 0, -yScale, 0, 0);
   ctx.beginPath();
   xzPath.forEach(([startTime, EndTime]) => {

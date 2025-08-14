@@ -481,14 +481,15 @@ body {
   cursor: pointer;
 }
 
-.is-selected {
+.is-selected-old {
   border-top: 4px solid var(--vscode-editor-lineHighlightBorder);
   border-bottom: 4px solid var(--vscode-editor-lineHighlightBorder);
 }
 
-.is-selected-new {
-  /*background-color: var(--vscode-list-activeSelectionBackground);*/
-  background-color: var(--vscode-editor-lineHighlightBorder);
+.is-selected {
+  background-color: var(--vscode-list-activeSelectionBackground);
+  border-top: 1px solid var(--vscode-focusBorder);
+  border-bottom: 1px solid var(--vscode-focusBorder);
 }
 
 .time-marker {

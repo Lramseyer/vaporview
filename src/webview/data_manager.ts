@@ -486,6 +486,36 @@ export class WaveformDataManager {
     return low;
   }
 
+  getTransitionCount(): number | null {
+    let result = null;
+    if (viewerState.selectedSignal === null) {return result;}
+    if (viewerState.markerTime === null || viewerState.altMarkerTime === null) {return result;}
+    const rowId = viewerState.selectedSignal;
+    const netlistData = this.rowItems[rowId];
+    if (netlistData instanceof VariableItem === false) {return result;}
+    const signalId = netlistData.signalId;
+    if (this.valueChangeData[signalId] === undefined) {return result;}
+    const vcData = this.valueChangeData[signalId].transitionData;
+    if (vcData === undefined || vcData.length === 0) {return result;}
+
+    const startTime = Math.min(viewerState.markerTime, viewerState.altMarkerTime);
+    const endTime   = Math.max(viewerState.markerTime, viewerState.altMarkerTime);
+    let startIndex = this.binarySearch(vcData, startTime);
+    let endIndex   = this.binarySearch(vcData, endTime);
+    let additional = 0;
+
+    if (vcData[endIndex][0] === endTime) {additional = 1;}
+    while (vcData[startIndex][0] < startTime && vcData[startIndex][0] < endTime) {
+      startIndex++;
+    }
+    while (vcData[endIndex][0] < endTime && endIndex < vcData.length) {
+      endIndex++;
+    }
+
+    const r = Math.max(0, (endIndex - startIndex) + additional);
+    return r;
+  }
+
   handleColorChange() {
     viewport.getThemeColors();
     this.rowItems.forEach((data) => {

@@ -6,7 +6,6 @@ import { formatBinary, formatHex, ValueFormat, valueFormatList } from './value_f
 import { WaveformDataManager } from './data_manager';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { VariableItem, SignalGroup, RowItem } from './signal_item';
-import { json } from 'stream/consumers';
 
 declare function acquireVsCodeApi(): VsCodeApi;
 export const vscode = acquireVsCodeApi();
@@ -196,7 +195,7 @@ function createWebviewContext() {
   let selectedNetlistId: any = null; 
   if (viewerState.selectedSignal !== null) {
     const data = dataManager.rowItems[viewerState.selectedSignal];
-    if (data) {
+    if (data instanceof VariableItem) {
       selectedNetlistId = data.netlistId;
     }
   }
@@ -205,6 +204,7 @@ function createWebviewContext() {
     altMarkerTime: viewerState.altMarkerTime,
     displayTimeUnit: viewport.displayTimeUnit,
     selectedSignal: selectedNetlistId,
+    transitionCount: dataManager.getTransitionCount(),
     zoomRatio: vaporview.viewport.zoomRatio,
     scrollLeft: vaporview.viewport.pseudoScrollLeft,
     displayedSignals: signalListForSaveFile(viewerState.displayedSignals),

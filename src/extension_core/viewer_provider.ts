@@ -704,7 +704,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     //w.selectedSignal   = event.selectedSignal   || w.selectedSignal;
     if (event.markerTime || event.markerTime === 0) {w.markerTime = event.markerTime;}
     if (event.altMarkerTime || event.altMarkerTime === 0) {w.altMarkerTime = event.altMarkerTime;}
-    if (event.selectedSignal || event.selectedSignal === 0) {w.selectedSignal = event.selectedSignal;}
+    w.selectedSignal   = event.selectedSignal;
     w.displayedSignals = event.displayedSignals || w.displayedSignals;
     w.zoomRatio        = event.zoomRatio        || w.zoomRatio;
     w.scrollLeft       = event.scrollLeft       || w.scrollLeft;
@@ -732,6 +732,11 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       const NetlistIdRef = document.netlistIdTable[w.selectedSignal];
       const signalName = NetlistIdRef.netlistItem.name;
       this.selectedSignalStatusBarItem.text = 'Selected signal: ' + signalName;
+
+      if (event.transitionCount !== null) {
+        const plural = event.transitionCount === 1 ? ')' : 's)';
+        this.selectedSignalStatusBarItem.text += ' (' + event.transitionCount + ' value change' + plural;
+      }
       this.selectedSignalStatusBarItem.show();
       //if (NetlistIdRef.displayedItem) {
       //  this.displayedSignalsView.reveal(NetlistIdRef.displayedItem, {select: true, focus: false});

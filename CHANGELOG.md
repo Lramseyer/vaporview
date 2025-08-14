@@ -7,8 +7,10 @@
   - API for interoperability with other extensions - see API_DOCS.md for details
   - Edge guides feature to highlight edges of a signal
   - Escape Key to abort some user actions
+  - Ctrl/Cmd + 0 for zoom to fit
   - Drag to reorder signals now responds to scroll
   - Surfer surver support
+  - Status Bar now shows value change count for selected signal
 - Fixed
   - Renderer floating point math is much more accurate resulting in less jitter
   - Revealing signals in viewport scrolls to the signal in question

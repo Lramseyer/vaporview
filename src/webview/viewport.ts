@@ -215,8 +215,8 @@ export class Viewport {
     // Ruler Color
     this.rulerTextColor = style.getPropertyValue('--vscode-editorLineNumber-foreground');
     this.rulerGuideColor = style.getPropertyValue('--vscode-editorIndentGuide-background');
-    this.edgeGuideColor = style.getPropertyValue('--vscode-terminal-findMatchBackground');
-
+    //this.edgeGuideColor = style.getPropertyValue('--vscode-terminal-findMatchBackground');
+    this.edgeGuideColor = style.getPropertyValue('--vscode-terminalOverviewRuler-findMatchForeground');
 
     // I calculated this as 174, 176, 173 @ 10% opacity in the default theme, but there was no CSS color that matched
     this.markerAnnotation = document.documentElement.style.getPropertyValue('--vscode-editorOverviewRuler-selectionHighlightForeground');

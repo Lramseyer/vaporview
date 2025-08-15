@@ -121,6 +121,7 @@ export class WaveformDataManager {
     const signalIdList: any  = [];
     const netlistIdList: any = [];
     const rowIdList: any     = [];
+    const moveList: any      = [];
 
     signalList.forEach((signal: any) => {
 
@@ -135,11 +136,14 @@ export class WaveformDataManager {
         rowId = this.netlistIdTable[netlistId];
       }
 
-      rowIdList.push(rowId);
+      moveList.push(rowId);
 
       if (viewerState.displayedSignalsFlat.includes(rowId)) {
+        console.log("Signal already displayed: " + signal.signalName + " (" + signalId + ")");
         return; // Signal already displayed, skip it
       }
+
+      rowIdList.push(rowId);
 
       const varItem = new VariableItem(
         netlistId,
@@ -184,7 +188,7 @@ export class WaveformDataManager {
 
       const groupId = groupItem.groupId;
       const index = groupItem.children.length;
-      rowIdList.forEach((rowId: RowId) => {
+      moveList.forEach((rowId: RowId) => {
         this.events.dispatch(ActionType.ReorderSignals, rowId, groupId, index);
       });
     }

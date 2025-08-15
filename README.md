@@ -187,6 +187,25 @@ This extension requires VScode 1.96.0 or later
 - Added Signal Value Links functionality
 - Added "Backspace" keybinding to remove variable
 
+## 1.4.0 - Upcoming Release
+
+- Added
+  - Signal grouping in the viewer
+  - API for interoperability with other extensions - see [API Documentation](https://github.com/Lramseyer/vaporview/blob/main/API_DOCS.md) for details
+  - Edge guides feature to highlight edges of a signal
+  - Escape Key to abort some user actions
+  - Ctrl/Cmd + 0 for zoom to fit
+  - Drag to reorder signals now responds to scroll
+  - Status Bar now shows value change count for selected signal
+  - Surfer surver support
+- Fixed
+  - Renderer floating point math is much more accurate resulting in less jitter
+  - Revealing signals in viewport scrolls to the signal in question
+- Other Changes and Improvements
+  - Upgraded to wellen 0.17.1 for miscellaneous improvements to file loading
+  - Improved signal loading performance (with LZ4 compression)
+  - updated .vscodeignore file to reduce build size
+
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 
 ## Other Planned Features
@@ -195,11 +214,6 @@ In no particular order of priority, here's a list of features that are on my rad
 
 - Add support for custom Enums and named values. Including callback functions for those daring enough!
 - Improve renderer to better render non-2 state
-- **1.4.0** - Add support to highlight all transitions of a signal
-- Add support for remote sessions to save on memory
-- **1.4.0** - Link netlist to RTL tokens so that signals can be connected back to RTL locations - rtlbrowse stems file support (this may require interoperability with another extension)
-- **1.4.0** - Allow users to link .objdump files to a program counter value for a more integrated debug experience
-- **1.4.0** - Signal groups
 
 # About This Extension
 

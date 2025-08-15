@@ -249,7 +249,8 @@ export class LabelsPanels {
 
     const labelsRect        = this.labels.getBoundingClientRect();
     const draggableItemY    = e.clientY;
-    const pointerY          = draggableItemY + this.labelsScroll.scrollTop;
+    const scrollDelta       = this.scrollStartY - this.labelsScroll.scrollTop;
+    const pointerY          = draggableItemY - scrollDelta;
     this.groupContainer     = null;
     let groupContainerBox: any = labelsRect;
     let smallestGroupBox: any = Infinity;

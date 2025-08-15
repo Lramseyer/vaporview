@@ -38,7 +38,7 @@ export class WaveformDataManager {
     this.handleReorderSignals = this.handleReorderSignals.bind(this);
     this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
 
-    this.events.subscribe(ActionType.updateColorTheme, this.handleColorChange);
+    this.events.subscribe(ActionType.UpdateColorTheme, this.handleColorChange);
     this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
     this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
   }

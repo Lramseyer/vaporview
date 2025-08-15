@@ -75,7 +75,6 @@ export class LabelsPanels {
     this.handleAddVariable     = this.handleAddVariable.bind(this);
     this.handleRedrawVariable  = this.handleRedrawVariable.bind(this);
     this.handleUpdateColor     = this.handleUpdateColor.bind(this);
-  
 
     // Event handlers to handle clicking on a waveform label to select a signal
     labels.addEventListener(      'click', (e) => this.clicklabel(e));
@@ -93,7 +92,7 @@ export class LabelsPanels {
     this.events.subscribe(ActionType.AddVariable, this.handleAddVariable);
     this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
     this.events.subscribe(ActionType.RedrawVariable, this.handleRedrawVariable);
-    this.events.subscribe(ActionType.updateColorTheme, this.handleUpdateColor);
+    this.events.subscribe(ActionType.UpdateColorTheme, this.handleUpdateColor);
   }
 
   renderLabelsPanels() {
@@ -107,10 +106,6 @@ export class LabelsPanels {
     });
     this.labels.innerHTML       = this.labelsList.join('');
     this.valueDisplay.innerHTML = transitions.join('');
-  }
-
-  abortUserInteraction() {
-    this.dragEnd(null, true); // Abort any drag operation
   }
 
   clickValueDisplay(event: any) {

@@ -48,7 +48,7 @@ export enum ActionType {
   RemoveVariable,
   RedrawVariable,
   Resize,
-  updateColorTheme,
+  UpdateColorTheme,
 }
 
 let resizeDebounce: any = 0;
@@ -449,7 +449,7 @@ class VaporviewWebview {
     else if (e.key === 'n') {controlBar.goToNextTransition(1, []);}
     else if (e.key === 'N') {controlBar.goToNextTransition(-1, []);}
 
-    else if (e.key === 'Escape') {labelsPanel.abortUserInteraction();}
+    else if (e.key === 'Escape') {this.handleMouseUp(e, true);}
     else if (e.key === 'Delete' || e.key === 'Backspace') {this.removeVariableInternal(viewerState.selectedSignal);}
 
     else if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(true);}
@@ -777,7 +777,7 @@ class VaporviewWebview {
       case 'setSelectedSignal':     {this.handleSetSelectedSignal(message.netlistId); break;}
       case 'copyWaveDrom':          {dataManager.copyWaveDrom(); break;}
       case 'copyValueAtMarker':     {labelsPanel.copyValueAtMarker(message.netlistId); break;}
-      case 'updateColorTheme':      {this.events.dispatch(ActionType.updateColorTheme); break;}
+      case 'updateColorTheme':      {this.events.dispatch(ActionType.UpdateColorTheme); break;}
       default:                      {outputLog('Unknown webview message type: ' + message.command); break;}
     }
   }

@@ -166,7 +166,7 @@ export class Viewport {
     this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
     this.events.subscribe(ActionType.RedrawVariable, this.handleRedrawSignal);
     this.events.subscribe(ActionType.Resize, this.updateViewportWidth);
-    this.events.subscribe(ActionType.updateColorTheme, this.handleColorChange);
+    this.events.subscribe(ActionType.UpdateColorTheme, this.handleColorChange);
   }
 
   init(metadata: any, uri: string) {

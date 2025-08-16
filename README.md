@@ -30,12 +30,19 @@ When clicking on netlit element links, paths that point to a variable will add t
 
 ## Interoperability With Other Extensions
 
-This is a work in progress effort, and will be finalized in the 1.4 Release. Details can be found in the [API docs](https://github.com/Lramseyer/vaporview/blob/main/API_DOCS.md), but a summary of the API features that other extension developers will be able to use are listed below:
+### Extensions compatible with Vaporview:
 
-- Vaporview Commands
+- [SV Pathfinder](https://marketplace.visualstudio.com/items?itemName=heyfey.sv-pathfinder) - RTL Linking and tracing - [Github](https://github.com/heyfey/sv-pathfinder)
+
+Vaporview has a set of commands and event emitters that allow interaction with other extensions. This allows for powerful features like RTL linking, in editor debugging, and firmware tracing while being HDL and simulator agnostic. See the [API docs](https://github.com/Lramseyer/vaporview/blob/main/API_DOCS.md) if you are interested in integrating Vaporview into your extension. A summary of the API features that other extension developers will be able to use are listed below:
+
+- Commands
   - Adding and removing variables
   - Placing markers at specific times
   - Revealing items in the netlist
+- Event emitters
+  - Adding, removing, and selecting variables
+  - Placing markers
 - Adding custom context menu items
 - Signal value links
 

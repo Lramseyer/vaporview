@@ -556,8 +556,14 @@ export class SignalGroup extends SignalItem implements RowItem {
   }
 
   private showHideViewportRows() {
-    const childRows = this.getFlattenedRowIdList(false, -1);
+    //const childRows = this.getFlattenedRowIdList(false, -1);
     const style = this.collapseState === CollapseState.Expanded ? 'flex' : 'none';
+    let childRows: number[] = [];
+    this.children.forEach((rowId) => {
+      const childRowItem = dataManager.rowItems[rowId];
+      if (!childRowItem) {return;}
+      childRows = childRows.concat(childRowItem.getFlattenedRowIdList(true, -1));
+    });
     childRows.forEach((rowId) => {
       if (rowId === this.rowId) {return;} // Skip the group row itself
       const viewportRow = document.getElementById(`waveform-${rowId}`);

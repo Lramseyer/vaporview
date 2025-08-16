@@ -1,6 +1,6 @@
 # Change Log
 
-# Upcoming Release - 1.4.0
+# 1.4.0 - Upcoming Release
 
 - Added
   - Signal grouping in the viewer
@@ -15,7 +15,7 @@
   - Renderer floating point math is much more accurate resulting in less jitter
   - Revealing signals in viewport scrolls to the signal in question
 - Other Changes and Improvements
-  - Upgraded to wellen 0.17.1 for miscellaneous improvements to file loading
+  - Upgraded to wellen 0.18.2 for miscellaneous improvements to file loading
   - Improved signal loading performance (with LZ4 compression)
   - updated .vscodeignore file to reduce build size
 

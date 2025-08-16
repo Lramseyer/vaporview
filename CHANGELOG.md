@@ -15,7 +15,7 @@
   - Renderer floating point math is much more accurate resulting in less jitter
   - Revealing signals in viewport scrolls to the signal in question
 - Other Changes and Improvements
-  - Upgraded to wellen 0.18.2 for miscellaneous improvements to file loading
+  - Upgraded to wellen 0.18.4 for miscellaneous improvements to file loading
   - Improved signal loading performance (with LZ4 compression)
   - updated .vscodeignore file to reduce build size
 

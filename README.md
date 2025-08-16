@@ -26,11 +26,9 @@ VaporView associates timestamps and netlist paths as links in the terminal. Thes
 - Timestamp with Units - ie: `50,000 ns` (comma is optional)
 - Netlist elements - ie: `top.submodule.signal`
 
-When clicking on netlit element links, paths that point to a variable will add that variable to the viewer. However, if the path points to a scope, it will instead reveal and select that scope in the netlist view.
+When clicking on instance path links, paths that point to a variable will add that variable to the viewer. However, if the path points to a scope, it will instead reveal and select that scope in the netlist view.
 
 ## Interoperability With Other Extensions
-
-### Extensions compatible with Vaporview:
 
 - [SV Pathfinder](https://marketplace.visualstudio.com/items?itemName=heyfey.sv-pathfinder) - RTL Linking and tracing - [Github](https://github.com/heyfey/sv-pathfinder)
 
@@ -209,7 +207,7 @@ This extension requires VScode 1.96.0 or later
   - Renderer floating point math is much more accurate resulting in less jitter
   - Revealing signals in viewport scrolls to the signal in question
 - Other Changes and Improvements
-  - Upgraded to wellen 0.17.1 for miscellaneous improvements to file loading
+  - Upgraded to wellen 0.18.4 for miscellaneous improvements to file loading
   - Improved signal loading performance (with LZ4 compression)
   - updated .vscodeignore file to reduce build size
 

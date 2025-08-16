@@ -247,7 +247,7 @@ Returns the viewer settings in the same schema as the save file
 
 Note that if an instance path input is not found in the netlist, the result will not return a value for it.
 
-# Event Emitters (Work in Progress)
+# Event Emitters
 
 Vaporview emits events when users perform actions in the viewer. If there's anything you wish to see added to this list, please comment on the [github issues](https://github.com/Lramseyer/vaporview/issues) page.
 

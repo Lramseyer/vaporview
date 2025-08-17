@@ -139,7 +139,6 @@ export class WaveformDataManager {
       moveList.push(rowId);
 
       if (viewerState.displayedSignalsFlat.includes(rowId)) {
-        console.log("Signal already displayed: " + signal.signalName + " (" + signalId + ")");
         return; // Signal already displayed, skip it
       }
 
@@ -247,7 +246,6 @@ export class WaveformDataManager {
       if (rowId === undefined) {return;}
     }
     else {
-      console.log(viewerState.selectedSignal);
       if (viewerState.selectedSignal && viewerState.selectedSignal >= 0) {
         rowId = viewerState.selectedSignal;
       } else {
@@ -589,7 +587,6 @@ export class WaveformDataManager {
     }
 
     if (message.valueLinkCommand !== undefined) {
-      console.log("Value link command: " + message.valueLinkCommand);
 
       if (netlistData.valueLinkCommand === "" && message.valueLinkCommand !== "") {
         netlistData.canvas?.addEventListener("pointermove", netlistData.handleValueLinkMouseOver, true);
@@ -622,7 +619,6 @@ export class WaveformDataManager {
     const transitionIndex = this.binarySearch(data, time);
   
     if (transitionIndex >= data.length) {
-      console.log('search found a -1 index');
       return -1;
     }
   
@@ -646,7 +642,7 @@ export class WaveformDataManager {
   
     // Populate the waveDrom names with the selected signals
     const waveDromData: any = {};
-    viewerState.displayedSignals.forEach((rowId) => {
+    viewerState.displayedSignalsFlat.forEach((rowId) => {
 
       const netlistItem: any = this.rowItems[rowId];
       if (netlistItem === undefined || netlistItem instanceof VariableItem === false) {return;}
@@ -687,7 +683,7 @@ export class WaveformDataManager {
         if (time !== currentTime) {
           currentTime = time;
           transitionCount++;
-          viewerState.displayedSignals.forEach((rowId) => {
+          viewerState.displayedSignalsFlat.forEach((rowId) => {
             const varItem = this.rowItems[rowId];
             if (varItem instanceof VariableItem === false) {return;}
             const n = this.rowItems[rowId].netlistId;
@@ -719,7 +715,7 @@ export class WaveformDataManager {
         if (index === clockEdges.length - 1) {nextEdge = timeWindow[1];}
         else {nextEdge    = clockEdges[index + 1][0];}
         if (currentTime >= timeWindow[1] || transitionCount >= MAX_TRANSITIONS) {break;}
-        viewerState.displayedSignals.forEach((rowId) => {
+        viewerState.displayedSignalsFlat.forEach((rowId) => {
 
           const varItem = this.rowItems[rowId];
           if (varItem instanceof VariableItem === false) {return;}
@@ -754,7 +750,7 @@ export class WaveformDataManager {
   
     // write the waveDrom JSON to the clipboard
     let result = '{"signal": [\n';
-    viewerState.displayedSignals.forEach((rowId) => {
+    viewerState.displayedSignalsFlat.forEach((rowId) => {
       const netlistId = this.rowItems[rowId].netlistId;
       if (netlistId === undefined || waveDromData[netlistId] === undefined) {return;}
       const signalData = waveDromData[netlistId].json;

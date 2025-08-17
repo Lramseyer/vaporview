@@ -503,8 +503,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
   public async addSignalListToDocument(signalList: any, document: VaporviewDocument, groupPath: string[]): Promise<string[]> {
 
-    console.log(signalList);
-
     const missingSignals: string[] = [];
     for (const signalInfo of signalList) {
       if (signalInfo.dataType && signalInfo.dataType !== 'netlist-variable') {
@@ -1249,7 +1247,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   private getHtmlContent(webview: vscode.Webview): string {
 
     const extensionUri = this._context.extensionUri;
-    //const htmlFile     = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'src', 'webview', 'body.html'));
     const htmlFile     = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'webview.html'));
     const svgIconsUri  = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'src', 'webview', 'icons.svg'));
     const jsFileUri    = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'dist', 'webview.js'));

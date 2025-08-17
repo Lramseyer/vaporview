@@ -576,7 +576,6 @@ export class SignalGroup extends SignalItem implements RowItem {
       viewport.updateBackgroundCanvas(true);
     });
     updateDisplayedSignalsFlat();
-    console.log(viewerState.visibleSignalsFlat);
     viewport.renderAllWaveforms(false);
   }
 

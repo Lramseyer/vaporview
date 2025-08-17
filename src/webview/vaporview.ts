@@ -686,11 +686,10 @@ class VaporviewWebview {
 
     const rowId = dataManager.netlistIdTable[netlistId];
     const index = viewerState.visibleSignalsFlat.indexOf(rowId);
-    console.log('deleting signal ' + netlistId + ' at rowId' + rowId);
 
     this.events.dispatch(ActionType.RemoveVariable, rowId, true);
     if (viewerState.selectedSignal === rowId) {
-      const newindex = Math.max(0, Math.min(viewerState.visibleSignalsFlat.length - 2, index));
+      const newindex = Math.max(0, Math.min(viewerState.visibleSignalsFlat.length - 1, index));
       const newRowId = viewerState.visibleSignalsFlat[newindex];
       this.events.dispatch(ActionType.SignalSelect, newRowId);
     }

@@ -393,9 +393,8 @@ export class Viewport {
     if (containerId) {rowId = parseInt(containerId.id.split('-').slice(1));}
     const signalItem = dataManager.rowItems[rowId];
     if (!signalItem) {return;}
-    let netlistId = signalItem.netlistId;
-    if (netlistId !== undefined && netlistId !== null && netlistId >= 0) {
 
+    if (signalItem instanceof VariableItem) {
       // Snap to the nearest transition if the click is close enough
       const nearestTransition = signalItem.getNearestTransition(time);
 
@@ -410,13 +409,12 @@ export class Viewport {
         signalItem.handleValueLink(time, snapToTime);
         return;
       }
+      this.events.dispatch(ActionType.MarkerSet, snapToTime, button);
+    }
 
-      if (button === 0) {
-        this.events.dispatch(ActionType.SignalSelect, rowId);
-      }
-    } else if (isNaN(netlistId || NaN)) {return;}
-
-    this.events.dispatch(ActionType.MarkerSet, snapToTime, button);
+    if (button === 0) {
+      this.events.dispatch(ActionType.SignalSelect, rowId);
+    }
   }
 
   updateScrollbarResize() {

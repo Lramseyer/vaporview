@@ -109,7 +109,6 @@ export class LabelsPanels {
   }
 
   clickValueDisplay(event: any) {
-    console.log("valueDisplay click event", event);
     const labelsList   = Array.from(this.valueDisplay.querySelectorAll('.value-display-item'));
     const clickedLabel = event.target.closest('.value-display-item');
     const itemIndex    = labelsList.indexOf(clickedLabel);
@@ -127,7 +126,6 @@ export class LabelsPanels {
 
     if (event.target.classList.contains('codicon-chevron-down') ||
         event.target.classList.contains('codicon-chevron-right')) {
-          console.log(`Toggling collapse for rowId: ${rowId}`);
         if (dataManager.rowItems[rowId] instanceof SignalGroup) {
           dataManager.rowItems[rowId].toggleCollapse();
         }
@@ -353,7 +351,6 @@ export class LabelsPanels {
     this.idleItems.forEach((item: any) => {item.style = null;});
 
     if (!abort) {
-      console.log("draggable Item Row ", draggableItemRowId, " in group ", newGroupId, " at index ", newIndex);
       this.events.dispatch(ActionType.ReorderSignals, draggableItemRowId, newGroupId, newIndex);
     }
 

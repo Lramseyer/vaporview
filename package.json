@@ -847,34 +847,6 @@
         "title": "Reload File"
       },
       {
-        "command": "vaporview.copyWaveDrom",
-        "title": "Copy Selection as WaveDrom"
-      },
-      {
-        "command": "vaporview.setWaveDromClockRising",
-        "title": "Set WaveDrom Clock Rising"
-      },
-      {
-        "command": "vaporview.setWaveDromClockFalling",
-        "title": "Set WaveDrom Clock Falling"
-      },
-      {
-        "command": "vaporview.unsetWaveDromClock",
-        "title": "Unset WaveDrom Clock"
-      },
-      {
-        "command": "vaporview.viewVaporViewSidebar",
-        "title": "View VaporView Sidebar"
-      },
-      {
-        "command": "vaporview.saveViewerSettings",
-        "title": "Save Vaporview Settings"
-      },
-      {
-        "command": "vaporview.loadViewerSettings",
-        "title": "Load Vaporview Settings"
-      },
-      {
         "command": "vaporview.nextEdge",
         "title": "Reload File"
       },

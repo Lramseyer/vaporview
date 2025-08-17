@@ -555,7 +555,7 @@ export class SignalGroup extends SignalItem implements RowItem {
     return null;
   }
 
-  private showHideViewportRows() {
+  public showHideViewportRows() {
     //const childRows = this.getFlattenedRowIdList(false, -1);
     const style = this.collapseState === CollapseState.Expanded ? 'flex' : 'none';
     let childRows: number[] = [];

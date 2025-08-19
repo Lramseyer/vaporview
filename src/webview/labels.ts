@@ -186,7 +186,7 @@ export class LabelsPanels {
     this.dragInProgress    = false;
     this.dragFreeze        = true;
     this.dragActive        = true;
-    this.defaultDragDividerY = this.draggableItem.getBoundingClientRect().top;
+    this.defaultDragDividerY = this.draggableItem.getBoundingClientRect().top + this.labelsScroll.scrollTop;
     clearTimeout(this.dragFreezeTimeout);
     this.dragFreezeTimeout = setTimeout(() => {this.dragFreeze = false;}, 100);
     document.addEventListener('mousemove', this.dragMove);
@@ -295,7 +295,7 @@ export class LabelsPanels {
         this.closestItem = item;
       }
     });
-    
+
     if (!breakFlag) {
       if (draggableItemY >= groupContainerBox.bottom) {
         dragDividerY = groupContainerBox.bottom - labelsRect.top;
@@ -306,7 +306,7 @@ export class LabelsPanels {
         this.closestItem = idleItems[0] || null;
         this.indexOffset = 0;
       } else {
-        dragDividerY = this.defaultDragDividerY - labelsRect.top;
+        dragDividerY = (this.defaultDragDividerY - this.labelsScroll.scrollTop) - labelsRect.top;
         this.closestItem = this.draggableItem;
         this.indexOffset = 0;
       }

@@ -573,40 +573,7 @@ class VaporviewWebview {
     if (rowId === null) {return;}
     const netlistData = dataManager.rowItems[rowId];
     sendWebviewContext();
-
-    // expand all parent groups of the selected signal
-    const parentList = getParentGroupIdList(rowId);
-
-    parentList.forEach((groupId) => {
-      const groupRowId = dataManager.groupIdTable[groupId];
-      if (groupRowId === undefined) {return;}
-      const groupItem: RowItem = dataManager.rowItems[groupRowId];
-      if (!(groupItem instanceof SignalGroup)) {return;}
-      if (groupItem.collapseState === CollapseState.Collapsed) {
-        groupItem.expand();
-      }
-    });
-
-
-    const labelElement = document.getElementById(`label-${rowId}`);
-    const labelsPanel = this.labelsScroll;
-    if (!labelElement) {return;}
-
-    const labelBounds  = labelElement.getBoundingClientRect();
-    const windowBounds = labelsPanel.getBoundingClientRect();
-
-    const waveHeight = 28;
-
-    let newScrollTop = labelsPanel.scrollTop;
-    if (labelBounds.top < windowBounds.top + 40) {
-      newScrollTop = Math.max(0, labelsPanel.scrollTop + (labelBounds.top - (windowBounds.top + 40)));
-    } else if (labelBounds.bottom > windowBounds.bottom) {
-      newScrollTop = Math.min(labelsPanel.scrollHeight - labelsPanel.clientHeight, labelsPanel.scrollTop + (labelBounds.bottom - windowBounds.bottom) + waveHeight);
-    }
-
-    if (newScrollTop !== labelsPanel.scrollTop) {
-      this.syncVerticalScroll({deltaY: 0}, newScrollTop);
-    }
+    this.revealSignal(rowId);
 
     if (netlistData === undefined) {return;}
     const netlistId = netlistData.netlistId;
@@ -621,6 +588,40 @@ class VaporviewWebview {
       isntancePath: instancePath,
       netlistId: netlistId,
     });
+  }
+
+  revealSignal(rowId: RowId) {
+    if (rowId === null) {return;}
+
+    const parentList = getParentGroupIdList(rowId);
+
+    parentList.forEach((groupId) => {
+      const groupRowId = dataManager.groupIdTable[groupId];
+      if (groupRowId === undefined) {return;}
+      const groupItem: RowItem = dataManager.rowItems[groupRowId];
+      if (!(groupItem instanceof SignalGroup)) {return;}
+      if (groupItem.collapseState === CollapseState.Collapsed) {
+        groupItem.expand();
+      }
+    });
+
+    const labelElement = document.getElementById(`label-${rowId}`);
+    const labelsPanel  = this.labelsScroll;
+    if (!labelElement) {return;}
+    const labelBounds  = labelElement.getBoundingClientRect();
+    const windowBounds = labelsPanel.getBoundingClientRect();
+    const waveHeight   = 28;
+    let newScrollTop   = labelsPanel.scrollTop;
+
+    if (labelBounds.top < windowBounds.top + 40) {
+      newScrollTop = Math.max(0, labelsPanel.scrollTop + (labelBounds.top - (windowBounds.top + 40)));
+    } else if (labelBounds.bottom > windowBounds.bottom) {
+      newScrollTop = Math.min(labelsPanel.scrollHeight - labelsPanel.clientHeight, labelsPanel.scrollTop + (labelBounds.bottom - windowBounds.bottom) + waveHeight);
+    }
+
+    if (newScrollTop !== labelsPanel.scrollTop) {
+      this.syncVerticalScroll({deltaY: 0}, newScrollTop);
+    }
   }
 
 // #region Helper Functions

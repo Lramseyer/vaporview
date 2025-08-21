@@ -401,8 +401,12 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
 
   public async unloadWebview() {
     this._webviewInitialized = false;
-    //console.log("Unloading webview");
-    this.webviewPanel?.webview.postMessage({command: 'unload'});
+    if (!this.webviewPanel) {return;}
+    try {
+      this.webviewPanel?.webview.postMessage({command: 'unload'});
+    } catch (e) {
+      // This can happen if the webview has already been disposed of
+    }
   }
 
   public async reload() {

@@ -67,6 +67,7 @@ export interface ViewerState {
   touchpadScrolling: boolean;
   autoTouchpadScrolling: boolean;
   mouseupEventType: string | null;
+  autoReload: boolean;
 }
 
 export const viewerState: ViewerState = {
@@ -82,7 +83,8 @@ export const viewerState: ViewerState = {
   scrollLeft: 0,
   touchpadScrolling: false,
   autoTouchpadScrolling: false,
-  mouseupEventType: null
+  mouseupEventType: null,
+  autoReload: false,
 };
 
 export class EventHandler {
@@ -207,6 +209,7 @@ function createWebviewContext() {
     transitionCount: dataManager.getTransitionCount(),
     zoomRatio: vaporview.viewport.zoomRatio,
     scrollLeft: vaporview.viewport.pseudoScrollLeft,
+    autoReload: viewerState.autoReload,
     displayedSignals: signalListForSaveFile(viewerState.displayedSignals),
   }
 }

@@ -34,6 +34,8 @@ body {
 }
 
 .control-bar-group {
+  user-select: none;
+  white-space: nowrap;
   align-items: center;
   display: flex;
   padding: 0 10px 0 10px;
@@ -405,9 +407,12 @@ body {
 
 .waveform-label.is-draggable {
   background-color:  var(--vscode-editor-inactiveSelectionBackground);
+  /*background-color: var(--vscode-list-activeSelectionBackground);
+  /*border: 1px solid var(--vscode-focusBorder);*/
   opacity: 0.75;
   z-index: 10;
-  border-radius: 12px;
+  border-radius: 14px;
+  padding-right: 7px;
   cursor: grabbing;
 }
 

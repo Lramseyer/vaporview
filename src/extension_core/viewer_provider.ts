@@ -265,7 +265,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'removeVariable':      {this.removeSignalFromDocument(e.netlistId); break;}
         case 'close-webview':       {webviewPanel.dispose(); break;}
         case 'handleDrop':          {this.handleWebviewDrop(e); break;}
-        default: {this.log.appendLine('Unknown webview message type: ' + e.command); break;}
+        default: {this.log.appendLine('Unknown message type from webview: ' + JSON.stringify(e.command)); break;}
       }
 
       if (e.type === 'response')    {this.onMessage(e);}
@@ -707,6 +707,11 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     w.zoomRatio        = event.zoomRatio        || w.zoomRatio;
     w.scrollLeft       = event.scrollLeft       || w.scrollLeft;
     w.numberFormat     = event.numberFormat     || w.numberFormat;
+    w.autoReload       = event.autoReload       || w.autoReload;
+
+    if (event.autoReload && document.fileUpdated && document.reloadPending) {
+      vscode.commands.executeCommand('vaporview.reloadFile', document.uri);
+    }
 
     //console.log(event);
 

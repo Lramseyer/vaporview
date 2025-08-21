@@ -203,6 +203,7 @@ This extension requires VScode 1.96.0 or later
   - Drag to reorder signals now responds to scroll
   - Status Bar now shows value change count for selected signal
   - Surfer surver support
+  - Automatically reload waveform on file updates
 - Fixed
   - Renderer floating point math is much more accurate resulting in less jitter
   - Revealing signals in viewport scrolls to the signal in question

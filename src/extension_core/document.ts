@@ -123,6 +123,10 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
   protected disposables: vscode.Disposable[] = [];
   private readonly _uri: vscode.Uri;
   private readonly _fileType: string = 'unknown';
+  private fileWatcher: vscode.FileSystemWatcher | undefined = undefined;
+  private reloadDebounce: NodeJS.Timeout | undefined = undefined;
+  private _fileUpdated: boolean = false;
+  private _reloadPending: boolean = false;
   // Hierarchy
   public treeData:         NetlistItem[] = [];
   public displayedSignals: NetlistItem[] = [];
@@ -150,6 +154,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     zoomRatio: 1,
     scrollLeft: 0,
     numberFormat: "hexadecimal",
+    autoReload: false,
   };
 
   constructor(uri: vscode.Uri, delegate: VaporviewDocumentDelegate) {
@@ -157,12 +162,15 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     this._uri = uri;
     this._fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
     this._delegate = delegate;
+    this.setupFileWatcher();
   }
 
   public get uri() { return this._uri; }
   public get fileType() { return this._fileType; }
   public get netlistIdTable(): NetlistIdTable { return this._netlistIdTable; }
   public get webviewInitialized(): boolean { return this._webviewInitialized; }
+  public get fileUpdated(): boolean { return this._fileUpdated; }
+  public get reloadPending(): boolean { return this._reloadPending; }
 
   public onWebviewReady(webviewPanel: vscode.WebviewPanel) {
     //console.log("Webview Ready");
@@ -196,6 +204,33 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
       this.onWebviewReady(this.webviewPanel);
     }
     //this.close(this.metadata.fd);
+  }
+
+  private setupFileWatcher() {
+    if (this._uri.scheme !== 'file') { return; }
+
+    const pattern = new vscode.RelativePattern(path.dirname(this._uri.fsPath), path.basename(this._uri.fsPath));
+    const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+    const scheduleReload = () => {
+      if (this.reloadDebounce) {clearTimeout(this.reloadDebounce);}
+      this.reloadDebounce = setTimeout(() => this.handleUpdateFile(), 500);
+      this._fileUpdated = true;
+    };
+
+    watcher.onDidChange(scheduleReload, this, this.disposables);
+    this.disposables.push(watcher);
+    this.fileWatcher = watcher;
+  }
+
+  private handleUpdateFile() {
+    this._delegate.logOutputChannel("File changed: " + this._uri.fsPath);
+    // We only want to reload the file if the webview is active
+    if (this.webviewContext.autoReload && this._fileUpdated) {
+      this._reloadPending = true;
+      if (this.webviewPanel?.active) {
+        vscode.commands.executeCommand('vaporview.reloadFile', this._uri);
+      }
+    }
   }
 
   public setNetlistIdTable(netlistId: NetlistId, displayedSignalViewRef: NetlistItem | undefined) {
@@ -373,6 +408,8 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
   public async reload() {
     await this.unload();
     await this.load();
+    this._fileUpdated = false;
+    this._reloadPending = false;
   }
 
   public abstract getChildrenExternal(element: NetlistItem | undefined): Promise<NetlistItem[]>;

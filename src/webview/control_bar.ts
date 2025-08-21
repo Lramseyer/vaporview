@@ -1,5 +1,5 @@
 import { commands } from 'vscode';
-import {ActionType, EventHandler, viewerState, viewport, dataManager, vscode, RowId} from './vaporview';
+import {ActionType, EventHandler, viewerState, viewport, dataManager, vscode, RowId, sendWebviewContext} from './vaporview';
 import { sign, Sign } from 'crypto';
 import { VariableItem } from './signal_item';
 
@@ -32,6 +32,7 @@ export class ControlBar {
   private autoScroll: HTMLElement;
   private touchScroll: HTMLElement;
   private mouseScroll: HTMLElement;
+  private autoReload: HTMLElement;
 
   private searchContainer: any;
   private searchBar: any;
@@ -65,6 +66,7 @@ export class ControlBar {
     this.autoScroll    = document.getElementById('auto-scroll-button')!;
     this.touchScroll   = document.getElementById('touchpad-scroll-button')!;
     this.mouseScroll   = document.getElementById('mouse-scroll-button')!;
+    this.autoReload    = document.getElementById('autoReload')!;
     this.searchContainer = document.getElementById('search-container');
     this.searchBar     = document.getElementById('search-bar');
     this.valueIconRef  = document.getElementById('value-icon-reference');
@@ -75,7 +77,7 @@ export class ControlBar {
         this.timeEquals === null || this.valueEquals === null || this.previousButton === null || 
         this.nextButton === null || this.touchScroll === null || this.mouseScroll === null || 
         this.autoScroll === null || this.searchContainer === null || this.searchBar === null || 
-        this.valueIconRef === null ||  this.valueEqualsSymbol === null) {
+        this.valueIconRef === null ||  this.valueEqualsSymbol === null || this.autoReload === null) {
       throw new Error("Could not find all required elements");
     }
 
@@ -89,6 +91,7 @@ export class ControlBar {
     this.nextPosedge.addEventListener(  'click', (e: any) => {this.goToNextTransition( 1, ['1']);});
     this.prevEdge.addEventListener(     'click', (e: any) => {this.goToNextTransition(-1, []);});
     this.nextEdge.addEventListener(     'click', (e: any) => {this.goToNextTransition( 1, []);});
+    this.autoReload.addEventListener(  'change', (e: any) => {this.handleAutoReloadCheckbox(e);});
 
     // Search bar event handlers
     this.searchBar.addEventListener(     'focus', (e: any) => {this.handleSearchBarInFocus(true);});
@@ -300,6 +303,11 @@ export class ControlBar {
         }
       }
     }
+  }
+
+  handleAutoReloadCheckbox(event: any) {
+    viewerState.autoReload = event.target.checked;
+    sendWebviewContext();
   }
 
   handleSearchBarInFocus(isFocused: boolean) {

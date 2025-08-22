@@ -268,6 +268,7 @@ Emitted when a signal is selected by either the user, or externally
 - **uri** - string
 - **isntancePath** - string
 - **netlistId** - number
+- **source** - "netlistView" | "viewer"
 
 ## onDidAddVariable
 

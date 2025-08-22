@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import { VaporviewDocument, VaporviewDocumentFsdb, VaporviewDocumentWasm } from './document';
 import { SurferDocument } from './surfer_document';
 import { NetlistTreeDataProvider, DisplayedSignalsViewProvider, NetlistItem, WebviewCollection, netlistItemDragAndDropController } from './tree_view';
+import { getInstancePath } from './tree_view';
 
 export type NetlistId = number;
 export type SignalId  = number;
@@ -59,6 +60,7 @@ export interface signalEvent {
   uri: string;
   isntancePath: string;
   netlistId: number;
+  source: string; // "viewer" or "treeview"
 }
 
 // #region WaveformViewerProvider
@@ -761,6 +763,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       uri: e.uri,
       isntancePath: e.instancePath,
       netlistId: e.netlistId,
+      source: "viewer",
     }
 
     //console.log(e);
@@ -1316,6 +1319,18 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     e.selection.forEach((element) => {
       this.netlistViewSelectedSignals.push(element);
     });
+    if (this.netlistViewSelectedSignals.length === 1) {
+      const netlistData = this.netlistViewSelectedSignals[0];
+      const uri = this.activeDocument?.uri;
+      if (!uri) {return;}
+
+      WaveformViewerProvider.signalSelectEventEmitter.fire({
+        uri: uri.toString(),
+        isntancePath: getInstancePath(netlistData),
+        netlistId: netlistData.netlistId,
+        source: "netlistView",
+      });
+    }
   };
 
   private handleDisplayedSignalsViewSelectionChanged = (e: vscode.TreeViewSelectionChangeEvent<NetlistItem>) => {

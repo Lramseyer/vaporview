@@ -20,7 +20,7 @@
   - Improved signal loading performance (with LZ4 compression)
   - updated .vscodeignore file to reduce build size
 
-# 1.3.4 - Latest Release
+# 1.3.4 - 5/9/2025 - Latest Release
 
 - Ruler now displays time units
 - Added Feature to change time units
@@ -29,7 +29,7 @@
 - Added Signal Value Links functionality
 - Added "Backspace" keybinding to remove variable
 
-## 1.3.3
+## 1.3.3 - 4/18/2025
 
 - Added:
   - Beta API
@@ -42,7 +42,7 @@
   - "Load/Save Vporview Settings" Menus appearing where they shouldn't
   - Terminal Links only match for paths with valid top level scopes
 
-## 1.3.2
+## 1.3.2 - 3/18/2025
 
 - Unlocked zooming to allow for smooth zooming on touchpad mode
 - Limited Zoom out distance to timeend
@@ -53,7 +53,7 @@
 - Setting a marker populates the time in the search bar
 - Added Auto Touchpad Scrolling/Zooming mode
 
-# 1.3.1
+# 1.3.1 - 3/2/2025
 
 - Port pender path to HTML5 canvas (previously used SVGs)
   - Improves text placement in multi bit-waveform renderer
@@ -61,7 +61,7 @@
   - Fixes issue where linear, stepped, and binary waveforms display a gap when zoomed in really far
 - Limit how far out the viewer can be zoomed out
 
-# 1.3.0
+# 1.3.0 - 2/12/2025
 
 - Added:
   - Linear and Stepped waveform Rendering
@@ -81,7 +81,7 @@
   - Terminal links to netlist paths pointing to scope items reveal in netlist view, and won't add anything to the viewer
   - Improved netlist view visibility
 
-## 1.2.6
+## 1.2.6 - 12/18/2024
 
 - Added GHW file support
 - Added Support for Real and String datatypes
@@ -91,7 +91,7 @@
 - Fixed Binary display formatting with 9 state values
 - Fixed issue where top level variables in global scope didn't load
 
-## 1.2.5
+## 1.2.5 - 12/12/2024
 
 - Improved performance when loading many variables in large FST dumps
 - Added Feature to reload a file
@@ -105,7 +105,7 @@
   - Ported build proces back to esbuild
   - Added .vscodeignore file to keep build size reasonable
 
-# 1.2.0
+# 1.2.0 - 11/14/2024
 
 - File parsing uses the [wellen](https://github.com/ekiwi/wellen/tree/new-api) library compiled to wasm. Benefits include:
   - FST file support
@@ -116,25 +116,25 @@
 - Save/Load viewer settings has been added as context menu item for easier access
 - Fixed issues with netlists loading into the wrong view on load
 
-# 1.1.0
+# 1.1.0 - 10/8/2024
 
 - Implemented fs.read() so that files of any size can be loaded. Maximum file size can be configured as a user setting
 - Show Netlist as soon as it is done being parsed, and progress bar for waveform data
 - Improve Performance of single bit renderer (which should finally remove all slowdowns when zoomed out on large waveforms)
 - Many under the hood updates
 
-## 1.0.1
+## 1.0.1 - 7/25/2024
 
 - Improved performance of multi bit renderer
 - Allow for number format to be changed on a per-signal basis
 - Added netlist path to context menu events in case other extension developers want to integrate with VaporView
 
-# 1.0.0 - First VScode Marketplace Release
+# 1.0.0 - 6/4/2024 - First VScode Marketplace Release
 
 - Small documentation updates in preparation for marketplace release
 - Commented out debug statements
 
-## 0.9.8
+## 0.9.8 - 5/7/2024
 
 - VCD parser fixes and improvements
   - Fixed a few parser glitches that caused some netlist elements to not be registered
@@ -149,32 +149,32 @@
   - Timestamps in UVM logs (or other simulation logs) when Ctrl + clicked will set a marker in the viewer and jump to that timestamp
   - Netlist paths, when Ctrl + clicked will add that netlist element (if it exists) into the viewer
 
-## 0.9.7
+## 0.9.7 - 4/26/2024
 
 - While you weren't looking, I replaced the horizontal scrollbar with a fake one to work around Chromium's 16 million pixel size limitation
 - Fixed slow performance when zoomed in really far
 
-## 0.9.6
+## 0.9.6 - 4/20/2024
 
 - Improved render performance when loading lots of milti-bit waveforms or zooming out really far
 - Fix 4 state value hex conversion
 - Fix display glitch of single bit waveforms
 - 4 state values now display as red text
 
-## 0.9.5
+## 0.9.5 - 4/12/2024
 
 - Added Ability to save and load displayed signals
 - Added WaveDrom support for exporting selection to WaveDrom
 - Miscellaneous bugfixes and improvements
 
-## 0.9.4
+## 0.9.4 - 4/3/2024
 
 - Added Netlist View support to add or remove multiple signals to or from viewer without having to check/uncheck every single one
 - Fixed signal selection glitch caused by multiple netlist entries pointing to the same signal ID
 - Improved chunk sizing algorithm so that chunks aren't unnecessarily large
 - fixed a performance issue seen when zooming in really far.
 
-## 0.9.3
+## 0.9.3 - 3/28/2024
 
 - Greatly improved viewer experience with large files
 - Implemented asynchronous rendering for much smoother performance

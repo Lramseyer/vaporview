@@ -58,7 +58,7 @@ export interface markerSetEvent {
 
 export interface signalEvent {
   uri: string;
-  isntancePath: string;
+  instancePath: string;
   netlistId: number;
   source: string; // "viewer" or "treeview"
 }
@@ -761,7 +761,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     let signalData: signalEvent = {
       uri: e.uri,
-      isntancePath: e.instancePath,
+      instancePath: e.instancePath,
       netlistId: e.netlistId,
       source: "viewer",
     }
@@ -1326,7 +1326,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
       WaveformViewerProvider.signalSelectEventEmitter.fire({
         uri: uri.toString(),
-        isntancePath: getInstancePath(netlistData),
+        instancePath: getInstancePath(netlistData),
         netlistId: netlistData.netlistId,
         source: "netlistView",
       });

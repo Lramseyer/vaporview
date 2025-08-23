@@ -588,7 +588,7 @@ class VaporviewWebview {
       command: 'emitEvent',
       eventType: 'signalSelect',
       uri: viewerState.uri,
-      isntancePath: instancePath,
+      instancePath: instancePath,
       netlistId: netlistId,
     });
   }

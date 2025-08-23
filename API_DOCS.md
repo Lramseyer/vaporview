@@ -266,7 +266,7 @@ Emitted when the marker changes value in the viewer.
 Emitted when a signal is selected by either the user, or externally
 
 - **uri** - string
-- **isntancePath** - string
+- **instancePath** - string
 - **netlistId** - number
 - **source** - "netlistView" | "viewer"
 
@@ -275,7 +275,7 @@ Emitted when a signal is selected by either the user, or externally
 Emitted when a variable is added to the viewer
 
 - **uri** - string
-- **isntancePath** - string
+- **instancePath** - string
 - **netlistId** - number
 
 ## onDidRemoveVariable
@@ -283,7 +283,7 @@ Emitted when a variable is added to the viewer
 Emitted when a variable is removed from the viewer
 
 - **uri** - string
-- **isntancePath** - string
+- **instancePath** - string
 - **netlistId** - number
 
 # Signal Value Links

@@ -4,7 +4,7 @@ import { VaporviewDocument } from './document';
 
 // Scopes
 const moduleIcon    = new vscode.ThemeIcon('chip',                   new vscode.ThemeColor('charts.purple'));
-const taskIcon      = new vscode.ThemeIcon('debug-stack-frame',      new vscode.ThemeColor('charts.blue'));
+const taskIcon      = new vscode.ThemeIcon('debug-stackframe',       new vscode.ThemeColor('charts.blue'));
 const funcIcon      = new vscode.ThemeIcon('symbol-module',          new vscode.ThemeColor('charts.blue'));
 const beginIcon     = new vscode.ThemeIcon('debug-start',            new vscode.ThemeColor('charts.blue'));
 const forkIcon      = new vscode.ThemeIcon('repo-forked',            new vscode.ThemeColor('charts.blue'));

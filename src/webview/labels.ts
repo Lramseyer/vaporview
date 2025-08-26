@@ -332,6 +332,7 @@ export class LabelsPanels {
     }
 
     const newGroupRowId = this.getRowIdFromElement(this.groupContainer);
+    const oldGroupId = getParentGroupId(draggableItemRowId) || 0;
     let newGroupId = 0;
     if (newGroupRowId !== null) {
       newGroupId = dataManager.groupIdTable.indexOf(newGroupRowId);
@@ -341,11 +342,17 @@ export class LabelsPanels {
     }
 
     let newIndex = 0;
+    const oldIndex = getIndexInGroup(draggableItemRowId, oldGroupId) || 0;
     const closestItemRowId = this.getRowIdFromElement(this.closestItem);
     if (closestItemRowId === null || isNaN(closestItemRowId)) {
       newIndex = 0;
     } else{
-      newIndex = getIndexInGroup(closestItemRowId, newGroupId) || 0 + this.indexOffset;
+      const dropItemIndex  = getIndexInGroup(closestItemRowId, newGroupId) || 0;
+      newIndex = dropItemIndex + this.indexOffset;
+    }
+
+    if (oldGroupId === newGroupId && newIndex > oldIndex) {
+      newIndex = Math.max(newIndex - 1, 0);
     }
 
     this.idleItems.forEach((item: any) => {item.style = null;});

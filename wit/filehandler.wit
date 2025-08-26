@@ -1,5 +1,5 @@
 // wit/filehandler.wit
-package vscode:example;
+package vaporview:fileparser;
 
 interface types {
 

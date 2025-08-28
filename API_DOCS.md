@@ -1,9 +1,15 @@
 # Vaporview API
 
-This document is work in progress, and may be subject to change. Please visit github for API discussions.
+This is the official API for Vaporview. This will remain stable for all future releases. Anything listed as a proposed API is subject to change. If you would like to see anything added to the API, please file an [issue](https://github.com/Lramseyer/vaporview/issues), or add it to the github [discussions](https://github.com/Lramseyer/vaporview/discussions/63).
 
-Things still subject to change:
-- Adding Custom Enum, and custom Value format commands
+Planned upodates to the API
+
+- More commands
+- Custom name translations
+- Custom transactions
+- URI schema for netlist elements
+
+One point of caution is that the instance pathcan vary depending on tools used to elaborate the RTL, so there may be small changes made to how instance paths are listed. Please let me know if you run into any issues reconciling instance paths!
 
 ## Overview
 
@@ -285,6 +291,42 @@ Emitted when a variable is removed from the viewer
 - **uri** - string
 - **instancePath** - string
 - **netlistId** - number
+
+## Sample code for subscribing to event emitters
+
+This would likely go in your `activate()` function
+```typescript
+// Check if Vaporview extension is installed
+const vaporviewExtension = vscode.extensions.getExtension('lramseyer.vaporview');
+if (!vaporviewExtension) {
+  console.log('Vaporview extension not found - integration disabled');
+  return;
+}
+
+// Wait for Vaporview to activate (if not already)
+if (!vaporviewExtension.isActive) {
+  await vaporviewExtension.activate();
+}
+
+// Get the Vaporview API
+const vaporviewApi = vaporviewExtension.exports;
+if (!vaporviewApi) {
+  console.log('Vaporview API not available - onDidSelectSignal not found');
+  return;
+}
+
+// Event handler subscription
+const subscription = vaporviewApi.onDidSelectSignal(async (event: any) => {
+  const uri          = event.uri
+  const instancePath = event.instancePath;
+  const source       = event.source;
+
+  // Your handler code would go here
+});
+
+context.subscriptions.push(subscription);
+
+```
 
 # Signal Value Links
 

@@ -183,16 +183,7 @@ This extension requires VScode 1.96.0 or later
 
 # Development Roadmap
 
-## 1.3.4 - Latest Release
-
-- Ruler now displays time units
-- Added Feature to change time units
-- Scrolling Mode is now a global user setting
-- Viewer reloads previous state upon closing and reopening VScode
-- Added Signal Value Links functionality
-- Added "Backspace" keybinding to remove variable
-
-## 1.4.0 - Upcoming Release
+## 1.4.0 - Latest Release
 
 - Added
   - Signal grouping in the viewer
@@ -227,7 +218,7 @@ I originally built this extension when I worked for an FPGA company. I wanted a 
 
 This is and always will be open source. It's free to use for personal and professional use. There never will be feature regression in favor of a premium tier. In other words, every feature that is currently included, or on the roadmap will be free and open source. Adaptations of the source code completely or even in part for other projects is only allowed _if_ the project is also free and open source. Adaptations of the source code completely or in part for distribution in enterprise software is not allowed _unless_ prior written permission is given by the owner of this project.
 
-This extension was written by one person, with a full time job that doesn't involve anything to do with writing javascript or typescript. If you would like to see a feature added or functionality changed, or better yet, if you would like to help contribute please visit the [github repository](https://github.com/Lramseyer/VaporView) and discuss there!
+This extension was originally written by one person, with a full time job that doesn't involve anything to do with writing javascript or typescript. If you would like to see a feature added or functionality changed, or better yet, if you would like to help contribute please visit the [github repository](https://github.com/Lramseyer/VaporView) and discuss there!
 
 # Acknowledgements
 

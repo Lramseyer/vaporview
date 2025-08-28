@@ -1,6 +1,6 @@
 # Change Log
 
-# 1.4.0 - Upcoming Release
+# 1.4.0 - 8/27/2025 - Latest Release
 
 - Added
   - Signal grouping in the viewer
@@ -10,6 +10,7 @@
   - Ctrl/Cmd + 0 for zoom to fit
   - Drag to reorder signals now responds to scroll
   - Surfer surver support
+  - Added button to reload file
   - Status Bar now shows value change count for selected signal
   - Automatically reload waveform on file updates
 - Fixed
@@ -20,7 +21,7 @@
   - Improved signal loading performance (with LZ4 compression)
   - updated .vscodeignore file to reduce build size
 
-# 1.3.4 - 5/9/2025 - Latest Release
+# 1.3.4 - 5/9/2025
 
 - Ruler now displays time units
 - Added Feature to change time units

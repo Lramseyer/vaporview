@@ -662,12 +662,8 @@ class VaporviewWebview {
     viewerState.visibleSignalsFlat  = [];
     viewerState.zoomRatio           = 1;
     dataManager.unload();
-
-    //this.contentArea.style.height = '40px';
-    //this.viewport.updateContentArea(0, [0, 0]);
     labelsPanel.renderLabelsPanels();
-    this.events.dispatch(ActionType.Zoom, 1, 0, 0);
-    this.viewport.init({defaultZoom: 1, timeScale: 1, timeEnd: 0}, viewerState.uri);
+    // we don't need to do anything to the viewport, because the ready message will reinitialize it
     vscode.postMessage({type: 'ready'});
   }
 

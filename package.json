@@ -241,6 +241,13 @@
       }
     ],
     "menus": {
+      "editor/title": [
+        {
+          "command": "vaporview.reloadFile",
+          "when": "activeCustomEditorId == 'vaporview.waveformViewer' && (resourceExtname == '.vcd' || resourceExtname == '.fst' || resourceExtname == '.ghw' || resourceExtname == '.fsdb')",
+          "group": "navigation"
+        }
+      ],
       "editor/title/context": [
         {
           "command": "vaporview.reloadFile",
@@ -844,7 +851,8 @@
       },
       {
         "command": "vaporview.reloadFile",
-        "title": "Reload File"
+        "title": "Reload File",
+        "icon": "$(sync)"
       },
       {
         "command": "vaporview.nextEdge",

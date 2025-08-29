@@ -63,6 +63,11 @@ export interface signalEvent {
   source: string; // "viewer" or "treeview"
 }
 
+export interface viewerDropEvent {
+  uri: string;
+  resourceUriList: vscode.Uri[];
+}
+
 // #region WaveformViewerProvider
 export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<VaporviewDocument> {
 
@@ -104,6 +109,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   public static readonly signalSelectEventEmitter = new vscode.EventEmitter<signalEvent>();
   public static readonly addVariableEventEmitter = new vscode.EventEmitter<signalEvent>();
   public static readonly removeVariableEventEmitter = new vscode.EventEmitter<signalEvent>();
+  public static readonly externalDropEventEmitter = new vscode.EventEmitter<viewerDropEvent>();
 
   constructor(
     private readonly _context: vscode.ExtensionContext, 
@@ -123,7 +129,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       manageCheckboxStateManually: true,
       canSelectMany: true,
       showCollapseAll: true,
-      //dragAndDropController: netlistItemDragAndDropController
+      dragAndDropController: netlistItemDragAndDropController
     });
     this._context.subscriptions.push(this.netlistView);
 
@@ -954,12 +960,37 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   }
 
   private handleWebviewDrop(e: any) {
-    if (!this.activeDocument) {return;}
-    if (!this.activeWebview?.visible) {return;}
-    if (!e.instancePaths) {return;}
 
-    e.instancePaths.forEach((instancePath: string) => {
-      this.addSignalByNameToDocument(instancePath);
+    const unknwonUriList: vscode.Uri[] = [];
+    const netlistIdList: NetlistId[] = [];
+    const document = this.getDocumentFromUri(e.uri.external);
+    if (!document) {return;}
+    if (!e.resourceUriList) {return;}
+
+    console.log(e.resourceUriList);
+
+    e.resourceUriList.forEach((uri: vscode.Uri) => {
+      if (uri.scheme !== 'waveform') {
+        unknwonUriList.push(uri);
+        return;
+      }
+      const fragment = uri.fragment;
+      if (fragment === undefined || fragment === "") {return;}
+      fragment.split('&').forEach((tag: string) => {
+        const [key, value] = tag.split('=');
+        if (key === "var") {netlistIdList.push(parseInt(value));}
+      });
+    });
+
+    if (document !== this.activeDocument) {return;}
+    const metadata = netlistIdList.map(id => document.netlistIdTable[id].netlistItem);
+    this.addSignalsToDocument(document, metadata, []);
+
+    // Emit an event for the unknown URIs so that other extensions can handle them if needed
+    if (unknwonUriList.length === 0) {return;}
+    WaveformViewerProvider.externalDropEventEmitter.fire({
+      uri: e.uri,
+      resourceUriList: unknwonUriList,
     });
   }
 

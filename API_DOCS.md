@@ -19,6 +19,7 @@ Vaporview is designed with the VSCode IDE expereince in mind, so this document s
 - Adding, removing, and selecting variables
 - Placing markers
 - Signal Value Links
+- Drag and drop into viewer (proposed API)
 
 # Context Menus
 
@@ -263,7 +264,7 @@ All events are emitted regaurdless of their source action - click, key press, or
 
 Emitted when the marker changes value in the viewer. 
 
-- **uri** - string
+- **uri** - uri
 - **time** - number
 - **units** - string
 
@@ -271,7 +272,7 @@ Emitted when the marker changes value in the viewer.
 
 Emitted when a signal is selected by either the user, or externally
 
-- **uri** - string
+- **uri** - uri
 - **instancePath** - string
 - **netlistId** - number
 - **source** - "netlistView" | "viewer"
@@ -280,7 +281,7 @@ Emitted when a signal is selected by either the user, or externally
 
 Emitted when a variable is added to the viewer
 
-- **uri** - string
+- **uri** - uri
 - **instancePath** - string
 - **netlistId** - number
 
@@ -288,9 +289,16 @@ Emitted when a variable is added to the viewer
 
 Emitted when a variable is removed from the viewer
 
-- **uri** - string
+- **uri** - uri
 - **instancePath** - string
 - **netlistId** - number
+
+## onDidDropInWaveformViewer (proposed)
+
+Emitted when an unknown tree item is dragged into the viewer. The resourceUriList will contain all unknown URIs of tree items. This event is only emitted if the dataTransfer contains more than one unknown URI, and all known URIs (netlist items, and eventually config files) will be filtered out of the resourceUriList to prevent erroneous events from being emitted.
+
+- **uri** - string
+- **resourceUriList** - uri[]
 
 ## Sample code for subscribing to event emitters
 
@@ -418,6 +426,16 @@ const disposable_2 = vscode.commands.registerCommand(
   (e) => {onDidClickSignalValueLink(e)}
 )
 ```
+
+# Vaporview URI schema (proposal)
+
+Vaporview will start supporting URIs to navigate within the viewer. It will use the scheme **waveform** to denote that it is a waveform document. Much like how VScode supports fragments to select lines and ranges of lines, vaporview schemes will support time values, time ranges, and instance paths of signals. All tree itmes in the netlist view will contain their respective URIs as the resourceUri field, and support drag and drop. This way, if you want your extension to support dragging and dropping netlist items, you can.
+
+The **fragment** of the URI can contain an instance path, time value, or time range, and will be delimeted by an "&"
+
+**Time** and **Time ranges** will be encoded as **t:5000** or **t:4000ns** (units are optional) for a time range, use a dash to delimit
+
+**Instance Path** is encoded as **net:top.scope.signal**
 
 # Save File Format (Proposal)
 

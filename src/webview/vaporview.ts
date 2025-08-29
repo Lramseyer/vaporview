@@ -723,32 +723,16 @@ class VaporviewWebview {
   handleDrop(e: DragEvent) {
     e.preventDefault();
 
-    if (!e.dataTransfer) return;
-    const types = e.dataTransfer.types;
-    let metadata: any = {};
-
-    for (const type of types) {
-      const data = e.dataTransfer.getData(type);
-      if (type === 'application/vnd.code.tree.waveformviewernetlistview') {
-        if (data !== '') {metadata = JSON.parse(data);}
-      }
-    }
-
-    let instancePaths: string[] = [];
-    if (!metadata.itemHandles) {return;}
-    if (!Array.isArray(metadata.itemHandles)) {return;}
-    for (const handles of metadata.itemHandles) {
-
-      const noPrefix     = handles.replace(/\d+\/\d+:/, '');
-      const scopes       = noPrefix.split('/0:');
-      const instancePath = scopes.join('.').replace(/\s+/, '');
-      instancePaths.push(instancePath);
-      //console.log(instancePath);
-    }
+    if (!e.dataTransfer) {return;}
+    const data    = e.dataTransfer.getData('codeeditors');
+    if (!data) {return;}
+    const dataObj = JSON.parse(data);
+    const uriList = dataObj.map((d: any) => {return d.resource;});
 
     vscode.postMessage({
       command: 'handleDrop',
-      instancePaths: instancePaths
+      resourceUriList: uriList,
+      uri: viewerState.uri,
     });
   }
 

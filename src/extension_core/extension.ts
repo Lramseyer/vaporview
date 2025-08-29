@@ -37,6 +37,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const signalSelectEvent = WaveformViewerProvider.signalSelectEventEmitter.event;
   const addVariableEvent = WaveformViewerProvider.addVariableEventEmitter.event;
   const removeVariableEvent = WaveformViewerProvider.removeVariableEventEmitter.event;
+  const externalDropEvent = WaveformViewerProvider.externalDropEventEmitter.event;
 
   // #region External Commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.openFile', async (e) => {
@@ -388,6 +389,7 @@ export async function activate(context: vscode.ExtensionContext) {
     onDidSelectSignal: signalSelectEvent,
     onDidAddVariable: addVariableEvent,
     onDidRemoveVariable: removeVariableEvent,
+    onDidDropInWaveformViewer: externalDropEvent
   };
 }
 

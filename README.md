@@ -41,6 +41,7 @@ Vaporview has a set of commands and event emitters that allow interaction with o
 - Event emitters
   - Adding, removing, and selecting variables
   - Placing markers
+  - Dragging custom tree items into the viewer (not finalized)
 - Adding custom context menu items
 - Signal value links
 
@@ -63,13 +64,21 @@ Vaporview has a set of commands and event emitters that allow interaction with o
 
 Signals may be added or removed through VaporView view container. Click on the VaporView Activity Bar icon, and it will show the netlist for the opened waveform file as well as the signals displayed in the tab.
 
-To Add a signal, simply check the box next to the netlist signal ID in the "Netlist" view. It will also show in the "Displayed Signals" view.
+### Adding Signals
+
+To Add a signal, simply check the box next for the netlist element in the "Netlist" view. It will also show in the "Displayed Signals" view.
+
+**New in 1.4.1:** Signals can also be added by dragging and dropping them from the netlist view to the viewer. Make sure to hold **Shift** before dropping them into the viewer (this is a VScode limitation.)
+
+### Removing Signals
 
 To remove a signal, that signal can be un-checked from either the "Netlist" view or the "Displayed Signals" view. From the viewer, you can either select the signal you would like to remode and hit **Delete**, or right click on a signal in the viewer and select **remove signal** from the menu.
 
-To add or remove multiple signals, select the signals you would like to add or remove, right click and select **Add/Remove selected signals** from the menu.
+### Other less common ways
 
-Signals can also be added by clicking on a link in the terminal with the full signal path.
+Multiple signals can be added or removed by selecting the signals you would like to add or remove, and then right click and select **Add/Remove selected signals** from the menu.
+
+Signals can be added via a terminal link, and they can be added or removed via API commands.
 
 ## Scrolling
 
@@ -202,6 +211,13 @@ This extension requires VScode 1.96.0 or later
   - Upgraded to wellen 0.18.4 for miscellaneous improvements to file loading
   - Improved signal loading performance (with LZ4 compression)
   - updated .vscodeignore file to reduce build size
+
+## 1.4.1 - Upcoming Release
+
+- Added
+  - Drag and drop from netlist view to add variables into the viewer
+- API
+  - Added (proposed) onDidDropInWaveformViewer event
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

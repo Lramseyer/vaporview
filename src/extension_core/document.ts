@@ -514,13 +514,13 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
     },
     setscopetop: (name: string, id: number, tpe: string) => {
 
-      const scope = createScope(name, tpe, "", id, -1);
+      const scope = createScope(name, tpe, "", id, -1, this.uri);
       this.treeData.push(scope);
       this._netlistIdTable[id] = {netlistItem: scope, displayedItem: undefined, signalId: 0};
     },
     setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number) => {
 
-      const varItem = createVar(name, tpe, encoding, "", id, signalid, width, msb, lsb, false /*isFsdb*/);
+      const varItem = createVar(name, tpe, encoding, "", id, signalid, width, msb, lsb, false /*isFsdb*/, this.uri);
       this.treeData.push(varItem);
       this._netlistIdTable[id] = {netlistItem: varItem, displayedItem: undefined, signalId: signalid};
     },
@@ -603,13 +603,13 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
       startIndex    += childItems.totalReturned;
 
       childItems.scopes.forEach((child: any) => {
-        result.push(createScope(child.name, child.type, scopePath, child.id, -1));
+        result.push(createScope(child.name, child.type, scopePath, child.id, -1, this.uri));
       });
       childItems.vars.forEach((child: any) => {
         // Need to handle the case where we get a variable with the same name but
         // different bit ranges.
         const encoding = child.encoding.split('(')[0];
-        const varItem = createVar(child.name, child.type, encoding, scopePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, false /*isFsdb*/);
+        const varItem = createVar(child.name, child.type, encoding, scopePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, false /*isFsdb*/, this.uri);
         if (varTable[child.name] === undefined) {
           varTable[child.name] = [varItem];
         } else {
@@ -988,7 +988,7 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
    * fsdbScopeCallback and fsdbUpscopeCallback work as a pair and operate treeData as a stack.
    */
   fsdbScopeCallback(name: string, type: string, path: string, netlistId: number, scopeOffsetIdx: number) {
-    this.treeData.push(createScope(name, type, path, netlistId, scopeOffsetIdx));
+    this.treeData.push(createScope(name, type, path, netlistId, scopeOffsetIdx, this.uri));
   }
 
   /**
@@ -1010,14 +1010,14 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
   * Called by fsdbWorker when traversing a var.
   */
   fsdbVarCallback(name: string, type: string, encoding: string, path: string, netlistId: NetlistId, signalId: SignalId, width: number, msb: number, lsb: number) {
-    const varItem = createVar(name, type, encoding, path, netlistId, signalId, width, msb, lsb, true /*isFsdb*/);
+    const varItem = createVar(name, type, encoding, path, netlistId, signalId, width, msb, lsb, true /*isFsdb*/, this.uri);
     this.fsdbCurrentScope!.children.push(varItem);
 
     this.netlistIdTable[varItem.netlistId] = { netlistItem: varItem, displayedItem: undefined, signalId: varItem.signalId };
   }
 
   fsdbArrayBeginCallback(name: string, path: string, netlistId: number) {
-    this.fsdbCurrentScope!.children.push(createScope(name, "vhdlarray", path, netlistId, -1));
+    this.fsdbCurrentScope!.children.push(createScope(name, "vhdlarray", path, netlistId, -1, this.uri));
   }
 
   fsdbArrayEndCallback(size: number) {

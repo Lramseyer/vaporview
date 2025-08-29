@@ -15,8 +15,15 @@ const interfaceIcon = new vscode.ThemeIcon('debug-disconnect', new vscode.ThemeC
 const packageIcon   = new vscode.ThemeIcon('package',          new vscode.ThemeColor('charts.purple'));
 const scopeIcon     = new vscode.ThemeIcon('symbol-module',    new vscode.ThemeColor('charts.purple'));
 
-export function createScope(name: string, type: string, path: string, netlistId: number, scopeOffsetIdx: number) {
-  
+export function createScope(
+  name: string,
+  type: string,
+  path: string,
+  netlistId: number,
+  scopeOffsetIdx: number, 
+  uri: vscode.Uri
+) {
+
   let icon = scopeIcon;
   const typename = type.toLocaleLowerCase();
   switch (typename) {
@@ -52,7 +59,7 @@ export function createScope(name: string, type: string, path: string, netlistId:
     name = name.replace(regex, '');
   }
 
-  const module    = new NetlistItem(name, typename, 'none', 0, 0, netlistId, name, path, 0, 0, scopeOffsetIdx, [], vscode.TreeItemCollapsibleState.Collapsed);
+  const module    = new NetlistItem(name, typename, 'none', 0, 0, netlistId, name, path, 0, 0, scopeOffsetIdx, [], vscode.TreeItemCollapsibleState.Collapsed, undefined, uri);
   module.iconPath = icon;
 
   return module;
@@ -76,7 +83,19 @@ const portIcon    = new vscode.ThemeIcon('plug',             new vscode.ThemeCol
 const timeIcon    = new vscode.ThemeIcon('watch',            new vscode.ThemeColor('charts.green'));
 const enumIcon    = new vscode.ThemeIcon('symbol-parameter', new vscode.ThemeColor('charts.green'));
 
-export function createVar(name: string, type: string, encoding: string, path: string, netlistId: NetlistId, signalId: SignalId, width: number, msb: number, lsb: number, isFsdb: boolean) {
+export function createVar(
+  name: string,
+  type: string,
+  encoding: string,
+  path: string,
+  netlistId: NetlistId,
+  signalId: SignalId,
+  width: number,
+  msb: number,
+  lsb: number,
+  isFsdb: boolean,
+  uri: vscode.Uri
+) {
   const field = bitRangeString(msb, lsb);
   let label = name;
 
@@ -88,7 +107,7 @@ export function createVar(name: string, type: string, encoding: string, path: st
     name = name.replace(regex, '');
   }
 
-  const variable = new NetlistItem(label, type, encoding, width, signalId, netlistId, name, path, msb, lsb, -1, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked);
+  const variable = new NetlistItem(label, type, encoding, width, signalId, netlistId, name, path, msb, lsb, -1, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked, uri);
   const typename = type.toLocaleLowerCase();
   let icon;
 
@@ -262,7 +281,7 @@ export class DisplayedSignalsViewProvider implements vscode.TreeDataProvider<Net
 
   public addSignalToTreeData(netlistItem: NetlistItem): NetlistItem {
     const n = netlistItem;
-    const displayedItem = new NetlistItem(n.label, n.type, n.encoding, n.width, n.signalId, n.netlistId, n.name, n.scopePath, n.msb, n.lsb, -1, n.children, vscode.TreeItemCollapsibleState.None, n.checkboxState);
+    const displayedItem = new NetlistItem(n.label, n.type, n.encoding, n.width, n.signalId, n.netlistId, n.name, n.scopePath, n.msb, n.lsb, -1, n.children, vscode.TreeItemCollapsibleState.None, n.checkboxState, n.resourceUri);
     displayedItem.iconPath = n.iconPath;
     this.treeData.push(displayedItem);
     this._onDidChangeTreeData.fire(undefined); // Trigger a refresh of the Netlist view
@@ -298,6 +317,7 @@ export class NetlistItem extends vscode.TreeItem {
 
   public numberFormat: string;
   public fsdbVarLoaded: boolean = false; // Only used in fsdb
+  public resourceUri: vscode.Uri;
 
   constructor(
     public readonly label:      string,
@@ -313,21 +333,27 @@ export class NetlistItem extends vscode.TreeItem {
     public readonly scopeOffsetIdx: number, // Only used in fsdb
     public children:         NetlistItem[] = [],
     public collapsibleState: vscode.TreeItemCollapsibleState,
-    public checkboxState:    vscode.TreeItemCheckboxState | undefined = undefined // Display preference
+    public checkboxState:    vscode.TreeItemCheckboxState | undefined = undefined, // Display preference
+    uri: vscode.Uri
   ) {
     let fullName = "";
     if (scopePath !== "") {fullName += scopePath + ".";}
-    fullName += label;
+    fullName;
 
     super(label, collapsibleState);
     this.numberFormat = "hexadecimal";
-    this.tooltip = "Name: " + fullName + "\n" + "Type: " + type + "\n";
+    this.tooltip = "Name: " + fullName + label + "\n" + "Type: " + type + "\n";
+    let fragmentId = "";
     if (collapsibleState === vscode.TreeItemCollapsibleState.None) {
+      fragmentId = 'var=' + netlistId;
       this.contextValue = 'netlistVar'; // Set a context value for leaf nodes
       this.tooltip += "Width: " + width + "\n" + "Encoding: " + encoding;
     } else {
+      fragmentId = 'scope=' + netlistId;
       this.contextValue = 'netlistScope'; // Set a context value for parent nodes
     }
+
+    this.resourceUri = vscode.Uri.parse(`waveform://${uri.fsPath}#${fragmentId}&net=${fullName + name}`);
   }
 
   // Method to recursively find a child element in the tree
@@ -375,12 +401,11 @@ export class NetlistItem extends vscode.TreeItem {
   }
 }
 
+// We don't need to do anything special for drag and drop because the resource URI has the data we need
 export const netlistItemDragAndDropController: vscode.TreeDragAndDropController<NetlistItem> = {
-  dragMimeTypes: ['application/vnd.code.tree.waveformviewernetlistview.netlistid', 'application/vnd.code.tree.waveformviewernetlistview'],
+  dragMimeTypes: [],
   dropMimeTypes: [],
   handleDrag: (source: readonly NetlistItem[], dataTransfer: vscode.DataTransfer, token: vscode.CancellationToken) => {
-    const netlistIdList = source.map(item => item.netlistId);
-    dataTransfer.set('application/vnd.code.tree.waveformviewernetlistview.netlistid', new vscode.DataTransferItem(netlistIdList.join(',')));
     return Promise.resolve()
   },
   handleDrop: (target: NetlistItem | undefined, dataTransfer: vscode.DataTransfer, token: vscode.CancellationToken) => {return Promise.resolve()},

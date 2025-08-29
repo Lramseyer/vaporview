@@ -73,12 +73,12 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
       return BigInt(0);
     },
     setscopetop: (name: string, id: number, tpe: string) => {
-      const scope = createScope(name, tpe, "", id, -1);
+      const scope = createScope(name, tpe, "", id, -1, this.uri);
       this.treeData.push(scope);
       this._netlistIdTable[id] = { netlistItem: scope, displayedItem: undefined, signalId: 0 };
     },
     setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number) => {
-      const varItem = createVar(name, tpe, encoding, "", id, signalid, width, msb, lsb, false /*isFsdb*/);
+      const varItem = createVar(name, tpe, encoding, "", id, signalid, width, msb, lsb, false /*isFsdb*/, this.uri);
       this.treeData.push(varItem);
       this._netlistIdTable[id] = { netlistItem: varItem, displayedItem: undefined, signalId: signalid };
     },
@@ -139,11 +139,11 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
       startIndex += childItems.totalReturned;
 
       childItems.scopes.forEach((child: any) => {
-        result.push(createScope(child.name, child.type, scopePath, child.id, -1));
+        result.push(createScope(child.name, child.type, scopePath, child.id, -1, this.uri));
       });
       childItems.vars.forEach((child: any) => {
         const encoding = child.encoding.split('(')[0];
-        const varItem = createVar(child.name, child.type, encoding, scopePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, false /*isFsdb*/);
+        const varItem = createVar(child.name, child.type, encoding, scopePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, false /*isFsdb*/, this.uri);
         if (varTable[child.name] === undefined) {
           varTable[child.name] = [varItem];
         } else {

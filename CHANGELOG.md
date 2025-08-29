@@ -1,5 +1,12 @@
 # Change Log
 
+## 1.4.1 - Upcoming Release
+
+- Added
+  - Drag and drop from netlist view to add variables into the viewer
+- API
+  - Added (proposed) onDidDropInWaveformViewer event
+
 # 1.4.0 - 8/27/2025 - Latest Release
 
 - Added

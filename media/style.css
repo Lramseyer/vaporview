@@ -493,6 +493,7 @@ body {
 
 .is-selected {
   background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
   border-top: 1px solid var(--vscode-focusBorder);
   border-bottom: 1px solid var(--vscode-focusBorder);
 }

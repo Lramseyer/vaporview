@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 
 import { TimestampLinkProvider, NetlistLinkProvider } from './terminal_links';
 import { WaveformViewerProvider } from './viewer_provider';
+import * as path from 'path';
 
 // #region activate()
 export async function activate(context: vscode.ExtensionContext) {
@@ -396,3 +397,41 @@ export async function activate(context: vscode.ExtensionContext) {
 export default WaveformViewerProvider;
 
 export function deactivate() {}
+
+export function getTokenColorsForTheme(themeName: string) {
+  const tokenColors = new Map();
+  let currentThemePath;
+  for (const extension of vscode.extensions.all) {
+    const themes = extension.packageJSON.contributes && extension.packageJSON.contributes.themes;
+    const currentTheme = themes && themes.find((theme: any) => theme.id === themeName);
+    if (currentTheme) {
+      currentThemePath = path.join(extension.extensionPath, currentTheme.path);
+      break;
+    }
+  }
+  const themePaths = [];
+  if (currentThemePath) { themePaths.push(currentThemePath); }
+  while (themePaths.length > 0) {
+    const themePath: any = themePaths.pop();
+    const theme: any = require(themePath);
+    if (theme) {
+      if (theme.include) {
+        themePaths.push(path.join(path.dirname(themePath), theme.include));
+      }
+      if (theme.tokenColors) {
+        theme.tokenColors.forEach((rule: any) => {
+          if (typeof rule.scope === "string" && !tokenColors.has(rule.scope)) {
+            tokenColors.set(rule.scope, rule.settings);
+          } else if (rule.scope instanceof Array) {
+            rule.scope.forEach((scope: any) => {
+              if (!tokenColors.has(rule.scope)) {
+                tokenColors.set(scope, rule.settings);
+              }
+            });
+          }
+        });
+      }
+    }
+  }
+  return tokenColors;
+}

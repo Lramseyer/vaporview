@@ -111,7 +111,7 @@ export class WaveformDataManager {
     return null;
   }
 
-  addVariable(signalList: any, groupPath: string[] | undefined, parentGroupId: number | undefined) {
+  addVariable(signalList: any, groupPath: string[] | undefined, parentGroupId: number | undefined, index: number | undefined) {
     // Handle rendering a signal, e.g., render the signal based on message content
 
     if (signalList.length === 0) {return;}
@@ -182,13 +182,24 @@ export class WaveformDataManager {
     updateDisplayedSignalsFlat();
     this.events.dispatch(ActionType.AddVariable, rowIdList, updateFlag);
 
+    let reorder = false;
+    let groupId = 0;
+    let moveIndex;
     let groupItem = this.getGroupByIdOrName(groupPath, parentGroupId);
     if (groupItem !== null) {
+      groupId = groupItem.groupId;
+      moveIndex = groupItem.children.length;
+      reorder = true;
+    }
 
-      const groupId = groupItem.groupId;
-      const index = groupItem.children.length;
+    if (index !== undefined) {
+      moveIndex = Math.max(index, 0);
+      reorder = true;
+    }
+
+    if (reorder) {
       moveList.forEach((rowId: RowId) => {
-        this.events.dispatch(ActionType.ReorderSignals, rowId, groupId, index);
+        this.events.dispatch(ActionType.ReorderSignals, rowId, groupId, moveIndex);
       });
     }
 

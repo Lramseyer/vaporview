@@ -313,7 +313,7 @@ class VaporviewWebview {
     this.scrollArea.addEventListener(  'scroll', () => {this.handleViewportScroll();});
     this.labelsScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, labelsScroll.scrollTop);});
     this.valuesScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, valuesScroll.scrollTop);});
-    //this.webview.addEventListener('dragover', (e) => {labelsPanel.updateIdleItemsStateAndPosition(e);});
+    this.webview.addEventListener('dragover', (e) => {labelsPanel.dragMoveExternal(e);});
     this.webview.addEventListener('drop', (e) => {this.handleDrop(e);});
 
     this.handleMarkerSet    = this.handleMarkerSet.bind(this);
@@ -521,9 +521,11 @@ class VaporviewWebview {
   }
 
   handleMouseUp(event: MouseEvent | KeyboardEvent, abort: boolean) {
-    //console.log('mouseup event type: ' + mouseupEventType);
+    console.log('mouseup event type: ' + event);
     if (viewerState.mouseupEventType === 'rearrange') {
       labelsPanel.dragEnd(event, abort);
+    } else if (viewerState.mouseupEventType === 'dragAndDrop') {
+      labelsPanel.dragEndExternal(event, abort);
     } else if (viewerState.mouseupEventType === 'resize') {
       labelsPanel.resizeElement.classList.remove('is-resizing');
       labelsPanel.resizeElement.classList.add('is-idle');
@@ -729,8 +731,29 @@ class VaporviewWebview {
     const dataObj = JSON.parse(data);
     const uriList = dataObj.map((d: any) => {return d.resource;});
 
+    const {newGroupId, newIndex} = labelsPanel.dragEndExternal(e, false);
+
+    // get the group path for the new group id
+    let groupPath: string[] = [];
+    const groupRowId = dataManager.groupIdTable[newGroupId];
+    if (groupRowId) {
+      groupPath = getParentGroupIdList(groupRowId).map((id) => {
+        const item = dataManager.rowItems[dataManager.groupIdTable[id]];
+        if (item instanceof SignalGroup) {
+          return item.label;
+        }
+        return '';
+      });
+      const groupItem = dataManager.rowItems[groupRowId];
+      if (groupItem instanceof SignalGroup) {
+        groupPath.push(groupItem.label);
+      }
+    }
+
     vscode.postMessage({
       command: 'handleDrop',
+      groupPath: groupPath,
+      dropIndex: newIndex,
       resourceUriList: uriList,
       uri: viewerState.uri,
     });
@@ -745,7 +768,7 @@ class VaporviewWebview {
       case 'setConfigSettings':     {this.handleSetConfigSettings(message); break;}
       case 'getContext':            {sendWebviewContext(); break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
-      case 'add-variable':          {dataManager.addVariable(message.signalList, message.groupPath, undefined); break;}
+      case 'add-variable':          {dataManager.addVariable(message.signalList, message.groupPath, undefined, message.index); break;}
       case 'remove-signal':         {this.removeVariable(message.netlistId); break;}
       case 'remove-group':          {this.removeSignalGroup(message.groupId, message.recursive); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}

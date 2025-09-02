@@ -69,7 +69,6 @@ export class LabelsPanels {
     this.handleResizeMousedown = this.handleResizeMousedown.bind(this);
     this.handleMarkerSet       = this.handleMarkerSet.bind(this);
     this.handleSignalSelect    = this.handleSignalSelect.bind(this);
-    //this.handleReorderSignals  = this.handleReorderSignals.bind(this);
     this.handleReorderSignalsHierarchy  = this.handleReorderSignalsHierarchy.bind(this);
     this.handleRemoveVariable  = this.handleRemoveVariable.bind(this);
     this.handleAddVariable     = this.handleAddVariable.bind(this);
@@ -87,7 +86,6 @@ export class LabelsPanels {
 
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
-    //this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
     this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignalsHierarchy);
     this.events.subscribe(ActionType.AddVariable, this.handleAddVariable);
     this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
@@ -151,47 +149,16 @@ export class LabelsPanels {
     vscode.postMessage({command: 'copyToClipboard', text: formattedValue});
   }
 
-  setDraggableItemClasses() {
-    if (!this.draggableItem) {return;}
-    this.draggableItem.classList.remove('is-idle');
-    this.draggableItem.children[0].classList.remove('is-selected');
-    this.draggableItem.classList.add('is-draggable');
-    this.dragDivider = this.labels.querySelector('#drag-divider');
-    if (this.dragDivider) {this.dragDivider.style.display = 'block'};
-    this.dragInProgress = true;
-  }
-
-  setTreeItemDraggableClasses() {
-    this.idleItems   = this.labelsList.filter((item: any) => {return item.classList.contains('is-idle');});
-    this.dragDivider = this.labels.querySelector('#drag-divider');
-    if (this.dragDivider) {this.dragDivider.style.display = 'block'};
-  }
-
-
-  dragStart(event: any) {
-    if (event.button !== 0) {return;} // Only allow left mouse button drag
-    if (this.renameActive) {return;} // Prevent drag if rename is active
-    //event.preventDefault();
-    this.labelsList    = Array.from(this.labels.querySelectorAll('.waveform-label'));
-    this.draggableItem = event.target.closest('.waveform-label');
-
-    if (!this.draggableItem) {return;}
-    const rowId = parseInt(this.draggableItem.id.split('-')[1]);
-    if (isNaN(rowId)) {return;}
-
-    this.draggableItem.classList.remove('is-idle');
+  initializeDragHandler(event: MouseEvent | any) {
+    this.labelsList        = Array.from(this.labels.querySelectorAll('.waveform-label'));
     this.pointerStartX     = event.clientX;
     this.pointerStartY     = event.clientY;
     this.scrollStartY      = this.labelsScroll.scrollTop;
     this.dragInProgress    = false;
-    this.dragFreeze        = true;
     this.dragActive        = true;
-    this.defaultDragDividerY = this.draggableItem.getBoundingClientRect().top + this.labelsScroll.scrollTop;
-    clearTimeout(this.dragFreezeTimeout);
-    this.dragFreezeTimeout = setTimeout(() => {this.dragFreeze = false;}, 100);
-    document.addEventListener('mousemove', this.dragMove);
-    viewerState.mouseupEventType = 'rearrange';
+  }
 
+  setIdleItemsState(rowId: RowId) {
     // find all idle items and idle expanded dropus
     this.idleItems = [];
     this.idleGroups = [];
@@ -220,20 +187,71 @@ export class LabelsPanels {
     });
   }
 
+  dragStart(event: any) {
+    if (event.button !== 0) {return;} // Only allow left mouse button drag
+    if (this.renameActive) {return;} // Prevent drag if rename is active
+    //event.preventDefault();
+    
+    this.draggableItem = event.target.closest('.waveform-label');
+    if (!this.draggableItem) {return;}
+    const rowId = parseInt(this.draggableItem.id.split('-')[1]);
+    if (isNaN(rowId)) {return;}
+    this.draggableItem.classList.remove('is-idle');
+
+    this.defaultDragDividerY = this.draggableItem.getBoundingClientRect().top + this.labelsScroll.scrollTop;
+    clearTimeout(this.dragFreezeTimeout);
+    this.dragFreeze = true;
+    this.dragFreezeTimeout = setTimeout(() => {this.dragFreeze = false;}, 100);
+    document.addEventListener('mousemove', this.dragMove);
+    viewerState.mouseupEventType = 'rearrange';
+
+    this.initializeDragHandler(event);
+    this.setIdleItemsState(rowId);
+  }
+
+  dragStartExternal(event: MouseEvent | any) {
+
+    this.initializeDragHandler(event);
+    this.setIdleItemsState(-1);
+    this.defaultDragDividerY = this.labels.getBoundingClientRect().bottom + this.labelsScroll.scrollTop;
+    viewerState.mouseupEventType = 'dragAndDrop';
+  }
+
+  setDraggableItemClasses(isInternal: boolean) {
+    if (isInternal) {
+      if (!this.draggableItem) {return;}
+      this.draggableItem.classList.remove('is-idle');
+      this.draggableItem.children[0].classList.remove('is-selected');
+      this.draggableItem.classList.add('is-draggable');
+    }
+    this.dragDivider = this.labels.querySelector('#drag-divider');
+    if (this.dragDivider) {this.dragDivider.style.display = 'block'};
+    this.dragInProgress = true;
+  }
+
   dragMove(event: MouseEvent | any) {
 
     if (!this.dragActive) {return;}
     if (!this.draggableItem) {return;}
     if (this.dragFreeze) {return;}
     if (!this.dragInProgress) {
-      this.setDraggableItemClasses();
+      this.setDraggableItemClasses(true);
     }
 
     const scrollOffsetY  = this.labelsScroll.scrollTop - this.scrollStartY;
     const pointerOffsetX = event.clientX - this.pointerStartX;
     const pointerOffsetY = event.clientY - this.pointerStartY + scrollOffsetY;
-
     this.draggableItem.style.transform = `translate(${pointerOffsetX}px, ${pointerOffsetY}px)`;
+
+    this.updateIdleItemsStateAndPosition(event);
+  }
+
+  public dragMoveExternal(event: MouseEvent | any) {
+
+    if (!this.dragInProgress) {
+      this.dragStartExternal(event);
+      this.setDraggableItemClasses(false);
+    }
 
     this.updateIdleItemsStateAndPosition(event);
   }
@@ -318,21 +336,8 @@ export class LabelsPanels {
     }
   }
 
-  dragEnd(event: MouseEvent | KeyboardEvent | null, abort) {
-
-    document.removeEventListener('mousemove', this.dragMove);
-    this.dragActive = false;
-    if (!this.dragInProgress) {return;}
-    if (!this.draggableItem) {return;}
-    if (event) {event.preventDefault();}
-
-    const draggableItemRowId = this.getRowIdFromElement(this.draggableItem);
-    if (draggableItemRowId === null || isNaN(draggableItemRowId)) {
-      throw new Error("Invalid draggable item row ID: " + draggableItemRowId);
-    }
-
+  public getDropIndex() {
     const newGroupRowId = this.getRowIdFromElement(this.groupContainer);
-    const oldGroupId = getParentGroupId(draggableItemRowId) || 0;
     let newGroupId = 0;
     if (newGroupRowId !== null) {
       newGroupId = dataManager.groupIdTable.indexOf(newGroupRowId);
@@ -342,7 +347,6 @@ export class LabelsPanels {
     }
 
     let newIndex = 0;
-    const oldIndex = getIndexInGroup(draggableItemRowId, oldGroupId) || 0;
     const closestItemRowId = this.getRowIdFromElement(this.closestItem);
     if (closestItemRowId === null || isNaN(closestItemRowId)) {
       newIndex = 0;
@@ -351,25 +355,54 @@ export class LabelsPanels {
       newIndex = dropItemIndex + this.indexOffset;
     }
 
-    if (oldGroupId === newGroupId && newIndex > oldIndex) {
-      newIndex = Math.max(newIndex - 1, 0);
-    }
+    return {newGroupId, newIndex};
+  }
 
+  clearDragHandler() {
     this.idleItems.forEach((item: any) => {item.style = null;});
-
-    if (!abort) {
-      this.events.dispatch(ActionType.ReorderSignals, draggableItemRowId, newGroupId, newIndex);
-    }
-
-    this.labelsList     = [];
     this.idleItems      = [];
+    this.labelsList     = [];
     this.dragInProgress = false;
     this.pointerStartX  = null;
     this.pointerStartY  = null;
     this.draggableItem  = null;
+    this.dragActive     = false;
+  }
+
+  public dragEndExternal(event: MouseEvent | KeyboardEvent | null, abort) {
+    this.clearDragHandler();
+    if (abort) {this.renderLabelsPanels();}
+    return this.getDropIndex();
+  }
+
+  dragEnd(event: MouseEvent | KeyboardEvent | null, abort) {
+
+    document.removeEventListener('mousemove', this.dragMove);
+    this.dragActive = false;
+    if (!this.dragInProgress) {return;}
+    if (!this.draggableItem) {return;}
+    if (event) {event.preventDefault();}
+
+    let {newGroupId, newIndex} = this.getDropIndex();
+
+    const draggableItemRowId = this.getRowIdFromElement(this.draggableItem);
+    if (draggableItemRowId === null || isNaN(draggableItemRowId)) {
+      throw new Error("Invalid draggable item row ID: " + draggableItemRowId);
+    }
+    const oldGroupId = getParentGroupId(draggableItemRowId) || 0;
+    const oldIndex   = getIndexInGroup(draggableItemRowId, oldGroupId) || 0;
+    if (oldGroupId === newGroupId && newIndex > oldIndex) {
+      newIndex = Math.max(newIndex - 1, 0);
+    }
+
+    this.clearDragHandler();
     clearTimeout(this.dragFreezeTimeout);
 
-    if (abort) {this.renderLabelsPanels();}
+    if (!abort) {
+      this.events.dispatch(ActionType.ReorderSignals, draggableItemRowId, newGroupId, newIndex);
+    } else {
+      this.renderLabelsPanels();
+    }
   }
 
   public showRenameInput(rowId: RowId) {

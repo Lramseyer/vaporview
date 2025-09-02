@@ -331,7 +331,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     };
   }
 
-  public async renderSignals(netlistIdList: NetlistId[], moveToGroup: string[] | undefined) {
+  public async renderSignals(netlistIdList: NetlistId[], moveToGroup: string[] | undefined, index: number | undefined) {
     // Render the signal with the provided ID
     //console.log('renderSignals()');
 
@@ -362,7 +362,8 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     this.webviewPanel.webview.postMessage({
       command: 'add-variable',
       signalList: signalList,
-      groupPath: moveToGroup
+      groupPath: moveToGroup,
+      index: index
     });
   }
 

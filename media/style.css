@@ -474,6 +474,7 @@ body {
   font-size:       var(--vscode-editor-font-size);
   font-family:     var(--vscode-editor-font-family);
   position:        relative;
+  white-space:     nowrap;
 }
 
 .ruler-spacer {

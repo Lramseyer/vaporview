@@ -1,12 +1,15 @@
-// This section defines all of the different ways we can display the various values
-// in the waveform viewer. To create your own format, you need to implement a new
-// ValueFormat object and add it to the valueFormatList array at the bottom of the file.
-// There are helper functions supplied to discern 9-state values and to format as binary
-// in case non-2-state values are invalid.
-// You will also need to define a new command in the package.json file (which has examples)
+// This section defines all of the different ways we can display the various
+// values in the waveform viewer. To create your own format, you need to:
+// 1. Implement a new ValueFormat object and add it to the valueFormatList
+// array at the bottom of the file. There are helper functions supplied to
+// discern 9-state values and to format as binary in case non-2-state values
+// are invalid.
+// 2. Define a new command in the package.json file (which has examples)
 // under contributes.commands and create the context menus entries under 
-// contributes.menus.vaporview.valueFormat. You will also need to register the new
-// command in the extension.ts (which has examples)
+// contributes.menus.vaporview.valueFormat.
+// 3. Register the new command in the extension.ts (which has examples)
+
+import { htmlSafe } from "./signal_item";
 
 export function  valueIs9State(value: string): boolean {
   if (value.match(/[uxzwlh-]/)) {return true;}
@@ -355,6 +358,43 @@ export const formatFloat64: ValueFormat = {
   is9State: valueIs9State,
 };
 
+// #region Format ASCII
+export const formatAscii: ValueFormat = {
+  id: "ascii",
+  rightJustify: false,
+  symbolText: "abc",
+  formatString: (inputString: string, width: number, is2State: boolean) => {
+    if (!is2State) {
+      return formatBinaryString(inputString);
+    }
+    let result = '';
+    for (let i = 0; i < inputString.length; i += 8) {
+      const byte = inputString.slice(i, i + 8);
+      const charCode = parseInt(byte, 2);
+      if (charCode < 32) {
+        result += '&#' + charCode.toString() + ';';
+      } else {
+        result += String.fromCharCode(charCode);
+      }
+    }
+    return result;
+  },
+
+  checkValid: (inputText: string) => {
+    if (inputText.match(/^[\x20-\xFF]*$/)) {return true;}
+    else {return false;}
+  },
+
+  parseValueForSearch: (inputText: string) => {
+    return inputText.split('').map((c) => {
+      const charCode = c.charCodeAt(0);
+      return charCode.toString(2).padStart(8, '0');
+    }).join('');
+  },
+
+  is9State: valueIs9State,
+};
+
 // #region Format String
 export const formatString: ValueFormat = {
   id: "string",
@@ -388,6 +428,7 @@ export const valueFormatList: ValueFormat[] = [
   formatFloat64,
   formatBFloat16,
   formatTensorFloat32,
+  formatAscii,
   formatString
 ];
 

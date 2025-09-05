@@ -66,6 +66,8 @@ export interface signalEvent {
 export interface viewerDropEvent {
   uri: string;
   resourceUriList: vscode.Uri[];
+  groupPath: string[];
+  index: number;
 }
 
 // #region WaveformViewerProvider
@@ -999,6 +1001,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     WaveformViewerProvider.externalDropEventEmitter.fire({
       uri: e.uri,
       resourceUriList: unknwonUriList,
+      groupPath: groupPath,
+      index: index
     });
   }
 

@@ -295,10 +295,12 @@ Emitted when a variable is removed from the viewer
 
 ## onDidDropInWaveformViewer (proposed)
 
-Emitted when an unknown tree item is dragged into the viewer. The resourceUriList will contain all unknown URIs of tree items. This event is only emitted if the dataTransfer contains more than one unknown URI, and all known URIs (netlist items, and eventually config files) will be filtered out of the resourceUriList to prevent erroneous events from being emitted.
+Emitted when an unknown tree item is dragged into the viewer. The resourceUriList will contain all unknown URIs of tree items. This event is only emitted if the dataTransfer contains more than one unknown URI, and all known URIs (netlist items, and eventually config files) will be filtered out of the resourceUriList to prevent erroneous events from being emitted. The event also emits the location (group path and index) of where in the viewport the item was dropped, so that if the dropped item refers to a variable item, it can be places accordingly.
 
 - **uri** - string
 - **resourceUriList** - uri[]
+- **groupPath** - string[]
+- **index** - number
 
 ## Sample code for subscribing to event emitters
 

@@ -143,6 +143,7 @@ Vaporview can display values in different number formats. To change the value fo
 | Octal          | ✅ Yes                | Right             |
 | Decimal        | ❌ No                 | Left              |
 | Floating Point | ❌ No                 | Left              |
+| ASCII          | ❌ No                 | Left              |
 
 ## Waveform Color
 
@@ -216,8 +217,12 @@ This extension requires VScode 1.96.0 or later
 
 - Added
   - Drag and drop from netlist view to add variables into the viewer
+  - Signal height can now be set to 2x, 4x, and 8x
+  - ASCII value format
 - API
   - Added (proposed) onDidDropInWaveformViewer event
+- Fixed
+  - Word wrap display glitch in values display casuing "->" indicator to word wrap
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

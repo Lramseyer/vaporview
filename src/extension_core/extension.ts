@@ -11,7 +11,7 @@ export async function activate(context: vscode.ExtensionContext) {
   // Load the Wasm module
   const binaryFile = vscode.Uri.joinPath(context.extensionUri, 'target', 'wasm32-unknown-unknown', 'release', 'filehandler.wasm');
   const binaryData = await vscode.workspace.fs.readFile(binaryFile);
-  const wasmModule = await WebAssembly.compile(binaryData);
+  const wasmModule = await WebAssembly.compile(new Uint8Array(binaryData));
 
   // Register Custom Editor Provider (The viewer window)
   // See package.json for more details

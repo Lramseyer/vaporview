@@ -5,8 +5,11 @@
 - Added
   - Drag and drop from netlist view to add variables into the viewer
   - Signal height can now be set to 2x, 4x, and 8x
+  - ASCII value format
 - API
   - Added (proposed) onDidDropInWaveformViewer event
+- Fixed
+  - Word wrap display glitch in values display casuing "->" indicator to word wrap
 
 # 1.4.0 - 8/27/2025 - Latest Release
 

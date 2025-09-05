@@ -1,4 +1,4 @@
-import { dataManager, viewport, CollapseState, NetlistId, RowId, viewerState, updateDisplayedSignalsFlat, events, ActionType } from "./vaporview";
+import { dataManager, viewport, CollapseState, NetlistId, RowId, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, WAVE_HEIGHT } from "./vaporview";
 import { formatBinary, formatHex, formatString, ValueFormat } from "./value_format";
 import { WaveformRenderer } from "./renderer";
 import { customColorKey } from "./data_manager";
@@ -21,6 +21,7 @@ export abstract class SignalItem {
   public viewportElement: HTMLElement | null = null
   public vscodeContext: string = "";
   public wasRendered: boolean = false;
+  public rowHeight: number = 1;
 
   public abstract createLabelElement()
   public abstract createValueDisplayElement()
@@ -41,6 +42,7 @@ export interface RowItem {
   viewportElement: HTMLElement | null;
   vscodeContext: string;
   wasRendered: boolean;
+  rowHeight: number;
   netlistId?: NetlistId;
 
   createLabelElement(): string;
@@ -68,6 +70,7 @@ export class VariableItem extends SignalItem implements RowItem {
   public valueLinkIndex: number = -1;
   public colorIndex: number = 0;
   public color: string = "";
+  public rowHeight: number = 1;
   public formattedValues: string[] = [];
   public formatValid: boolean = false;
   public wasRendered: boolean = false;
@@ -103,12 +106,13 @@ export class VariableItem extends SignalItem implements RowItem {
     const rowId         = dataManager.netlistIdTable[this.netlistId];
     const isSelected    = viewerState.selectedSignal === rowId;
     const selectorClass = isSelected ? 'is-selected' : '';
+    const height        = getRowHeightCssClass(this.rowHeight);
     const signalName    = htmlSafe(this.signalName);
     const scopePath     = htmlSafe(this.scopePath + '.');
     const fullPath      = htmlAttributeSafe(scopePath + signalName);
     const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
     return `<div class="waveform-label is-idle" id="label-${rowId}" title="${tooltip}" data-vscode-context=${this.vscodeContext}>
-              <div class='waveform-row ${selectorClass}'>
+              <div class='waveform-row ${selectorClass} ${height}'>
                 <p style="opacity:50%">${scopePath}</p><p>${signalName}</p>
               </div>
             </div>`;
@@ -120,6 +124,7 @@ export class VariableItem extends SignalItem implements RowItem {
     if (value === undefined) {value = [];}
     const isSelected    = viewerState.selectedSignal === rowId;
     const selectorClass = isSelected ? 'is-selected' : 'is-idle';
+    const height        = getRowHeightCssClass(this.rowHeight);
     const joinString    = '<p style="color:var(--vscode-foreground)">-></p>';
     const parseValue    = this.valueFormat.formatString;
     const valueIs9State = this.valueFormat.is9State;
@@ -130,7 +135,7 @@ export class VariableItem extends SignalItem implements RowItem {
       return `<p style="color:${colorStyle}">${displayValue}</p>`;
     }).join(joinString);
 
-    return `<div class="value-display-item ${selectorClass}" id="value-${rowId}" data-vscode-context=${this.vscodeContext}>${pElement}</div>`;
+    return `<div class="value-display-item ${selectorClass} ${height}" id="value-${rowId}" data-vscode-context=${this.vscodeContext}>${pElement}</div>`;
   }
 
   public createViewportElement(rowId: number) {
@@ -140,8 +145,9 @@ export class VariableItem extends SignalItem implements RowItem {
     canvas.classList.add('waveform-canvas');
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
+    const canvasHeight = (this.rowHeight * WAVE_HEIGHT) - 8;
     if (this.ctx) {
-      viewport.resizeCanvas(canvas, this.ctx, viewport.viewerWidth, 20);
+      viewport.resizeCanvas(canvas, this.ctx, viewport.viewerWidth, canvasHeight);
     }
     const waveformContainer = document.createElement('div');
     waveformContainer.setAttribute('id', 'waveform-' + rowId);
@@ -352,7 +358,8 @@ export class VariableItem extends SignalItem implements RowItem {
 
   public resize() {
     if (!this.canvas || !this.ctx) {return;}
-    viewport.resizeCanvas(this.canvas, this.ctx, viewport.viewerWidth, 20);
+    const canvasHeight = (this.rowHeight * WAVE_HEIGHT) - 8;
+    viewport.resizeCanvas(this.canvas, this.ctx, viewport.viewerWidth, canvasHeight);
   }
 
   handleValueLinkMouseOver(event: MouseEvent) {
@@ -479,7 +486,7 @@ export class SignalGroup extends SignalItem implements RowItem {
     const selectorClass = isSelected ? 'is-selected' : '';
     //const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
     return `<div class="waveform-label waveform-group is-idle ${groupClass}" id="label-${this.rowId}" data-vscode-context=${this.vscodeContext}>
-              <div class="waveform-row ${selectorClass}">${this.createWaveformRowContent()}</div>
+              <div class="waveform-row ${selectorClass} height1x">${this.createWaveformRowContent()}</div>
               <div class="labels-group child-group">${childElements}</div>
             </div>`;
     }
@@ -489,7 +496,7 @@ export class SignalGroup extends SignalItem implements RowItem {
     let   value = labelsPanel.valueAtMarker[this.rowId];
     const isSelected = viewerState.selectedSignal === this.rowId;
     const selectorClass = isSelected ? 'is-selected' : '';
-    let result = `<div class="value-display-item ${selectorClass}" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}></div>`;
+    let result = `<div class="value-display-item ${selectorClass} height1x" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}></div>`;
     if (value === undefined) {value = [];}
     if (this.collapseState === CollapseState.Expanded) {
       this.children.forEach((childRowId) => {

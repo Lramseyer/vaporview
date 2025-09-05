@@ -1,6 +1,7 @@
 //import { NetlistData } from './vaporview';
 import { VariableItem } from './signal_item';
 import { Viewport } from './viewport';
+import { WAVE_HEIGHT } from './vaporview';
 
 export interface WaveformRenderer {
   id: string;
@@ -62,6 +63,9 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     const parseValue     = netlistData.valueFormat.formatString;
     const valueIs9State  = netlistData.valueFormat.is9State;
     const justifydirection = netlistData.valueFormat.rightJustify ? "right" : "left";
+    const rowHeight      = netlistData.rowHeight * WAVE_HEIGHT;
+    const canvasHeight   = rowHeight - 8;
+    const halfCanvasHeight = canvasHeight / 2;
 
     let elementWidth;
     let is4State        = false;
@@ -83,7 +87,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     const drawColor        = netlistData.color;
     const xzColor          = viewportSpecs.xzColor;
     let parsedValue;
-    const minYPosition = 10 / viewportSpecs.zoomRatio;
+    const minYPosition = halfCanvasHeight / viewportSpecs.zoomRatio;
 
     let lastDrawTime = 0;
     //const noDrawRanges: any[] = [];
@@ -179,9 +183,9 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
       textElements.push(busValue(time, elementWidth, parsedValue, viewportSpecs, justifydirection, true));
     }
 
-    ctx.clearRect(0, 0, viewportSpecs.viewerWidth * viewportSpecs.pixelRatio, 20 * viewportSpecs.pixelRatio);
+    ctx.clearRect(0, 0, viewportSpecs.viewerWidth * viewportSpecs.pixelRatio, canvasHeight * viewportSpecs.pixelRatio);
     ctx.save();
-    ctx.translate(0, 10);
+    ctx.translate(0, halfCanvasHeight);
 
     // No Draw Line
     ctx.globalAlpha = 0.4;
@@ -204,8 +208,8 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     // Draw diamonds
     ctx.restore();
     ctx.save();
-    //ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, 10);
-    ctx.translate(0.5, 10);
+    //ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, halfCanvasHeight);
+    ctx.translate(0.5, halfCanvasHeight);
     ctx.globalAlpha = 1;
     ctx.fillStyle = drawColor;
     ctx.transform(viewportSpecs.zoomRatio, 0, 0, viewportSpecs.zoomRatio, 0, 0);
@@ -242,7 +246,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     ctx.restore();
 
     // Draw Text
-    const textY = 11;
+    const textY = halfCanvasHeight + 1;
     ctx.save();
     ctx.translate(0.5, 0);
     ctx.font = 'bold ' + viewportSpecs.fontStyle;
@@ -311,6 +315,9 @@ export const binaryWaveformRenderer: WaveformRenderer = {
     const timeScrollLeft   = viewportSpecs.timeScrollLeft;
     const timeScrollRight  = viewportSpecs.timeScrollRight - timeScrollLeft;
     const valueIs9State    = netlistData.valueFormat.is9State;
+
+    const rowHeight      = netlistData.rowHeight * WAVE_HEIGHT;
+    const canvasHeight   = rowHeight - 8;
 
     if (valueIs9State(initialValue)) {
       initialValue2state = 0;
@@ -407,11 +414,10 @@ export const binaryWaveformRenderer: WaveformRenderer = {
     accumulatedPath.push([timeScrollRight + (15 * viewportSpecs.pixelTime), initialValue2state]);
     accumulatedPath.push([timeScrollRight + (15 * viewportSpecs.pixelTime), 0]);
 
-    const svgHeight  = 20;
-    const waveHeight = 16;
-    const waveOffset = waveHeight + (svgHeight - waveHeight) / 2;
+    const waveHeight = canvasHeight - 4;
+    const waveOffset = waveHeight + (canvasHeight - waveHeight) / 2;
 
-    ctx.clearRect(0, 0, viewportSpecs.viewerWidth, svgHeight);
+    ctx.clearRect(0, 0, viewportSpecs.viewerWidth, canvasHeight);
     ctx.save();
     ctx.strokeStyle = drawColor;
     ctx.fillStyle   = drawColor;
@@ -489,6 +495,10 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
   const timeScrollRight  = viewportSpecs.timeScrollRight - timeScrollLeft;
   let xzPath: any        = [];
   const valueIs9State    = netlistData.valueFormat.is9State;
+
+  const rowHeight      = netlistData.rowHeight * WAVE_HEIGHT;
+  const canvasHeight   = rowHeight - 8;
+  const halfCanvasHeight = canvasHeight / 2;
 
   if (valueIs9State(initialValue)) {
     initialValue2state = "0";
@@ -586,13 +596,12 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
 
   const drawColor  = netlistData.color;
   const xzColor    = viewportSpecs.xzColor;
-  const svgHeight  = 20;
-  const waveHeight = 16;
-  const waveOffset = waveHeight + (svgHeight - waveHeight) / 2;
+  const waveHeight = canvasHeight - 4;
+  const waveOffset = waveHeight + (canvasHeight - waveHeight) / 2;
   const yScale     = waveHeight / (max - min);
   const translateY = 0.5 + (max / (max - min)) * waveOffset;
 
-  ctx.clearRect(0, 0, viewportSpecs.viewerWidth, svgHeight);
+  ctx.clearRect(0, 0, viewportSpecs.viewerWidth, canvasHeight);
   ctx.save();
   ctx.strokeStyle = drawColor;
   ctx.fillStyle   = drawColor;

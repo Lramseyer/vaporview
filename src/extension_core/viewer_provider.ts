@@ -1263,8 +1263,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     const color3 = vscode.workspace.getConfiguration('vaporview').get('customColor3');
     const color4 = vscode.workspace.getConfiguration('vaporview').get('customColor4');
 
-    //console.log('setting value format');
-
     panel.webview.postMessage({
       command: 'setDisplayFormat',
       netlistId: id,
@@ -1272,6 +1270,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       color: properties.colorIndex,
       renderType: properties.renderType,
       customColors: [color1, color2, color3, color4],
+      rowHeight: properties.rowHeight,
       valueLinkCommand: properties.command,
       annotateValue: properties.annotateValue,
     });

@@ -182,6 +182,50 @@ export function getChildrenByGroupId(groupId: number) {
   return groupItem.children;
 }
 
+export function revealSignal(rowId: RowId) {
+  if (rowId === null) {return;}
+
+  const parentList = getParentGroupIdList(rowId);
+
+  parentList.forEach((groupId) => {
+    const groupRowId = dataManager.groupIdTable[groupId];
+    if (groupRowId === undefined) {return;}
+    const groupItem: RowItem = dataManager.rowItems[groupRowId];
+    if (!(groupItem instanceof SignalGroup)) {return;}
+    if (groupItem.collapseState === CollapseState.Collapsed) {
+      groupItem.expand();
+    }
+  });
+
+  const labelElement = document.getElementById(`label-${rowId}`);
+  const labelsPanel  = vaporview.labelsScroll;
+  if (!labelElement) {return;}
+  const labelBounds  = labelElement.getBoundingClientRect();
+  const windowBounds = labelsPanel.getBoundingClientRect();
+  let newScrollTop   = labelsPanel.scrollTop;
+
+  if (labelBounds.top < windowBounds.top + 40) {
+    newScrollTop = Math.max(0, labelsPanel.scrollTop + (labelBounds.top - (windowBounds.top + 40)));
+  } else if (labelBounds.bottom > windowBounds.bottom) {
+    newScrollTop = Math.min(labelsPanel.scrollHeight - labelsPanel.clientHeight, labelsPanel.scrollTop + (labelBounds.bottom - windowBounds.bottom) + WAVE_HEIGHT);
+  }
+
+  if (newScrollTop !== labelsPanel.scrollTop) {
+    vaporview.syncVerticalScroll({deltaY: 0}, newScrollTop);
+  }
+}
+
+export const WAVE_HEIGHT = parseInt(window.getComputedStyle(document.body).getPropertyValue('--waveform-height'));
+
+export function getRowHeightCssClass(height: number) {
+  switch (height) {
+    case 2:  {return "height2x";}
+    case 4:  {return "height4x";}
+    case 8:  {return "height8x";}
+    default: {return "height1x";}
+  }
+}
+
 // ----------------------------------------------------------------------------
 // Event handler helper functions
 // ----------------------------------------------------------------------------
@@ -578,7 +622,7 @@ class VaporviewWebview {
     if (rowId === null) {return;}
     const netlistData = dataManager.rowItems[rowId];
     sendWebviewContext();
-    this.revealSignal(rowId);
+    revealSignal(rowId);
 
     if (netlistData === undefined) {return;}
     const netlistId = netlistData.netlistId;
@@ -593,40 +637,6 @@ class VaporviewWebview {
       instancePath: instancePath,
       netlistId: netlistId,
     });
-  }
-
-  revealSignal(rowId: RowId) {
-    if (rowId === null) {return;}
-
-    const parentList = getParentGroupIdList(rowId);
-
-    parentList.forEach((groupId) => {
-      const groupRowId = dataManager.groupIdTable[groupId];
-      if (groupRowId === undefined) {return;}
-      const groupItem: RowItem = dataManager.rowItems[groupRowId];
-      if (!(groupItem instanceof SignalGroup)) {return;}
-      if (groupItem.collapseState === CollapseState.Collapsed) {
-        groupItem.expand();
-      }
-    });
-
-    const labelElement = document.getElementById(`label-${rowId}`);
-    const labelsPanel  = this.labelsScroll;
-    if (!labelElement) {return;}
-    const labelBounds  = labelElement.getBoundingClientRect();
-    const windowBounds = labelsPanel.getBoundingClientRect();
-    const waveHeight   = 28;
-    let newScrollTop   = labelsPanel.scrollTop;
-
-    if (labelBounds.top < windowBounds.top + 40) {
-      newScrollTop = Math.max(0, labelsPanel.scrollTop + (labelBounds.top - (windowBounds.top + 40)));
-    } else if (labelBounds.bottom > windowBounds.bottom) {
-      newScrollTop = Math.min(labelsPanel.scrollHeight - labelsPanel.clientHeight, labelsPanel.scrollTop + (labelBounds.bottom - windowBounds.bottom) + waveHeight);
-    }
-
-    if (newScrollTop !== labelsPanel.scrollTop) {
-      this.syncVerticalScroll({deltaY: 0}, newScrollTop);
-    }
   }
 
 // #region Helper Functions

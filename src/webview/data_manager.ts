@@ -175,9 +175,7 @@ export class WaveformDataManager {
 
     this.request(signalIdList);
 
-
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowIdList);
-
 
     updateDisplayedSignalsFlat();
     this.events.dispatch(ActionType.AddVariable, rowIdList, updateFlag);
@@ -568,6 +566,7 @@ export class WaveformDataManager {
     const netlistData = this.rowItems[rowId];
     if (netlistData instanceof VariableItem === false) {return;}
 
+    
     if (message.numberFormat !== undefined) {
       let valueFormat = valueFormatList.find((format) => format.id === message.numberFormat);
       if (valueFormat === undefined) {valueFormat = formatBinary;}
@@ -576,7 +575,7 @@ export class WaveformDataManager {
       netlistData.valueFormat = valueFormat;
       netlistData.cacheValueFormat();
     }
-
+    
     if (message.color !== undefined) {
       customColorKey = message.customColors;
       netlistData.colorIndex = message.color;
@@ -597,6 +596,11 @@ export class WaveformDataManager {
       if (netlistData.renderType.id === "multiBit") {
         netlistData.cacheValueFormat();
       }
+    }
+
+    if (message.rowHeight !== undefined) {
+      netlistData.rowHeight = message.rowHeight;
+      viewport.updateElementHeight(rowId);
     }
 
     if (message.valueLinkCommand !== undefined) {

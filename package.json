@@ -235,6 +235,11 @@
         "when": "webviewSection == 'signal'"
       },
       {
+        "id": "vaporview.rowHeight",
+        "label": "Row Height",
+        "when": "webviewSection == 'signal'"
+      },
+      {
         "id": "vaporview.timeUnit",
         "label": "Time Unit",
         "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
@@ -351,6 +356,11 @@
           "submenu": "vaporview.valueColor",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "1_waveform_settings@5"
+        },
+        {
+          "submenu": "vaporview.rowHeight",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "group": "1_waveform_settings@6"
         },
         {
           "command": "vaporview.showInNetlistView",
@@ -490,6 +500,28 @@
           "command": "vaporview.customColor4",
           "when": "webviewSection == 'signal'",
           "group": "1_custom@4"
+        }
+      ],
+      "vaporview.rowHeight": [
+        {
+          "command": "vaporview.rowHeight1x",
+          "when": "webviewSection == 'signal'",
+          "group": "1_default@1"
+        },
+        {
+          "command": "vaporview.rowHeight2x",
+          "when": "webviewSection == 'signal'",
+          "group": "1_default@2"
+        },
+        {
+          "command": "vaporview.rowHeight4x",
+          "when": "webviewSection == 'signal'",
+          "group": "1_default@3"
+        },
+        {
+          "command": "vaporview.rowHeight8x",
+          "when": "webviewSection == 'signal'",
+          "group": "1_default@3"
         }
       ],
       "vaporview.timeUnit": [
@@ -788,6 +820,22 @@
       {
         "command": "vaporview.customColor4",
         "title": "Custom Color 4"
+      },
+      {
+        "command": "vaporview.rowHeight1x",
+        "title": "1x"
+      },
+      {
+        "command": "vaporview.rowHeight2x",
+        "title": "2x"
+      },
+      {
+        "command": "vaporview.rowHeight4x",
+        "title": "4x"
+      },
+      {
+        "command": "vaporview.rowHeight8x",
+        "title": "8x"
       },
       {
         "command": "vaporview.setTimeUnitsSeconds",

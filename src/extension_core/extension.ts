@@ -350,6 +350,23 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.setValueFormat(e.netlistId, {colorIndex: 7});
   }));
 
+  // #region Row Height
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.rowHeight1x', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, {rowHeight: 1});
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.rowHeight2x', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, {rowHeight: 2});
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.rowHeight4x', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, {rowHeight: 4});
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.rowHeight8x', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, {rowHeight: 8});
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.showRulerLines', (e) => {
     vscode.workspace.getConfiguration('vaporview').update('showRulerLines', true, vscode.ConfigurationTarget.Global);
   }));

@@ -1,4 +1,4 @@
-import { vscode, WaveformData, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId, updateDisplayedSignalsFlat } from "./vaporview";
+import { vscode, WaveformData, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId, updateDisplayedSignalsFlat, WAVE_HEIGHT } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { labelsPanel } from "./vaporview";
@@ -526,19 +526,25 @@ export class Viewport {
     //const netlistData = dataManager.netlistData;
     const viewerHeightMinusRuler = this.viewerHeight - 40;
     const scrollTop   = this.scrollArea.scrollTop;
-    const startIndex  = Math.floor(scrollTop / 28);
-    const endIndex    = Math.ceil((scrollTop + viewerHeightMinusRuler) / 28);
+    //const startIndex  = Math.floor(scrollTop / WAVE_HEIGHT);
+    //const endIndex    = Math.ceil((scrollTop + viewerHeightMinusRuler) / WAVE_HEIGHT);
+    const windowHeight = scrollTop + viewerHeightMinusRuler;
+    let topBounds     = 0;
+    let bottomBounds  = 0;
   
     viewerState.visibleSignalsFlat.forEach((rowId, i) => {
       const netlistData = dataManager.rowItems[rowId];
+      const rowHeight   = netlistData.rowHeight * WAVE_HEIGHT;
+      bottomBounds = topBounds + rowHeight;
 
       if (!skipRendered && netlistData.wasRendered) {return;}
-
-      if (i < startIndex || i >= endIndex) {
+      if (bottomBounds <= scrollTop || topBounds >= windowHeight) {
+      //if (i < startIndex || i >= endIndex) {
         netlistData.wasRendered = false;
         return;
       }
 
+      topBounds = bottomBounds;
       netlistData.renderWaveform();
     });
   }
@@ -847,6 +853,22 @@ export class Viewport {
     this.updateBackgroundCanvas(false);
     this.renderAllWaveforms(true);
     this.updatePending = false;
+  }
+
+  updateElementHeight(rowId: RowId) {
+    const netlistData = dataManager.rowItems[rowId];
+    if (!netlistData) {return;}
+    if (!(netlistData instanceof VariableItem)) {return;}
+    if (netlistData.viewportElement === null) {return;}
+    const element = netlistData.viewportElement;
+    const rowHeight = (netlistData.rowHeight * WAVE_HEIGHT);
+    element.style.height = rowHeight + 'px';
+    const canvasHeight = rowHeight - 8;
+    if (netlistData.ctx && netlistData.canvas) {
+      this.resizeCanvas(netlistData.canvas, netlistData.ctx, this.viewerWidth, canvasHeight);
+    }
+    this.updateBackgroundCanvas(true);
+    this.renderAllWaveforms(false);
   }
 
   handleRedrawSignal(rowId: RowId) {

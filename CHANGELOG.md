@@ -4,6 +4,7 @@
 
 - Added
   - Drag and drop from netlist view to add variables into the viewer
+  - Signal height can now be set to 2x, 4x, and 8x
 - API
   - Added (proposed) onDidDropInWaveformViewer event
 

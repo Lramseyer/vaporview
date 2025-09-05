@@ -4,6 +4,26 @@
   --svg-height:      20px;
 }
 
+.height1x {
+  min-height: var(--waveform-height);
+  max-height: var(--waveform-height);
+}
+
+.height2x {
+  min-height: calc(2 * var(--waveform-height));
+  max-height: calc(2 * var(--waveform-height));
+}
+
+.height4x {
+  min-height: calc(4 * var(--waveform-height));
+  max-height: calc(4 * var(--waveform-height));
+}
+
+.height8x {
+  min-height: calc(8 * var(--waveform-height));
+  max-height: calc(8 * var(--waveform-height));
+}
+
 html {
   height: 100%;
   scrollbar-color: revert;
@@ -354,8 +374,8 @@ body {
 }
 
 .waveform-row {
-  min-height:  var(--waveform-height);
-  max-height:  var(--waveform-height);
+  /*min-height:  var(--waveform-height);
+  max-height:  var(--waveform-height);*/
   display:         flex;
   align-items:     center;
   justify-content: right;
@@ -446,8 +466,8 @@ body {
   display:         flex;
   align-items:     center;
   justify-content: right;
-  min-height:      var(--waveform-height);
-  max-height:      var(--waveform-height);
+  /*min-height:      var(--waveform-height);
+  max-height:      var(--waveform-height);*/
   padding-right:   4px;
   box-sizing:      border-box;
   -webkit-box-sizing: border-box;

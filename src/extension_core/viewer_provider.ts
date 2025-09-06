@@ -443,75 +443,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.applySettings(fileData, this.activeDocument);
   }
 
-  public async applySettingsOld(settings: any, document: VaporviewDocument | undefined = undefined) {
-
-    //console.log(settings);
-
-    if (!settings.displayedSignals) {return;}
-    if (!document) {
-      if (!this.activeDocument) {return;}
-      document = this.activeDocument;
-    }
-
-    const missingSignals: string[] = [];
-    const foundSignals: any[] = [];
-    const metadataList: NetlistItem[] = [];
-
-    for (const signalInfo of settings.displayedSignals) {
-      if (signalInfo.dataType && signalInfo.dataType !== 'netlist-variable') {continue;}
-      const signal   = signalInfo.name;
-      const metadata = await document.findTreeItem(signal, signalInfo.msb, signalInfo.lsb);
-      if (metadata !== null) {
-        metadataList.push(metadata);
-        // We need to copy the netlistId from the existing wavefrom dump in case the circuit has changed
-        foundSignals.push({
-          netlistId: metadata.netlistId,
-          numberFormat: signalInfo.numberFormat,
-          colorIndex: signalInfo.colorIndex,
-          renderType: signalInfo.renderType,
-        });
-      } else {
-        missingSignals.push(signal);
-      }
-    }
-
-    if (settings.markerTime || settings.markerTime === 0) {
-      this.setMarkerAtTime(settings.markerTime, 0);
-    }
-    if (settings.altMarkerTime || settings.altMarkerTime === 0) {
-      this.setMarkerAtTime(settings.altMarkerTime, 1);
-    }
-
-    if (missingSignals.length > 0) {
-      this.log.appendLine('Missing signals: '+ missingSignals.join(', '));
-    }
-
-    this.filterAddSignalsInNetlist(metadataList, true);
-    for (const signalInfo of foundSignals) {
-      this.setValueFormat(signalInfo.netlistId, {
-        valueFormat:   signalInfo.numberFormat,
-        colorIndex:    signalInfo.colorIndex,
-        renderType:    signalInfo.renderType,
-        command:       signalInfo.command,
-      });
-    }
-
-    //console.log(settings.selectedSignal);
-    if (settings.selectedSignal) {
-      const s = settings.selectedSignal;
-      const metadata = await document.findTreeItem(s.name, s.msb, s.lsb);
-      if (metadata !== null) {
-        const netlistIdSelected = metadata.netlistId;
-        this.activeWebview?.webview.postMessage({
-          command: 'setSelectedSignal', 
-          netlistId: netlistIdSelected,
-        });
-      }
-    }
-
-    //this.netlistTreeDataProvider.loadDocument(document);
-  }
-
   public async addSignalListToDocument(signalList: any, document: VaporviewDocument, groupPath: string[]): Promise<string[]> {
 
     const missingSignals: string[] = [];
@@ -534,6 +465,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         this.setValueFormat(signalInfo.netlistId, {
           valueFormat:   signalInfo.numberFormat,
           colorIndex:    signalInfo.colorIndex,
+          rowHeight:     signalInfo.rowHeight,
           renderType:    signalInfo.renderType,
           command:       signalInfo.command,
         });

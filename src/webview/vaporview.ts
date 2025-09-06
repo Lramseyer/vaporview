@@ -278,6 +278,7 @@ function signalListForSaveFile(rowIdList: RowId[]): any[] {
       name:             data.scopePath + "." + data.signalName,
       numberFormat:     data.valueFormat.id,
       colorIndex:       data.colorIndex,
+      rowHeight:        data.rowHeight,
       renderType:       data.renderType.id,
       valueLinkCommand: data.valueLinkCommand,
     });

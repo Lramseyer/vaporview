@@ -9,7 +9,7 @@
 - API
   - Added (proposed) onDidDropInWaveformViewer event
 - Fixed
-  - Word wrap display glitch in values display casuing "->" indicator to word wrap
+  - Word wrap display glitch in values display causing "->" indicator to word wrap
 
 # 1.4.0 - 8/27/2025 - Latest Release
 

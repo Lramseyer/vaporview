@@ -372,7 +372,8 @@ export const formatAscii: ValueFormat = {
       const byte = inputString.slice(i, i + 8);
       const charCode = parseInt(byte, 2);
       if (charCode < 32) {
-        result += '&#' + charCode.toString() + ';';
+        //result += '&#' + charCode.toString() + ';';
+        result += ' ';
       } else {
         result += String.fromCharCode(charCode);
       }

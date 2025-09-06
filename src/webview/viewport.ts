@@ -523,28 +523,24 @@ export class Viewport {
   }
 
   renderAllWaveforms(skipRendered: boolean) {
-    //const netlistData = dataManager.netlistData;
     const viewerHeightMinusRuler = this.viewerHeight - 40;
-    const scrollTop   = this.scrollArea.scrollTop;
-    //const startIndex  = Math.floor(scrollTop / WAVE_HEIGHT);
-    //const endIndex    = Math.ceil((scrollTop + viewerHeightMinusRuler) / WAVE_HEIGHT);
+    const scrollTop    = this.scrollArea.scrollTop;
     const windowHeight = scrollTop + viewerHeightMinusRuler;
-    let topBounds     = 0;
-    let bottomBounds  = 0;
-  
-    viewerState.visibleSignalsFlat.forEach((rowId, i) => {
+    let topBounds      = 0;
+    let bottomBounds   = 0;
+
+    viewerState.visibleSignalsFlat.forEach((rowId) => {
       const netlistData = dataManager.rowItems[rowId];
       const rowHeight   = netlistData.rowHeight * WAVE_HEIGHT;
-      bottomBounds = topBounds + rowHeight;
+      topBounds         = bottomBounds;
+      bottomBounds      = topBounds + rowHeight;
 
       if (!skipRendered && netlistData.wasRendered) {return;}
       if (bottomBounds <= scrollTop || topBounds >= windowHeight) {
-      //if (i < startIndex || i >= endIndex) {
         netlistData.wasRendered = false;
         return;
       }
 
-      topBounds = bottomBounds;
       netlistData.renderWaveform();
     });
   }

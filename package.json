@@ -206,6 +206,18 @@
         "key": "ctrl+0",
         "mac": "cmd+0",
         "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
+        "command": "vaporview.increaseVerticalScale",
+        "key": "alt+=",
+        "mac": "alt+=",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
+        "command": "vaporview.decreaseVerticalScale",
+        "key": "alt+-",
+        "mac": "alt+-",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
       }
     ],
     "submenus": [
@@ -845,6 +857,14 @@
       {
         "command": "vaporview.rowHeight8x",
         "title": "8x"
+      },
+      {
+        "command": "vaporview.increaseVerticalScale",
+        "title": "Increase Vertical Scale"
+      },
+      {
+        "command": "vaporview.decreaseVerticalScale",
+        "title": "Decrease Vertical Scale"
       },
       {
         "command": "vaporview.setTimeUnitsSeconds",

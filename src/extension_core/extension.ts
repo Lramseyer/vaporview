@@ -371,6 +371,17 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.setValueFormat(e.netlistId, {rowHeight: 8});
   }));
 
+  // #region Vertical Scale
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.increaseVerticalScale', (e) => {
+    console.log("Increasing vertical scale");
+    viewerProvider.handleKeyBinding(e, "increaseVerticalScale");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.decreaseVerticalScale', (e) => {
+    console.log("Decreasing vertical scale");
+    viewerProvider.handleKeyBinding(e, "decreaseVerticalScale");
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.showRulerLines', (e) => {
     vscode.workspace.getConfiguration('vaporview').update('showRulerLines', true, vscode.ConfigurationTarget.Global);
   }));

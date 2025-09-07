@@ -1207,6 +1207,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       renderType: properties.renderType,
       customColors: [color1, color2, color3, color4],
       rowHeight: properties.rowHeight,
+      verticalScale: properties.verticalScale,
       valueLinkCommand: properties.command,
       annotateValue: properties.annotateValue,
     });

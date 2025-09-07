@@ -566,7 +566,6 @@ export class WaveformDataManager {
     const netlistData = this.rowItems[rowId];
     if (netlistData instanceof VariableItem === false) {return;}
 
-    
     if (message.numberFormat !== undefined) {
       let valueFormat = valueFormatList.find((format) => format.id === message.numberFormat);
       if (valueFormat === undefined) {valueFormat = formatBinary;}
@@ -601,6 +600,10 @@ export class WaveformDataManager {
     if (message.rowHeight !== undefined) {
       netlistData.rowHeight = message.rowHeight;
       viewport.updateElementHeight(rowId);
+    }
+
+    if (message.verticalScale !== undefined) {
+      netlistData.verticalScale = message.verticalScale;
     }
 
     if (message.valueLinkCommand !== undefined) {

@@ -498,6 +498,7 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
 
   const rowHeight      = netlistData.rowHeight * WAVE_HEIGHT;
   const canvasHeight   = rowHeight - 8;
+  const verticalScale  = netlistData.verticalScale;
   const halfCanvasHeight = canvasHeight / 2;
 
   if (valueIs9State(initialValue)) {
@@ -598,7 +599,7 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
   const xzColor    = viewportSpecs.xzColor;
   const waveHeight = canvasHeight - 4;
   const waveOffset = waveHeight + (canvasHeight - waveHeight) / 2;
-  const yScale     = waveHeight / (max - min);
+  const yScale     = waveHeight * verticalScale / (max - min);
   const translateY = 0.5 + (max / (max - min)) * waveOffset;
 
   ctx.clearRect(0, 0, viewportSpecs.viewerWidth, canvasHeight);

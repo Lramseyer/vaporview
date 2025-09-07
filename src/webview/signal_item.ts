@@ -76,6 +76,7 @@ export class VariableItem extends SignalItem implements RowItem {
   public wasRendered: boolean = false;
   public canvas: HTMLCanvasElement | null = null
   public ctx: CanvasRenderingContext2D | null = null
+  public verticalScale: number = 1;
 
   constructor(
     public readonly netlistId: number,

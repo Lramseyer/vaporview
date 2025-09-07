@@ -551,13 +551,21 @@ class VaporviewWebview {
     this.events.dispatch(ActionType.ReorderSignals, rowId, parentGroupId, newIndex);
   }
 
+  updateVerticalScale(rowId: RowId | null, scale: number) {
+    if (rowId === null) {return;}
+    const netlistData = dataManager.rowItems[rowId];
+    if (!(netlistData instanceof VariableItem)) {return;}
+    netlistData.verticalScale = Math.max(1, netlistData.verticalScale * scale);
+    this.events.dispatch(ActionType.RedrawVariable, rowId);
+  }
+
   externalKeyDownHandler(e: any) {
-    if (viewerState.markerTime !== null) {
-      if (e.keyCommand == 'nextEdge') {controlBar.goToNextTransition(1, []);}
-      else if (e.keyCommand == 'previousEdge') {controlBar.goToNextTransition(-1, []);}
-    }
-    if (e.keyCommand === 'zoomToFit') {
-      this.events.dispatch(ActionType.Zoom, Infinity, 0, 0);
+    switch (e.keyCommand) {
+      case 'nextEdge': {controlBar.goToNextTransition(1, []); break;}
+      case 'previousEdge': {controlBar.goToNextTransition(-1, []); break}
+      case 'zoomToFit': {this.events.dispatch(ActionType.Zoom, Infinity, 0, 0); break}
+      case 'increaseVerticalScale': {this.updateVerticalScale(viewerState.selectedSignal, 2); break;}
+      case 'decreaseVerticalScale': {this.updateVerticalScale(viewerState.selectedSignal, 0.5); break;}
     }
   }
 

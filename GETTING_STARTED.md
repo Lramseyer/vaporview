@@ -41,3 +41,70 @@ This generates filehandler.ts. I opted to not check in this file since it's tech
 This "compiles" Typescript into Javascript.
 
 `tsc -b`
+
+## (Optional) Build FSDB addon
+
+To read FSDB, you will need to compile FSDB addon node module
+
+### Specify FSDB reader path
+
+Modify `binding.pyg` to your path:
+
+```
+{
+  "variables": {
+    "FSDB_READER_LIBS_PATH": "/home/heyfey/verdi/2022.06/share/FsdbReader/linux64", # path to find libnffr.so, libnsys.so
+    "FSDB_HEADER_PATH": "/home/heyfey/verdi/2022.06/share/FsdbReader" # path to find ffrAPI.h, fsdbShr.h
+  },
+  ...
+}
+```
+
+For Verdi users, FSDB reader path: (please find the `.so` for your platform)
+```
+# for .so
+$VERDI_HOME/share/FsdbReader/linux64/
+
+# for .h
+$VERDI_HOME/share/FsdbReader/
+```
+
+For Xcilience (xrun) users, FSDB reader might be found in:
+```
+# for .so
+$XCILIENCE_HOME/tools.lnx86/lib/64bit/
+
+# for .h
+$XCILIENCE_HOME/include/fsdb/
+```
+
+### Compile FSDB addon
+
+This compile the node module to read FSDB
+
+`npm run compile-addon`
+
+The node module will be in `./build/Release/`, you can simply move them to the installed extension path:
+
+```
+# Move the node modules to installed extension
+cp -r ./build/ ~/.vscode/extensions/lramseyer.vaporview-<xx.yy.zz>/
+
+# Or if you're in remote-ssh
+cp -r ./build/ ~/.vscode-server/extensions/lramseyer.vaporview-<xx.yy.zz>/
+```
+
+Or package to `.vsix`
+```
+npm run package-fsdb
+vsce package
+```
+
+### Read FSDB
+
+In setting, speficy `"vaporview.fsdbReaderLibsPath"` to find the FSDB reader
+
+e.g.
+```
+"vaporview.fsdbReaderLibsPath": "/home/heyfey/verdi/2022.06/share/FsdbReader/linux64",
+```

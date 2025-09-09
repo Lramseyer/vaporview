@@ -658,24 +658,24 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
   ctx.stroke();
 }
 
-const evalBinary8plusSigned = (v: string) => {
-  const n = parseInt(v.slice(0,8), 2) || 0;
-  return n > 127 ? n - 256 : n;
+const evalBinary16plusSigned = (v: string) => {
+  const n = parseInt(v.slice(0,16), 2) || 0;
+  return n > 32767 ? n - 65536 : n;
 };
 const evalBinarySigned = (v: string) => {
   const n = parseInt(v, 2) || 0;
   return v[0] === '1' ? n - (2 ** v.length) : n;
 };
-const evalBinary8plus = (v: string) => {return parseInt(v.slice(0,8), 2) || 0;};
+const evalBinary16plus = (v: string) => {return parseInt(v.slice(0,16), 2) || 0;};
 const evalBinary = (v: string) => {return parseInt(v, 2) || 0;};
 const evalReal = (v: string) => {return parseFloat(v) || 0;};
 
 function getEval(type: string, width: number, signed: boolean) {
   if (type === "Real") {return evalReal;}
 
-  if (width > 8) {
-    if (signed) {return evalBinary8plusSigned;}
-    else {       return evalBinary8plus;}
+  if (width > 16) {
+    if (signed) {return evalBinary16plusSigned;}
+    else {       return evalBinary16plus;}
   } else {
     if (signed) {return evalBinarySigned;}
     else {       return evalBinary;}

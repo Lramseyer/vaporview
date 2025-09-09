@@ -373,12 +373,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // #region Vertical Scale
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.increaseVerticalScale', (e) => {
-    console.log("Increasing vertical scale");
     viewerProvider.handleKeyBinding(e, "increaseVerticalScale");
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.decreaseVerticalScale', (e) => {
-    console.log("Decreasing vertical scale");
     viewerProvider.handleKeyBinding(e, "decreaseVerticalScale");
   }));
 

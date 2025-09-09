@@ -159,6 +159,9 @@ export class VariableItem extends SignalItem implements RowItem {
   }
 
   public setSignalContextAttribute() {
+    const renderType = this.renderType.id;
+    const isAnalog = renderType === 'linear' || renderType === 'linearSigned' || 
+                    renderType === 'stepped' || renderType === 'steppedSigned';
     this.vscodeContext = `${JSON.stringify({
       webviewSection: "signal",
       scopePath: this.scopePath,
@@ -168,6 +171,7 @@ export class VariableItem extends SignalItem implements RowItem {
       preventDefaultContextMenuItems: true,
       commandValid: this.valueLinkCommand !== "",
       netlistId: this.netlistId,
+      isAnalog: isAnalog,
     }).replace(/\s/g, '%x20')}`;
   }
 
@@ -217,11 +221,11 @@ export class VariableItem extends SignalItem implements RowItem {
     // I should probably move this functionally into the data manager
     if (this.encoding !== "Real") {
       if (this.renderType.id === 'steppedSigned' || this.renderType.id === 'linearSigned') {
-        valueChangeChunk.min = Math.max(-Math.pow(2, this.signalWidth - 1), -128);
-        valueChangeChunk.max = Math.min(Math.pow(2, this.signalWidth - 1) - 1, 127);
+        valueChangeChunk.min = Math.max(-Math.pow(2, this.signalWidth - 1), -32768);
+        valueChangeChunk.max = Math.min(Math.pow(2, this.signalWidth - 1) - 1, 32767);
       } else {
         valueChangeChunk.min = 0;
-        valueChangeChunk.max = Math.min(Math.pow(2, this.signalWidth) - 1, 255);
+        valueChangeChunk.max = Math.min(Math.pow(2, this.signalWidth) - 1, 65535);
       }
     }
 

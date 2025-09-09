@@ -868,12 +868,13 @@ export class Viewport {
   }
 
   handleRedrawSignal(rowId: RowId) {
+    const signalItem = dataManager.rowItems[rowId];
+    if (!signalItem) {return;}
     if (viewerState.markerTime !== null) {
-      const signalItem = dataManager.rowItems[rowId];
-      if (!signalItem) {return;}
       labelsPanel.valueAtMarker[rowId] = signalItem.getValueAtTime(viewerState.markerTime);
     }
-    dataManager.rowItems[rowId].renderWaveform();
+    signalItem.renderWaveform();
+    signalItem.viewportElement?.setAttribute('data-vscode-context', signalItem.vscodeContext);
   }
 
   updateViewportWidth() {

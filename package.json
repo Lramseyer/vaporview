@@ -375,6 +375,16 @@
           "group": "1_waveform_settings@6"
         },
         {
+          "command": "vaporview.increaseVerticalScale",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer' && isAnalog",
+          "group": "1_waveform_settings@7"
+        },
+        {
+          "command": "vaporview.decreaseVerticalScale",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer' && isAnalog",
+          "group": "1_waveform_settings@8"
+        },
+        {
           "command": "vaporview.removeSignal",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "2_variables@1"

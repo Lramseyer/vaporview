@@ -595,6 +595,7 @@ export class WaveformDataManager {
       if (netlistData.renderType.id === "multiBit") {
         netlistData.cacheValueFormat();
       }
+      netlistData.setSignalContextAttribute();
     }
 
     if (message.rowHeight !== undefined) {

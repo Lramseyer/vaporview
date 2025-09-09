@@ -551,10 +551,16 @@ class VaporviewWebview {
     this.events.dispatch(ActionType.ReorderSignals, rowId, parentGroupId, newIndex);
   }
 
-  updateVerticalScale(rowId: RowId | null, scale: number) {
+  updateVerticalScale(event: any, scale: number) {
+    let rowId = viewerState.selectedSignal;
+    if (event && event.netlistId !== undefined) {
+      rowId = dataManager.netlistIdTable[event.netlistId];
+    }
     if (rowId === null) {return;}
     const netlistData = dataManager.rowItems[rowId];
     if (!(netlistData instanceof VariableItem)) {return;}
+    const renderType = netlistData.renderType.id;
+    if (renderType === "multiBit" || renderType === "binary") {return;}
     netlistData.verticalScale = Math.max(1, netlistData.verticalScale * scale);
     this.events.dispatch(ActionType.RedrawVariable, rowId);
   }
@@ -564,8 +570,8 @@ class VaporviewWebview {
       case 'nextEdge': {controlBar.goToNextTransition(1, []); break;}
       case 'previousEdge': {controlBar.goToNextTransition(-1, []); break}
       case 'zoomToFit': {this.events.dispatch(ActionType.Zoom, Infinity, 0, 0); break}
-      case 'increaseVerticalScale': {this.updateVerticalScale(viewerState.selectedSignal, 2); break;}
-      case 'decreaseVerticalScale': {this.updateVerticalScale(viewerState.selectedSignal, 0.5); break;}
+      case 'increaseVerticalScale': {this.updateVerticalScale(e.event, 2); break;}
+      case 'decreaseVerticalScale': {this.updateVerticalScale(e.event, 0.5); break;}
     }
   }
 

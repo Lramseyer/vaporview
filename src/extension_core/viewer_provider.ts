@@ -895,7 +895,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
   public handleKeyBinding(e: any, keyCommand: string) {
     if (!this.activeWebview) {return;}
-    this.activeWebview.webview.postMessage({command: 'handle-keypress', keyCommand: keyCommand});
+    this.activeWebview.webview.postMessage({command: 'handle-keypress', keyCommand: keyCommand, event: e});
   }
 
   private handleWebviewDrop(e: any) {

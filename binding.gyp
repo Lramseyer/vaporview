@@ -1,25 +1,28 @@
 {
   "variables": {
-    "VERDI_HOME": "/home/heyfey/verdi/2022.06", # path to your VERDI_HOME
+    "FSDB_READER_LIBS_PATH": "/home/heyfey/verdi/2022.06/share/FsdbReader/linux64", # path to find libnffr.so, libnsys.so
+    "FSDB_HEADER_PATH": "/home/heyfey/verdi/2022.06/share/FsdbReader" # path to find ffrAPI.h, fsdbShr.h
   },
   "targets": [
     {
       "target_name": "fsdb_reader",
       "cflags!": [ "-fno-exceptions" ],
+      "cflags": [ "-fPIC" ],
       "cflags_cc!": [ "-fno-exceptions" ],
+      "cflags_cc": [ "-fPIC" ],
       "sources": [ "src/fsdb_reader.cpp" ],
       "include_dirs": [
         "<!@(node -p \"require('node-addon-api').include\")",
-        "<(VERDI_HOME)/share/FsdbReader" # path to find ffrAPI.h, fsdbShr.h
+        "<(FSDB_HEADER_PATH)>"
       ],
       'defines': [ 'NAPI_DISABLE_CPP_EXCEPTIONS' ],
       "ldflags": [
-        "-L<(VERDI_HOME)/share/FsdbReader/linux64",
+        "-L<(FSDB_READER_LIBS_PATH)>",
         "-static-libstdc++" # to solve GLIBCXX not found
       ],
       "libraries": [
-        # "<(VERDI_HOME)/share/FsdbReader/linux64/libnffr.so",
-        # "<(VERDI_HOME)/share/FsdbReader/linux64/libnsys.so",
+        # "<(FSDB_READER_LIBS_PATH)/libnffr.so",
+        # "<(FSDB_READER_LIBS_PATH)/libnsys.so",
         "-lnffr",
         "-lnsys"
       ],

@@ -1,6 +1,5 @@
 import { commands } from 'vscode';
 import {ActionType, EventHandler, viewerState, viewport, dataManager, vscode, RowId, sendWebviewContext} from './vaporview';
-import { sign, Sign } from 'crypto';
 import { VariableItem } from './signal_item';
 
 enum ButtonState {
@@ -33,6 +32,8 @@ export class ControlBar {
   private touchScroll: HTMLElement;
   private mouseScroll: HTMLElement;
   private autoReload: HTMLElement;
+  private annotateCodeAll: HTMLElement | null = null;
+  private annotateCodeListed: HTMLElement | null = null;
 
   private searchContainer: any;
   private searchBar: any;
@@ -67,11 +68,14 @@ export class ControlBar {
     this.touchScroll   = document.getElementById('touchpad-scroll-button')!;
     this.mouseScroll   = document.getElementById('mouse-scroll-button')!;
     this.autoReload    = document.getElementById('autoReload')!;
+  // Optional future: annotate listed checkbox could be wired similarly; for now only annotate all
+    this.annotateCodeAll = document.getElementById('annotateCodeAll');
+    this.annotateCodeListed = document.getElementById('annotateCode');
     this.searchContainer = document.getElementById('search-container');
     this.searchBar     = document.getElementById('search-bar');
     this.valueIconRef  = document.getElementById('value-icon-reference');
 
-    if (this.zoomInButton === null || this.zoomOutButton === null || this.zoomFitButton === null || 
+  if (this.zoomInButton === null || this.zoomOutButton === null || this.zoomFitButton === null || 
         this.prevNegedge === null || this.prevPosedge === null || this.nextNegedge === null || 
         this.nextPosedge === null || this.prevEdge === null || this.nextEdge === null || 
         this.timeEquals === null || this.valueEquals === null || this.previousButton === null || 
@@ -92,6 +96,27 @@ export class ControlBar {
     this.prevEdge.addEventListener(     'click', (e: any) => {this.goToNextTransition(-1, []);});
     this.nextEdge.addEventListener(     'click', (e: any) => {this.goToNextTransition( 1, []);});
     this.autoReload.addEventListener(  'change', (e: any) => {this.handleAutoReloadCheckbox(e);});
+    if (this.annotateCodeAll) {
+      this.annotateCodeAll.addEventListener('change', (e: any) => {
+        const enabled = !!e.target.checked;
+        // Use existing generic executeCommand bridge to notify main extension
+        vscode.postMessage({
+          command: 'executeCommand',
+          commandName: 'crisp.waveformAnnotate.setAnnotateAll',
+          args: { annotateAll: enabled }
+        });
+      });
+    }
+    if (this.annotateCodeListed) {
+      this.annotateCodeListed.addEventListener('change', (e: any) => {
+        const enabled = !!e.target.checked;
+        vscode.postMessage({
+          command: 'executeCommand',
+          commandName: 'crisp.waveformAnnotate.setAnnotateListed',
+          args: { annotateListed: enabled }
+        });
+      });
+    }
 
     // Search bar event handlers
     this.searchBar.addEventListener(     'focus', (e: any) => {this.handleSearchBarInFocus(true);});

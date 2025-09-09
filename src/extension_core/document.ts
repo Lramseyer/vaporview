@@ -290,6 +290,20 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     };
   }
 
+  public getAllInstancePaths(): string[] {
+    const result: string[] = [];
+    // netlistIdTable length equals varcount (set in setMetadata)
+    for (let i = 0; i < this.netlistIdTable.length; i++) {
+      try {
+        const info: any = this.getNameFromNetlistId(i as any);
+        if (info?.name && typeof info.name === 'string') {
+          result.push(info.name);
+        }
+      } catch { /* ignore individual resolution errors */ }
+    }
+    return result;
+  }
+
   public toStringWithCommas(n: number) {return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");}
 
   public formatTime(time: number, unit: string) {

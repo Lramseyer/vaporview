@@ -92,6 +92,13 @@ export async function activate(context: vscode.ExtensionContext) {
     return document.getValuesAtTime(e);
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.getAllInstancePaths', (e) => {
+    viewerProvider.log.appendLine("Command called: 'waveformViewer.getAllInstancePaths' " + JSON.stringify(e));
+    const document = viewerProvider.getDocumentFromOptionalUri(e?.uri);
+    if (!document) {return;}
+    return document.getAllInstancePaths();
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.viewVaporViewSidebar', () => {
     vscode.commands.executeCommand('workbench.view.extension.vaporView');
   }));

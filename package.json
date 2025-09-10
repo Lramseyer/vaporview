@@ -209,6 +209,18 @@
       },
       {
         "command": "vaporview.increaseVerticalScale",
+        "key": "alt+numpad_add",
+        "mac": "alt+numpad_add",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
+        "command": "vaporview.decreaseVerticalScale",
+        "key": "alt+numpad_subtract",
+        "mac": "alt+numpad_subtract",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
+        "command": "vaporview.increaseVerticalScale",
         "key": "alt+=",
         "mac": "alt+=",
         "when": "activeCustomEditorId == 'vaporview.waveformViewer'"

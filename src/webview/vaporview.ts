@@ -279,6 +279,7 @@ function signalListForSaveFile(rowIdList: RowId[]): any[] {
       numberFormat:     data.valueFormat.id,
       colorIndex:       data.colorIndex,
       rowHeight:        data.rowHeight,
+      verticalScale:    data.verticalScale,
       renderType:       data.renderType.id,
       valueLinkCommand: data.valueLinkCommand,
     });
@@ -572,6 +573,7 @@ class VaporviewWebview {
       case 'zoomToFit': {this.events.dispatch(ActionType.Zoom, Infinity, 0, 0); break}
       case 'increaseVerticalScale': {this.updateVerticalScale(e.event, 2); break;}
       case 'decreaseVerticalScale': {this.updateVerticalScale(e.event, 0.5); break;}
+      case 'resetVerticalScale':    {this.updateVerticalScale(e.event, 0); break;}
     }
   }
 

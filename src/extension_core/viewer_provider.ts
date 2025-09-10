@@ -466,6 +466,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
           valueFormat:   signalInfo.numberFormat,
           colorIndex:    signalInfo.colorIndex,
           rowHeight:     signalInfo.rowHeight,
+          verticalScale: signalInfo.verticalScale,
           renderType:    signalInfo.renderType,
           command:       signalInfo.command,
         });

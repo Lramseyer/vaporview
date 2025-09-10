@@ -380,6 +380,10 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.handleKeyBinding(e, "decreaseVerticalScale");
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.resetVerticalScale', (e) => {
+    viewerProvider.handleKeyBinding(e, "resetVerticalScale");
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.showRulerLines', (e) => {
     vscode.workspace.getConfiguration('vaporview').update('showRulerLines', true, vscode.ConfigurationTarget.Global);
   }));

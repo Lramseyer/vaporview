@@ -385,6 +385,11 @@
           "group": "1_waveform_settings@8"
         },
         {
+          "command": "vaporview.resetVerticalScale",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer' && isAnalog",
+          "group": "1_waveform_settings@9"
+        },
+        {
           "command": "vaporview.removeSignal",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "2_variables@1"
@@ -875,6 +880,10 @@
       {
         "command": "vaporview.decreaseVerticalScale",
         "title": "Decrease Vertical Scale"
+      },
+      {
+        "command": "vaporview.resetVerticalScale",
+        "title": "Reset Vertical Scale"
       },
       {
         "command": "vaporview.setTimeUnitsSeconds",

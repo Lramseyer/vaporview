@@ -367,6 +367,7 @@ export class LabelsPanels {
     this.pointerStartY  = null;
     this.draggableItem  = null;
     this.dragActive     = false;
+    if (this.dragDivider) {this.dragDivider.style.display = 'none'};
   }
 
   public dragEndExternal(event: MouseEvent | KeyboardEvent | null, abort) {

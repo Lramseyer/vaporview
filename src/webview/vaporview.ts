@@ -582,7 +582,7 @@ class VaporviewWebview {
   }
 
   handleMouseUp(event: MouseEvent | KeyboardEvent, abort: boolean) {
-    console.log('mouseup event type: ' + event);
+    //console.log('mouseup event type: ' + viewerState.mouseupEventType);
     if (viewerState.mouseupEventType === 'rearrange') {
       labelsPanel.dragEnd(event, abort);
     } else if (viewerState.mouseupEventType === 'dragAndDrop') {

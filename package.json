@@ -230,6 +230,12 @@
         "key": "alt+-",
         "mac": "alt+-",
         "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
+        "command": "vaporview.removeSignal",
+        "key": "backspace",
+        "mac": "backspace",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
       }
     ],
     "submenus": [

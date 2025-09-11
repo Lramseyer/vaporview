@@ -7,17 +7,15 @@
     {
       "target_name": "fsdb_reader",
       "cflags!": [ "-fno-exceptions" ],
-      "cflags": [ "-fPIC" ],
       "cflags_cc!": [ "-fno-exceptions" ],
-      "cflags_cc": [ "-fPIC" ],
       "sources": [ "src/fsdb_reader.cpp" ],
       "include_dirs": [
         "<!@(node -p \"require('node-addon-api').include\")",
-        "<(FSDB_HEADER_PATH)>"
+        "<(FSDB_HEADER_PATH)"
       ],
       'defines': [ 'NAPI_DISABLE_CPP_EXCEPTIONS' ],
       "ldflags": [
-        "-L<(FSDB_READER_LIBS_PATH)>",
+        "-L<(FSDB_READER_LIBS_PATH)",
         "-static-libstdc++" # to solve GLIBCXX not found
       ],
       "libraries": [

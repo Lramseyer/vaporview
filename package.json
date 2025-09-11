@@ -32,6 +32,7 @@
   "main": "./dist/extension",
   "browser": "./dist/extension",
   "activationEvents": [],
+  "extensionKind": ["workspace"],
   "contributes": {
     "resourceLabelFormatters": [
       {
@@ -229,12 +230,6 @@
         "command": "vaporview.decreaseVerticalScale",
         "key": "alt+-",
         "mac": "alt+-",
-        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
-      },
-      {
-        "command": "vaporview.removeSignal",
-        "key": "backspace",
-        "mac": "backspace",
         "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
       }
     ],

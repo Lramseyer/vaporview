@@ -10,6 +10,8 @@ export class TimestampLinkProvider implements vscode.TerminalLinkProvider {
   private readonly uvmTimestampRegex  = /@\s+(\d+)/g;
   // Detect timestamps with units - ie: 1.234 ns
   private readonly timeStampWithUnits = /([\d,\.]+)\s*([kmµunpf]?s)/g;
+  // Detect surver URL - ie: http://192.168.1.100:8080
+  private readonly surverUrlRegex     = /surfer\s+(https?:\/\/[^\s]+)/g;
 
   constructor(private readonly viewerProvider: WaveformViewerProvider) {}
 
@@ -17,6 +19,7 @@ export class TimestampLinkProvider implements vscode.TerminalLinkProvider {
 
     const uvmTimestampMatches       = [...context.line.matchAll(this.uvmTimestampRegex)];
     const timeStampWithUnitsMatches = [...context.line.matchAll(this.timeStampWithUnits)];
+    const surverUrlMatches          = [...context.line.matchAll(this.surverUrlRegex)];
 
     const uvmTimestampLinks = uvmTimestampMatches.map(match => {
       const line       = context.line;
@@ -44,7 +47,20 @@ export class TimestampLinkProvider implements vscode.TerminalLinkProvider {
       } as CustomTerminalLink;
     });
 
-    return [...uvmTimestampLinks, ...timeStampWithUnitsLinks];
+    const surverUrlLinks = surverUrlMatches.map(match => {
+      const line       = context.line;
+      const startIndex = line.indexOf(match[0]);
+
+      return {
+        startIndex,
+        length: match[0].length,
+        tooltip: 'Open remote viewer: ' + match[1],
+        data: match[0],
+        type: 'surver-url'
+      } as CustomTerminalLink;
+    });
+
+    return [...uvmTimestampLinks, ...timeStampWithUnitsLinks, ...surverUrlLinks];
   }
 
   handleTerminalLink(link: CustomTerminalLink) {
@@ -62,6 +78,18 @@ export class TimestampLinkProvider implements vscode.TerminalLinkProvider {
         const units      = [...link.data.matchAll(this.timeStampWithUnits)][0][2];
         this.viewerProvider.log.appendLine("Timestamp with units link clicked: " + time + '; units: ' + units);
         this.viewerProvider.setMarkerAtTimeWithUnits(time, units, 0);
+        break;
+      }
+      case 'surver-url': {
+        const url = [...link.data.matchAll(this.surverUrlRegex)][0][1];
+        this.viewerProvider.log.appendLine("Surver URL link clicked: " + url);
+        vscode.window.showInputBox({
+          prompt: 'Enter bearer token (optional)',
+          password: true,
+          value: ''
+        }).then(bearerToken => {
+          this.viewerProvider.openRemoteViewer(url, bearerToken);
+        })
         break;
       }
     }

@@ -100,9 +100,9 @@ dependencies = [
 
 [[package]]
 name = "fst-reader"
-version = "0.14.0"
+version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ead0837c896dac724675fb4710547eaa6eef452c3e18afa180c00abdf74b80a"
+checksum = "c946f675da6bf21c4fbe21b8681deeac0edec787db48d252f9a976c3f35d6616"
 dependencies = [
  "lz4_flex",
  "miniz_oxide",
@@ -480,9 +480,9 @@ dependencies = [
 
 [[package]]
 name = "wellen"
-version = "0.18.4"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bac39ed171b961aaf7b0d348f6d63e8f6af4e04393325df1824429a45b0228ad"
+checksum = "c1b17b319dff557c420010e79278ae0ab85c2dce8a8f5d2860c87579c6b9e108"
 dependencies = [
  "fst-reader",
  "indexmap",

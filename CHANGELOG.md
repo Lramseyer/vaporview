@@ -7,10 +7,13 @@
   - Signal height can now be set to 2x, 4x, and 8x
   - Analog signals can now be vertically zoomed in and out
   - ASCII value format
+  - Terminal link handler for Surfer Surver
 - API
   - Added (proposed) onDidDropInWaveformViewer event
 - Fixed
   - Word wrap display glitch in values display causing "->" indicator to word wrap
+- Other
+  - Upgraded to wellen 0.19.0
 
 # 1.4.0 - 8/27/2025 - Latest Release
 

@@ -287,6 +287,11 @@
       ],
       "view/item/context": [
         {
+          "command": "vaporview.addVariable",
+          "when": "viewItem == 'netlistVar' && view == 'waveformViewerNetlistView'",
+          "group": "inline"
+        },
+        {
           "command": "vaporview.addSelected",
           "when": "viewItem == 'netlistVar' && view == 'waveformViewerNetlistView'",
           "group": "1_default@1"
@@ -705,6 +710,11 @@
       {
         "command": "vaporview.addSelected",
         "title": "Add Selected"
+      },
+      {
+        "command": "vaporview.addVariable",
+        "title": "Add Variable",
+        "icon": "$(add)"
       },
       {
         "command": "vaporview.addVariableByInstancePath",

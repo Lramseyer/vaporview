@@ -45,6 +45,10 @@ Vaporview has a set of commands and event emitters that allow interaction with o
 - Adding custom context menu items
 - Signal value links
 
+## Remote Waveform Viewing
+
+Vaporview allows you to connect to a remote machine and open up waveforms remotely via [VScode Remote Development](https://code.visualstudio.com/docs/remote/ssh) or [Surfer surver](https://gitlab.com/surfer-project/surfer#server-mode-experimental). Remote development should work out of the box, however to connect to a Surfer surver, you will need to enter in the command "**> vaporview.openRemoteViewer**" and paste in the URL for the Surfer surver. Alternatively, if the URL is in a VScode terminal, it can be connected to automatically by clicking on the link.
+
 # Controls
 
 ## Keyboard Shortcuts
@@ -66,7 +70,7 @@ Signals may be added or removed through VaporView view container. Click on the V
 
 ### Adding Signals
 
-To Add a signal, simply check the box next for the netlist element in the "Netlist" view. It will also show in the "Displayed Signals" view.
+To Add a signal, simply click the "+" ocon to the right of the netlist element in the "Netlist" view. It will also show in the "Displayed Signals" view.
 
 **New in 1.4.1:** Signals can also be added by dragging and dropping them from the netlist view to the viewer. Make sure to hold **Shift** before dropping them into the viewer (this is a VScode limitation.)
 

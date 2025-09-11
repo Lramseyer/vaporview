@@ -482,14 +482,15 @@ export class LabelsPanels {
     const gridTemplateColumns = this.webview.style.gridTemplateColumns;
     const column1 = parseInt(gridTemplateColumns.split(' ')[0]);
     const column2 = parseInt(gridTemplateColumns.split(' ')[1]);
+    const xPosition = Math.max(10, e.x);
 
     if (this.resizeIndex === 1) {
-      this.webview.style.gridTemplateColumns = `${e.x}px ${column2}px auto`;
-      this.resize1.style.left = `${e.x}px`;
-      this.resize2.style.left = `${e.x + column2}px`;
+      this.webview.style.gridTemplateColumns = `${xPosition}px ${column2}px auto`;
+      this.resize1.style.left = `${xPosition}px`;
+      this.resize2.style.left = `${xPosition + column2}px`;
     } else if (this.resizeIndex === 2) {
-      const newWidth    = Math.max(10, e.x - column1);
-      const newPosition = Math.max(10 + column1, e.x);
+      const newWidth    = Math.max(10, xPosition - column1);
+      const newPosition = Math.max(10 + column1, xPosition);
       this.webview.style.gridTemplateColumns = `${column1}px ${newWidth}px auto`;
       this.resize2.style.left = `${newPosition}px`;
     }

@@ -12,8 +12,10 @@
   - Added (proposed) onDidDropInWaveformViewer event
 - Fixed
   - Word wrap display glitch in values display causing "->" indicator to word wrap
+  - Labels panel can no longer be resized to a negative width
 - Other
   - Upgraded to wellen 0.19.0
+  - Updated Netlist icon colors to a more consistent set of colors
 
 # 1.4.0 - 8/27/2025 - Latest Release
 

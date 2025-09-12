@@ -229,8 +229,10 @@ This extension requires VScode 1.96.0 or later
   - Added (proposed) onDidDropInWaveformViewer event
 - Fixed
   - Word wrap display glitch in values display causing "->" indicator to word wrap
+  - Labels panel can no longer be resized to a negative width
 - Other
   - Upgraded to wellen 0.19.0
+  - Updated Netlist icon colors to a more consistent set of colors
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

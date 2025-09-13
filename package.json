@@ -8,7 +8,7 @@
     "color": "#202020",
     "theme": "dark"
   },
-  "version": "1.4.0",
+  "version": "1.4.1",
   "repository": "https://github.com/lramseyer/vaporview",
   "categories": [
     "Debuggers",
@@ -289,7 +289,12 @@
         {
           "command": "vaporview.addVariable",
           "when": "viewItem == 'netlistVar' && view == 'waveformViewerNetlistView'",
-          "group": "inline"
+          "group": "inline@2"
+        },
+        {
+          "command": "vaporview.showInViewer",
+          "when": "viewItem == 'netlistVar' && view == 'waveformViewerNetlistView'",
+          "group": "inline@1"
         },
         {
           "command": "vaporview.addSelected",
@@ -750,7 +755,8 @@
       },
       {
         "command": "vaporview.showInViewer",
-        "title": "Show in Viewer"
+        "title": "Show in Viewer",
+        "icon": "$(inspect)"
       },
       {
         "command": "vaporview.copyName",

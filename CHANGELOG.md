@@ -1,6 +1,6 @@
 # Change Log
 
-## 1.4.1 - Upcoming Release
+## 1.4.1 - 9/12/2025 - Latest Release
 
 - Added
   - Drag and drop from netlist view to add variables into the viewer
@@ -17,7 +17,7 @@
   - Upgraded to wellen 0.19.0
   - Updated Netlist icon colors to a more consistent set of colors
 
-# 1.4.0 - 8/27/2025 - Latest Release
+# 1.4.0 - 8/27/2025
 
 - Added
   - Signal grouping in the viewer

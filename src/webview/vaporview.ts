@@ -1,4 +1,3 @@
-import { error, group } from 'console';
 import { Viewport } from './viewport';
 import { LabelsPanels } from './labels';
 import { ControlBar } from './control_bar';
@@ -140,7 +139,7 @@ export function getParentGroupId(rowId: RowId | null): number | null {
     if (parentGroupId !== null) {
       return parentGroupId;
     }
-  };
+  }
   return null;
 }
 
@@ -255,7 +254,7 @@ function createWebviewContext() {
     scrollLeft: vaporview.viewport.pseudoScrollLeft,
     autoReload: viewerState.autoReload,
     displayedSignals: signalListForSaveFile(viewerState.displayedSignals),
-  }
+  };
 }
 
 function signalListForSaveFile(rowIdList: RowId[]): any[] {
@@ -287,7 +286,7 @@ function signalListForSaveFile(rowIdList: RowId[]): any[] {
 }
 
 export function sendWebviewContext() {
-  let context: any = createWebviewContext();
+  const context: any = createWebviewContext();
   vscode.setState(context);
   context.command = 'contextUpdate';
   vscode.postMessage(context);
@@ -310,6 +309,8 @@ class VaporviewWebview {
   // Components
   viewport: Viewport;
   controlBar: ControlBar;
+  overlay: HTMLElement | null = null;
+  overlayText: HTMLElement | null = null;
 
   // event handler variables
   events: EventHandler;
@@ -332,7 +333,9 @@ class VaporviewWebview {
     const valuesScroll  = document.getElementById('value-display-container');
     const scrollArea    = document.getElementById('scrollArea');
     const contentArea   = document.getElementById('contentArea');
-    const scrollbar     = document.getElementById('scrollbar');
+  const scrollbar     = document.getElementById('scrollbar');
+  const overlay       = document.getElementById('annotate-overlay');
+  const overlayText   = document.getElementById('annotate-overlay-text');
 
     if (webview === null || labelsScroll === null || valuesScroll === null ||
       scrollArea === null || contentArea === null || scrollbar === null) {
@@ -345,6 +348,8 @@ class VaporviewWebview {
     this.scrollArea   = scrollArea;
     this.contentArea  = contentArea;
     this.scrollbar    = scrollbar;
+  this.overlay      = overlay;
+  this.overlayText  = overlayText;
 
     webview.style.gridTemplateColumns = `150px 50px auto`;
 
@@ -526,14 +531,14 @@ class VaporviewWebview {
       const parentGroupRowId = dataManager.groupIdTable[parentGroupId];
       const grandparentGroupId = getParentGroupId(parentGroupRowId);
       if (grandparentGroupId === null) {return;}
-      let parentIndex = getIndexInGroup(dataManager.groupIdTable[parentGroupId], grandparentGroupId);
+      const parentIndex = getIndexInGroup(dataManager.groupIdTable[parentGroupId], grandparentGroupId);
       newIndex = parentIndex;
       if (direction > 0) {newIndex += direction;}
       parentGroupId = grandparentGroupId;
     } else {
       // if the adjacent row is a group, and the group is expanded, we place it in the top or bottom of the group
-      let adjacentRowId = parentList[newIndex];
-      let adjacentGroupId = dataManager.groupIdTable.indexOf(adjacentRowId);
+      const adjacentRowId = parentList[newIndex];
+      const adjacentGroupId = dataManager.groupIdTable.indexOf(adjacentRowId);
       if (adjacentGroupId !== -1) {
         const groupItem = dataManager.rowItems[dataManager.groupIdTable[adjacentGroupId]];
         if (groupItem instanceof SignalGroup && groupItem.collapseState === CollapseState.Expanded) {
@@ -562,8 +567,8 @@ class VaporviewWebview {
   externalKeyDownHandler(e: any) {
     switch (e.keyCommand) {
       case 'nextEdge': {controlBar.goToNextTransition(1, []); break;}
-      case 'previousEdge': {controlBar.goToNextTransition(-1, []); break}
-      case 'zoomToFit': {this.events.dispatch(ActionType.Zoom, Infinity, 0, 0); break}
+      case 'previousEdge': {controlBar.goToNextTransition(-1, []); break;}
+      case 'zoomToFit': {this.events.dispatch(ActionType.Zoom, Infinity, 0, 0); break;}
       case 'increaseVerticalScale': {this.updateVerticalScale(viewerState.selectedSignal, 2); break;}
       case 'decreaseVerticalScale': {this.updateVerticalScale(viewerState.selectedSignal, 0.5); break;}
     }
@@ -782,6 +787,17 @@ class VaporviewWebview {
     const message = e.data;
 
     switch (message.command) {
+      case 'setAnnotateLoading': {
+        if (this.overlay) {
+          if (message.active) {
+            if (this.overlayText && message.text) { this.overlayText.textContent = message.text; }
+            this.overlay.style.display = 'flex';
+          } else {
+            this.overlay.style.display = 'none';
+          }
+        }
+        break;
+      }
       case 'initViewport':          {this.viewport.init(message.metadata, message.uri); break;}
       case 'unload':                {this.unload(); break;}
       case 'setConfigSettings':     {this.handleSetConfigSettings(message); break;}

@@ -323,7 +323,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   }
 
   public getDocumentFromUri(uri: string): VaporviewDocument | undefined {
-    const key = uri
+    const key = uri;
     for (const entry of this.documentCollection) {
       if (entry.resource === key) {return entry.document;}
     }
@@ -698,18 +698,18 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
   emitEvent(e: any) {
 
-    let markerData: markerSetEvent = {
+    const markerData: markerSetEvent = {
       uri: e.uri,
       time: e.time,
       units: e.units,
-    }
+    };
 
-    let signalData: signalEvent = {
+    const signalData: signalEvent = {
       uri: e.uri,
       instancePath: e.instancePath,
       netlistId: e.netlistId,
       source: "viewer",
-    }
+    };
 
     //console.log(e);
 
@@ -843,7 +843,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       document.reveal();
     }
 
-    let metadata = await this.getNetlistItemFromCommandArgs(e);
+    const metadata = await this.getNetlistItemFromCommandArgs(e);
     if (metadata === null) {
       vscode.window.showWarningMessage('Signal not found: ' + e.netlistId);
       return;
@@ -921,7 +921,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     let groupPath: string[] = [];
     let index = undefined;
-    if (e.groupPath) {groupPath = e.groupPath}
+    if (e.groupPath) {groupPath = e.groupPath;}
     if (e.dropIndex) {index = e.dropIndex;}
 
     if (document !== this.activeDocument) {return;}
@@ -1151,8 +1151,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}
 
-    let groupId: number | undefined = e?.groupId;
-    let groupName: string | undefined = e?.name;
+    const groupId: number | undefined = e?.groupId;
+    const groupName: string | undefined = e?.name;
 
     const panel      = this.activeWebview;
     panel.webview.postMessage({
@@ -1167,7 +1167,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}
 
-    let groupId: number | undefined = e?.groupId;
+    const groupId: number | undefined = e?.groupId;
 
     const panel = this.activeWebview;
     panel.webview.postMessage({
@@ -1222,6 +1222,16 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.activeWebview.webview.postMessage({
       command: 'copyValueAtMarker',
       netlistId: e.netlistId,
+    });
+  }
+
+  // Show or hide a lightweight annotate overlay banner in the webview
+  public setAnnotateLoading(active: boolean, text?: string) {
+    if (!this.activeWebview) {return;}
+    this.activeWebview.webview.postMessage({
+      command: 'setAnnotateLoading',
+      active,
+      text,
     });
   }
 

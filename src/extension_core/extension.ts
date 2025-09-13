@@ -4,6 +4,7 @@ import * as vscode from 'vscode';
 import { TimestampLinkProvider, NetlistLinkProvider } from './terminal_links';
 import { WaveformViewerProvider } from './viewer_provider';
 import * as path from 'path';
+import * as fs from 'fs';
 
 // #region activate()
 export async function activate(context: vscode.ExtensionContext) {
@@ -97,6 +98,12 @@ export async function activate(context: vscode.ExtensionContext) {
     const document = viewerProvider.getDocumentFromOptionalUri(e?.uri);
     if (!document) {return;}
     return document.getAllInstancePaths();
+  }));
+
+  // Show/hide annotate loading overlay in the active waveform viewer webview
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.setAnnotateLoading', (e) => {
+    viewerProvider.log.appendLine("Command called: 'waveformViewer.setAnnotateLoading' " + JSON.stringify(e));
+    viewerProvider.setAnnotateLoading(!!e?.active, e?.text);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.viewVaporViewSidebar', () => {
@@ -452,7 +459,7 @@ export function getTokenColorsForTheme(themeName: string) {
   if (currentThemePath) { themePaths.push(currentThemePath); }
   while (themePaths.length > 0) {
     const themePath: any = themePaths.pop();
-    const theme: any = require(themePath);
+    const theme: any = JSON.parse(fs.readFileSync(themePath, 'utf8'));
     if (theme) {
       if (theme.include) {
         themePaths.push(path.join(path.dirname(themePath), theme.include));

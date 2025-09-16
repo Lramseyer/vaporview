@@ -69,13 +69,13 @@ $VERDI_HOME/share/FsdbReader/linux64/
 $VERDI_HOME/share/FsdbReader/
 ```
 
-For Xcilience (xrun) users, FSDB reader might be found in:
+For Xcelium (xrun) users, FSDB reader might be found in:
 ```
 # for .so
-$XCILIENCE_HOME/tools.lnx86/lib/64bit/
+$XCELIUM_HOME/tools.lnx86/lib/64bit/
 
 # for .h
-$XCILIENCE_HOME/include/fsdb/
+$XCELIUM_HOME/include/fsdb/
 ```
 
 ### Compile FSDB addon

@@ -37,6 +37,12 @@ export class LabelsPanels {
   renameActive: boolean      = false;
   valueAtMarker: any         = {};
 
+  // Double-click workaround state (two single clicks within 1s)
+  private lastLabelClickTime: number = 0;
+  private lastLabelClickRowId: RowId | null = null;
+  private lastValueClickTime: number = 0;
+  private lastValueClickRowId: RowId | null = null;
+
   constructor(events: EventHandler) {
     this.events = events;
 
@@ -75,9 +81,13 @@ export class LabelsPanels {
     this.handleRedrawVariable  = this.handleRedrawVariable.bind(this);
     this.handleUpdateColor     = this.handleUpdateColor.bind(this);
 
-    // Event handlers to handle clicking on a waveform label to select a signal
-    labels.addEventListener(      'click', (e) => this.clicklabel(e));
-    valueDisplay.addEventListener('click', (e) => this.clickValueDisplay(e));
+  // Event handlers to handle clicking on a waveform label to select a signal
+  labels.addEventListener(      'click', (e) => this.clicklabel(e));
+  valueDisplay.addEventListener('click', (e) => this.clickValueDisplay(e));
+
+  // Double-click handlers to open source for a signal
+  labels.addEventListener('dblclick', (e) => this.handleOpenSourceFromLabels(e));
+  valueDisplay.addEventListener('dblclick', (e) => this.handleOpenSourceFromValues(e));
     // resize handler to handle column resizing
     resize1.addEventListener("mousedown",   (e) => {this.handleResizeMousedown(e, resize1, 1);});
     resize2.addEventListener("mousedown",   (e) => {this.handleResizeMousedown(e, resize2, 2);});
@@ -113,6 +123,17 @@ export class LabelsPanels {
     if (itemIndex === -1) {return;}
     const rowId = viewerState.displayedSignals[itemIndex];
     this.events.dispatch(ActionType.SignalSelect, rowId);
+
+    // Double-click workaround: trigger open source if two single clicks within 1 second on same row
+    const now = Date.now();
+    if (this.lastValueClickRowId === rowId && (now - this.lastValueClickTime) <= 1000) {
+      this.openSourceForRowId(rowId);
+      this.lastValueClickTime = 0;
+      this.lastValueClickRowId = null;
+    } else {
+      this.lastValueClickTime = now;
+      this.lastValueClickRowId = rowId;
+    }
   }
 
   clicklabel (event: any) {
@@ -129,6 +150,16 @@ export class LabelsPanels {
         }
     } else {
       this.events.dispatch(ActionType.SignalSelect, rowId);
+      // Double-click workaround: trigger open source if two single clicks within 1 second on same row
+      const now = Date.now();
+      if (this.lastLabelClickRowId === rowId && (now - this.lastLabelClickTime) <= 1000) {
+        this.openSourceForRowId(rowId);
+        this.lastLabelClickTime = 0;
+        this.lastLabelClickRowId = null;
+      } else {
+        this.lastLabelClickTime = now;
+        this.lastLabelClickRowId = rowId;
+      }
     }
   }
 
@@ -225,7 +256,7 @@ export class LabelsPanels {
       this.draggableItem.classList.add('is-draggable');
     }
     this.dragDivider = this.labels.querySelector('#drag-divider');
-    if (this.dragDivider) {this.dragDivider.style.display = 'block'};
+    if (this.dragDivider) {this.dragDivider.style.display = 'block';}
     this.dragInProgress = true;
   }
 
@@ -256,7 +287,7 @@ export class LabelsPanels {
     this.updateIdleItemsStateAndPosition(event);
   }
 
-  updateIdleItemsStateAndPosition(e) {
+  updateIdleItemsStateAndPosition(e: MouseEvent) {
 
     const labelsRect        = this.labels.getBoundingClientRect();
     const draggableItemY    = e.clientY;
@@ -369,13 +400,13 @@ export class LabelsPanels {
     this.dragActive     = false;
   }
 
-  public dragEndExternal(event: MouseEvent | KeyboardEvent | null, abort) {
+  public dragEndExternal(event: MouseEvent | KeyboardEvent | null, abort: boolean) {
     this.clearDragHandler();
     if (abort) {this.renderLabelsPanels();}
     return this.getDropIndex();
   }
 
-  dragEnd(event: MouseEvent | KeyboardEvent | null, abort) {
+  dragEnd(event: MouseEvent | KeyboardEvent | null, abort: boolean) {
 
     document.removeEventListener('mousemove', this.dragMove);
     this.dragActive = false;
@@ -383,7 +414,7 @@ export class LabelsPanels {
     if (!this.draggableItem) {return;}
     if (event) {event.preventDefault();}
 
-    let {newGroupId, newIndex} = this.getDropIndex();
+    const {newGroupId, newIndex: initialNewIndex} = this.getDropIndex();
 
     const draggableItemRowId = this.getRowIdFromElement(this.draggableItem);
     if (draggableItemRowId === null || isNaN(draggableItemRowId)) {
@@ -391,6 +422,7 @@ export class LabelsPanels {
     }
     const oldGroupId = getParentGroupId(draggableItemRowId) || 0;
     const oldIndex   = getIndexInGroup(draggableItemRowId, oldGroupId) || 0;
+    let newIndex = initialNewIndex;
     if (oldGroupId === newGroupId && newIndex > oldIndex) {
       newIndex = Math.max(newIndex - 1, 0);
     }
@@ -523,7 +555,7 @@ export class LabelsPanels {
   handleSignalSelect(rowId: RowId | null) {
 
     this.dragActive = false;
-    if (this.dragDivider) {this.dragDivider.style.display = 'none'};
+    if (this.dragDivider) {this.dragDivider.style.display = 'none';}
     if (rowId === null) {return;}
 
     viewerState.selectedSignal      = rowId;
@@ -539,5 +571,38 @@ export class LabelsPanels {
 
   handleUpdateColor() {
     this.renderLabelsPanels();
+  }
+
+  private handleOpenSourceFromLabels(event: MouseEvent) {
+    const clickedLabel = (event.target as HTMLElement)?.closest('.waveform-label') as HTMLElement | null;
+    const rowId = this.getRowIdFromElement(clickedLabel);
+    if (rowId === null || isNaN(rowId)) {return;}
+    console.log('DEBUG MOUSEDC labels dblclick rowId=', rowId);
+    this.openSourceForRowId(rowId);
+  }
+
+  private handleOpenSourceFromValues(event: MouseEvent) {
+    const clicked = (event.target as HTMLElement)?.closest('.value-display-item') as HTMLElement | null;
+    if (!clicked) {return;}
+    const labelsList = Array.from(this.valueDisplay.querySelectorAll('.value-display-item'));
+    const itemIndex  = labelsList.indexOf(clicked);
+    if (itemIndex === -1) {return;}
+    const rowId = viewerState.displayedSignals[itemIndex];
+    if (rowId === null || isNaN(rowId)) {return;}
+    console.log('DEBUG MOUSEDC values dblclick rowId=', rowId);
+    this.openSourceForRowId(rowId);
+  }
+
+  private openSourceForRowId(rowId: RowId) {
+    const item = dataManager.rowItems[rowId];
+    if (!(item instanceof VariableItem)) {return;}
+    let instancePath = item.signalName;
+    if (item.scopePath && item.scopePath !== '') {instancePath = item.scopePath + '.' + item.signalName;}
+    console.log('DEBUG MOUSEDC openSourceForRowId instancePath=', instancePath, 'uri=', viewerState.uri);
+    vscode.postMessage({
+      command: 'executeCommand',
+      commandName: 'vaporview.openSource',
+      args: { instancePath, uri: viewerState.uri }
+    });
   }
 }

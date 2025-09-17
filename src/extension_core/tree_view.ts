@@ -318,6 +318,9 @@ export class NetlistItem extends vscode.TreeItem {
   public numberFormat: string;
   public fsdbVarLoaded: boolean = false; // Only used in fsdb
   public resourceUri: vscode.Uri;
+  sourceFile: any;
+  sourceLine: any;
+  instancePath: any;
 
   constructor(
     public readonly label:      string,
@@ -406,7 +409,7 @@ export const netlistItemDragAndDropController: vscode.TreeDragAndDropController<
   dragMimeTypes: [],
   dropMimeTypes: [],
   handleDrag: (source: readonly NetlistItem[], dataTransfer: vscode.DataTransfer, token: vscode.CancellationToken) => {
-    return Promise.resolve()
+    return Promise.resolve();
   },
-  handleDrop: (target: NetlistItem | undefined, dataTransfer: vscode.DataTransfer, token: vscode.CancellationToken) => {return Promise.resolve()},
-}
+  handleDrop: (target: NetlistItem | undefined, dataTransfer: vscode.DataTransfer, token: vscode.CancellationToken) => {return Promise.resolve();},
+};

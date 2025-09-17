@@ -378,19 +378,20 @@ class VaporviewWebview {
   // Function to test whether or not the user is using a touchpad
   // Sometimes it returns false negatives when flicking the touchpad,
   // hence the timer to prevent multiple checks in a short period of time
-  isTouchpad(e) {
+  isTouchpad(e: WheelEvent) {
 
     if (performance.now() < this.touchpadCheckTimer) {
       return this.lastIsTouchpad;
     }
 
-    if (e.wheelDeltaY) {
-      if (e.wheelDeltaY === (e.deltaY * -3)) {
+    const wheelEvent = e as any;
+    if (wheelEvent.wheelDeltaY) {
+      if (wheelEvent.wheelDeltaY === (e.deltaY * -3)) {
         this.lastIsTouchpad = true;
         return true;
       }
-    //} else if (e.wheelDeltaX && !e.shiftKey) {
-    //  if (e.wheelDeltaX === (e.deltaX * -3)) {
+    //} else if (wheelEvent.wheelDeltaX && !e.shiftKey) {
+    //  if (wheelEvent.wheelDeltaX === (e.deltaX * -3)) {
     //    this.lastIsTouchpad = true;
     //    return true;
     //  }

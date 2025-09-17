@@ -57,11 +57,13 @@
       "vaporViewActivityBar": [
         {
           "id": "waveformViewerNetlistView",
-          "name": "Netlist"
+          "name": "Netlist",
+          "icon": "media/activityBar.svg"
         },
         {
           "id": "waveformViewerDisplayedSignalsView",
-          "name": "Displayed Signals"
+          "name": "Displayed Signals",
+          "icon": "media/activityBar.svg"
         }
       ]
     },
@@ -335,6 +337,12 @@
         }
       ],
       "webview/context": [
+        {
+          "command": "vaporview.openSource",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "group": "2_variables@0",
+          "icon": "$(go-to-file)"
+        },
         {
           "submenu": "vaporview.timeUnit",
           "group": "1_default@1"
@@ -642,6 +650,11 @@
       ]
     },
     "commands": [
+      {
+        "command": "vaporview.openSource",
+        "title": "Open Source",
+        "icon": "$(go-to-file)"
+      },
       {
         "command": "vaporview.openFile",
         "title": "Open File with VaporView"

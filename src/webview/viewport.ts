@@ -10,7 +10,7 @@ const domParser = new DOMParser();
 export class Viewport {
 
   scrollArea: HTMLElement;
-  scrollAreaBounds: DOMRect;
+  scrollAreaBounds!: DOMRect;
   contentArea: HTMLElement;
   waveformArea: HTMLElement;
   scrollbar: HTMLElement;
@@ -139,7 +139,8 @@ export class Viewport {
 
     // click handler to handle clicking inside the waveform viewer
     // gets the absolute x position of the click relative to the scrollable content
-    contentArea.addEventListener('mousedown',        (e) => {this.handleScrollAreaMouseDown(e);});
+  contentArea.addEventListener('mousedown',        (e) => {this.handleScrollAreaMouseDown(e);});
+  contentArea.addEventListener('dblclick',         (e) => {this.handleOpenSourceFromWaveform(e);});
     scrollbar.addEventListener('mousedown',          (e) => {this.handleScrollbarDrag(e);});
     scrollbarContainer.addEventListener('mousedown', (e) => {this.handleScrollbarContainerClick(e);});
 
@@ -202,7 +203,7 @@ export class Viewport {
   }
 
   async getThemeColors() {
-    let style = window.getComputedStyle(document.body)
+    const style = window.getComputedStyle(document.body);
     // Token colors
     this.colorKey[0] = style.getPropertyValue('--vscode-debugTokenExpression-number');
     this.colorKey[1] = style.getPropertyValue('--vscode-debugTokenExpression-string');
@@ -233,7 +234,7 @@ export class Viewport {
     const fontList = this.fontFamily.split(',').map((font) => font.trim());
     let usedFont = '';
     for (let i = 0; i < fontList.length; i++) {
-      let font = fontList[i];
+      const font = fontList[i];
       if (document.fonts.check('12px ' + font)) {
         usedFont = fontList[i];
         break;
@@ -267,7 +268,7 @@ export class Viewport {
   setRulerVscodeContext() {
     const unitsList = ['fs', 'ps', 'ns', 'µs', 'ms', 's'];
     const maxTime   = (10 ** this.logScaleFromUnits(this.timeUnit)) * this.timeScale * this.timeStop;
-    const context   = {
+    const context: Record<string, any> = {
       webviewSection: 'ruler',
       preventDefaultContextMenuItems: true,
       rulerLines: this.rulerLines 
@@ -371,6 +372,24 @@ export class Viewport {
         this.highlightListenerSet = true;
       }
     }
+  }
+
+  private handleOpenSourceFromWaveform(event: MouseEvent) {
+    const container = (event.target as HTMLElement)?.closest('.waveform-container') as HTMLElement | null;
+    if (!container) {return;}
+    const rowIdStr = container.id.split('-').slice(1).join('-');
+    const rowId = parseInt(rowIdStr, 10);
+    if (isNaN(rowId)) {return;}
+    const item = dataManager.rowItems[rowId];
+    if (!(item instanceof VariableItem)) {return;}
+    let instancePath = item.signalName;
+    if (item.scopePath && item.scopePath !== '') {instancePath = item.scopePath + '.' + item.signalName;}
+    console.log('DEBUG MOUSEDC waveform dblclick rowId=', rowId, 'instancePath=', instancePath, 'uri=', viewerState.uri);
+    vscode.postMessage({
+      command: 'executeCommand',
+      commandName: 'vaporview.openSource',
+      args: { instancePath, uri: viewerState.uri }
+    });
   }
 
   handleScrollAreaClick(event: any, eventButton: number) {
@@ -584,7 +603,7 @@ export class Viewport {
   handleMarkerSet(time: number, markerType: number) {
     if (time > this.timeStop || time < 0) {return;}
 
-    let element = markerType === 0 ? this.markerElement : this.altMarkerElement;
+  const element = markerType === 0 ? this.markerElement : this.altMarkerElement;
 
     if (time === null) {
       element.style.display = 'none';
@@ -609,7 +628,7 @@ export class Viewport {
     this.annotateScrollContainer(this.markerAnnotation , viewerState.altMarkerTime);
   }
 
-  annotateScrollContainer(color, time) {
+  annotateScrollContainer(color: string, time: number | null) {
 
     if (time === null) {return;}
     const xOffset = (time / this.timeStop) * this.viewerWidth;
@@ -660,7 +679,7 @@ export class Viewport {
     let tickX = this.rulerTickSpacing - (this.pseudoScrollLeft % this.rulerTickSpacing) - (this.rulerTickSpacing + 0.5);
     let tickXalt = tickX - (this.rulerTickSpacing / 2);
     let numberX = -1 * (this.pseudoScrollLeft % this.rulerNumberSpacing);
-    let numberDirty = (this.pseudoScrollLeft + numberX) * this.pixelTime;
+  const numberDirty = (this.pseudoScrollLeft + numberX) * this.pixelTime;
     let number = Math.round(numberDirty / this.rulerNumberIncrement) * this.rulerNumberIncrement;
     let setIndex = Math.round(number / this.rulerNumberIncrement);
     const alpha = Math.min((this.zoomOffset - Math.floor(this.zoomOffset)) * 4, 1);
@@ -754,8 +773,8 @@ export class Viewport {
     // Annotation lines
     const startIndex = dataManager.binarySearchTime(this.annotateTime, this.timeScrollLeft);
     const endIndex   = dataManager.binarySearchTime(this.annotateTime, this.timeScrollRight);
-    let lineList: any= [];
-    let boxList: any = [];
+  const lineList: number[] = [];
+  const boxList: [number, number][] = [];
     let noDrawFlag   = false;
     let lastDrawTime = 0;
     let lastNoDrawTime = 0;
@@ -784,7 +803,7 @@ export class Viewport {
     ctx.fillStyle    = this.edgeGuideColor;
     ctx.globalAlpha  = 1;
     ctx.beginPath();
-    lineList.forEach((time) => {
+  lineList.forEach((time: number) => {
       const x = this.getViewportLeft(time, 0);
       ctx.moveTo(x, 0);
       ctx.lineTo(x, this.waveformsHeight);
@@ -792,7 +811,7 @@ export class Viewport {
     ctx.stroke();
 
     ctx.beginPath();
-    boxList.forEach(([start, end]) => {
+  boxList.forEach(([start, end]: [number, number]) => {
       const xStart = this.getViewportLeft(start, 0);
       const xEnd   = this.getViewportLeft(end, 0);
       ctx.moveTo(xStart, 0);
@@ -881,7 +900,7 @@ export class Viewport {
     this.pixelRatio       = window.devicePixelRatio || 1;
     this.scrollbarCanvasElement.setAttribute("width",  `0`);
     this.scrollbarCanvasElement.style.width  = `0px`;
-    this.scrollAreaBounds = this.scrollArea.getBoundingClientRect();;
+  this.scrollAreaBounds = this.scrollArea.getBoundingClientRect();
     this.viewerWidth      = this.scrollAreaBounds.width - 10;
     this.viewerHeight     = this.scrollAreaBounds.height;
     this.halfViewerWidth  = this.viewerWidth / 2;

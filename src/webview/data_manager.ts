@@ -117,17 +117,19 @@ export class WaveformDataManager {
     if (signalList.length === 0) {return;}
 
     let updateFlag     = false;
-    let selectedSignal = viewerState.selectedSignal;
+    //let selectedSignal = viewerState.selectedSignal;
     const signalIdList: any  = [];
     const netlistIdList: any = [];
     const rowIdList: any     = [];
     const moveList: any      = [];
+    let lastRowId: number | null = null;
 
     signalList.forEach((signal: any) => {
 
       const netlistId = signal.netlistId;
       const signalId  = signal.signalId;
       let rowId       = this.nextRowId;
+      lastRowId       = rowId;
 
       if (this.netlistIdTable[netlistId] === undefined) {
         this.netlistIdTable[netlistId] = rowId;
@@ -159,7 +161,7 @@ export class WaveformDataManager {
       netlistIdList.push(netlistId);
 
       if (this.valueChangeData[signalId] !== undefined) {
-        selectedSignal = rowId;
+        //selectedSignal = [rowId];
         updateFlag     = true;
         varItem.cacheValueFormat();
       } else if (this.valueChangeDataTemp[signalId] !== undefined) {
@@ -182,7 +184,7 @@ export class WaveformDataManager {
 
     let reorder = false;
     let groupId = 0;
-    let moveIndex;
+    let moveIndex = 0;
     let groupItem = this.getGroupByIdOrName(groupPath, parentGroupId);
     if (groupItem !== null) {
       groupId = groupItem.groupId;
@@ -201,7 +203,7 @@ export class WaveformDataManager {
       });
     }
 
-    this.events.dispatch(ActionType.SignalSelect, selectedSignal);
+    this.events.dispatch(ActionType.SignalSelect, rowIdList, lastRowId);
     sendWebviewContext();
   }
 
@@ -255,8 +257,8 @@ export class WaveformDataManager {
       if (rowId === undefined) {return;}
     }
     else {
-      if (viewerState.selectedSignal && viewerState.selectedSignal >= 0) {
-        rowId = viewerState.selectedSignal;
+      if (viewerState.selectedSignal.length === 1 && viewerState.selectedSignal[0] >= 0) {
+        rowId = viewerState.selectedSignal[0];
       } else {
         return;
       }
@@ -501,9 +503,9 @@ export class WaveformDataManager {
 
   getTransitionCount(): number | null {
     let result = null;
-    if (viewerState.selectedSignal === null) {return result;}
+    if (viewerState.selectedSignal.length !== 1) {return result;}
     if (viewerState.markerTime === null || viewerState.altMarkerTime === null) {return result;}
-    const rowId = viewerState.selectedSignal;
+    const rowId = viewerState.selectedSignal[0];
     const netlistData = this.rowItems[rowId];
     if (netlistData instanceof VariableItem === false) {return result;}
     const signalId = netlistData.signalId;

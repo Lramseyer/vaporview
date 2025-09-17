@@ -121,15 +121,18 @@ export class ControlBar {
   }
 
   goToNextTransition(direction: number, edge: string[]) {
-    if (viewerState.selectedSignal === null) {return;}
+    if (viewerState.selectedSignal.length === 0) {return;}
     if (viewerState.markerTime === null) {return;}
 
-    const rowId = viewerState.selectedSignal;
-    const data  = dataManager.rowItems[rowId];
-    const time  = data.getNextEdge(viewerState.markerTime, direction, edge);
-    if (time === null) {return;}
+    let nearestTime: number = viewport.timeStop;
+    viewerState.selectedSignal.forEach((rowId) => {
+      const data  = dataManager.rowItems[rowId];
+      const time  = data.getNextEdge(nearestTime, direction, edge);
+      if (time === null) {return;}
+      nearestTime = Math.min(nearestTime, time);
+    });
 
-    this.events.dispatch(ActionType.MarkerSet, time, 0);
+    this.events.dispatch(ActionType.MarkerSet, nearestTime, 0);
   }
 
   handleScrollModeClick(mode: string) {
@@ -236,8 +239,8 @@ export class ControlBar {
     let inputValid   = true;
     //console.log(viewerState.selectedSignal);
     //console.log(this.searchState);
-    if (viewerState.selectedSignal !== null) {
-      const rowId  = viewerState.selectedSignal;
+    if (viewerState.selectedSignal.length === 1) {
+      const rowId  = viewerState.selectedSignal[0];
       if (dataManager.rowItems[rowId] instanceof VariableItem) {
         const format = dataManager.rowItems[rowId].valueFormat;
         const checkValid = format.checkValid;
@@ -272,12 +275,12 @@ export class ControlBar {
   }
   
   handleSearchGoTo(direction: number) {
-    if (viewerState.selectedSignal === null) {return;}
+    if (viewerState.selectedSignal.length !== 1) {return;}
     if (this.parsedSearchValue === null) {return;}
     let startTime = viewerState.markerTime;
     if (startTime === null) {startTime = 0;}
   
-    const rowId  = viewerState.selectedSignal;
+    const rowId  = viewerState.selectedSignal[0];
     const rowItem = dataManager.rowItems[rowId];
     if (rowItem === undefined || rowItem instanceof VariableItem === false) {return;}
     const signalId = rowItem.signalId;
@@ -323,13 +326,13 @@ export class ControlBar {
     }
   }
 
-  handleSignalSelect(rowId: RowId) {
-    if (rowId === null || rowId === undefined) {
+  handleSignalSelect(rowIdList: RowId[], lastSelected: RowId | null = null) {
+    if (rowIdList.length !== 1) {
       this.updateButtonsForSelectedWaveform(null);
       return;
     }
 
-    const signalItem = dataManager.rowItems[rowId];
+    const signalItem = dataManager.rowItems[rowIdList[0]];
     if (signalItem === undefined || signalItem instanceof VariableItem === false) {
       this.updateButtonsForSelectedWaveform(null);
       return;
@@ -342,7 +345,7 @@ export class ControlBar {
   handleRedrawVariable(rowId: RowId) {
     const rowItem = dataManager.rowItems[rowId];
     if (rowItem === undefined || rowItem instanceof VariableItem === false) {return;}
-    if (rowId === viewerState.selectedSignal) {
+    if (rowId === viewerState.selectedSignal[0]) {
       this.valueEqualsSymbol.textContent = rowItem.valueFormat.symbolText;
     }
   }

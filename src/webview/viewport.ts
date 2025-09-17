@@ -1,4 +1,4 @@
-import { vscode, WaveformData, arrayMove, sendWebviewContext, NetlistId, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId, updateDisplayedSignalsFlat, WAVE_HEIGHT } from "./vaporview";
+import { vscode, WaveformData, arrayMove, sendWebviewContext, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId, updateDisplayedSignalsFlat, WAVE_HEIGHT } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { labelsPanel } from "./vaporview";
@@ -135,6 +135,7 @@ export class Viewport {
     this.rulerCanvas            = rulerCanvasCtx;
     this.backgroundCanvasElement = backgroundCanvas;
     this.backgroundCanvas       = backgroundCanvasCtx;
+    this.scrollAreaBounds       = this.scrollArea.getBoundingClientRect();
 
 
     // click handler to handle clicking inside the waveform viewer
@@ -267,10 +268,10 @@ export class Viewport {
   setRulerVscodeContext() {
     const unitsList = ['fs', 'ps', 'ns', 'µs', 'ms', 's'];
     const maxTime   = (10 ** this.logScaleFromUnits(this.timeUnit)) * this.timeScale * this.timeStop;
-    const context   = {
+    const context: any = {
       webviewSection: 'ruler',
       preventDefaultContextMenuItems: true,
-      rulerLines: this.rulerLines 
+      rulerLines: this.rulerLines
     };
 
     unitsList.forEach((unit) => {
@@ -413,7 +414,7 @@ export class Viewport {
     }
 
     if (button === 0) {
-      this.events.dispatch(ActionType.SignalSelect, rowId);
+      this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
     }
   }
 
@@ -609,7 +610,7 @@ export class Viewport {
     this.annotateScrollContainer(this.markerAnnotation , viewerState.altMarkerTime);
   }
 
-  annotateScrollContainer(color, time) {
+  annotateScrollContainer(color: string, time: number | null) {
 
     if (time === null) {return;}
     const xOffset = (time / this.timeStop) * this.viewerWidth;
@@ -621,14 +622,19 @@ export class Viewport {
     this.scrollbarCanvas.stroke();
   }
 
-  handleSignalSelect(rowId: RowId | null) {
+  handleSignalSelect(rowIdList: RowId[], lastSelected: RowId | null) {
 
-    if (rowId === null) {return;}
+    if (rowIdList.length === 0) {return;}
 
-    let element = document.getElementById('waveform-' + viewerState.selectedSignal);
-    if (element && viewerState.selectedSignal !== null) {element.classList.remove('is-selected');}
-    element = document.getElementById('waveform-' + rowId);
-    if (element) {element.classList.add('is-selected');}
+    viewerState.selectedSignal.forEach((rowId) => {
+      const element = document.getElementById('waveform-' + rowId);
+      if (element) {element.classList.remove('is-selected');}
+    });
+
+    rowIdList.forEach((rowId) => {
+      const element = document.getElementById('waveform-' + rowId);
+      if (element) {element.classList.add('is-selected');}
+    });
   }
 
   logScaleFromUnits(unit: string | undefined) {
@@ -755,7 +761,7 @@ export class Viewport {
     const startIndex = dataManager.binarySearchTime(this.annotateTime, this.timeScrollLeft);
     const endIndex   = dataManager.binarySearchTime(this.annotateTime, this.timeScrollRight);
     let lineList: any= [];
-    let boxList: any = [];
+    let boxList: any[] = [];
     let noDrawFlag   = false;
     let lastDrawTime = 0;
     let lastNoDrawTime = 0;
@@ -784,7 +790,7 @@ export class Viewport {
     ctx.fillStyle    = this.edgeGuideColor;
     ctx.globalAlpha  = 1;
     ctx.beginPath();
-    lineList.forEach((time) => {
+    lineList.forEach((time: number) => {
       const x = this.getViewportLeft(time, 0);
       ctx.moveTo(x, 0);
       ctx.lineTo(x, this.waveformsHeight);

@@ -2,6 +2,7 @@ import { EventHandler, viewport, arrayMove, NetlistId, ActionType, viewerState, 
 import { ValueFormat } from './value_format';
 import { vscode, getParentGroupId } from './vaporview';
 import { SignalGroup, VariableItem, htmlSafe } from './signal_item';
+import { sign } from 'crypto';
 
 export class LabelsPanels {
 
@@ -112,7 +113,7 @@ export class LabelsPanels {
     const itemIndex    = labelsList.indexOf(clickedLabel);
     if (itemIndex === -1) {return;}
     const rowId = viewerState.displayedSignals[itemIndex];
-    this.events.dispatch(ActionType.SignalSelect, rowId);
+    this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
   }
 
   clicklabel (event: any) {
@@ -128,7 +129,7 @@ export class LabelsPanels {
           dataManager.rowItems[rowId].toggleCollapse();
         }
     } else {
-      this.events.dispatch(ActionType.SignalSelect, rowId);
+      this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
     }
   }
 
@@ -256,7 +257,7 @@ export class LabelsPanels {
     this.updateIdleItemsStateAndPosition(event);
   }
 
-  updateIdleItemsStateAndPosition(e) {
+  updateIdleItemsStateAndPosition(e: any) {
 
     const labelsRect        = this.labels.getBoundingClientRect();
     const draggableItemY    = e.clientY;
@@ -370,13 +371,13 @@ export class LabelsPanels {
     if (this.dragDivider) {this.dragDivider.style.display = 'none'};
   }
 
-  public dragEndExternal(event: MouseEvent | KeyboardEvent | null, abort) {
+  public dragEndExternal(event: MouseEvent | KeyboardEvent | null, abort: boolean) {
     this.clearDragHandler();
     if (abort) {this.renderLabelsPanels();}
     return this.getDropIndex();
   }
 
-  dragEnd(event: MouseEvent | KeyboardEvent | null, abort) {
+  dragEnd(event: MouseEvent | KeyboardEvent | null, abort: boolean) {
 
     document.removeEventListener('mousemove', this.dragMove);
     this.dragActive = false;
@@ -452,7 +453,7 @@ export class LabelsPanels {
     this.renameActive     = false;
     signalItem.label      = newName ? newName.trim() : signalItem.label;
     waveformRow.innerHTML = signalItem.createWaveformRowContent();
-    if (viewerState.selectedSignal === signalItem.rowId) {
+    if (viewerState.selectedSignal.includes(signalItem.rowId)) {
       waveformRow.classList.add('is-selected');
     }
     sendWebviewContext();
@@ -522,16 +523,37 @@ export class LabelsPanels {
     }
   }
 
-  handleSignalSelect(rowId: RowId | null) {
+  selectRowId(rowId: RowId, isSelected: boolean) {
+    const signalItem = dataManager.rowItems[rowId];
+    if (!signalItem) {return;}
+    signalItem.isSelected = isSelected;
+    //const labelElement = signalItem.labelElement;
+    //const valueDisplayElement = signalItem.valueDisplayElement;
+    //if (!labelElement) {return;}
+    //if (!valueDisplayElement) {return;}
+    //if (isSelected) {
+    //  labelElement.children[0].classList.add('is-selected');
+    //  valueDisplayElement.classList.add('is-selected');
+    //} else {
+    //  labelElement.children[0].classList.remove('is-selected');
+    //  valueDisplayElement.classList.remove('is-selected');
+    //}
+  }
+
+  handleSignalSelect(rowIdList: RowId[], lastRowId: RowId | null) {
 
     this.dragActive = false;
     if (this.dragDivider) {this.dragDivider.style.display = 'none'};
-    if (rowId === null) {return;}
+    if (rowIdList.length === 0) {return;}
 
-    viewerState.selectedSignal      = rowId;
-    viewerState.selectedSignalIndex = viewerState.visibleSignalsFlat.findIndex((signal) => {return signal === rowId;});
-    if (viewerState.selectedSignalIndex === -1) {viewerState.selectedSignalIndex = null;}
-  
+    viewerState.visibleSignalsFlat.forEach((rowId) => {
+      this.selectRowId(rowId, false);
+    });
+
+    rowIdList.forEach((rowId) => {
+      this.selectRowId(rowId, true);
+    });
+    //viewerState.selectedSignal = rowIdList;
     this.renderLabelsPanels();
   }
 

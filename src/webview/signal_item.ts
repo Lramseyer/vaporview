@@ -22,9 +22,10 @@ export abstract class SignalItem {
   public vscodeContext: string = "";
   public wasRendered: boolean = false;
   public rowHeight: number = 1;
+  public isSelected: boolean = false;
 
-  public abstract createLabelElement()
-  public abstract createValueDisplayElement()
+  public abstract createLabelElement(): string
+  public abstract createValueDisplayElement(): string
   public abstract getValueAtTime(time: number): string[]
   public getNearestTransition(time: number) {return null}
   public formatVlaue(value: any): string {return "";}
@@ -32,7 +33,7 @@ export abstract class SignalItem {
   public handleValueLink(time: number, snapToTime: number) {return;}
   public getAllEdges(valueList: string[]): number[] {return [];}
   public getNextEdge(time: number, direction: number, valueList: string[]): number | null {return null;}
-  public abstract resize()
+  public abstract resize(): void
   public dispose() {return;}
 }
 
@@ -43,6 +44,7 @@ export interface RowItem {
   vscodeContext: string;
   wasRendered: boolean;
   rowHeight: number;
+  isSelected: boolean;
   netlistId?: NetlistId;
 
   createLabelElement(): string;
@@ -105,8 +107,7 @@ export class VariableItem extends SignalItem implements RowItem {
   public createLabelElement() {
 
     const rowId         = dataManager.netlistIdTable[this.netlistId];
-    const isSelected    = viewerState.selectedSignal === rowId;
-    const selectorClass = isSelected ? 'is-selected' : '';
+    const selectorClass = this.isSelected ? 'is-selected' : '';
     const height        = getRowHeightCssClass(this.rowHeight);
     const signalName    = htmlSafe(this.signalName);
     const scopePath     = htmlSafe(this.scopePath + '.');
@@ -123,8 +124,7 @@ export class VariableItem extends SignalItem implements RowItem {
     const rowId = dataManager.netlistIdTable[this.netlistId];
     let   value = labelsPanel.valueAtMarker[rowId];
     if (value === undefined) {value = [];}
-    const isSelected    = viewerState.selectedSignal === rowId;
-    const selectorClass = isSelected ? 'is-selected' : 'is-idle';
+    const selectorClass = this.isSelected ? 'is-selected' : 'is-idle';
     const height        = getRowHeightCssClass(this.rowHeight);
     const joinString    = '<p style="color:var(--vscode-foreground)">-></p>';
     const parseValue    = this.valueFormat.formatString;
@@ -176,8 +176,8 @@ export class VariableItem extends SignalItem implements RowItem {
   }
 
   public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {
-    if (ignoreRowId === this.netlistId) {return [];}
     const rowId = dataManager.netlistIdTable[this.netlistId];
+    if (ignoreRowId === rowId) {return [];}
     return [rowId];
   }
 
@@ -487,8 +487,7 @@ export class SignalGroup extends SignalItem implements RowItem {
       icon = 'codicon-chevron-down';
       groupClass = 'expanded-group';
     }
-    const isSelected = viewerState.selectedSignal === this.rowId;
-    const selectorClass = isSelected ? 'is-selected' : '';
+    const selectorClass = this.isSelected ? 'is-selected' : '';
     //const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
     return `<div class="waveform-label waveform-group is-idle ${groupClass}" id="label-${this.rowId}" data-vscode-context=${this.vscodeContext}>
               <div class="waveform-row ${selectorClass} height1x">${this.createWaveformRowContent()}</div>
@@ -499,8 +498,7 @@ export class SignalGroup extends SignalItem implements RowItem {
   public createValueDisplayElement() {
 
     let   value = labelsPanel.valueAtMarker[this.rowId];
-    const isSelected = viewerState.selectedSignal === this.rowId;
-    const selectorClass = isSelected ? 'is-selected' : '';
+    const selectorClass = this.isSelected ? 'is-selected' : '';
     let result = `<div class="value-display-item ${selectorClass} height1x" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}></div>`;
     if (value === undefined) {value = [];}
     if (this.collapseState === CollapseState.Expanded) {
@@ -541,7 +539,7 @@ export class SignalGroup extends SignalItem implements RowItem {
     return result;
   }
 
-  public rowIdCount(ignoreCollapsed: boolean, stopIndex): number {
+  public rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number {
     let total = 1; // Count the group row itself
     if (!ignoreCollapsed || this.collapseState === CollapseState.Expanded) {
       this.children.forEach((rowId, i) => {
@@ -600,8 +598,13 @@ export class SignalGroup extends SignalItem implements RowItem {
   public collapse() {
     this.collapseState = CollapseState.Collapsed;
     const childRows = this.getFlattenedRowIdList(false, -1);
-    if (viewerState.selectedSignal !== null && childRows.includes(viewerState.selectedSignal)) {
-      events.dispatch(ActionType.SignalSelect, this.rowId);
+    const newSelection = viewerState.selectedSignal.filter((rowId) => !childRows.includes(rowId));
+    let lastSelected = viewerState.lastSelectedSignal;
+    if (viewerState.selectedSignal.length !== newSelection.length) {
+      if (lastSelected !== null && childRows.includes(lastSelected)) {
+        lastSelected = null;
+      }
+      events.dispatch(ActionType.SignalSelect, newSelection, lastSelected);
     }
     labelsPanel.renderLabelsPanels();
     this.showHideViewportRows();

@@ -57,8 +57,8 @@ export interface ViewerState {
   uri: any;
   markerTime: number | null;
   altMarkerTime: number | null;
-  selectedSignal: number | null;
-  selectedSignalIndex: number | null;
+  selectedSignal: RowId[];
+  lastSelectedSignal: RowId | null;
   displayedSignals: number[];
   displayedSignalsFlat: number[];
   visibleSignalsFlat: number[]
@@ -74,8 +74,8 @@ export const viewerState: ViewerState = {
   uri: null,
   markerTime: null,
   altMarkerTime: null,
-  selectedSignal: null,
-  selectedSignalIndex: -1,
+  selectedSignal: [],
+  lastSelectedSignal: null,
   displayedSignals: [],
   displayedSignalsFlat: [],
   visibleSignalsFlat: [],
@@ -239,12 +239,12 @@ export function sendDisplayedSignals() {
 
 function createWebviewContext() {
   let selectedNetlistId: any = null; 
-  if (viewerState.selectedSignal !== null) {
-    const data = dataManager.rowItems[viewerState.selectedSignal];
-    if (data instanceof VariableItem) {
-      selectedNetlistId = data.netlistId;
-    }
-  }
+  //if (viewerState.selectedSignal !== null) {
+  //  const data = dataManager.rowItems[viewerState.selectedSignal];
+  //  if (data instanceof VariableItem) {
+  //    selectedNetlistId = data.netlistId;
+  //  }
+  //}
   return  {
     markerTime: viewerState.markerTime,
     altMarkerTime: viewerState.altMarkerTime,
@@ -374,7 +374,7 @@ class VaporviewWebview {
   // Function to test whether or not the user is using a touchpad
   // Sometimes it returns false negatives when flicking the touchpad,
   // hence the timer to prevent multiple checks in a short period of time
-  isTouchpad(e) {
+  isTouchpad(e: any) {
 
     if (performance.now() < this.touchpadCheckTimer) {
       return this.lastIsTouchpad;
@@ -471,6 +471,11 @@ class VaporviewWebview {
     // left and right arrow keys move the marker
     // ctrl + left and right arrow keys move the marker to the next transition
 
+    let selectedSignalIndex = null;
+    if (viewerState.lastSelectedSignal !== null) {
+      selectedSignalIndex = viewerState.visibleSignalsFlat.indexOf(viewerState.lastSelectedSignal)
+    }
+
     if ((e.key === 'ArrowRight') && (viewerState.markerTime !== null)) {
       if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, this.viewport.timeStop, 0);}
       else           {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime + 1, 0);}
@@ -478,16 +483,19 @@ class VaporviewWebview {
       if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, 0, 0);}
       else           {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime - 1, 0);}
 
+
     // up and down arrow keys move the selected signal
     // alt + up and down arrow keys reorder the selected signal up and down
-    } else if ((e.key === 'ArrowUp') && (viewerState.selectedSignalIndex !== null)) {
-      const newIndex = Math.max(viewerState.selectedSignalIndex - 1, 0);
+    } else if ((e.key === 'ArrowUp') && (selectedSignalIndex !== null)) {
+      const newIndex = Math.max(selectedSignalIndex - 1, 0);
+      const newRowId = viewerState.visibleSignalsFlat[newIndex];
       if (e.altKey) {this.handleReorderArrowKeys(-1);}
-      else          {this.events.dispatch(ActionType.SignalSelect, viewerState.visibleSignalsFlat[newIndex]);}
-    } else if ((e.key === 'ArrowDown') && (viewerState.selectedSignalIndex !== null)) {
-      const newIndex = Math.min(viewerState.selectedSignalIndex + 1, viewerState.visibleSignalsFlat.length - 1);
+      else          {this.events.dispatch(ActionType.SignalSelect, [newRowId], newRowId);}
+    } else if ((e.key === 'ArrowDown') && (selectedSignalIndex !== null)) {
+      const newIndex = Math.min(selectedSignalIndex + 1, viewerState.visibleSignalsFlat.length - 1);
+      const newRowId = viewerState.visibleSignalsFlat[newIndex];
       if (e.altKey) {this.handleReorderArrowKeys(1);}
-      else          {this.events.dispatch(ActionType.SignalSelect, viewerState.visibleSignalsFlat[newIndex]);}
+      else          {this.events.dispatch(ActionType.SignalSelect, [newRowId], newRowId);}
     }
 
     // handle Home and End keys to move to the start and end of the waveform
@@ -499,13 +507,20 @@ class VaporviewWebview {
     else if (e.key === 'N') {controlBar.goToNextTransition(-1, []);}
 
     else if (e.key === 'Escape') {this.handleMouseUp(e, true);}
-    else if (e.key === 'Delete' || e.key === 'Backspace') {this.removeVariableInternal(viewerState.selectedSignal);}
+    else if (e.key === 'Delete' || e.key === 'Backspace') {
+      viewerState.selectedSignal.forEach((rowId) => {
+        const rowItem = dataManager.rowItems[rowId];
+        if (!(rowItem instanceof VariableItem)) {return;}
+        this.removeVariableInternal(rowId);
+      });
+    }
 
     else if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(true);}
   }
 
   handleReorderArrowKeys(direction: number) {
-    const rowId = viewerState.selectedSignal;
+    if (viewerState.selectedSignal.length !== 1) {return;}
+    const rowId = viewerState.selectedSignal[0];
     if (rowId === null) {return;}
     let parentGroupId = getParentGroupId(rowId);
     let parentList: RowId[] = [];
@@ -553,17 +568,18 @@ class VaporviewWebview {
   }
 
   updateVerticalScale(event: any, scale: number) {
-    let rowId = viewerState.selectedSignal;
-    if (event && event.netlistId !== undefined) {
-      rowId = dataManager.netlistIdTable[event.netlistId];
-    }
-    if (rowId === null) {return;}
-    const netlistData = dataManager.rowItems[rowId];
-    if (!(netlistData instanceof VariableItem)) {return;}
-    const renderType = netlistData.renderType.id;
-    if (renderType === "multiBit" || renderType === "binary") {return;}
-    netlistData.verticalScale = Math.max(1, netlistData.verticalScale * scale);
-    this.events.dispatch(ActionType.RedrawVariable, rowId);
+    viewerState.selectedSignal.forEach((rowId) => {
+      if (event && event.netlistId !== undefined) {
+        rowId = dataManager.netlistIdTable[event.netlistId];
+      }
+      if (rowId === null) {return;}
+      const netlistData = dataManager.rowItems[rowId];
+      if (!(netlistData instanceof VariableItem)) {return;}
+      const renderType = netlistData.renderType.id;
+      if (renderType === "multiBit" || renderType === "binary") {return;}
+      netlistData.verticalScale = Math.max(1, netlistData.verticalScale * scale);
+      this.events.dispatch(ActionType.RedrawVariable, rowId);
+    }); 
   }
 
   externalKeyDownHandler(e: any) {
@@ -615,7 +631,7 @@ class VaporviewWebview {
 
   // #region Global Events
   reorderSignals(rowId: number, newGroupId: number, newIndex: number) {
-    this.events.dispatch(ActionType.SignalSelect, rowId);
+    this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
   }
 
   handleResizeViewer() {
@@ -635,11 +651,16 @@ class VaporviewWebview {
     });
   }
 
-  handleSignalSelect(rowId: RowId | null) {
-    if (rowId === null) {return;}
-    const netlistData = dataManager.rowItems[rowId];
+  handleSignalSelect(rowIdList: RowId[], lastSelected: RowId | null = null) {
+    if (rowIdList.length === 0) {return;}
+    viewerState.lastSelectedSignal = lastSelected;
+    viewerState.selectedSignal = rowIdList;
+
+    if (lastSelected === null) {return;}
+    const netlistData = dataManager.rowItems[lastSelected];
     sendWebviewContext();
-    revealSignal(rowId);
+    revealSignal(rowIdList[0]);
+    viewerState.selectedSignal = rowIdList;
 
     if (netlistData === undefined) {return;}
     const netlistId = netlistData.netlistId;
@@ -682,8 +703,7 @@ class VaporviewWebview {
   }
 
   unload() {
-    viewerState.selectedSignal      = null;
-    viewerState.selectedSignalIndex = null;
+    viewerState.selectedSignal      = [];
     viewerState.markerTime          = null;
     viewerState.altMarkerTime       = null;
     viewerState.displayedSignals    = [];
@@ -717,10 +737,13 @@ class VaporviewWebview {
     const index = viewerState.visibleSignalsFlat.indexOf(rowId);
 
     this.events.dispatch(ActionType.RemoveVariable, rowId, true);
-    if (viewerState.selectedSignal === rowId) {
+    if (viewerState.selectedSignal.length === 1 && viewerState.selectedSignal[0] === rowId) {
       const newindex = Math.max(0, Math.min(viewerState.visibleSignalsFlat.length - 1, index));
       const newRowId = viewerState.visibleSignalsFlat[newindex];
-      this.events.dispatch(ActionType.SignalSelect, newRowId);
+      this.events.dispatch(ActionType.SignalSelect, [newRowId], newRowId);
+    } else if (viewerState.selectedSignal.includes(rowId)) {
+      const newSelected = viewerState.selectedSignal.filter((id) => id !== rowId);
+      this.events.dispatch(ActionType.SignalSelect, newSelected, viewerState.lastSelectedSignal);
     }
   }
 
@@ -746,7 +769,7 @@ class VaporviewWebview {
     const rowId = dataManager.netlistIdTable[netlistId];
     if (rowId === undefined) {return;}
     if (dataManager.rowItems[rowId] === undefined) {return;}
-    this.events.dispatch(ActionType.SignalSelect, rowId);
+    this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
   }
 
   handleDrop(e: DragEvent) {

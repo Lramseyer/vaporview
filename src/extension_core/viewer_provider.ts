@@ -274,6 +274,15 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'emitEvent':           {this.emitEvent(e); break;}
         case 'fetchTransitionData': {document.getSignalData(e.signalIdList); break;}
         case 'removeVariable':      {this.removeSignalFromDocument(e.netlistId); break;}
+        case 'removeVariablesBatch': {
+          if (Array.isArray(e.netlistIds)) {
+            this.log.appendLine('[BatchRemove] Removing ' + e.netlistIds.length + ' signals');
+            document.removeSignalsBatchFromWebview(e.netlistIds);
+          } else {
+            this.log.appendLine('[BatchRemove] Invalid payload');
+          }
+          break;
+        }
         case 'close-webview':       {webviewPanel.dispose(); break;}
         case 'handleDrop':          {this.handleWebviewDrop(e); break;}
         default: {this.log.appendLine('Unknown message type from webview: ' + JSON.stringify(e.command)); break;}
@@ -1130,6 +1139,17 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     } else if (view === 'displayedSignals') {
       this.removeSignalList(this.displayedSignalsViewSelectedSignals);
     }
+  }
+
+  public deleteSelectedSignals() {
+    if (!this.activeWebview) {return;}
+    if (!this.activeDocument) {return;}
+    if (!this.activeWebview.visible) {return;}
+
+    const panel = this.activeWebview;
+    panel.webview.postMessage({
+      command: 'deleteSelectedSignals'
+    });
   }
 
   public newSignalGroup(name: string, groupPath: string[] | undefined, parentGroupId: number | undefined) {

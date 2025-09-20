@@ -120,6 +120,15 @@ export async function activate(context: vscode.ExtensionContext) {
       viewerProvider.removeSignalFromDocument(e.netlistId);
     }
   }));
+  
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.deleteSelectedSignals', (e) => {
+    viewerProvider.deleteSelectedSignals();
+  }));
+  
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.selectAllSignals', (e) => {
+    viewerProvider.handleKeyBinding(e, "selectAll");
+  }));
+  
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.ungroupSignals', (e) => {
     viewerProvider.deleteSignalGroup(e, false);
   }));

@@ -4,7 +4,6 @@ import { WaveformRenderer } from "./renderer";
 import { customColorKey } from "./data_manager";
 import { vscode, labelsPanel } from "./vaporview";
 import { LabelsPanels } from "./labels";
-import { group } from "console";
 
 export function htmlSafe(string: string) {
   return string.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -16,23 +15,23 @@ export function htmlAttributeSafe(string: string) {
 
 export abstract class SignalItem {
 
-  public labelElement: HTMLElement | null = null
-  public valueDisplayElement: HTMLElement | null = null
-  public viewportElement: HTMLElement | null = null
+  public labelElement: HTMLElement | null = null;
+  public valueDisplayElement: HTMLElement | null = null;
+  public viewportElement: HTMLElement | null = null;
   public vscodeContext: string = "";
   public wasRendered: boolean = false;
   public rowHeight: number = 1;
 
-  public abstract createLabelElement()
-  public abstract createValueDisplayElement()
-  public abstract getValueAtTime(time: number): string[]
-  public getNearestTransition(time: number) {return null}
+  public abstract createLabelElement(): string;
+  public abstract createValueDisplayElement(): string;
+  public abstract getValueAtTime(time: number): string[];
+  public getNearestTransition(time: number) {return null;}
   public formatVlaue(value: any): string {return "";}
   public renderWaveform() {return;}
   public handleValueLink(time: number, snapToTime: number) {return;}
   public getAllEdges(valueList: string[]): number[] {return [];}
   public getNextEdge(time: number, direction: number, valueList: string[]): number | null {return null;}
-  public abstract resize()
+  public abstract resize(): void;
   public dispose() {return;}
 }
 
@@ -74,8 +73,8 @@ export class VariableItem extends SignalItem implements RowItem {
   public formattedValues: string[] = [];
   public formatValid: boolean = false;
   public wasRendered: boolean = false;
-  public canvas: HTMLCanvasElement | null = null
-  public ctx: CanvasRenderingContext2D | null = null
+  public canvas: HTMLCanvasElement | null = null;
+  public ctx: CanvasRenderingContext2D | null = null;
   public verticalScale: number = 1;
 
   constructor(
@@ -104,8 +103,9 @@ export class VariableItem extends SignalItem implements RowItem {
 
   public createLabelElement() {
 
-    const rowId         = dataManager.netlistIdTable[this.netlistId];
-    const isSelected    = viewerState.selectedSignal === rowId;
+  const rowId         = dataManager.netlistIdTable[this.netlistId];
+  const isMulti       = viewerState.selectedSignals && viewerState.selectedSignals.length > 0;
+  const isSelected    = isMulti ? viewerState.selectedSignals.includes(rowId) : (viewerState.selectedSignal === rowId);
     const selectorClass = isSelected ? 'is-selected' : '';
     const height        = getRowHeightCssClass(this.rowHeight);
     const signalName    = htmlSafe(this.signalName);
@@ -120,10 +120,11 @@ export class VariableItem extends SignalItem implements RowItem {
     }
 
   public createValueDisplayElement() {
-    const rowId = dataManager.netlistIdTable[this.netlistId];
+  const rowId = dataManager.netlistIdTable[this.netlistId];
     let   value = labelsPanel.valueAtMarker[rowId];
     if (value === undefined) {value = [];}
-    const isSelected    = viewerState.selectedSignal === rowId;
+  const isMulti       = viewerState.selectedSignals && viewerState.selectedSignals.length > 0;
+  const isSelected    = isMulti ? viewerState.selectedSignals.includes(rowId) : (viewerState.selectedSignal === rowId);
     const selectorClass = isSelected ? 'is-selected' : 'is-idle';
     const height        = getRowHeightCssClass(this.rowHeight);
     const joinString    = '<p style="color:var(--vscode-foreground)">-></p>';
@@ -383,7 +384,7 @@ export class VariableItem extends SignalItem implements RowItem {
         if (elementX >= min && elementX <= max) {
           valueIndex = i;
         }
-      })
+      });
     }
 
     // store a pointer to the netlistData object for a keydown event handler
@@ -435,7 +436,7 @@ export class VariableItem extends SignalItem implements RowItem {
       value: value,
       formattedValue: formattedValue,
       time: timeValue,
-    }
+    };
 
     vscode.postMessage({ command: 'executeCommand', commandName: command, args: event });
   }
@@ -465,7 +466,7 @@ export class SignalGroup extends SignalItem implements RowItem {
   }
 
   public createWaveformRowContent() {
-    let icon = this.collapseState === CollapseState.Expanded ? 
+    const icon = this.collapseState === CollapseState.Expanded ? 
       'codicon-chevron-down' : 'codicon-chevron-right';
     return `<div class='codicon ${icon}'></div><p>${this.label}</p>`;
   }
@@ -483,7 +484,8 @@ export class SignalGroup extends SignalItem implements RowItem {
       icon = 'codicon-chevron-down';
       groupClass = 'expanded-group';
     }
-    const isSelected = viewerState.selectedSignal === this.rowId;
+  const isMulti    = viewerState.selectedSignals && viewerState.selectedSignals.length > 0;
+  const isSelected = isMulti ? viewerState.selectedSignals.includes(this.rowId) : (viewerState.selectedSignal === this.rowId);
     const selectorClass = isSelected ? 'is-selected' : '';
     //const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
     return `<div class="waveform-label waveform-group is-idle ${groupClass}" id="label-${this.rowId}" data-vscode-context=${this.vscodeContext}>
@@ -495,7 +497,8 @@ export class SignalGroup extends SignalItem implements RowItem {
   public createValueDisplayElement() {
 
     let   value = labelsPanel.valueAtMarker[this.rowId];
-    const isSelected = viewerState.selectedSignal === this.rowId;
+  const isMulti    = viewerState.selectedSignals && viewerState.selectedSignals.length > 0;
+  const isSelected = isMulti ? viewerState.selectedSignals.includes(this.rowId) : (viewerState.selectedSignal === this.rowId);
     const selectorClass = isSelected ? 'is-selected' : '';
     let result = `<div class="value-display-item ${selectorClass} height1x" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}></div>`;
     if (value === undefined) {value = [];}
@@ -537,7 +540,7 @@ export class SignalGroup extends SignalItem implements RowItem {
     return result;
   }
 
-  public rowIdCount(ignoreCollapsed: boolean, stopIndex): number {
+  public rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number {
     let total = 1; // Count the group row itself
     if (!ignoreCollapsed || this.collapseState === CollapseState.Expanded) {
       this.children.forEach((rowId, i) => {

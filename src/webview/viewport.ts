@@ -573,6 +573,17 @@ export class Viewport {
   }
 
   updateSignalOrder() {
+    if (viewerState.isBatchRemoving) {
+      try { console.log('DEBUG WFSELECT viewport.updateSignalOrder.SKIP (batch)'); } catch(_e) { /* empty */ }
+      return;
+    }
+    try {
+      console.log('DEBUG WFSELECT viewport.updateSignalOrder.start', {
+        displayedSignalsFlat: viewerState.displayedSignalsFlat.length,
+        visibleSignalsFlat: viewerState.visibleSignalsFlat.length,
+        childrenBefore: this.waveformArea.children.length
+      });
+    } catch(_err) { /* noop */ }
     const newChildren: HTMLElement[] = [];
     viewerState.displayedSignalsFlat.forEach((rowId, i) => {
       const element = dataManager.rowItems[rowId].viewportElement;
@@ -581,6 +592,9 @@ export class Viewport {
     });
     this.waveformArea.replaceChildren(...newChildren);
     this.renderAllWaveforms(false);
+    try {
+      console.log('DEBUG WFSELECT viewport.updateSignalOrder.end', { childrenAfter: this.waveformArea.children.length });
+    } catch(_err) { /* noop */ }
   }
 
   handleReorderSignalsHierarchy(rowId: number, newGroupId: number, newIndex: number) {
@@ -590,7 +604,13 @@ export class Viewport {
   }
 
   handleRemoveVariable(rowId: RowId, recursive: boolean) {
-
+    if (viewerState.isBatchRemoving) {
+      try { console.log('DEBUG WFSELECT viewport.handleRemoveVariable.SKIP (batch)', { rowId }); } catch(_e) { /* empty */ }
+      return;
+    }
+    try {
+      console.log('DEBUG WFSELECT viewport.handleRemoveVariable', { rowId, recursive, childrenBefore: this.waveformArea.children.length });
+    } catch(_err) { /* noop */ }
     //updateDisplayedSignalsFlat();
     this.updateSignalOrder();
     this.updateBackgroundCanvas(true);
@@ -598,6 +618,9 @@ export class Viewport {
     if (this.waveformArea.children.length === 0) {
       this.addNetlistLink();
     }
+    try {
+      console.log('DEBUG WFSELECT viewport.handleRemoveVariable.end', { childrenAfter: this.waveformArea.children.length });
+    } catch(_err) { /* noop */ }
   }
 
   handleMarkerSet(time: number, markerType: number) {
@@ -643,11 +666,22 @@ export class Viewport {
   handleSignalSelect(rowId: RowId | null) {
 
     if (rowId === null) {return;}
+    // Clear previous selection classes
+    const all = viewerState.displayedSignalsFlat;
+    all.forEach((rid) => {
+      const el = document.getElementById('waveform-' + rid);
+      if (el) {el.classList.remove('is-selected');}
+    });
 
-    let element = document.getElementById('waveform-' + viewerState.selectedSignal);
-    if (element && viewerState.selectedSignal !== null) {element.classList.remove('is-selected');}
-    element = document.getElementById('waveform-' + rowId);
-    if (element) {element.classList.add('is-selected');}
+    // Determine selected set
+    const selected = (viewerState.selectedSignals && viewerState.selectedSignals.length > 0)
+      ? viewerState.selectedSignals
+      : (viewerState.selectedSignal !== null ? [viewerState.selectedSignal] : []);
+    console.log('DEBUG WFSELECT viewport handleSignalSelect', { rowId, selected });
+    selected.forEach((rid) => {
+      const el = document.getElementById('waveform-' + rid);
+      if (el) {el.classList.add('is-selected');}
+    });
   }
 
   logScaleFromUnits(unit: string | undefined) {

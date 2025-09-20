@@ -45,6 +45,7 @@ export class LabelsPanels {
 
   constructor(events: EventHandler) {
     this.events = events;
+    try { console.log('DEBUG WFSELECT labelsVersion', { version: 'v3', timestamp: Date.now() }); } catch(_) {}
 
     const webview      = document.getElementById('vaporview-top');
     const labels       = document.getElementById('waveform-labels');
@@ -84,6 +85,7 @@ export class LabelsPanels {
   // Event handlers to handle clicking on a waveform label to select a signal
   labels.addEventListener(      'click', (e) => this.clicklabel(e));
   valueDisplay.addEventListener('click', (e) => this.clickValueDisplay(e));
+  console.log('DEBUG WFSELECT labels listeners attached');
 
   // Double-click handlers to open source for a signal
   labels.addEventListener('dblclick', (e) => this.handleOpenSourceFromLabels(e));
@@ -104,6 +106,18 @@ export class LabelsPanels {
   }
 
   renderLabelsPanels() {
+    if (viewerState.isBatchRemoving) {
+      try { console.log('DEBUG WFSELECT labels.renderLabelsPanels.SKIP (batch)'); } catch(_e) {}
+      return;
+    }
+    try {
+      console.log('DEBUG WFSELECT labels.renderLabelsPanels.start', {
+        displayedSignals: viewerState.displayedSignals.length,
+        displayedFlat: viewerState.displayedSignalsFlat.length,
+        visibleFlat: viewerState.visibleSignalsFlat.length,
+        stack: (new Error()).stack?.split('\n').slice(1,4)
+      });
+    } catch(_err) { /* noop */ }
     this.labelsList  = [];
     const transitions: string[] = [];
     this.labelsList.push('<svg id="drag-divider" style="top: 0px; display:none; pointer-events: none;"><line x1="0" y1="0" x2="100%" y2="0"></line></svg>');
@@ -114,15 +128,57 @@ export class LabelsPanels {
     });
     this.labels.innerHTML       = this.labelsList.join('');
     this.valueDisplay.innerHTML = transitions.join('');
+    try {
+      console.log('DEBUG WFSELECT labels.renderLabelsPanels.end', {
+        labelsChildren: this.labels.childElementCount,
+        valueChildren: this.valueDisplay.childElementCount
+      });
+    } catch(_err) { /* noop */ }
   }
 
   clickValueDisplay(event: any) {
+    console.log('DEBUG WFSELECT enter clickValueDisplay', { shiftKey: !!event.shiftKey, target: (event.target && event.target.className) });
     const labelsList   = Array.from(this.valueDisplay.querySelectorAll('.value-display-item'));
     const clickedLabel = event.target.closest('.value-display-item');
     const itemIndex    = labelsList.indexOf(clickedLabel);
     if (itemIndex === -1) {return;}
     const rowId = viewerState.displayedSignals[itemIndex];
+    // Multi-select: Shift+Click selects range, Ctrl+Click toggles individual signals
+    if (event.shiftKey) {
+      const anchor = viewerState.selectionAnchor ?? viewerState.selectedSignal ?? rowId;
+      const flat   = viewerState.visibleSignalsFlat;
+      const aIdx   = Math.max(0, flat.indexOf(anchor));
+      const bIdx   = Math.max(0, flat.indexOf(rowId));
+      const [start, end] = aIdx <= bIdx ? [aIdx, bIdx] : [bIdx, aIdx];
+      viewerState.selectedSignals = flat.slice(start, end + 1);
+      viewerState.selectionAnchor = anchor;
+      console.log('DEBUG WFSELECT value shift-click', { anchor, rowId, aIdx, bIdx, start, end, selectedSignals: viewerState.selectedSignals });
+    } else if (event.ctrlKey || event.metaKey) {
+      // Ctrl+Click: Toggle individual signal in selection
+      if (!viewerState.selectedSignals) {
+        viewerState.selectedSignals = [rowId];
+      } else {
+        const index = viewerState.selectedSignals.indexOf(rowId);
+        if (index >= 0) {
+          // Remove from selection
+          viewerState.selectedSignals = viewerState.selectedSignals.filter(id => id !== rowId);
+        } else {
+          // Add to selection
+          viewerState.selectedSignals = [...viewerState.selectedSignals, rowId];
+        }
+      }
+      // Keep the first signal as anchor, or use current if none selected
+      if (!viewerState.selectionAnchor && viewerState.selectedSignals.length > 0) {
+        viewerState.selectionAnchor = viewerState.selectedSignals[0];
+      }
+      console.log('DEBUG WFSELECT value ctrl-click', { rowId, selectedSignals: viewerState.selectedSignals });
+    } else {
+      viewerState.selectedSignals = [rowId];
+      viewerState.selectionAnchor = rowId;
+      console.log('DEBUG WFSELECT value click', { rowId, selectedSignals: viewerState.selectedSignals });
+    }
     this.events.dispatch(ActionType.SignalSelect, rowId);
+  try { (this.webview as HTMLElement).focus(); console.log('DEBUG WFSELECT focusAfterValueClick'); } catch(_) {}
 
     // Double-click workaround: trigger open source if two single clicks within 1 second on same row
     const now = Date.now();
@@ -137,6 +193,7 @@ export class LabelsPanels {
   }
 
   clicklabel (event: any) {
+    console.log('DEBUG WFSELECT enter clicklabel', { shiftKey: !!event.shiftKey, target: (event.target && event.target.className) });
     if (this.dragInProgress) {return;}
     if (this.renameActive) {return;}
     const clickedLabel = event.target.closest('.waveform-label');
@@ -149,7 +206,42 @@ export class LabelsPanels {
           dataManager.rowItems[rowId].toggleCollapse();
         }
     } else {
+      // Multi-select: Shift+Click selects range, Ctrl+Click toggles individual signals
+      if (event.shiftKey) {
+        const anchor = viewerState.selectionAnchor ?? viewerState.selectedSignal ?? rowId;
+        const flat   = viewerState.visibleSignalsFlat;
+        const aIdx   = Math.max(0, flat.indexOf(anchor));
+        const bIdx   = Math.max(0, flat.indexOf(rowId));
+        const [start, end] = aIdx <= bIdx ? [aIdx, bIdx] : [bIdx, aIdx];
+        viewerState.selectedSignals = flat.slice(start, end + 1);
+        viewerState.selectionAnchor = anchor;
+        console.log('DEBUG WFSELECT label shift-click', { anchor, rowId, aIdx, bIdx, start, end, selectedSignals: viewerState.selectedSignals });
+      } else if (event.ctrlKey || event.metaKey) {
+        // Ctrl+Click: Toggle individual signal in selection
+        if (!viewerState.selectedSignals) {
+          viewerState.selectedSignals = [rowId];
+        } else {
+          const index = viewerState.selectedSignals.indexOf(rowId);
+          if (index >= 0) {
+            // Remove from selection
+            viewerState.selectedSignals = viewerState.selectedSignals.filter(id => id !== rowId);
+          } else {
+            // Add to selection
+            viewerState.selectedSignals = [...viewerState.selectedSignals, rowId];
+          }
+        }
+        // Keep the first signal as anchor, or use current if none selected
+        if (!viewerState.selectionAnchor && viewerState.selectedSignals.length > 0) {
+          viewerState.selectionAnchor = viewerState.selectedSignals[0];
+        }
+        console.log('DEBUG WFSELECT label ctrl-click', { rowId, selectedSignals: viewerState.selectedSignals });
+      } else {
+        viewerState.selectedSignals = [rowId];
+        viewerState.selectionAnchor = rowId;
+        console.log('DEBUG WFSELECT label click', { rowId, selectedSignals: viewerState.selectedSignals });
+      }
       this.events.dispatch(ActionType.SignalSelect, rowId);
+  try { (this.webview as HTMLElement).focus(); console.log('DEBUG WFSELECT focusAfterLabelClick'); } catch(_) {}
       // Double-click workaround: trigger open source if two single clicks within 1 second on same row
       const now = Date.now();
       if (this.lastLabelClickRowId === rowId && (now - this.lastLabelClickTime) <= 1000) {
@@ -219,6 +311,7 @@ export class LabelsPanels {
   }
 
   dragStart(event: any) {
+    console.log('DEBUG WFSELECT dragStart', { button: event.button, target: (event.target && event.target.className) });
     if (event.button !== 0) {return;} // Only allow left mouse button drag
     if (this.renameActive) {return;} // Prevent drag if rename is active
     //event.preventDefault();
@@ -561,6 +654,12 @@ export class LabelsPanels {
     viewerState.selectedSignal      = rowId;
     viewerState.selectedSignalIndex = viewerState.visibleSignalsFlat.findIndex((signal) => {return signal === rowId;});
     if (viewerState.selectedSignalIndex === -1) {viewerState.selectedSignalIndex = null;}
+    // If no multi-select set yet, default to single selection array
+    if (!viewerState.selectedSignals || viewerState.selectedSignals.length === 0) {
+      viewerState.selectedSignals = [rowId];
+      viewerState.selectionAnchor = rowId;
+    }
+    console.log('DEBUG WFSELECT handleSignalSelect', { rowId, selectedSignalIndex: viewerState.selectedSignalIndex, selectedSignals: viewerState.selectedSignals, selectionAnchor: viewerState.selectionAnchor, visibleFlat: viewerState.visibleSignalsFlat });
   
     this.renderLabelsPanels();
   }

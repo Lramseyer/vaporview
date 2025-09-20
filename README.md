@@ -57,8 +57,21 @@ Vaporview has a set of commands and event emitters that allow interaction with o
 - **Ctrl/Command + Left/Right Arrow** - Move marker to previous/next value transition of selected signal
 - **Alt + Click or Middle Click** - Set Alt-Marker
 - **Home** and **End** - Scroll to the beginning and end (respectively) of the waveform
-- **Delete** or **Backspace** - Remove Selected Signal
+- **Delete** or **Backspace** - Remove Selected Signal(s)
 - **Escape** - Abort click and drag event (Rearranging signals, zoom, scrolling)
+
+## Signal Selection
+
+VaporView supports both single and multiple signal selection:
+
+### Single Signal Selection
+- **Click** on a signal label or value to select it
+- **Up/Down Arrow** keys navigate between signals
+
+### Multiple Signal Selection
+- **Shift + Click** - Select a range of signals from the anchor point to the clicked signal
+- **Ctrl + Click** (or **Cmd + Click** on Mac) - Toggle individual signals in/out of the selection
+- Selected signals are visually highlighted with a different background color
 
 ## Adding and Removing Signals
 
@@ -72,11 +85,19 @@ To Add a signal, simply check the box next for the netlist element in the "Netli
 
 ### Removing Signals
 
-To remove a signal, that signal can be un-checked from either the "Netlist" view or the "Displayed Signals" view. From the viewer, you can either select the signal you would like to remode and hit **Delete**, or right click on a signal in the viewer and select **remove signal** from the menu.
+#### Single Signal Removal
+- Uncheck the signal from either the "Netlist" view or the "Displayed Signals" view
+- Select the signal in the viewer and hit **Delete** or **Backspace**
+- Right click on a signal in the viewer and select **remove signal** from the menu
 
-### Other less common ways
+#### Multiple Signal Removal
+- Use **Shift + Click** to select a range of signals, then press **Delete** or **Backspace**
+- Use **Ctrl + Click** to select individual signals, then press **Delete** or **Backspace**
+- All selected signals will be removed simultaneously
 
-Multiple signals can be added or removed by selecting the signals you would like to add or remove, and then right click and select **Add/Remove selected signals** from the menu.
+### Other ways to manage signals
+
+Multiple signals can be added or removed by selecting the signals you would like to add or remove in the view containers, and then right click and select **Add/Remove selected signals** from the menu.
 
 Signals can be added via a terminal link, and they can be added or removed via API commands.
 

@@ -220,6 +220,24 @@
         "key": "alt+-",
         "mac": "alt+-",
         "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
+        "command": "vaporview.deleteSelectedSignals",
+        "key": "Delete",
+        "mac": "Delete",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
+        "command": "vaporview.deleteSelectedSignals",
+        "key": "Backspace",
+        "mac": "Backspace",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
+        "command": "vaporview.selectAllSignals",
+        "key": "ctrl+a",
+        "mac": "cmd+a",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
       }
     ],
     "submenus": [
@@ -706,6 +724,14 @@
       {
         "command": "vaporview.removeSelectedNetlist",
         "title": "Remove Selected"
+      },
+      {
+        "command": "vaporview.deleteSelectedSignals", 
+        "title": "Delete Selected Signals"
+      },
+      {
+        "command": "vaporview.selectAllSignals",
+        "title": "Select All Signals"
       },
       {
         "command": "vaporview.removeSelectedDisplayedSignals",

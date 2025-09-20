@@ -58,6 +58,9 @@ export interface ViewerState {
   altMarkerTime: number | null;
   selectedSignal: number | null;
   selectedSignalIndex: number | null;
+  // Multi-select support
+  selectedSignals: RowId[];
+  selectionAnchor: RowId | null;
   displayedSignals: number[];
   displayedSignalsFlat: number[];
   visibleSignalsFlat: number[]
@@ -67,6 +70,9 @@ export interface ViewerState {
   autoTouchpadScrolling: boolean;
   mouseupEventType: string | null;
   autoReload: boolean;
+  // Batch removal suppression
+  isBatchRemoving?: boolean;
+  lastMultiSelection?: RowId[]; // snapshot of last non-trivial multi-selection
 }
 
 export const viewerState: ViewerState = {
@@ -75,6 +81,8 @@ export const viewerState: ViewerState = {
   altMarkerTime: null,
   selectedSignal: null,
   selectedSignalIndex: -1,
+  selectedSignals: [],
+  selectionAnchor: null,
   displayedSignals: [],
   displayedSignalsFlat: [],
   visibleSignalsFlat: [],
@@ -84,6 +92,8 @@ export const viewerState: ViewerState = {
   autoTouchpadScrolling: false,
   mouseupEventType: null,
   autoReload: false,
+  isBatchRemoving: false,
+  lastMultiSelection: [],
 };
 
 export class EventHandler {
@@ -97,6 +107,9 @@ export class EventHandler {
   }
 
   dispatch(action: ActionType, ...args: any[]) {
+    try {
+      console.log('DEBUG WFSELECT dispatch', { action: ActionType[action], argsCount: args.length, args });
+    } catch (_) {/* ignore logging errors */}
     this.subscribers.get(action)?.forEach((callback) => callback(...args));
   }
 }
@@ -318,6 +331,10 @@ class VaporviewWebview {
   lastIsTouchpad: boolean = false;
   touchpadCheckTimer: any = 0;
 
+  // Modifier key state tracking
+  isCtrlPressed: boolean = false;
+  isMetaPressed: boolean = false;
+
   constructor(
     events: EventHandler, 
     viewport: Viewport, 
@@ -353,18 +370,58 @@ class VaporviewWebview {
 
     webview.style.gridTemplateColumns = `150px 50px auto`;
 
+    // Ensure container is focusable so Delete/Arrow keys are captured
+    if (!this.webview.getAttribute('tabindex')) {
+      this.webview.setAttribute('tabindex', '0');
+    }
+
     // #region Primitive Handlers
     window.addEventListener('message', (e) => {this.handleMessage(e);});
+    
+    // Test to see if ANY keydown events are received
+    window.addEventListener('keydown', (e) => {
+      console.log('DEBUG WFSELECT WINDOW keydown received', { key: e.key, target: e.target, activeElement: document.activeElement });
+    }, true); // Use capture phase
+    
     window.addEventListener('keydown', (e) => {this.keyDownHandler(e);});
+    // Focus diagnostics (insertion)
+    window.addEventListener('focusin', (e) => { try { console.log('DEBUG WFSELECT focusin', { targetId: (e.target as HTMLElement)?.id, tag: (e.target as HTMLElement)?.tagName }); } catch (_) { /* empty */ } });
+    window.addEventListener('focusout', (e) => { try { console.log('DEBUG WFSELECT focusout', { targetId: (e.target as HTMLElement)?.id, tag: (e.target as HTMLElement)?.tagName }); } catch (_) { /* empty */ } });
+    document.body.addEventListener('keydown', (e) => {
+      console.log('DEBUG WFSELECT bodyHandler keydown', { key: e.key, selectedSignals: viewerState.selectedSignals?.length || 0 });
+      if ((e.key === 'Delete' || e.key === 'Backspace')) {
+        console.log('DEBUG WFSELECT bodyHandler delete key pressed');
+        if (viewerState.selectedSignals && viewerState.selectedSignals.length > 0) {
+          console.log('DEBUG WFSELECT fallbackBodyDelete multi', { selection: viewerState.selectedSignals });
+          this.removeVariableInternal(null); // Let removeVariableInternal handle the logic
+        } else if (viewerState.selectedSignal) {
+          console.log('DEBUG WFSELECT fallbackBodyDelete single', { selectedSignal: viewerState.selectedSignal });
+          this.removeVariableInternal(null); // Let removeVariableInternal handle the logic
+        } else {
+          console.log('DEBUG WFSELECT fallbackBodyDelete none selected');
+          this.removeVariableInternal(null); // Let removeVariableInternal handle the logic
+        }
+      }
+    });
     window.addEventListener('keyup',   (e) => {this.keyUpHandler(e);});
     window.addEventListener('mouseup', (e) => {this.handleMouseUp(e, false);});
     window.addEventListener('resize',  ()  => {this.handleResizeViewer();}, false);
+    
+    // Reset modifier key state when focus is lost to prevent stuck keys
+    window.addEventListener('blur', () => {
+      this.isCtrlPressed = false;
+      this.isMetaPressed = false;
+      console.log('DEBUG WFSELECT window blur - reset modifier keys');
+    });
+    
     this.scrollArea.addEventListener(  'wheel', (e) => {this.scrollHandler(e);});
     this.scrollArea.addEventListener(  'scroll', () => {this.handleViewportScroll();});
     this.labelsScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, labelsScroll.scrollTop);});
     this.valuesScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, valuesScroll.scrollTop);});
     this.webview.addEventListener('dragover', (e) => {labelsPanel.dragMoveExternal(e);});
     this.webview.addEventListener('drop', (e) => {this.handleDrop(e);});
+  // Allow selecting rows by clicking waveform area as well
+  this.contentArea.addEventListener('click', (e) => {this.clickWaveform(e);});
 
     this.handleMarkerSet    = this.handleMarkerSet.bind(this);
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
@@ -442,6 +499,14 @@ class VaporviewWebview {
       //  this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + e.deltaX);
       //  this.scrollArea.scrollTop       += e.deltaY;
       //  this.labelsScroll.scrollTop      = this.scrollArea.scrollTop;
+        // Capture-phase click focus fallback for labels/value areas
+        window.addEventListener('click', (e) => {
+          const el = e.target as HTMLElement | null;
+          if (!el) {return;}
+          if (el.closest('#waveform-labels') || el.closest('#value-display')) {
+            try { this.webview.focus(); console.log('DEBUG WFSELECT focusFallbackCaptureClick'); } catch(_) { /* empty */ }
+          }
+        }, { capture: true });
       //  this.valuesScroll.scrollTop  = this.scrollArea.scrollTop;
       //} else {
       //  this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + deltaY);
@@ -462,9 +527,79 @@ class VaporviewWebview {
   }
 
   keyDownHandler(e: any) {
-
-    if (controlBar.searchInFocus || labelsPanel.renameActive) {return;} 
+    console.log('DEBUG WFSELECT keyDownHandler entry', { key: e.key });
+    try {
+      const activeEl = document.activeElement as HTMLElement | null;
+      console.log('DEBUG WFSELECT keyDownHandler entry', { key: e.key, activeId: activeEl?.id, activeTag: activeEl?.tagName, selectionSize: viewerState.selectedSignals?.length });
+    } catch (_) { /* ignore */ }
+    
+    // Track modifier key state
+    if (e.key === 'Control') {
+      this.isCtrlPressed = true;
+    } else if (e.key === 'Meta') {
+      this.isMetaPressed = true;
+    }
+    
+    // Handle Ctrl/Cmd+A for signal selection even when input fields are focused
+    // Use the same pattern as Alt+Up arrow - check key first, then modifier
+    if (e.key === 'a') {
+      console.log('DEBUG WFSELECT a key detected', { 
+        ctrlKey: e.ctrlKey,
+        metaKey: e.metaKey,
+        cmdKey: e.metaKey  // On Mac, Cmd is Meta
+      });
+      if (e.ctrlKey || e.metaKey) {
+      console.log('DEBUG WFSELECT cmd+a detected, bypassing input focus checks');
+      e.preventDefault(); // Prevent default select-all in input field
+      
+      if (viewerState.visibleSignalsFlat.length > 0) {
+        // Select all visible signals
+        viewerState.selectedSignals = [...viewerState.visibleSignalsFlat];
+        
+        // Set the selection anchor to the first signal
+        viewerState.selectionAnchor = viewerState.visibleSignalsFlat[0];
+        
+        // Set the focused signal to the first signal (or keep current if already selected)
+        const currentFocus = viewerState.selectedSignal;
+        const focusSignal = (currentFocus !== null && viewerState.selectedSignals.includes(currentFocus)) 
+          ? currentFocus 
+          : viewerState.visibleSignalsFlat[0];
+        
+        console.log('DEBUG WFSELECT selectAll triggered', { 
+          totalSelected: viewerState.selectedSignals.length,
+          focusSignal: focusSignal,
+          allSignals: viewerState.visibleSignalsFlat,
+          ctrlPressed: this.isCtrlPressed,
+          metaPressed: this.isMetaPressed
+        });
+        
+        // Update the selection index for the focused signal
+        viewerState.selectedSignalIndex = viewerState.visibleSignalsFlat.indexOf(focusSignal);
+        
+        // Dispatch the signal select event for the focused signal to update UI
+        this.events.dispatch(ActionType.SignalSelect, focusSignal);
+        
+        // Store this as the last meaningful multi-selection
+        viewerState.lastMultiSelection = [...viewerState.selectedSignals];
+      }
+      return; // Exit early after handling Cmd+A
+      }
+    }
+    
+    // For all other keys, check if input fields are focused
+    if (controlBar.searchInFocus || labelsPanel.renameActive) {
+      console.log('DEBUG WFSELECT keyDownHandler early return', { searchInFocus: controlBar.searchInFocus, renameActive: labelsPanel.renameActive });
+      return;
+    } 
     else {e.preventDefault();}
+
+    console.log('DEBUG WFSELECT keyDownHandler processing key', { 
+      key: e.key, 
+      ctrlPressed: this.isCtrlPressed, 
+      metaPressed: this.isMetaPressed,
+      eventCtrl: e.ctrlKey,
+      eventMeta: e.metaKey
+    });
 
     // debug handler to print the data cache
     if (e.key === 'd' && e.ctrlKey) {
@@ -487,12 +622,33 @@ class VaporviewWebview {
     // alt + up and down arrow keys reorder the selected signal up and down
     } else if ((e.key === 'ArrowUp') && (viewerState.selectedSignalIndex !== null)) {
       const newIndex = Math.max(viewerState.selectedSignalIndex - 1, 0);
-      if (e.altKey) {this.handleReorderArrowKeys(-1);}
-      else          {this.events.dispatch(ActionType.SignalSelect, viewerState.visibleSignalsFlat[newIndex]);}
+      if (e.altKey) {this.handleReorderArrowKeys(-1);} 
+      else          {
+        const newRow = viewerState.visibleSignalsFlat[newIndex];
+        if (!viewerState.selectedSignals || viewerState.selectedSignals.length <= 1) {
+          viewerState.selectedSignals = [newRow];
+          viewerState.selectionAnchor = newRow;
+        } else {
+          // Preserve existing multi-selection: only change focus row
+          console.log('DEBUG WFSELECT arrowUp preserve multi', { focus: newRow, multi: viewerState.selectedSignals });
+        }
+        console.log('DEBUG WFSELECT key ArrowUp', { newIndex, newRow, selectedSignals: viewerState.selectedSignals });
+        this.events.dispatch(ActionType.SignalSelect, newRow);
+      }
     } else if ((e.key === 'ArrowDown') && (viewerState.selectedSignalIndex !== null)) {
       const newIndex = Math.min(viewerState.selectedSignalIndex + 1, viewerState.visibleSignalsFlat.length - 1);
-      if (e.altKey) {this.handleReorderArrowKeys(1);}
-      else          {this.events.dispatch(ActionType.SignalSelect, viewerState.visibleSignalsFlat[newIndex]);}
+      if (e.altKey) {this.handleReorderArrowKeys(1);} 
+      else          {
+        const newRow = viewerState.visibleSignalsFlat[newIndex];
+        if (!viewerState.selectedSignals || viewerState.selectedSignals.length <= 1) {
+          viewerState.selectedSignals = [newRow];
+          viewerState.selectionAnchor = newRow;
+        } else {
+          console.log('DEBUG WFSELECT arrowDown preserve multi', { focus: newRow, multi: viewerState.selectedSignals });
+        }
+        console.log('DEBUG WFSELECT key ArrowDown', { newIndex, newRow, selectedSignals: viewerState.selectedSignals });
+        this.events.dispatch(ActionType.SignalSelect, newRow);
+      }
     }
 
     // handle Home and End keys to move to the start and end of the waveform
@@ -503,8 +659,17 @@ class VaporviewWebview {
     else if (e.key === 'n') {controlBar.goToNextTransition(1, []);}
     else if (e.key === 'N') {controlBar.goToNextTransition(-1, []);}
 
-    else if (e.key === 'Escape') {this.handleMouseUp(e, true);}
-    else if (e.key === 'Delete' || e.key === 'Backspace') {this.removeVariableInternal(viewerState.selectedSignal);}
+    else if (e.key === 'Escape') {this.handleMouseUp(e, true);} 
+    else if (e.key === 'Delete' || e.key === 'Backspace') {
+      console.log('DEBUG WFSELECT keyDelete pressed', {
+        selectedSignals: viewerState.selectedSignals,
+        selectedSignal: viewerState.selectedSignal,
+        selectionAnchor: viewerState.selectionAnchor,
+        visibleFlatLen: viewerState.visibleSignalsFlat.length
+      });
+      // Unified delete logic - let removeVariableInternal decide what to delete
+      this.removeVariableInternal(null);
+    } 
 
     else if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(true);}
   }
@@ -572,10 +737,34 @@ class VaporviewWebview {
       case 'zoomToFit': {this.events.dispatch(ActionType.Zoom, Infinity, 0, 0); break;}
       case 'increaseVerticalScale': {this.updateVerticalScale(viewerState.selectedSignal, 2); break;}
       case 'decreaseVerticalScale': {this.updateVerticalScale(viewerState.selectedSignal, 0.5); break;}
+      case 'delete': {this.removeVariableInternal(null); break;}
+      case 'backspace': {this.removeVariableInternal(null); break;}
+      case 'selectAll': {
+        // Select all visible signals
+        if (viewerState.visibleSignalsFlat.length > 0) {
+          viewerState.selectedSignals = [...viewerState.visibleSignalsFlat];
+          viewerState.selectionAnchor = viewerState.visibleSignalsFlat[0];
+          const currentFocus = viewerState.selectedSignal;
+          const focusSignal = (currentFocus !== null && viewerState.selectedSignals.includes(currentFocus)) 
+            ? currentFocus 
+            : viewerState.visibleSignalsFlat[0];
+          viewerState.selectedSignalIndex = viewerState.visibleSignalsFlat.indexOf(focusSignal);
+          this.events.dispatch(ActionType.SignalSelect, focusSignal);
+          viewerState.lastMultiSelection = [...viewerState.selectedSignals];
+        }
+        break;
+      }
     }
   }
 
   keyUpHandler(e: any) {
+    // Reset modifier key state
+    if (e.key === 'Control') {
+      this.isCtrlPressed = false;
+    } else if (e.key === 'Meta') {
+      this.isMetaPressed = false;
+    }
+    
     if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(false);}
   }
 
@@ -611,6 +800,36 @@ class VaporviewWebview {
     viewerState.mouseupEventType = null;
   }
 
+  private clickWaveform(event: MouseEvent) {
+    // Only handle clicks on waveform rows
+    const target = event.target as HTMLElement;
+    const container = target.closest('.waveform-container') as HTMLElement | null;
+    if (!container) {return;}
+    const id = container.id; // 'waveform-<rowId>'
+    if (!id || !id.startsWith('waveform-')) {return;}
+    const rowId = parseInt(id.split('-')[1]);
+    if (isNaN(rowId)) {return;}
+
+    if (event.shiftKey) {
+      const anchor = viewerState.selectionAnchor ?? viewerState.selectedSignal ?? rowId;
+      const flat   = viewerState.visibleSignalsFlat;
+      const aIdx   = Math.max(0, flat.indexOf(anchor));
+      const bIdx   = Math.max(0, flat.indexOf(rowId));
+      const [start, end] = aIdx <= bIdx ? [aIdx, bIdx] : [bIdx, aIdx];
+      viewerState.selectedSignals = flat.slice(start, end + 1);
+      viewerState.selectionAnchor = anchor;
+      console.log('DEBUG WFSELECT waveform shift-click', { anchor, rowId, aIdx, bIdx, start, end, selectedSignals: viewerState.selectedSignals });
+    } else {
+      viewerState.selectedSignals = [rowId];
+      viewerState.selectionAnchor = rowId;
+      console.log('DEBUG WFSELECT waveform click', { rowId, selectedSignals: viewerState.selectedSignals });
+    }
+
+    this.events.dispatch(ActionType.SignalSelect, rowId);
+    // Force focus so subsequent Delete/Backspace is received
+    try { this.webview.focus(); } catch (_) { /* ignore */ }
+  }
+
   // #region Global Events
   reorderSignals(rowId: number, newGroupId: number, newIndex: number) {
     this.events.dispatch(ActionType.SignalSelect, rowId);
@@ -644,6 +863,21 @@ class VaporviewWebview {
     if (!(netlistData instanceof VariableItem)) {return;}
     let instancePath = netlistData.scopePath + '.' + netlistData.signalName;
     if (netlistData.scopePath === "") {instancePath = netlistData.signalName;}
+
+    // Preserve existing multi-selection if it already contains multiple rows.
+    if (!viewerState.selectedSignals || viewerState.selectedSignals.length <= 1) {
+      viewerState.selectedSignals = [rowId];
+      viewerState.selectionAnchor = rowId;
+      console.log('DEBUG WFSELECT handleSignalSelect.assignSingle', { rowId });
+    } else {
+      // Maintain focus row separate from multi array
+      console.log('DEBUG WFSELECT handleSignalSelect.preserveMulti', { focusRow: rowId, multi: viewerState.selectedSignals });
+    }
+
+    // Persist snapshot of meaningful multi-select (>=2)
+    if (viewerState.selectedSignals && viewerState.selectedSignals.length > 1) {
+      viewerState.lastMultiSelection = [...viewerState.selectedSignals];
+    }
 
     vscode.postMessage({
       command: 'emitEvent',
@@ -682,6 +916,8 @@ class VaporviewWebview {
   unload() {
     viewerState.selectedSignal      = null;
     viewerState.selectedSignalIndex = null;
+    viewerState.selectedSignals     = [];
+    viewerState.selectionAnchor     = null;
     viewerState.markerTime          = null;
     viewerState.altMarkerTime       = null;
     viewerState.displayedSignals    = [];
@@ -698,14 +934,115 @@ class VaporviewWebview {
   // it can update the views. Rather than handling it and telling the extension,
   // we just have the extension handle it as normal.
   removeVariableInternal(rowId: RowId | null) {
-    if (rowId === null) {return;}
-    const netlistId = dataManager.rowItems[rowId].netlistId;
+    console.log('DEBUG WFSELECT removeVariableInternal called', { 
+      rowId, 
+      selectedSignals: viewerState.selectedSignals, 
+      selectedSignal: viewerState.selectedSignal 
+    });
+    
+    // Handle multiple selection case
+    if (viewerState.selectedSignals && viewerState.selectedSignals.length > 1) {
+      console.log('DEBUG WFSELECT removeVariableInternal delegating to removeSelectedVariables');
+      this.removeSelectedVariables();
+      return;
+    }
+    
+    // Handle single selection case
+    if (rowId === null) {
+      // If no specific rowId provided, use the selected signal
+      if (viewerState.selectedSignal) {
+        rowId = viewerState.selectedSignal;
+      } else {
+        // If no signal is selected, default to last visible signal (bottom signal)
+        if (viewerState.visibleSignalsFlat.length > 0) {
+          rowId = viewerState.visibleSignalsFlat[viewerState.visibleSignalsFlat.length - 1];
+        } else {
+          return;
+        }
+      }
+    }
+    
+    const signalItem = dataManager.rowItems[rowId];
+    if (!signalItem) {return;}
+    const netlistId = signalItem.netlistId;
     if (netlistId === undefined) {return;}
 
+    console.log('DEBUG WFSELECT removeVariableInternal removing single signal', { rowId, netlistId });
     vscode.postMessage({
       command: 'removeVariable',
       netlistId: netlistId
     });
+  }
+
+  // Remove all currently selected variable rows (ignores groups for now)
+  removeSelectedVariables() {
+    console.log('ACTION: removeSelectedVariables');
+    console.log('DEBUG WFSELECT removeSelectedVariables start', { selectedSignals: viewerState.selectedSignals, selectedSignal: viewerState.selectedSignal });
+    if (!viewerState.selectedSignals || viewerState.selectedSignals.length === 0) {
+      // Fallback to single selection if present
+      if (viewerState.selectedSignal) {
+        console.log('DEBUG WFSELECT fallback to single selection', { selectedSignal: viewerState.selectedSignal });
+        viewerState.selectedSignals = [viewerState.selectedSignal];
+      } else if (viewerState.lastMultiSelection && viewerState.lastMultiSelection.length > 1) {
+        console.log('DEBUG WFSELECT reviveLastMultiSelection', { last: viewerState.lastMultiSelection });
+        viewerState.selectedSignals = [...viewerState.lastMultiSelection];
+      } else { 
+        console.log('DEBUG WFSELECT no signals to remove');
+        return; 
+      }
+    }
+    const originalSelection = [...viewerState.selectedSignals];
+    // Expand any selected groups to their contained variable rowIds
+    const expandedRowIds: RowId[] = [];
+    const classification: any[] = [];
+    originalSelection.forEach((rowId) => {
+      const item = dataManager.rowItems[rowId];
+      if (!item) {return;}
+      if (item instanceof VariableItem) {
+        expandedRowIds.push(rowId);
+        classification.push({ rowId, kind: 'variable', netlistId: item.netlistId });
+      } else if (item instanceof SignalGroup) {
+        const list = item.getFlattenedRowIdList(false, -1).filter((rid) => {
+          const rItem = dataManager.rowItems[rid];
+          return rItem instanceof VariableItem;
+        });
+        expandedRowIds.push(...list);
+        classification.push({ rowId, kind: 'group', expandedVariables: list.length });
+      }
+    });
+    // De-duplicate
+    const toRemoveRowIds = Array.from(new Set(expandedRowIds));
+    // Map to netlistIds
+    const netlistIds: number[] = [];
+    toRemoveRowIds.forEach((rowId) => {
+      const item = dataManager.rowItems[rowId];
+      if (item instanceof VariableItem) { netlistIds.push(item.netlistId); }
+    });
+    console.log('DEBUG WFSELECT delete batch', { originalSelection, classification, expandedRowIds: toRemoveRowIds, netlistIds });
+
+    if (netlistIds.length === 0) {return;}
+    if (originalSelection.length === 1 && netlistIds.length === 1) {
+      // Fall back to single remove for clarity
+      vscode.postMessage({ command: 'removeVariable', netlistId: netlistIds[0] });
+      viewerState.selectedSignals = [];
+      viewerState.selectionAnchor = null;
+      return;
+    }
+
+    console.log('DEBUG WFSELECT delete batch outbound payload', { count: netlistIds.length, netlistIds });
+
+    // Suppress auto-adjacent reselection inside removeVariable() by clearing selectedSignal.
+    viewerState.selectedSignal = null;
+    viewerState.selectedSignalIndex = null;
+
+    // Issue all removals (extension will emit one remove-signal per netlistId)
+    const payload = netlistIds.slice(); // defensive copy
+    vscode.postMessage({ command: 'removeVariablesBatch', netlistIds: payload });
+    console.log('DEBUG WFSELECT delete batch message sent', { payload });
+
+    // Clear multi-select state; UI will settle after extension messages processed
+    viewerState.selectedSignals = [];
+    viewerState.selectionAnchor = null;
   }
 
   removeVariable(netlistId: NetlistId | null) {
@@ -720,6 +1057,46 @@ class VaporviewWebview {
       const newRowId = viewerState.visibleSignalsFlat[newindex];
       this.events.dispatch(ActionType.SignalSelect, newRowId);
     }
+  }
+
+  removeVariableBatch(netlistIds: NetlistId[]) {
+    if (!Array.isArray(netlistIds)) {return;}
+    console.log('DEBUG WFSELECT batch remove start', { netlistIdsLength: netlistIds.length, displayedBefore: viewerState.displayedSignals.length, flatBefore: viewerState.displayedSignalsFlat.length });
+    // Map to rowIds (only variables should be in batch)
+    const rowIds: RowId[] = [];
+    netlistIds.forEach((nid) => {
+      const r = dataManager.netlistIdTable[nid];
+      if (r !== undefined) { rowIds.push(r); }
+    });
+
+    // Remove in a stable order (descending by current visible index) so index math inside
+    // dataManager.handleRemoveVariable remains valid as we mutate arrays.
+    const indexed: {rowId: RowId; idx: number}[] = rowIds.map((rowId) => ({ rowId, idx: viewerState.visibleSignalsFlat.indexOf(rowId) }));
+    indexed.sort((a, b) => b.idx - a.idx);
+
+    // Activate suppression
+    viewerState.isBatchRemoving = true;
+    indexed.forEach(({ rowId }, position) => {
+      console.log('DEBUG WFSELECT batch remove row (suppressed)', { position, rowId });
+      dataManager.handleRemoveVariable(rowId, true);
+    });
+    viewerState.isBatchRemoving = false;
+
+    // Post-removal single pass updates / renders
+  updateDisplayedSignalsFlat();
+  // Single atomic refresh
+  labelsPanel.renderLabelsPanels();
+  viewport.updateSignalOrder();
+  viewport.updateBackgroundCanvas(true);
+
+    // Clear selection state atomically
+    viewerState.selectedSignal = null;
+    viewerState.selectedSignalIndex = null;
+    viewerState.selectedSignals = [];
+    viewerState.selectionAnchor = null;
+
+    sendWebviewContext();
+    console.log('DEBUG WFSELECT batch remove complete', { removedCount: rowIds.length, displayedAfter: viewerState.displayedSignals.length, flatAfter: viewerState.displayedSignalsFlat.length });
   }
 
   removeSignalGroup(groupId: number, recursive: boolean) {
@@ -805,7 +1182,32 @@ class VaporviewWebview {
       case 'getContext':            {sendWebviewContext(); break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
       case 'add-variable':          {dataManager.addVariable(message.signalList, message.groupPath, undefined, message.index); break;}
-      case 'remove-signal':         {this.removeVariable(message.netlistId); break;}
+      case 'remove-signal': {
+        // Intercept single remove if multi-selection still active; upgrade to local batch
+        try {
+          if (viewerState.selectedSignals && viewerState.selectedSignals.length > 1) {
+            const netIds: number[] = [];
+            viewerState.selectedSignals.forEach((rowId) => {
+              const item = dataManager.rowItems[rowId];
+              if (item instanceof VariableItem) { netIds.push(item.netlistId); }
+            });
+            if (netIds.length > 1) {
+              console.log('DEBUG WFSELECT intercept single remove -> batch', { incoming: message.netlistId, batchNetlistIds: netIds });
+              this.removeVariableBatch(netIds);
+              break;
+            }
+          }
+        } catch (err) {
+          console.log('DEBUG WFSELECT intercept error', err);
+        }
+        this.removeVariable(message.netlistId); break;
+      }
+      case 'remove-signal-batch':   {this.removeVariableBatch(message.netlistIds); break;}
+      case 'deleteSelectedSignals': {
+        console.log('DEBUG WFSELECT deleteSelectedSignals command received');
+        this.removeVariableInternal(null); // Use unified delete logic
+        break;
+      }
       case 'remove-group':          {this.removeSignalGroup(message.groupId, message.recursive); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}
       case 'update-waveform-chunk-compressed': {dataManager.updateWaveformChunkCompressed(message); break;}
@@ -831,6 +1233,29 @@ export const controlBar  = new ControlBar(events);
 export const viewport    = new Viewport(events);
 export const labelsPanel = new LabelsPanels(events);
 const vaporview          = new VaporviewWebview(events, viewport, controlBar);
+
+try { console.log('DEBUG WFSELECT vaporviewVersion', { version: 'v7', timestamp: Date.now() }); } catch(_) { /* empty */ }
+
+// Capture-phase Delete fallback to guarantee multi-delete fires
+window.addEventListener('keydown', (e) => {
+  try {
+    console.log('DEBUG WFSELECT capturePhase keydown', { key: e.key, selectedSignals: viewerState.selectedSignals?.length || 0 });
+    if ((e.key === 'Delete' || e.key === 'Backspace')) {
+      if (viewerState.selectedSignals && viewerState.selectedSignals.length > 0) {
+        console.log('DEBUG WFSELECT captureDeleteFallback multi', { selection: viewerState.selectedSignals });
+        vaporview.removeVariableInternal(null); // Let removeVariableInternal handle the logic
+      } else if (viewerState.selectedSignal) {
+        console.log('DEBUG WFSELECT captureDeleteFallback single', { selectedSignal: viewerState.selectedSignal });
+        vaporview.removeVariableInternal(null); // Let removeVariableInternal handle the logic
+      } else {
+        console.log('DEBUG WFSELECT captureDeleteFallback none selected');
+        vaporview.removeVariableInternal(null); // Let removeVariableInternal handle the logic
+      }
+    }
+  } catch(err) {
+    console.log('DEBUG WFSELECT captureDeleteFallback error', err);
+  }
+}, { capture: true });
 
 vscode.postMessage({ command: 'ready' });
 

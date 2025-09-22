@@ -99,7 +99,12 @@ export class ControlBar {
     if (this.annotateCodeAll) {
       this.annotateCodeAll.addEventListener('change', (e: any) => {
         const enabled = !!e.target.checked;
-        // Use existing generic executeCommand bridge to notify main extension
+        // Immediate visual feedback via spinner near checkbox
+        const spinnerEl = document.getElementById('annotateSpinnerAll');
+        if (spinnerEl) spinnerEl.style.display = enabled ? 'inline-block' : 'none';
+        // Mirror to overlay as well for consistent UX
+        vscode.postMessage({ command: 'executeCommand', commandName: 'waveformViewer.setAnnotateLoading', args: { active: enabled, text: 'Annotating…' } });
+        // Notify main extension
         vscode.postMessage({
           command: 'executeCommand',
           commandName: 'crisp.waveformAnnotate.setAnnotateAll',
@@ -110,6 +115,9 @@ export class ControlBar {
     if (this.annotateCodeListed) {
       this.annotateCodeListed.addEventListener('change', (e: any) => {
         const enabled = !!e.target.checked;
+        const spinnerEl = document.getElementById('annotateSpinnerListed');
+        if (spinnerEl) spinnerEl.style.display = enabled ? 'inline-block' : 'none';
+        vscode.postMessage({ command: 'executeCommand', commandName: 'waveformViewer.setAnnotateLoading', args: { active: enabled, text: 'Annotating…' } });
         vscode.postMessage({
           command: 'executeCommand',
           commandName: 'crisp.waveformAnnotate.setAnnotateListed',

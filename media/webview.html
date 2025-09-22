@@ -10,6 +10,10 @@
 </head>
 <body data-vscode-context='{"preventDefaultContextMenuItems":true,"webviewSection":"viewer"}'>
   <div id="vaporview-top">
+    <!-- Lightweight annotate overlay badge (toggled by setAnnotateLoading) -->
+    <div id="annotate-overlay" style="display:none">
+      <span id="annotate-overlay-text">Annotating…</span>
+    </div>
     <div id="control-bar">
       <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
         <defs>
@@ -135,10 +139,12 @@
       <div class="control-bar-group"> 
         <input type="checkbox" id="annotateCode" name="Annotate Listed" value="Unchecked" class="control-bar-checkbox">
         <label for="annotateCode" class="control-bar-label" title="Annotate listed signal value into code editor">Annotate Listed</label>
+        <span id="annotateSpinnerListed" class="annotate-spinner" style="display:none" aria-label="Annotating listed…"></span>
       </div>
       <div class="control-bar-group"> 
         <input type="checkbox" id="annotateCodeAll" name="Annotate All" value="Unchecked" class="control-bar-checkbox">
         <label for="annotateCodeAll" class="control-bar-label" title="Annotate all signal value to code editor">Annotate All</label>
+        <span id="annotateSpinnerAll" class="annotate-spinner" style="display:none" aria-label="Annotating all…"></span>
       </div>
     </div>
     <div id="viewer-container" data-vscode-context='{"webviewSection":"waveform-labels"}'>

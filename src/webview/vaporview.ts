@@ -333,6 +333,8 @@ class VaporviewWebview {
   controlBar: ControlBar;
   overlay: HTMLElement | null = null;
   overlayText: HTMLElement | null = null;
+  spinnerAll: HTMLElement | null = null;
+  spinnerListed: HTMLElement | null = null;
 
   // event handler variables
   events: EventHandler;
@@ -362,6 +364,8 @@ class VaporviewWebview {
   const scrollbar     = document.getElementById('scrollbar');
   const overlay       = document.getElementById('annotate-overlay');
   const overlayText   = document.getElementById('annotate-overlay-text');
+  const spinnerAll    = document.getElementById('annotateSpinnerAll');
+  const spinnerListed = document.getElementById('annotateSpinnerListed');
 
     if (webview === null || labelsScroll === null || valuesScroll === null ||
       scrollArea === null || contentArea === null || scrollbar === null) {
@@ -376,6 +380,8 @@ class VaporviewWebview {
     this.scrollbar    = scrollbar;
   this.overlay      = overlay;
   this.overlayText  = overlayText;
+    this.spinnerAll   = spinnerAll;
+    this.spinnerListed= spinnerListed;
 
     webview.style.gridTemplateColumns = `150px 50px auto`;
 
@@ -1275,6 +1281,19 @@ class VaporviewWebview {
             this.overlay.style.display = 'none';
           }
         }
+        // Also mirror to checkbox spinners when available: only show spinner for checked modes
+        try {
+          const active = !!message.active;
+          const allCb    = document.getElementById('annotateCodeAll') as HTMLInputElement | null;
+          const listedCb = document.getElementById('annotateCode') as HTMLInputElement | null;
+          if (!active) {
+            if (this.spinnerAll)    this.spinnerAll.style.display    = 'none';
+            if (this.spinnerListed) this.spinnerListed.style.display = 'none';
+          } else {
+            if (this.spinnerAll)    this.spinnerAll.style.display    = allCb?.checked    ? 'inline-block' : 'none';
+            if (this.spinnerListed) this.spinnerListed.style.display = listedCb?.checked ? 'inline-block' : 'none';
+          }
+        } catch (_) { /* noop */ }
         break;
       }
       case 'initViewport':          {this.viewport.init(message.metadata, message.uri); break;}

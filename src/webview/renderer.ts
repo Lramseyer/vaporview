@@ -11,8 +11,8 @@ export interface WaveformRenderer {
 // This function actually creates the individual bus elements, and has can
 // potentially called thousands of times during a render
 function busValue(time: number, deltaTime: number, displayValue: string, viewportSpecs: any, justifydirection: string, spansChunk: boolean) {
-  let textTime = displayValue.length * viewportSpecs.characterWidth * viewportSpecs.pixelTime;
-  let padding  = 4 * viewportSpecs.pixelTime;
+  const textTime = displayValue.length * viewportSpecs.characterWidth * viewportSpecs.pixelTime;
+  const padding  = 4 * viewportSpecs.pixelTime;
   let text = displayValue;
   let adjestedDeltaTime = deltaTime;
   let adjustedTime = time;
@@ -24,7 +24,7 @@ function busValue(time: number, deltaTime: number, displayValue: string, viewpor
 
   adjustedTime = Math.max(time, viewportSpecs.timeScrollLeft);
   adjestedDeltaTime = Math.min(time + deltaTime, viewportSpecs.timeScrollRight) - adjustedTime;
-  let characterWidthLimit = adjestedDeltaTime - (2 * padding);
+  const characterWidthLimit = adjestedDeltaTime - (2 * padding);
 
   if (textTime > characterWidthLimit) {
     center = false;
@@ -74,11 +74,11 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     let xPosition       = 0;
     let yPosition       = 0;
     const adjustedTime  = time - viewportSpecs.timeScrollLeft;
-    let points          = [[adjustedTime, 0]];
+  const points          = [[adjustedTime, 0]];
     const endPoints     = [[adjustedTime, 0]];
-    let xzPoints: any   = [];
+  const xzPoints: any   = [];
     //const xzValues: string[]        = [];
-    let textElements: any[]    = [];
+  const textElements: any[]    = [];
     let spansChunk      = true;
     let moveCursor      = false;
     let drawBackgroundStrokes = false;
@@ -234,7 +234,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
 
     // Draw non-2-state values
     ctx.fillStyle = xzColor;
-    xzPoints.forEach(set => {
+  xzPoints.forEach((set: [number, number][]) => {
       ctx.beginPath();
       ctx.moveTo(set[0][0], set[0][1]);
       ctx.lineTo(set[1][0], set[1][1]);
@@ -255,14 +255,14 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     ctx.textBaseline = 'middle';
     ctx.imageSmoothingEnabled = false;
     ctx.textRendering = 'optimizeLegibility';
-    textElements.forEach(([text, xValue, center], i) => {
+  textElements.forEach(([text, xValue, center]: [string, number, boolean], i: number) => {
       if (center) {
-        ctx.fillText(text, xValue, textY)
+        ctx.fillText(text, xValue, textY);
         if (i === netlistData.valueLinkIndex) {ctx.fillText("_".repeat(text.length), xValue, textY);}
-      };
+      }
     });
     ctx.textAlign = justifydirection;
-    textElements.forEach(([text, xValue, center], i) => {
+  textElements.forEach(([text, xValue, center]: [string, number, boolean], i: number) => {
       if (!center) {
         ctx.fillText(text, xValue, textY);
         if (i === netlistData.valueLinkIndex) {ctx.fillText("_".repeat(text.length), xValue, textY);}
@@ -274,7 +274,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     if (netlistData.valueLinkCommand !== "") {
       const leftOffset = justifydirection === "left" ? 0 : 1;
       const rightOffset = justifydirection === "left" ? -1 : 0;
-      textElements.forEach(([text, xValue, center]) => {
+  textElements.forEach(([text, xValue, center]: [string, number, boolean]) => {
         const x = (xValue * viewportSpecs.zoomRatio) - viewportSpecs.pseudoScrollLeft;
         const textWidth = text.length * viewportSpecs.characterWidth;
         if (!center) {
@@ -308,7 +308,7 @@ export const binaryWaveformRenderer: WaveformRenderer = {
     let initialTime        = initialState[0];
     let initialTimeOrStart = Math.max(initialState[0], -10);
     const minDrawWidth  = viewportSpecs.pixelTime / viewportSpecs.pixelRatio;
-    let xzPath:any         = [];
+  const xzPath:any         = [];
     const drawColor        = netlistData.color;
     const xzColor          = viewportSpecs.xzColor;
     const viewerWidthTime  = viewportSpecs.viewerWidthTime;
@@ -322,15 +322,15 @@ export const binaryWaveformRenderer: WaveformRenderer = {
     if (valueIs9State(initialValue)) {
       initialValue2state = 0;
     }
-    const startScreenX  = -10 * viewportSpecs.pixelTime
-    let accumulatedPath = [[startScreenX, 0], [startScreenX, initialValue2state]];
+  const startScreenX  = -10 * viewportSpecs.pixelTime;
+  const accumulatedPath = [[startScreenX, 0], [startScreenX, initialValue2state]] as [number, number][];
 
     let value2state    = 0;
     // No Draw Code
     let lastDrawTime   = 0;
     let lastNoDrawTime: any = null;
     let noDrawFlag     = false;
-    let noDrawPath: any     = [];
+  const noDrawPath: any     = [];
     let lastDrawValue  = initialValue2state;
     let lastnoDrawValue: any = null;
 
@@ -425,7 +425,7 @@ export const binaryWaveformRenderer: WaveformRenderer = {
     ctx.translate(0.5, waveOffset + 0.5);
     ctx.transform(viewportSpecs.zoomRatio, 0, 0, -waveHeight, 0, 0);
     ctx.beginPath();
-    accumulatedPath.forEach(([x, y]) => {ctx.lineTo(x, y);});
+  accumulatedPath.forEach(([x, y]: [number, number]) => {ctx.lineTo(x, y);});
     ctx.globalAlpha = 0.1;
     ctx.fill();
     ctx.globalAlpha = 1;
@@ -440,7 +440,7 @@ export const binaryWaveformRenderer: WaveformRenderer = {
     ctx.translate(0.5, waveOffset + 0.5);
     ctx.transform(viewportSpecs.zoomRatio, 0, 0, -waveHeight, 0, 0);
     ctx.beginPath();
-    noDrawPath.forEach(([startTime, endTime]) => {
+  noDrawPath.forEach(([startTime, endTime]: [number, number]) => {
       ctx.moveTo(startTime, 0);
       ctx.lineTo(endTime, 0);
       ctx.lineTo(endTime, 1);
@@ -460,7 +460,7 @@ export const binaryWaveformRenderer: WaveformRenderer = {
     ctx.translate(0.5, waveOffset + 0.5);
     ctx.transform(viewportSpecs.zoomRatio, 0, 0, -waveHeight, 0, 0);
     ctx.beginPath();
-    xzPath.forEach(([startTime, EndTime]) => {
+  xzPath.forEach(([startTime, EndTime]: [number, number]) => {
       ctx.moveTo(startTime, 0);
       ctx.lineTo(EndTime, 0);
       ctx.lineTo(EndTime, 1);
@@ -493,7 +493,7 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
   const minDrawWidth  = viewportSpecs.pixelTime / (viewportSpecs.pixelRatio * 4);
   const timeScrollLeft   = viewportSpecs.timeScrollLeft;
   const timeScrollRight  = viewportSpecs.timeScrollRight - timeScrollLeft;
-  let xzPath: any        = [];
+  const xzPath: any        = [];
   const valueIs9State    = netlistData.valueFormat.is9State;
 
   const rowHeight      = netlistData.rowHeight * WAVE_HEIGHT;
@@ -505,7 +505,7 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
     initialValue2state = "0";
   }
 
-  let accumulatedPath: any = [[-10 * viewportSpecs.pixelTime, 0]];
+  const accumulatedPath: any = [[-10 * viewportSpecs.pixelTime, 0]];
   accumulatedPath.push([initialTime - timeScrollLeft, evalCoordinates(initialValue2state)]);
 
   let value2state    = "0";
@@ -513,7 +513,7 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
   let lastDrawTime   = 0;
   let lastNoDrawTime: any = null;
   let noDrawFlag     = false;
-  let noDrawPath: any     = [];
+  const noDrawPath: any     = [];
   let lastDrawValue  = initialValue2state;
   let lastnoDrawValue: any = null;
 
@@ -610,7 +610,7 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
   ctx.translate(0.5, translateY + 0.5);
   ctx.transform(viewportSpecs.zoomRatio, 0, 0, -yScale, 0, 0);
   ctx.beginPath();
-  accumulatedPath.forEach(([x, y]) => {ctx.lineTo(x, y);});
+  accumulatedPath.forEach(([x, y]: [number, number]) => {ctx.lineTo(x, y);});
   ctx.globalAlpha = 0.1;
   ctx.fill();
   ctx.globalAlpha = 1;
@@ -625,7 +625,7 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
   ctx.translate(0.5, translateY + 0.5);
   ctx.transform(viewportSpecs.zoomRatio, 0, 0, -yScale, 0, 0);
   ctx.beginPath();
-  noDrawPath.forEach(([startTime, endTime]) => {
+  noDrawPath.forEach(([startTime, endTime]: [number, number]) => {
     ctx.moveTo(startTime, min);
     ctx.lineTo(endTime, min);
     ctx.lineTo(endTime, max);
@@ -645,7 +645,7 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
   ctx.translate(0.5, translateY + 0.5);
   ctx.transform(viewportSpecs.zoomRatio, 0, 0, -yScale, 0, 0);
   ctx.beginPath();
-  xzPath.forEach(([startTime, EndTime]) => {
+  xzPath.forEach(([startTime, EndTime]: [number, number]) => {
     ctx.moveTo(startTime, min);
     ctx.lineTo(EndTime, min);
     ctx.lineTo(EndTime, max);
@@ -658,24 +658,24 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
   ctx.stroke();
 }
 
-const evalBinary8plusSigned = (v: string) => {
-  const n = parseInt(v.slice(0,8), 2) || 0;
-  return n > 127 ? n - 256 : n;
+const evalBinary16plusSigned = (v: string) => {
+  const n = parseInt(v.slice(0,16), 2) || 0;
+  return n > 32767 ? n - 65536 : n;
 };
 const evalBinarySigned = (v: string) => {
   const n = parseInt(v, 2) || 0;
   return v[0] === '1' ? n - (2 ** v.length) : n;
 };
-const evalBinary8plus = (v: string) => {return parseInt(v.slice(0,8), 2) || 0;};
+const evalBinary16plus = (v: string) => {return parseInt(v.slice(0,16), 2) || 0;};
 const evalBinary = (v: string) => {return parseInt(v, 2) || 0;};
 const evalReal = (v: string) => {return parseFloat(v) || 0;};
 
 function getEval(type: string, width: number, signed: boolean) {
   if (type === "Real") {return evalReal;}
 
-  if (width > 8) {
-    if (signed) {return evalBinary8plusSigned;}
-    else {       return evalBinary8plus;}
+  if (width > 16) {
+    if (signed) {return evalBinary16plusSigned;}
+    else {       return evalBinary16plus;}
   } else {
     if (signed) {return evalBinarySigned;}
     else {       return evalBinary;}

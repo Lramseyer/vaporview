@@ -21,6 +21,7 @@ export abstract class SignalItem {
   public vscodeContext: string = "";
   public wasRendered: boolean = false;
   public rowHeight: number = 1;
+  public isSelected: boolean = false;
 
   public abstract createLabelElement(): string;
   public abstract createValueDisplayElement(): string;
@@ -42,6 +43,7 @@ export interface RowItem {
   vscodeContext: string;
   wasRendered: boolean;
   rowHeight: number;
+  isSelected: boolean;
   netlistId?: NetlistId;
 
   createLabelElement(): string;
@@ -103,10 +105,8 @@ export class VariableItem extends SignalItem implements RowItem {
 
   public createLabelElement() {
 
-  const rowId         = dataManager.netlistIdTable[this.netlistId];
-  const isMulti       = viewerState.selectedSignals && viewerState.selectedSignals.length > 0;
-  const isSelected    = isMulti ? viewerState.selectedSignals.includes(rowId) : (viewerState.selectedSignal === rowId);
-    const selectorClass = isSelected ? 'is-selected' : '';
+    const rowId         = dataManager.netlistIdTable[this.netlistId];
+    const selectorClass = this.isSelected ? 'is-selected' : '';
     const height        = getRowHeightCssClass(this.rowHeight);
     const signalName    = htmlSafe(this.signalName);
     const scopePath     = htmlSafe(this.scopePath + '.');
@@ -120,12 +120,10 @@ export class VariableItem extends SignalItem implements RowItem {
     }
 
   public createValueDisplayElement() {
-  const rowId = dataManager.netlistIdTable[this.netlistId];
+    const rowId = dataManager.netlistIdTable[this.netlistId];
     let   value = labelsPanel.valueAtMarker[rowId];
     if (value === undefined) {value = [];}
-  const isMulti       = viewerState.selectedSignals && viewerState.selectedSignals.length > 0;
-  const isSelected    = isMulti ? viewerState.selectedSignals.includes(rowId) : (viewerState.selectedSignal === rowId);
-    const selectorClass = isSelected ? 'is-selected' : 'is-idle';
+    const selectorClass = this.isSelected ? 'is-selected' : 'is-idle';
     const height        = getRowHeightCssClass(this.rowHeight);
     const joinString    = '<p style="color:var(--vscode-foreground)">-></p>';
     const parseValue    = this.valueFormat.formatString;
@@ -160,6 +158,9 @@ export class VariableItem extends SignalItem implements RowItem {
   }
 
   public setSignalContextAttribute() {
+    const renderType = this.renderType.id;
+    const isAnalog = renderType === 'linear' || renderType === 'linearSigned' || 
+                    renderType === 'stepped' || renderType === 'steppedSigned';
     this.vscodeContext = `${JSON.stringify({
       webviewSection: "signal",
       scopePath: this.scopePath,
@@ -169,12 +170,13 @@ export class VariableItem extends SignalItem implements RowItem {
       preventDefaultContextMenuItems: true,
       commandValid: this.valueLinkCommand !== "",
       netlistId: this.netlistId,
+      isAnalog: isAnalog,
     }).replace(/\s/g, '%x20')}`;
   }
 
   public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {
-    if (ignoreRowId === this.netlistId) {return [];}
     const rowId = dataManager.netlistIdTable[this.netlistId];
+    if (ignoreRowId === rowId) {return [];}
     return [rowId];
   }
 
@@ -218,11 +220,11 @@ export class VariableItem extends SignalItem implements RowItem {
     // I should probably move this functionally into the data manager
     if (this.encoding !== "Real") {
       if (this.renderType.id === 'steppedSigned' || this.renderType.id === 'linearSigned') {
-        valueChangeChunk.min = Math.max(-Math.pow(2, this.signalWidth - 1), -128);
-        valueChangeChunk.max = Math.min(Math.pow(2, this.signalWidth - 1) - 1, 127);
+        valueChangeChunk.min = Math.max(-Math.pow(2, this.signalWidth - 1), -32768);
+        valueChangeChunk.max = Math.min(Math.pow(2, this.signalWidth - 1) - 1, 32767);
       } else {
         valueChangeChunk.min = 0;
-        valueChangeChunk.max = Math.min(Math.pow(2, this.signalWidth) - 1, 255);
+        valueChangeChunk.max = Math.min(Math.pow(2, this.signalWidth) - 1, 65535);
       }
     }
 
@@ -484,9 +486,7 @@ export class SignalGroup extends SignalItem implements RowItem {
       icon = 'codicon-chevron-down';
       groupClass = 'expanded-group';
     }
-  const isMulti    = viewerState.selectedSignals && viewerState.selectedSignals.length > 0;
-  const isSelected = isMulti ? viewerState.selectedSignals.includes(this.rowId) : (viewerState.selectedSignal === this.rowId);
-    const selectorClass = isSelected ? 'is-selected' : '';
+    const selectorClass = this.isSelected ? 'is-selected' : '';
     //const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
     return `<div class="waveform-label waveform-group is-idle ${groupClass}" id="label-${this.rowId}" data-vscode-context=${this.vscodeContext}>
               <div class="waveform-row ${selectorClass} height1x">${this.createWaveformRowContent()}</div>
@@ -497,9 +497,7 @@ export class SignalGroup extends SignalItem implements RowItem {
   public createValueDisplayElement() {
 
     let   value = labelsPanel.valueAtMarker[this.rowId];
-  const isMulti    = viewerState.selectedSignals && viewerState.selectedSignals.length > 0;
-  const isSelected = isMulti ? viewerState.selectedSignals.includes(this.rowId) : (viewerState.selectedSignal === this.rowId);
-    const selectorClass = isSelected ? 'is-selected' : '';
+    const selectorClass = this.isSelected ? 'is-selected' : '';
     let result = `<div class="value-display-item ${selectorClass} height1x" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}></div>`;
     if (value === undefined) {value = [];}
     if (this.collapseState === CollapseState.Expanded) {
@@ -599,8 +597,13 @@ export class SignalGroup extends SignalItem implements RowItem {
   public collapse() {
     this.collapseState = CollapseState.Collapsed;
     const childRows = this.getFlattenedRowIdList(false, -1);
-    if (viewerState.selectedSignal !== null && childRows.includes(viewerState.selectedSignal)) {
-      events.dispatch(ActionType.SignalSelect, this.rowId);
+    const newSelection = viewerState.selectedSignal.filter((rowId) => !childRows.includes(rowId));
+    let lastSelected = viewerState.lastSelectedSignal;
+    if (viewerState.selectedSignal.length !== newSelection.length) {
+      if (lastSelected !== null && childRows.includes(lastSelected)) {
+        lastSelected = null;
+      }
+      events.dispatch(ActionType.SignalSelect, newSelection, lastSelected);
     }
     labelsPanel.renderLabelsPanels();
     this.showHideViewportRows();

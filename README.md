@@ -45,6 +45,10 @@ Vaporview has a set of commands and event emitters that allow interaction with o
 - Adding custom context menu items
 - Signal value links
 
+## Remote Waveform Viewing
+
+Vaporview allows you to connect to a remote machine and open up waveforms remotely via [VScode Remote Development](https://code.visualstudio.com/docs/remote/ssh) or [Surfer surver](https://gitlab.com/surfer-project/surfer#server-mode-experimental). Remote development should work out of the box, however to connect to a Surfer surver, you will need to enter in the command "**> vaporview.openRemoteViewer**" and paste in the URL for the Surfer surver. Alternatively, if the URL is in a VScode terminal, it can be connected to automatically by clicking on the link.
+
 # Controls
 
 ## Keyboard Shortcuts
@@ -79,7 +83,7 @@ Signals may be added or removed through VaporView view container. Click on the V
 
 ### Adding Signals
 
-To Add a signal, simply check the box next for the netlist element in the "Netlist" view. It will also show in the "Displayed Signals" view.
+To Add a signal, simply click the "+" ocon to the right of the netlist element in the "Netlist" view. It will also show in the "Displayed Signals" view.
 
 **New in 1.4.1:** Signals can also be added by dragging and dropping them from the netlist view to the viewer. Make sure to hold **Shift** before dropping them into the viewer (this is a VScode limitation.)
 
@@ -214,36 +218,22 @@ This extension requires VScode 1.96.0 or later
 
 # Development Roadmap
 
-## 1.4.0 - Latest Release
-
-- Added
-  - Signal grouping in the viewer
-  - API for interoperability with other extensions - see [API Documentation](https://github.com/Lramseyer/vaporview/blob/main/API_DOCS.md) for details
-  - Edge guides feature to highlight edges of a signal
-  - Escape Key to abort some user actions
-  - Ctrl/Cmd + 0 for zoom to fit
-  - Drag to reorder signals now responds to scroll
-  - Status Bar now shows value change count for selected signal
-  - Surfer surver support
-  - Automatically reload waveform on file updates
-- Fixed
-  - Renderer floating point math is much more accurate resulting in less jitter
-  - Revealing signals in viewport scrolls to the signal in question
-- Other Changes and Improvements
-  - Upgraded to wellen 0.18.4 for miscellaneous improvements to file loading
-  - Improved signal loading performance (with LZ4 compression)
-  - updated .vscodeignore file to reduce build size
-
-## 1.4.1 - Upcoming Release
+## 1.4.1 - Latest Release
 
 - Added
   - Drag and drop from netlist view to add variables into the viewer
   - Signal height can now be set to 2x, 4x, and 8x
+  - Analog signals can now be vertically zoomed in and out
   - ASCII value format
+  - Terminal link handler for Surfer Surver
 - API
   - Added (proposed) onDidDropInWaveformViewer event
 - Fixed
-  - Word wrap display glitch in values display casuing "->" indicator to word wrap
+  - Word wrap display glitch in values display causing "->" indicator to word wrap
+  - Labels panel can no longer be resized to a negative width
+- Other
+  - Upgraded to wellen 0.19.0
+  - Updated Netlist icon colors to a more consistent set of colors
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

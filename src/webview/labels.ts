@@ -2,6 +2,7 @@ import { EventHandler, viewport, arrayMove, NetlistId, ActionType, viewerState, 
 import { ValueFormat } from './value_format';
 import { vscode, getParentGroupId } from './vaporview';
 import { SignalGroup, VariableItem, htmlSafe } from './signal_item';
+import { sign } from 'crypto';
 
 export class LabelsPanels {
 
@@ -45,7 +46,7 @@ export class LabelsPanels {
 
   constructor(events: EventHandler) {
     this.events = events;
-    try { console.log('DEBUG WFSELECT labelsVersion', { version: 'v3', timestamp: Date.now() }); } catch(_) {}
+  try { console.log('DEBUG WFSELECT labelsVersion', { version: 'v3', timestamp: Date.now() }); } catch(_){ /* noop */ }
 
     const webview      = document.getElementById('vaporview-top');
     const labels       = document.getElementById('waveform-labels');
@@ -107,7 +108,7 @@ export class LabelsPanels {
 
   renderLabelsPanels() {
     if (viewerState.isBatchRemoving) {
-      try { console.log('DEBUG WFSELECT labels.renderLabelsPanels.SKIP (batch)'); } catch(_e) {}
+      try { console.log('DEBUG WFSELECT labels.renderLabelsPanels.SKIP (batch)'); } catch(_e){ /* noop */ }
       return;
     }
     try {
@@ -145,7 +146,7 @@ export class LabelsPanels {
     const rowId = viewerState.displayedSignals[itemIndex];
     // Multi-select: Shift+Click selects range, Ctrl+Click toggles individual signals
     if (event.shiftKey) {
-      const anchor = viewerState.selectionAnchor ?? viewerState.selectedSignal ?? rowId;
+      const anchor = viewerState.selectionAnchor ?? viewerState.lastSelectedSignal ?? rowId;
       const flat   = viewerState.visibleSignalsFlat;
       const aIdx   = Math.max(0, flat.indexOf(anchor));
       const bIdx   = Math.max(0, flat.indexOf(rowId));
@@ -177,8 +178,7 @@ export class LabelsPanels {
       viewerState.selectionAnchor = rowId;
       console.log('DEBUG WFSELECT value click', { rowId, selectedSignals: viewerState.selectedSignals });
     }
-    this.events.dispatch(ActionType.SignalSelect, rowId);
-  try { (this.webview as HTMLElement).focus(); console.log('DEBUG WFSELECT focusAfterValueClick'); } catch(_) {}
+  try { (this.webview as HTMLElement).focus(); console.log('DEBUG WFSELECT focusAfterValueClick'); } catch(_){ /* noop */ }
 
     // Double-click workaround: trigger open source if two single clicks within 1 second on same row
     const now = Date.now();
@@ -189,6 +189,12 @@ export class LabelsPanels {
     } else {
       this.lastValueClickTime = now;
       this.lastValueClickRowId = rowId;
+    }
+    {
+      const list = (viewerState.selectedSignals && viewerState.selectedSignals.length > 0)
+        ? [...viewerState.selectedSignals]
+        : [rowId];
+      this.events.dispatch(ActionType.SignalSelect, list, rowId);
     }
   }
 
@@ -208,7 +214,7 @@ export class LabelsPanels {
     } else {
       // Multi-select: Shift+Click selects range, Ctrl+Click toggles individual signals
       if (event.shiftKey) {
-        const anchor = viewerState.selectionAnchor ?? viewerState.selectedSignal ?? rowId;
+        const anchor = viewerState.selectionAnchor ?? viewerState.lastSelectedSignal ?? rowId;
         const flat   = viewerState.visibleSignalsFlat;
         const aIdx   = Math.max(0, flat.indexOf(anchor));
         const bIdx   = Math.max(0, flat.indexOf(rowId));
@@ -240,8 +246,7 @@ export class LabelsPanels {
         viewerState.selectionAnchor = rowId;
         console.log('DEBUG WFSELECT label click', { rowId, selectedSignals: viewerState.selectedSignals });
       }
-      this.events.dispatch(ActionType.SignalSelect, rowId);
-  try { (this.webview as HTMLElement).focus(); console.log('DEBUG WFSELECT focusAfterLabelClick'); } catch(_) {}
+  try { (this.webview as HTMLElement).focus(); console.log('DEBUG WFSELECT focusAfterLabelClick'); } catch(_){ /* noop */ }
       // Double-click workaround: trigger open source if two single clicks within 1 second on same row
       const now = Date.now();
       if (this.lastLabelClickRowId === rowId && (now - this.lastLabelClickTime) <= 1000) {
@@ -251,6 +256,12 @@ export class LabelsPanels {
       } else {
         this.lastLabelClickTime = now;
         this.lastLabelClickRowId = rowId;
+      }
+      {
+        const list = (viewerState.selectedSignals && viewerState.selectedSignals.length > 0)
+          ? [...viewerState.selectedSignals]
+          : [rowId];
+        this.events.dispatch(ActionType.SignalSelect, list, rowId);
       }
     }
   }
@@ -380,7 +391,7 @@ export class LabelsPanels {
     this.updateIdleItemsStateAndPosition(event);
   }
 
-  updateIdleItemsStateAndPosition(e: MouseEvent) {
+  updateIdleItemsStateAndPosition(e: MouseEvent | any) {
 
     const labelsRect        = this.labels.getBoundingClientRect();
     const draggableItemY    = e.clientY;
@@ -491,6 +502,7 @@ export class LabelsPanels {
     this.pointerStartY  = null;
     this.draggableItem  = null;
     this.dragActive     = false;
+  if (this.dragDivider) { this.dragDivider.style.display = 'none'; }
   }
 
   public dragEndExternal(event: MouseEvent | KeyboardEvent | null, abort: boolean) {
@@ -513,12 +525,9 @@ export class LabelsPanels {
     if (draggableItemRowId === null || isNaN(draggableItemRowId)) {
       throw new Error("Invalid draggable item row ID: " + draggableItemRowId);
     }
-    const oldGroupId = getParentGroupId(draggableItemRowId) || 0;
-    const oldIndex   = getIndexInGroup(draggableItemRowId, oldGroupId) || 0;
-    let newIndex = initialNewIndex;
-    if (oldGroupId === newGroupId && newIndex > oldIndex) {
-      newIndex = Math.max(newIndex - 1, 0);
-    }
+    // Pass through computed drop index; data_manager will adjust for
+    // intra-group downward moves and multi-select block moves.
+  const newIndex = initialNewIndex;
 
     this.clearDragHandler();
     clearTimeout(this.dragFreezeTimeout);
@@ -576,7 +585,7 @@ export class LabelsPanels {
     this.renameActive     = false;
     signalItem.label      = newName ? newName.trim() : signalItem.label;
     waveformRow.innerHTML = signalItem.createWaveformRowContent();
-    if (viewerState.selectedSignal === signalItem.rowId) {
+    if (viewerState.selectedSignal.includes(signalItem.rowId)) {
       waveformRow.classList.add('is-selected');
     }
     sendWebviewContext();
@@ -606,14 +615,15 @@ export class LabelsPanels {
     const gridTemplateColumns = this.webview.style.gridTemplateColumns;
     const column1 = parseInt(gridTemplateColumns.split(' ')[0]);
     const column2 = parseInt(gridTemplateColumns.split(' ')[1]);
+    const xPosition = Math.max(10, e.x);
 
     if (this.resizeIndex === 1) {
-      this.webview.style.gridTemplateColumns = `${e.x}px ${column2}px auto`;
-      this.resize1.style.left = `${e.x}px`;
-      this.resize2.style.left = `${e.x + column2}px`;
+      this.webview.style.gridTemplateColumns = `${xPosition}px ${column2}px auto`;
+      this.resize1.style.left = `${xPosition}px`;
+      this.resize2.style.left = `${xPosition + column2}px`;
     } else if (this.resizeIndex === 2) {
-      const newWidth    = Math.max(10, e.x - column1);
-      const newPosition = Math.max(10 + column1, e.x);
+      const newWidth    = Math.max(10, xPosition - column1);
+      const newPosition = Math.max(10 + column1, xPosition);
       this.webview.style.gridTemplateColumns = `${column1}px ${newWidth}px auto`;
       this.resize2.style.left = `${newPosition}px`;
     }
@@ -645,22 +655,48 @@ export class LabelsPanels {
     }
   }
 
-  handleSignalSelect(rowId: RowId | null) {
+  selectRowId(rowId: RowId, isSelected: boolean) {
+    const signalItem = dataManager.rowItems[rowId];
+    if (!signalItem) {return;}
+    signalItem.isSelected = isSelected;
+    //const labelElement = signalItem.labelElement;
+    //const valueDisplayElement = signalItem.valueDisplayElement;
+    //if (!labelElement) {return;}
+    //if (!valueDisplayElement) {return;}
+    //if (isSelected) {
+    //  labelElement.children[0].classList.add('is-selected');
+    //  valueDisplayElement.classList.add('is-selected');
+    //} else {
+    //  labelElement.children[0].classList.remove('is-selected');
+    //  valueDisplayElement.classList.remove('is-selected');
+    //}
+  }
+
+  handleSignalSelect(rowIdList: RowId[], lastRowId: RowId | null) {
 
     this.dragActive = false;
     if (this.dragDivider) {this.dragDivider.style.display = 'none';}
-    if (rowId === null) {return;}
+    if (rowIdList.length === 0) {return;}
 
-    viewerState.selectedSignal      = rowId;
-    viewerState.selectedSignalIndex = viewerState.visibleSignalsFlat.findIndex((signal) => {return signal === rowId;});
-    if (viewerState.selectedSignalIndex === -1) {viewerState.selectedSignalIndex = null;}
-    // If no multi-select set yet, default to single selection array
-    if (!viewerState.selectedSignals || viewerState.selectedSignals.length === 0) {
-      viewerState.selectedSignals = [rowId];
-      viewerState.selectionAnchor = rowId;
-    }
-    console.log('DEBUG WFSELECT handleSignalSelect', { rowId, selectedSignalIndex: viewerState.selectedSignalIndex, selectedSignals: viewerState.selectedSignals, selectionAnchor: viewerState.selectionAnchor, visibleFlat: viewerState.visibleSignalsFlat });
+    // Update selection state based on new signature
+    viewerState.selectedSignal = rowIdList;
+    viewerState.selectedSignals = rowIdList;
+    viewerState.lastSelectedSignal = lastRowId;
+    viewerState.selectedSignalIndex = (lastRowId !== null)
+      ? viewerState.visibleSignalsFlat.findIndex((signal) => signal === lastRowId)
+      : null;
+    console.log('DEBUG WFSELECT labels.handleSignalSelect', { lastRowId, selectedSignalIndex: viewerState.selectedSignalIndex, selectedSignals: viewerState.selectedSignals, selectionAnchor: viewerState.selectionAnchor, visibleFlat: viewerState.visibleSignalsFlat });
   
+  if (this.dragDivider) { this.dragDivider.style.display = 'none'; }
+
+    viewerState.visibleSignalsFlat.forEach((rowId) => {
+      this.selectRowId(rowId, false);
+    });
+
+    rowIdList.forEach((rowId) => {
+      this.selectRowId(rowId, true);
+    });
+    //viewerState.selectedSignal = rowIdList;
     this.renderLabelsPanels();
   }
 

@@ -115,8 +115,12 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.addVariableByInstancePathToDocument(e);
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.addVariable', async (e) => {
+    viewerProvider.filterAddSignalsInNetlist([e], true)
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeSignal', (e) => {
-    if (e.netlistId !== undefined) {
+    if (e && e.netlistId !== undefined) {
       viewerProvider.removeSignalFromDocument(e.netlistId);
     }
   }));
@@ -900,13 +904,15 @@ function sameResource(a: vscode.Uri | undefined, b: vscode.Uri | undefined): boo
 
   // #region Vertical Scale
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.increaseVerticalScale', (e) => {
-    console.log("Increasing vertical scale");
     viewerProvider.handleKeyBinding(e, "increaseVerticalScale");
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.decreaseVerticalScale', (e) => {
-    console.log("Decreasing vertical scale");
     viewerProvider.handleKeyBinding(e, "decreaseVerticalScale");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.resetVerticalScale', (e) => {
+    viewerProvider.handleKeyBinding(e, "resetVerticalScale");
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.showRulerLines', (e) => {

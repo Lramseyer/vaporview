@@ -117,17 +117,19 @@ export class WaveformDataManager {
     if (signalList.length === 0) {return;}
 
     let updateFlag     = false;
-    let selectedSignal = viewerState.selectedSignal;
+    //let selectedSignal = viewerState.selectedSignal;
     const signalIdList: any  = [];
     const netlistIdList: any = [];
     const rowIdList: any     = [];
     const moveList: any      = [];
+    let lastRowId: number | null = null;
 
     signalList.forEach((signal: any) => {
 
       const netlistId = signal.netlistId;
       const signalId  = signal.signalId;
       let rowId       = this.nextRowId;
+      lastRowId       = rowId;
 
       if (this.netlistIdTable[netlistId] === undefined) {
         this.netlistIdTable[netlistId] = rowId;
@@ -159,7 +161,7 @@ export class WaveformDataManager {
       netlistIdList.push(netlistId);
 
       if (this.valueChangeData[signalId] !== undefined) {
-        selectedSignal = rowId;
+        //selectedSignal = [rowId];
         updateFlag     = true;
         varItem.cacheValueFormat();
       } else if (this.valueChangeDataTemp[signalId] !== undefined) {
@@ -173,17 +175,17 @@ export class WaveformDataManager {
       }
     });
 
-    this.request(signalIdList);
+  this.request(signalIdList);
 
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowIdList);
 
     updateDisplayedSignalsFlat();
     this.events.dispatch(ActionType.AddVariable, rowIdList, updateFlag);
 
-  let reorder = false;
-  let groupId = 0;
-  let moveIndex: number | undefined;
-  const groupItem = this.getGroupByIdOrName(groupPath, parentGroupId);
+    let reorder = false;
+    let groupId = 0;
+    let moveIndex: number | undefined = undefined;
+    const groupItem = this.getGroupByIdOrName(groupPath, parentGroupId);
     if (groupItem !== null) {
       groupId = groupItem.groupId;
       moveIndex = groupItem.children.length;
@@ -201,7 +203,7 @@ export class WaveformDataManager {
       });
     }
 
-    this.events.dispatch(ActionType.SignalSelect, selectedSignal);
+    this.events.dispatch(ActionType.SignalSelect, rowIdList, lastRowId);
     sendWebviewContext();
   }
 
@@ -249,20 +251,24 @@ export class WaveformDataManager {
   }
 
   renameSignalGroup(groupId: number | undefined, name: string | undefined) {
-    let rowId: number;
-    if (groupId) {
+    let rowId: number | undefined;
+    if (groupId !== undefined) {
       rowId = this.groupIdTable[groupId];
       if (rowId === undefined) {return;}
-    }
-    else {
-      if (viewerState.selectedSignal && viewerState.selectedSignal >= 0) {
-        rowId = viewerState.selectedSignal;
+    } else {
+      // Use focused selection if available; otherwise a single selected row
+      const focus = viewerState.lastSelectedSignal;
+      if (typeof focus === 'number' && focus >= 0) {
+        rowId = focus;
+      } else if (Array.isArray(viewerState.selectedSignals) && viewerState.selectedSignals.length === 1) {
+        rowId = viewerState.selectedSignals[0];
       } else {
         return;
       }
     }
+
     const groupItem = this.rowItems[rowId];
-    if (groupItem instanceof SignalGroup === false) {return;}
+    if (!(groupItem instanceof SignalGroup)) {return;}
     if (name !== undefined && name !== "") {
       groupItem.label = name;
       labelsPanel.renderLabelsPanels();
@@ -514,16 +520,23 @@ export class WaveformDataManager {
   }
 
   getTransitionCount(): number | null {
-  const result = null;
-    if (viewerState.selectedSignal === null) {return result;}
-    if (viewerState.markerTime === null || viewerState.altMarkerTime === null) {return result;}
-    const rowId = viewerState.selectedSignal;
+    // Determine a single selected rowId, supporting focus or single selection
+    let rowId: RowId | null = null;
+    const focus = viewerState.lastSelectedSignal;
+    if (typeof focus === 'number' && focus >= 0) {
+      rowId = focus as RowId;
+    } else if (Array.isArray(viewerState.selectedSignals) && viewerState.selectedSignals.length === 1) {
+      rowId = viewerState.selectedSignals[0];
+    }
+    if (rowId === null) {return null;}
+    if (viewerState.markerTime === null || viewerState.altMarkerTime === null) {return null;}
+
     const netlistData = this.rowItems[rowId];
-    if (netlistData instanceof VariableItem === false) {return result;}
+    if (!(netlistData instanceof VariableItem)) {return null;}
     const signalId = netlistData.signalId;
-    if (this.valueChangeData[signalId] === undefined) {return result;}
+    if (this.valueChangeData[signalId] === undefined) {return null;}
     const vcData = this.valueChangeData[signalId].transitionData;
-    if (vcData === undefined || vcData.length === 0) {return result;}
+    if (!vcData || vcData.length === 0) {return null;}
 
     const startTime = Math.min(viewerState.markerTime, viewerState.altMarkerTime);
     const endTime   = Math.max(viewerState.markerTime, viewerState.altMarkerTime);
@@ -531,11 +544,11 @@ export class WaveformDataManager {
     let endIndex   = this.binarySearch(vcData, endTime);
     let additional = 0;
 
-    if (vcData[endIndex][0] === endTime) {additional = 1;}
-    while (vcData[startIndex][0] < startTime && vcData[startIndex][0] < endTime) {
+    if (vcData[endIndex] && vcData[endIndex][0] === endTime) {additional = 1;}
+    while (vcData[startIndex] && vcData[startIndex][0] < startTime && vcData[startIndex][0] < endTime) {
       startIndex++;
     }
-    while (vcData[endIndex][0] < endTime && endIndex < vcData.length) {
+    while (vcData[endIndex] && vcData[endIndex][0] < endTime && endIndex < vcData.length) {
       endIndex++;
     }
 
@@ -670,6 +683,7 @@ export class WaveformDataManager {
       if (netlistData.renderType.id === "multiBit") {
         netlistData.cacheValueFormat();
       }
+      netlistData.setSignalContextAttribute();
     }
 
     if (message.rowHeight !== undefined) {

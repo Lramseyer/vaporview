@@ -3,17 +3,18 @@ import { NetlistId, SignalId } from './viewer_provider';
 import { VaporviewDocument } from './document';
 
 // Scopes
-const moduleIcon    = new vscode.ThemeIcon('chip',                   new vscode.ThemeColor('charts.purple'));
-const taskIcon      = new vscode.ThemeIcon('debug-stackframe',       new vscode.ThemeColor('charts.blue'));
-const funcIcon      = new vscode.ThemeIcon('symbol-module',          new vscode.ThemeColor('charts.blue'));
-const beginIcon     = new vscode.ThemeIcon('debug-start',            new vscode.ThemeColor('charts.blue'));
-const forkIcon      = new vscode.ThemeIcon('repo-forked',            new vscode.ThemeColor('charts.blue'));
-const structIcon    = new vscode.ThemeIcon('symbol-structure', new vscode.ThemeColor('charts.blue'));
-const unionIcon     = new vscode.ThemeIcon('surround-with',    new vscode.ThemeColor('charts.blue'));
-const classIcon     = new vscode.ThemeIcon('symbol-misc',      new vscode.ThemeColor('charts.blue'));
-const interfaceIcon = new vscode.ThemeIcon('debug-disconnect', new vscode.ThemeColor('charts.purple'));
-const packageIcon   = new vscode.ThemeIcon('package',          new vscode.ThemeColor('charts.purple'));
-const scopeIcon     = new vscode.ThemeIcon('symbol-module',    new vscode.ThemeColor('charts.purple'));
+const scopeColor    = new vscode.ThemeColor('charts.purple');
+const moduleIcon    = new vscode.ThemeIcon('chip',             scopeColor);
+const taskIcon      = new vscode.ThemeIcon('debug-stackframe', scopeColor);
+const funcIcon      = new vscode.ThemeIcon('symbol-module',    scopeColor);
+const beginIcon     = new vscode.ThemeIcon('debug-start',      scopeColor);
+const forkIcon      = new vscode.ThemeIcon('repo-forked',      scopeColor);
+const structIcon    = new vscode.ThemeIcon('symbol-structure', scopeColor);
+const unionIcon     = new vscode.ThemeIcon('surround-with',    scopeColor);
+const classIcon     = new vscode.ThemeIcon('symbol-misc',      scopeColor);
+const interfaceIcon = new vscode.ThemeIcon('debug-disconnect', scopeColor);
+const packageIcon   = new vscode.ThemeIcon('package',          scopeColor);
+const scopeIcon     = new vscode.ThemeIcon('symbol-module',    scopeColor);
 
 export function createScope(
   name: string,
@@ -72,16 +73,20 @@ function bitRangeString(msb: number, lsb: number): string {
 }
 
 // Variables
-const regIcon     = new vscode.ThemeIcon('symbol-array',     new vscode.ThemeColor('charts.green'));
-const wireIcon    = new vscode.ThemeIcon('symbol-interface', new vscode.ThemeColor('charts.pink'));
-const intIcon     = new vscode.ThemeIcon('symbol-variable',  new vscode.ThemeColor('charts.green'));
-const paramIcon   = new vscode.ThemeIcon('settings',         new vscode.ThemeColor('charts.green'));
-const realIcon    = new vscode.ThemeIcon('pulse',            new vscode.ThemeColor('charts.orange'));
-const defaultIcon = new vscode.ThemeIcon('file-binary',      new vscode.ThemeColor('charts.green'));
-const stringIcon  = new vscode.ThemeIcon('symbol-key',       new vscode.ThemeColor('charts.yellow'));
-const portIcon    = new vscode.ThemeIcon('plug',             new vscode.ThemeColor('charts.green'));
-const timeIcon    = new vscode.ThemeIcon('watch',            new vscode.ThemeColor('charts.green'));
-const enumIcon    = new vscode.ThemeIcon('symbol-parameter', new vscode.ThemeColor('charts.green'));
+const chartsGreen  = new vscode.ThemeColor('charts.green');
+const chartsOrange = new vscode.ThemeColor('charts.orange');
+const chartsYellow = new vscode.ThemeColor('charts.yellow');
+const chartsBlue   = new vscode.ThemeColor('charts.blue');
+const regIcon     = new vscode.ThemeIcon('symbol-array',     chartsGreen);
+const wireIcon    = new vscode.ThemeIcon('symbol-interface', chartsGreen);
+const intIcon     = new vscode.ThemeIcon('symbol-variable',  chartsGreen);
+const paramIcon   = new vscode.ThemeIcon('settings',         chartsBlue);
+const realIcon    = new vscode.ThemeIcon('pulse',            chartsOrange);
+const defaultIcon = new vscode.ThemeIcon('file-binary',      chartsGreen);
+const stringIcon  = new vscode.ThemeIcon('symbol-key',       chartsYellow);
+const portIcon    = new vscode.ThemeIcon('plug',             chartsGreen);
+const timeIcon    = new vscode.ThemeIcon('watch',            chartsGreen);
+const enumIcon    = new vscode.ThemeIcon('symbol-parameter', chartsGreen);
 
 export function createVar(
   name: string,

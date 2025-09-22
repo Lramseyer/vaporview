@@ -8,7 +8,7 @@
     "color": "#202020",
     "theme": "dark"
   },
-  "version": "1.4.0",
+  "version": "1.4.1",
   "repository": "https://github.com/lramseyer/vaporview",
   "categories": [
     "Debuggers",
@@ -32,6 +32,7 @@
   "main": "./dist/extension",
   "browser": "./dist/extension",
   "activationEvents": [],
+  "extensionKind": ["workspace"],
   "contributes": {
     "resourceLabelFormatters": [
       {
@@ -211,6 +212,18 @@
       },
       {
         "command": "vaporview.increaseVerticalScale",
+        "key": "alt+numpad_add",
+        "mac": "alt+numpad_add",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
+        "command": "vaporview.decreaseVerticalScale",
+        "key": "alt+numpad_subtract",
+        "mac": "alt+numpad_subtract",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
+        "command": "vaporview.increaseVerticalScale",
         "key": "alt+=",
         "mac": "alt+=",
         "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
@@ -293,6 +306,16 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "vaporview.addVariable",
+          "when": "viewItem == 'netlistVar' && view == 'waveformViewerNetlistView'",
+          "group": "inline@2"
+        },
+        {
+          "command": "vaporview.showInViewer",
+          "when": "viewItem == 'netlistVar' && view == 'waveformViewerNetlistView'",
+          "group": "inline@1"
+        },
         {
           "command": "vaporview.addSelected",
           "when": "viewItem == 'netlistVar' && view == 'waveformViewerNetlistView'",
@@ -399,6 +422,21 @@
           "submenu": "vaporview.rowHeight",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "1_waveform_settings@6"
+        },
+        {
+          "command": "vaporview.increaseVerticalScale",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer' && isAnalog",
+          "group": "1_waveform_settings@7"
+        },
+        {
+          "command": "vaporview.decreaseVerticalScale",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer' && isAnalog",
+          "group": "1_waveform_settings@8"
+        },
+        {
+          "command": "vaporview.resetVerticalScale",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer' && isAnalog",
+          "group": "1_waveform_settings@9"
         },
         {
           "command": "vaporview.removeSignal",
@@ -710,6 +748,11 @@
         "title": "Add Selected"
       },
       {
+        "command": "vaporview.addVariable",
+        "title": "Add Variable",
+        "icon": "$(add)"
+      },
+      {
         "command": "vaporview.addVariableByInstancePath",
         "title": "Add Variable by Name"
       },
@@ -751,7 +794,8 @@
       },
       {
         "command": "vaporview.showInViewer",
-        "title": "Show in Viewer"
+        "title": "Show in Viewer",
+        "icon": "$(inspect)"
       },
       {
         "command": "vaporview.copyName",
@@ -906,6 +950,10 @@
         "title": "Decrease Vertical Scale"
       },
       {
+        "command": "vaporview.resetVerticalScale",
+        "title": "Reset Vertical Scale"
+      },
+      {
         "command": "vaporview.setTimeUnitsSeconds",
         "title": "s"
       },
@@ -1000,10 +1048,10 @@
     "@typescript-eslint/eslint-plugin": "^7.6.0",
     "@typescript-eslint/parser": "^7.6.0",
     "concurrently": "^9.1.0",
-    "esbuild": "^0.20.2",
+    "esbuild": "^0.25.0",
     "eslint": "^8.57.0",
     "npm-run-all": "^4.1.5",
-    "serve": "^14.2.1",
+    "serve": "^14.2.5",
     "ts-loader": "^9.5.1",
     "typescript": "^5.7.2",
     "webpack": "^5.96.1",

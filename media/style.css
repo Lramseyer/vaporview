@@ -43,6 +43,38 @@ body {
   overflow: hidden;
 }
 
+/* Annotate lightweight overlay banner */
+#annotate-overlay {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  z-index: 1000;
+  background: var(--vscode-editorHoverWidget-background);
+  color: var(--vscode-editorHoverWidget-foreground);
+  border: 1px solid var(--vscode-editorHoverWidget-border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  display: none; /* toggled via JS */
+  align-items: center;
+  gap: 6px;
+}
+
+/* Small spinner for annotate checkboxes */
+.annotate-spinner {
+  width: 14px;
+  height: 14px;
+  margin-left: 6px;
+  border: 2px solid var(--vscode-editorWidget-border);
+  border-top: 2px solid var(--vscode-progressBar-background);
+  border-radius: 50%;
+  animation: annotate-spin 1s linear infinite;
+}
+
+@keyframes annotate-spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 #control-bar {
   display: flex;
   grid-column-start: 1;

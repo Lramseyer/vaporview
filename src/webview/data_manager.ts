@@ -1,8 +1,8 @@
-import { SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove, labelsPanel, outputLog, getIndexInGroup, CollapseState } from './vaporview';
+import { SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove, labelsPanel, outputLog, getIndexInGroup, CollapseState, getParentGroupIdList } from './vaporview';
 import { formatBinary, formatHex, ValueFormat, formatString, valueFormatList } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer, signedLinearWaveformRenderer, signedSteppedrWaveformRenderer } from './renderer';
 import { SignalGroup, VariableItem, RowItem } from './signal_item';
-// @ts-ignore
+// @ts-expect-error lz4js has no types
 import * as LZ4 from 'lz4js';
 
 // This will be populated when a custom color is set
@@ -89,7 +89,7 @@ export class WaveformDataManager {
 
   getGroupByIdOrName(groupPath: string[] | undefined, parentGroupId: number | undefined): SignalGroup | null {
     let groupId = 0;
-    let groupIsValid = false;
+  const groupIsValid = false; // retained for future logic / placeholder
 
     if (parentGroupId !== undefined && this.groupIdTable[parentGroupId] !== undefined) {
       groupId = parentGroupId;
@@ -175,7 +175,7 @@ export class WaveformDataManager {
       }
     });
 
-    this.request(signalIdList);
+  this.request(signalIdList);
 
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowIdList);
 
@@ -184,8 +184,8 @@ export class WaveformDataManager {
 
     let reorder = false;
     let groupId = 0;
-    let moveIndex = 0;
-    let groupItem = this.getGroupByIdOrName(groupPath, parentGroupId);
+    let moveIndex: number | undefined = undefined;
+    const groupItem = this.getGroupByIdOrName(groupPath, parentGroupId);
     if (groupItem !== null) {
       groupId = groupItem.groupId;
       moveIndex = groupItem.children.length;
@@ -214,7 +214,7 @@ export class WaveformDataManager {
     let parentGroupId = 0;
     let reorder = false;
     let index = viewerState.displayedSignalsFlat.length;
-    let parentGroup = this.getGroupByIdOrName(groupPath, inputParentGroupId);
+  const parentGroup = this.getGroupByIdOrName(groupPath, inputParentGroupId);
     if (parentGroup !== null) {
       parentGroupId = parentGroup.groupId;
       index = parentGroup.children.length;
@@ -251,20 +251,24 @@ export class WaveformDataManager {
   }
 
   renameSignalGroup(groupId: number | undefined, name: string | undefined) {
-    let rowId: number
-    if (groupId) {
+    let rowId: number | undefined;
+    if (groupId !== undefined) {
       rowId = this.groupIdTable[groupId];
       if (rowId === undefined) {return;}
-    }
-    else {
-      if (viewerState.selectedSignal.length === 1 && viewerState.selectedSignal[0] >= 0) {
-        rowId = viewerState.selectedSignal[0];
+    } else {
+      // Use focused selection if available; otherwise a single selected row
+      const focus = viewerState.lastSelectedSignal;
+      if (typeof focus === 'number' && focus >= 0) {
+        rowId = focus;
+      } else if (Array.isArray(viewerState.selectedSignals) && viewerState.selectedSignals.length === 1) {
+        rowId = viewerState.selectedSignals[0];
       } else {
         return;
       }
     }
+
     const groupItem = this.rowItems[rowId];
-    if (groupItem instanceof SignalGroup === false) {return;}
+    if (!(groupItem instanceof SignalGroup)) {return;}
     if (name !== undefined && name !== "") {
       groupItem.label = name;
       labelsPanel.renderLabelsPanels();
@@ -274,19 +278,26 @@ export class WaveformDataManager {
   }
 
   handleRemoveVariable(rowId: any, recursive: boolean) {
-
+    try {
+      console.log('DEBUG WFSELECT dataManager.handleRemoveVariable.start', {
+        rowId,
+        recursive,
+        displayedSignalsLen: viewerState.displayedSignals.length,
+        displayedFlatLen: viewerState.displayedSignalsFlat.length,
+      });
+    } catch(_err) { /* noop */ }
     const signalItem = this.rowItems[rowId];
     if (!signalItem) {return;}
     let rowIdList: RowId[] = [rowId];
-    let children: number[] = []
+    let children: number[] = [];
     const parentGroupId = getParentGroupId(rowId);
     const indexInGroup = getIndexInGroup(rowId, parentGroupId);
 
     if (recursive) {
-      rowIdList = signalItem.getFlattenedRowIdList(false, -1)
+      rowIdList = signalItem.getFlattenedRowIdList(false, -1);
     } else if (signalItem instanceof SignalGroup) {
       signalItem.collapseState = CollapseState.Expanded;
-      signalItem.showHideViewportRows()
+      signalItem.showHideViewportRows();
       children = signalItem.children;
     }
     if (parentGroupId === 0) {
@@ -304,6 +315,13 @@ export class WaveformDataManager {
     });
 
     updateDisplayedSignalsFlat();
+    try {
+      console.log('DEBUG WFSELECT dataManager.handleRemoveVariable.end', {
+        removedRowIds: rowIdList,
+        newDisplayedSignalsLen: viewerState.displayedSignals.length,
+        newDisplayedFlatLen: viewerState.displayedSignalsFlat.length,
+      });
+    } catch(_err) { /* noop */ }
   }
 
   updateWaveformChunk(message: any) {
@@ -380,7 +398,7 @@ export class WaveformDataManager {
       const decompressedData = LZ4.decompress(fullCompressedData);
       const byteIncrement = 8 + message.signalWidth;
       let time = 0;
-      let transitionData: any[] = [];
+  const transitionData: any[] = [];
       
       // Create DataView once from the entire decompressed data
       const dataView = new DataView(decompressedData.buffer, decompressedData.byteOffset, decompressedData.byteLength);
@@ -502,16 +520,23 @@ export class WaveformDataManager {
   }
 
   getTransitionCount(): number | null {
-    let result = null;
-    if (viewerState.selectedSignal.length !== 1) {return result;}
-    if (viewerState.markerTime === null || viewerState.altMarkerTime === null) {return result;}
-    const rowId = viewerState.selectedSignal[0];
+    // Determine a single selected rowId, supporting focus or single selection
+    let rowId: RowId | null = null;
+    const focus = viewerState.lastSelectedSignal;
+    if (typeof focus === 'number' && focus >= 0) {
+      rowId = focus as RowId;
+    } else if (Array.isArray(viewerState.selectedSignals) && viewerState.selectedSignals.length === 1) {
+      rowId = viewerState.selectedSignals[0];
+    }
+    if (rowId === null) {return null;}
+    if (viewerState.markerTime === null || viewerState.altMarkerTime === null) {return null;}
+
     const netlistData = this.rowItems[rowId];
-    if (netlistData instanceof VariableItem === false) {return result;}
+    if (!(netlistData instanceof VariableItem)) {return null;}
     const signalId = netlistData.signalId;
-    if (this.valueChangeData[signalId] === undefined) {return result;}
+    if (this.valueChangeData[signalId] === undefined) {return null;}
     const vcData = this.valueChangeData[signalId].transitionData;
-    if (vcData === undefined || vcData.length === 0) {return result;}
+    if (!vcData || vcData.length === 0) {return null;}
 
     const startTime = Math.min(viewerState.markerTime, viewerState.altMarkerTime);
     const endTime   = Math.max(viewerState.markerTime, viewerState.altMarkerTime);
@@ -519,11 +544,11 @@ export class WaveformDataManager {
     let endIndex   = this.binarySearch(vcData, endTime);
     let additional = 0;
 
-    if (vcData[endIndex][0] === endTime) {additional = 1;}
-    while (vcData[startIndex][0] < startTime && vcData[startIndex][0] < endTime) {
+    if (vcData[endIndex] && vcData[endIndex][0] === endTime) {additional = 1;}
+    while (vcData[startIndex] && vcData[startIndex][0] < startTime && vcData[startIndex][0] < endTime) {
       startIndex++;
     }
-    while (vcData[endIndex][0] < endTime && endIndex < vcData.length) {
+    while (vcData[endIndex] && vcData[endIndex][0] < endTime && endIndex < vcData.length) {
       endIndex++;
     }
 
@@ -540,23 +565,84 @@ export class WaveformDataManager {
   }
 
   handleReorderSignals(rowId: number, newGroupId: number, newIndex: number) {
+  try { console.log('DEBUG MULTIREORDER start', { rowId, newGroupId, newIndex, selectedSignals: (viewerState.selectedSignals||[]).slice() }); } catch(_){ void 0; }
+    // If multiple rows are selected AND the dragged row is part of the selection,
+    // move the entire selection as a block. Otherwise, move just the dragged row.
+    const selection = viewerState.selectedSignals || [];
+    const isMultiDrag = selection.length > 1 && selection.includes(rowId);
 
-    const oldGroupId = getParentGroupId(rowId) || 0;
-    const oldGroupChildren = getChildrenByGroupId(oldGroupId);
-    const oldIndex = oldGroupChildren.indexOf(rowId);
+    // Order the move set by current visible order to preserve visual sequence
+    let moveIds: RowId[] = [rowId];
+    if (isMultiDrag) {
+      const visibleOrder = viewerState.visibleSignalsFlat;
 
-    if (oldIndex === -1) {return;}
-    if (oldGroupId === newGroupId) {
-      arrayMove(oldGroupChildren, oldIndex, newIndex);
-    } else {
-      oldGroupChildren.splice(oldIndex, 1);
-      const newGroupChildren = getChildrenByGroupId(newGroupId);
-      if (newIndex >= newGroupChildren.length) {
-        newGroupChildren.push(rowId);
-      } else {
-        newGroupChildren.splice(newIndex, 0, rowId);
-      }
+      // If a group is selected, avoid moving its descendants separately (roots only)
+      const selectedGroupIds = new Set<number>();
+      selection.forEach((rid) => {
+        const item = this.rowItems[rid];
+        if (item instanceof SignalGroup) { selectedGroupIds.add(item.groupId); }
+      });
+
+      const rootsOnly = selection.filter((rid) => {
+        const item = this.rowItems[rid];
+        if (item instanceof SignalGroup) { return true; }
+        // Exclude any item whose ancestor group is also selected
+        const ancestors = getParentGroupIdList(rid) || [];
+        return !ancestors.some((gid) => selectedGroupIds.has(gid));
+      });
+
+      moveIds = visibleOrder.filter((rid) => rootsOnly.includes(rid));
+  try { console.log('DEBUG MULTIREORDER computed roots/moveIds', { rootsOnly, moveIds }); } catch(_){ void 0; }
     }
+
+    // Compute insertion index adjustment: if items are being moved from the same
+    // destination group and appear before the drop index, subtract their count.
+    const targetChildrenPre = getChildrenByGroupId(newGroupId);
+    let adjustedIndex = Math.max(0, Math.min(newIndex, targetChildrenPre.length));
+    const preRemovalInTarget = moveIds
+      .map((id) => ({ id, parent: getParentGroupId(id) || 0, idx: getIndexInGroup(id, null) }))
+      .filter((e) => e.parent === newGroupId && e.idx < adjustedIndex)
+      .length;
+    adjustedIndex -= preRemovalInTarget;
+  try { console.log('DEBUG MULTIREORDER index adjust', { targetLen: targetChildrenPre.length, newIndex, preRemovalInTarget, adjustedIndex }); } catch(_){ void 0; }
+
+    // Remove all moveIds from their respective parent arrays.
+    // Group by parent and remove in descending index order for stability.
+    const groupedByParent = new Map<number, { id: RowId; idx: number }[]>();
+    moveIds.forEach((id) => {
+      const parent = getParentGroupId(id) || 0;
+      const idx = getIndexInGroup(id, parent);
+      if (idx < 0) { return; }
+      const bucket = groupedByParent.get(parent) || [];
+      bucket.push({ id, idx });
+      groupedByParent.set(parent, bucket);
+    });
+    groupedByParent.forEach((arr, parentId) => {
+      arr.sort((a, b) => b.idx - a.idx);
+      const children = getChildrenByGroupId(parentId);
+  try { console.log('DEBUG MULTIREORDER removing from parent', { parentId, removeCount: arr.length, beforeLen: children.length, arr }); } catch(_){ void 0; }
+      arr.forEach(({ id, idx }) => {
+        // Trust idx when valid, else fallback to search
+        if (idx >= 0 && children[idx] === id) {
+          children.splice(idx, 1);
+        } else {
+          const pos = children.indexOf(id);
+          if (pos >= 0) { children.splice(pos, 1); }
+        }
+      });
+  try { console.log('DEBUG MULTIREORDER parent after remove', { parentId, afterLen: children.length }); } catch(_){ void 0; }
+    });
+
+    // Re-resolve destination children after removals (it may be one of the source parents)
+    const destChildren = getChildrenByGroupId(newGroupId);
+    adjustedIndex = Math.max(0, Math.min(adjustedIndex, destChildren.length));
+  try { console.log('DEBUG MULTIREORDER insert phase', { newGroupId, adjustedIndex, destLen: destChildren.length, moveIds }); } catch(_){ void 0; }
+
+    // Insert in preserved order
+    moveIds.forEach((id, i) => {
+      destChildren.splice(adjustedIndex + i, 0, id);
+    });
+  try { console.log('DEBUG MULTIREORDER end', { newGroupId, finalDestLen: destChildren.length }); } catch(_){ void 0; }
   }
 
   setDisplayFormat(message: any) {

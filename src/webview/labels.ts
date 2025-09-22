@@ -38,8 +38,15 @@ export class LabelsPanels {
   renameActive: boolean      = false;
   valueAtMarker: any         = {};
 
+  // Double-click workaround state (two single clicks within 1s)
+  private lastLabelClickTime: number = 0;
+  private lastLabelClickRowId: RowId | null = null;
+  private lastValueClickTime: number = 0;
+  private lastValueClickRowId: RowId | null = null;
+
   constructor(events: EventHandler) {
     this.events = events;
+  try { console.log('DEBUG WFSELECT labelsVersion', { version: 'v3', timestamp: Date.now() }); } catch(_){ /* noop */ }
 
     const webview      = document.getElementById('vaporview-top');
     const labels       = document.getElementById('waveform-labels');
@@ -76,9 +83,14 @@ export class LabelsPanels {
     this.handleRedrawVariable  = this.handleRedrawVariable.bind(this);
     this.handleUpdateColor     = this.handleUpdateColor.bind(this);
 
-    // Event handlers to handle clicking on a waveform label to select a signal
-    labels.addEventListener(      'click', (e) => this.clicklabel(e));
-    valueDisplay.addEventListener('click', (e) => this.clickValueDisplay(e));
+  // Event handlers to handle clicking on a waveform label to select a signal
+  labels.addEventListener(      'click', (e) => this.clicklabel(e));
+  valueDisplay.addEventListener('click', (e) => this.clickValueDisplay(e));
+  console.log('DEBUG WFSELECT labels listeners attached');
+
+  // Double-click handlers to open source for a signal
+  labels.addEventListener('dblclick', (e) => this.handleOpenSourceFromLabels(e));
+  valueDisplay.addEventListener('dblclick', (e) => this.handleOpenSourceFromValues(e));
     // resize handler to handle column resizing
     resize1.addEventListener("mousedown",   (e) => {this.handleResizeMousedown(e, resize1, 1);});
     resize2.addEventListener("mousedown",   (e) => {this.handleResizeMousedown(e, resize2, 2);});
@@ -95,6 +107,18 @@ export class LabelsPanels {
   }
 
   renderLabelsPanels() {
+    if (viewerState.isBatchRemoving) {
+      try { console.log('DEBUG WFSELECT labels.renderLabelsPanels.SKIP (batch)'); } catch(_e){ /* noop */ }
+      return;
+    }
+    try {
+      console.log('DEBUG WFSELECT labels.renderLabelsPanels.start', {
+        displayedSignals: viewerState.displayedSignals.length,
+        displayedFlat: viewerState.displayedSignalsFlat.length,
+        visibleFlat: viewerState.visibleSignalsFlat.length,
+        stack: (new Error()).stack?.split('\n').slice(1,4)
+      });
+    } catch(_err) { /* noop */ }
     this.labelsList  = [];
     const transitions: string[] = [];
     this.labelsList.push('<svg id="drag-divider" style="top: 0px; display:none; pointer-events: none;"><line x1="0" y1="0" x2="100%" y2="0"></line></svg>');
@@ -105,18 +129,77 @@ export class LabelsPanels {
     });
     this.labels.innerHTML       = this.labelsList.join('');
     this.valueDisplay.innerHTML = transitions.join('');
+    try {
+      console.log('DEBUG WFSELECT labels.renderLabelsPanels.end', {
+        labelsChildren: this.labels.childElementCount,
+        valueChildren: this.valueDisplay.childElementCount
+      });
+    } catch(_err) { /* noop */ }
   }
 
   clickValueDisplay(event: any) {
+    console.log('DEBUG WFSELECT enter clickValueDisplay', { shiftKey: !!event.shiftKey, target: (event.target && event.target.className) });
     const labelsList   = Array.from(this.valueDisplay.querySelectorAll('.value-display-item'));
     const clickedLabel = event.target.closest('.value-display-item');
     const itemIndex    = labelsList.indexOf(clickedLabel);
     if (itemIndex === -1) {return;}
     const rowId = viewerState.displayedSignals[itemIndex];
-    this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
+    // Multi-select: Shift+Click selects range, Ctrl+Click toggles individual signals
+    if (event.shiftKey) {
+      const anchor = viewerState.selectionAnchor ?? viewerState.lastSelectedSignal ?? rowId;
+      const flat   = viewerState.visibleSignalsFlat;
+      const aIdx   = Math.max(0, flat.indexOf(anchor));
+      const bIdx   = Math.max(0, flat.indexOf(rowId));
+      const [start, end] = aIdx <= bIdx ? [aIdx, bIdx] : [bIdx, aIdx];
+      viewerState.selectedSignals = flat.slice(start, end + 1);
+      viewerState.selectionAnchor = anchor;
+      console.log('DEBUG WFSELECT value shift-click', { anchor, rowId, aIdx, bIdx, start, end, selectedSignals: viewerState.selectedSignals });
+    } else if (event.ctrlKey || event.metaKey) {
+      // Ctrl+Click: Toggle individual signal in selection
+      if (!viewerState.selectedSignals) {
+        viewerState.selectedSignals = [rowId];
+      } else {
+        const index = viewerState.selectedSignals.indexOf(rowId);
+        if (index >= 0) {
+          // Remove from selection
+          viewerState.selectedSignals = viewerState.selectedSignals.filter(id => id !== rowId);
+        } else {
+          // Add to selection
+          viewerState.selectedSignals = [...viewerState.selectedSignals, rowId];
+        }
+      }
+      // Keep the first signal as anchor, or use current if none selected
+      if (!viewerState.selectionAnchor && viewerState.selectedSignals.length > 0) {
+        viewerState.selectionAnchor = viewerState.selectedSignals[0];
+      }
+      console.log('DEBUG WFSELECT value ctrl-click', { rowId, selectedSignals: viewerState.selectedSignals });
+    } else {
+      viewerState.selectedSignals = [rowId];
+      viewerState.selectionAnchor = rowId;
+      console.log('DEBUG WFSELECT value click', { rowId, selectedSignals: viewerState.selectedSignals });
+    }
+  try { (this.webview as HTMLElement).focus(); console.log('DEBUG WFSELECT focusAfterValueClick'); } catch(_){ /* noop */ }
+
+    // Double-click workaround: trigger open source if two single clicks within 1 second on same row
+    const now = Date.now();
+    if (this.lastValueClickRowId === rowId && (now - this.lastValueClickTime) <= 1000) {
+      this.openSourceForRowId(rowId);
+      this.lastValueClickTime = 0;
+      this.lastValueClickRowId = null;
+    } else {
+      this.lastValueClickTime = now;
+      this.lastValueClickRowId = rowId;
+    }
+    {
+      const list = (viewerState.selectedSignals && viewerState.selectedSignals.length > 0)
+        ? [...viewerState.selectedSignals]
+        : [rowId];
+      this.events.dispatch(ActionType.SignalSelect, list, rowId);
+    }
   }
 
   clicklabel (event: any) {
+    console.log('DEBUG WFSELECT enter clicklabel', { shiftKey: !!event.shiftKey, target: (event.target && event.target.className) });
     if (this.dragInProgress) {return;}
     if (this.renameActive) {return;}
     const clickedLabel = event.target.closest('.waveform-label');
@@ -129,7 +212,57 @@ export class LabelsPanels {
           dataManager.rowItems[rowId].toggleCollapse();
         }
     } else {
-      this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
+      // Multi-select: Shift+Click selects range, Ctrl+Click toggles individual signals
+      if (event.shiftKey) {
+        const anchor = viewerState.selectionAnchor ?? viewerState.lastSelectedSignal ?? rowId;
+        const flat   = viewerState.visibleSignalsFlat;
+        const aIdx   = Math.max(0, flat.indexOf(anchor));
+        const bIdx   = Math.max(0, flat.indexOf(rowId));
+        const [start, end] = aIdx <= bIdx ? [aIdx, bIdx] : [bIdx, aIdx];
+        viewerState.selectedSignals = flat.slice(start, end + 1);
+        viewerState.selectionAnchor = anchor;
+        console.log('DEBUG WFSELECT label shift-click', { anchor, rowId, aIdx, bIdx, start, end, selectedSignals: viewerState.selectedSignals });
+      } else if (event.ctrlKey || event.metaKey) {
+        // Ctrl+Click: Toggle individual signal in selection
+        if (!viewerState.selectedSignals) {
+          viewerState.selectedSignals = [rowId];
+        } else {
+          const index = viewerState.selectedSignals.indexOf(rowId);
+          if (index >= 0) {
+            // Remove from selection
+            viewerState.selectedSignals = viewerState.selectedSignals.filter(id => id !== rowId);
+          } else {
+            // Add to selection
+            viewerState.selectedSignals = [...viewerState.selectedSignals, rowId];
+          }
+        }
+        // Keep the first signal as anchor, or use current if none selected
+        if (!viewerState.selectionAnchor && viewerState.selectedSignals.length > 0) {
+          viewerState.selectionAnchor = viewerState.selectedSignals[0];
+        }
+        console.log('DEBUG WFSELECT label ctrl-click', { rowId, selectedSignals: viewerState.selectedSignals });
+      } else {
+        viewerState.selectedSignals = [rowId];
+        viewerState.selectionAnchor = rowId;
+        console.log('DEBUG WFSELECT label click', { rowId, selectedSignals: viewerState.selectedSignals });
+      }
+  try { (this.webview as HTMLElement).focus(); console.log('DEBUG WFSELECT focusAfterLabelClick'); } catch(_){ /* noop */ }
+      // Double-click workaround: trigger open source if two single clicks within 1 second on same row
+      const now = Date.now();
+      if (this.lastLabelClickRowId === rowId && (now - this.lastLabelClickTime) <= 1000) {
+        this.openSourceForRowId(rowId);
+        this.lastLabelClickTime = 0;
+        this.lastLabelClickRowId = null;
+      } else {
+        this.lastLabelClickTime = now;
+        this.lastLabelClickRowId = rowId;
+      }
+      {
+        const list = (viewerState.selectedSignals && viewerState.selectedSignals.length > 0)
+          ? [...viewerState.selectedSignals]
+          : [rowId];
+        this.events.dispatch(ActionType.SignalSelect, list, rowId);
+      }
     }
   }
 
@@ -189,6 +322,7 @@ export class LabelsPanels {
   }
 
   dragStart(event: any) {
+    console.log('DEBUG WFSELECT dragStart', { button: event.button, target: (event.target && event.target.className) });
     if (event.button !== 0) {return;} // Only allow left mouse button drag
     if (this.renameActive) {return;} // Prevent drag if rename is active
     //event.preventDefault();
@@ -226,7 +360,7 @@ export class LabelsPanels {
       this.draggableItem.classList.add('is-draggable');
     }
     this.dragDivider = this.labels.querySelector('#drag-divider');
-    if (this.dragDivider) {this.dragDivider.style.display = 'block'};
+    if (this.dragDivider) {this.dragDivider.style.display = 'block';}
     this.dragInProgress = true;
   }
 
@@ -257,7 +391,7 @@ export class LabelsPanels {
     this.updateIdleItemsStateAndPosition(event);
   }
 
-  updateIdleItemsStateAndPosition(e: any) {
+  updateIdleItemsStateAndPosition(e: MouseEvent | any) {
 
     const labelsRect        = this.labels.getBoundingClientRect();
     const draggableItemY    = e.clientY;
@@ -368,7 +502,7 @@ export class LabelsPanels {
     this.pointerStartY  = null;
     this.draggableItem  = null;
     this.dragActive     = false;
-    if (this.dragDivider) {this.dragDivider.style.display = 'none'};
+  if (this.dragDivider) { this.dragDivider.style.display = 'none'; }
   }
 
   public dragEndExternal(event: MouseEvent | KeyboardEvent | null, abort: boolean) {
@@ -385,17 +519,15 @@ export class LabelsPanels {
     if (!this.draggableItem) {return;}
     if (event) {event.preventDefault();}
 
-    let {newGroupId, newIndex} = this.getDropIndex();
+    const {newGroupId, newIndex: initialNewIndex} = this.getDropIndex();
 
     const draggableItemRowId = this.getRowIdFromElement(this.draggableItem);
     if (draggableItemRowId === null || isNaN(draggableItemRowId)) {
       throw new Error("Invalid draggable item row ID: " + draggableItemRowId);
     }
-    const oldGroupId = getParentGroupId(draggableItemRowId) || 0;
-    const oldIndex   = getIndexInGroup(draggableItemRowId, oldGroupId) || 0;
-    if (oldGroupId === newGroupId && newIndex > oldIndex) {
-      newIndex = Math.max(newIndex - 1, 0);
-    }
+    // Pass through computed drop index; data_manager will adjust for
+    // intra-group downward moves and multi-select block moves.
+  const newIndex = initialNewIndex;
 
     this.clearDragHandler();
     clearTimeout(this.dragFreezeTimeout);
@@ -543,8 +675,19 @@ export class LabelsPanels {
   handleSignalSelect(rowIdList: RowId[], lastRowId: RowId | null) {
 
     this.dragActive = false;
-    if (this.dragDivider) {this.dragDivider.style.display = 'none'};
+    if (this.dragDivider) {this.dragDivider.style.display = 'none';}
     if (rowIdList.length === 0) {return;}
+
+    // Update selection state based on new signature
+    viewerState.selectedSignal = rowIdList;
+    viewerState.selectedSignals = rowIdList;
+    viewerState.lastSelectedSignal = lastRowId;
+    viewerState.selectedSignalIndex = (lastRowId !== null)
+      ? viewerState.visibleSignalsFlat.findIndex((signal) => signal === lastRowId)
+      : null;
+    console.log('DEBUG WFSELECT labels.handleSignalSelect', { lastRowId, selectedSignalIndex: viewerState.selectedSignalIndex, selectedSignals: viewerState.selectedSignals, selectionAnchor: viewerState.selectionAnchor, visibleFlat: viewerState.visibleSignalsFlat });
+  
+  if (this.dragDivider) { this.dragDivider.style.display = 'none'; }
 
     viewerState.visibleSignalsFlat.forEach((rowId) => {
       this.selectRowId(rowId, false);
@@ -563,5 +706,38 @@ export class LabelsPanels {
 
   handleUpdateColor() {
     this.renderLabelsPanels();
+  }
+
+  private handleOpenSourceFromLabels(event: MouseEvent) {
+    const clickedLabel = (event.target as HTMLElement)?.closest('.waveform-label') as HTMLElement | null;
+    const rowId = this.getRowIdFromElement(clickedLabel);
+    if (rowId === null || isNaN(rowId)) {return;}
+    console.log('DEBUG MOUSEDC labels dblclick rowId=', rowId);
+    this.openSourceForRowId(rowId);
+  }
+
+  private handleOpenSourceFromValues(event: MouseEvent) {
+    const clicked = (event.target as HTMLElement)?.closest('.value-display-item') as HTMLElement | null;
+    if (!clicked) {return;}
+    const labelsList = Array.from(this.valueDisplay.querySelectorAll('.value-display-item'));
+    const itemIndex  = labelsList.indexOf(clicked);
+    if (itemIndex === -1) {return;}
+    const rowId = viewerState.displayedSignals[itemIndex];
+    if (rowId === null || isNaN(rowId)) {return;}
+    console.log('DEBUG MOUSEDC values dblclick rowId=', rowId);
+    this.openSourceForRowId(rowId);
+  }
+
+  private openSourceForRowId(rowId: RowId) {
+    const item = dataManager.rowItems[rowId];
+    if (!(item instanceof VariableItem)) {return;}
+    let instancePath = item.signalName;
+    if (item.scopePath && item.scopePath !== '') {instancePath = item.scopePath + '.' + item.signalName;}
+    console.log('DEBUG MOUSEDC openSourceForRowId instancePath=', instancePath, 'uri=', viewerState.uri);
+    vscode.postMessage({
+      command: 'executeCommand',
+      commandName: 'vaporview.openSource',
+      args: { instancePath, uri: viewerState.uri }
+    });
   }
 }

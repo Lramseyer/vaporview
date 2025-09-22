@@ -290,6 +290,20 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     };
   }
 
+  public getAllInstancePaths(): string[] {
+    const result: string[] = [];
+    // netlistIdTable length equals varcount (set in setMetadata)
+    for (let i = 0; i < this.netlistIdTable.length; i++) {
+      try {
+        const info: any = this.getNameFromNetlistId(i as any);
+        if (info?.name && typeof info.name === 'string') {
+          result.push(info.name);
+        }
+      } catch { /* ignore individual resolution errors */ }
+    }
+    return result;
+  }
+
   public toStringWithCommas(n: number) {return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");}
 
   public formatTime(time: number, unit: string) {
@@ -357,7 +371,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
         uri: this.uri,
         instancePath: getInstancePath(metadata),
         netlistId: metadata.netlistId,
-      })
+      });
     });
     this.webviewPanel.webview.postMessage({
       command: 'add-variable',
@@ -391,7 +405,26 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
       uri: this.uri,
       instancePath: getInstancePath(metadata),
       netlistId: metadata.netlistId,
-    })
+    });
+  }
+
+  public removeSignalsBatchFromWebview(netlistIds: NetlistId[]) {
+    if (!this.webviewPanel) {return;}
+    if (netlistIds.length === 0) {return;}
+    this.webviewPanel.webview.postMessage({
+      command: 'remove-signal-batch',
+      netlistIds: netlistIds
+    });
+    netlistIds.forEach((netlistId) => {
+      const metadata = this.netlistIdTable[netlistId]?.netlistItem;
+      if (!metadata) {return;}
+      this._delegate.emitEvent({
+        eventType: 'removeVariable',
+        uri: this.uri,
+        instancePath: getInstancePath(metadata),
+        netlistId: metadata.netlistId,
+      });
+    });
   }
 
   public async unloadTreeData() {

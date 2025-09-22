@@ -4,7 +4,6 @@ import { WaveformRenderer } from "./renderer";
 import { customColorKey } from "./data_manager";
 import { vscode, labelsPanel } from "./vaporview";
 import { LabelsPanels } from "./labels";
-import { group } from "console";
 
 export function htmlSafe(string: string) {
   return string.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -16,24 +15,24 @@ export function htmlAttributeSafe(string: string) {
 
 export abstract class SignalItem {
 
-  public labelElement: HTMLElement | null = null
-  public valueDisplayElement: HTMLElement | null = null
-  public viewportElement: HTMLElement | null = null
+  public labelElement: HTMLElement | null = null;
+  public valueDisplayElement: HTMLElement | null = null;
+  public viewportElement: HTMLElement | null = null;
   public vscodeContext: string = "";
   public wasRendered: boolean = false;
   public rowHeight: number = 1;
   public isSelected: boolean = false;
 
-  public abstract createLabelElement(): string
-  public abstract createValueDisplayElement(): string
-  public abstract getValueAtTime(time: number): string[]
-  public getNearestTransition(time: number) {return null}
+  public abstract createLabelElement(): string;
+  public abstract createValueDisplayElement(): string;
+  public abstract getValueAtTime(time: number): string[];
+  public getNearestTransition(time: number) {return null;}
   public formatVlaue(value: any): string {return "";}
   public renderWaveform() {return;}
   public handleValueLink(time: number, snapToTime: number) {return;}
   public getAllEdges(valueList: string[]): number[] {return [];}
   public getNextEdge(time: number, direction: number, valueList: string[]): number | null {return null;}
-  public abstract resize(): void
+  public abstract resize(): void;
   public dispose() {return;}
 }
 
@@ -76,8 +75,8 @@ export class VariableItem extends SignalItem implements RowItem {
   public formattedValues: string[] = [];
   public formatValid: boolean = false;
   public wasRendered: boolean = false;
-  public canvas: HTMLCanvasElement | null = null
-  public ctx: CanvasRenderingContext2D | null = null
+  public canvas: HTMLCanvasElement | null = null;
+  public ctx: CanvasRenderingContext2D | null = null;
   public verticalScale: number = 1;
 
   constructor(
@@ -387,7 +386,7 @@ export class VariableItem extends SignalItem implements RowItem {
         if (elementX >= min && elementX <= max) {
           valueIndex = i;
         }
-      })
+      });
     }
 
     // store a pointer to the netlistData object for a keydown event handler
@@ -439,7 +438,7 @@ export class VariableItem extends SignalItem implements RowItem {
       value: value,
       formattedValue: formattedValue,
       time: timeValue,
-    }
+    };
 
     vscode.postMessage({ command: 'executeCommand', commandName: command, args: event });
   }
@@ -469,7 +468,7 @@ export class SignalGroup extends SignalItem implements RowItem {
   }
 
   public createWaveformRowContent() {
-    let icon = this.collapseState === CollapseState.Expanded ? 
+    const icon = this.collapseState === CollapseState.Expanded ? 
       'codicon-chevron-down' : 'codicon-chevron-right';
     return `<div class='codicon ${icon}'></div><p>${this.label}</p>`;
   }

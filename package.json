@@ -58,11 +58,13 @@
       "vaporViewActivityBar": [
         {
           "id": "waveformViewerNetlistView",
-          "name": "Netlist"
+          "name": "Netlist",
+          "icon": "media/activityBar.svg"
         },
         {
           "id": "waveformViewerDisplayedSignalsView",
-          "name": "Displayed Signals"
+          "name": "Displayed Signals",
+          "icon": "media/activityBar.svg"
         }
       ]
     },
@@ -231,6 +233,24 @@
         "key": "alt+-",
         "mac": "alt+-",
         "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
+        "command": "vaporview.deleteSelectedSignals",
+        "key": "Delete",
+        "mac": "Delete",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
+        "command": "vaporview.deleteSelectedSignals",
+        "key": "Backspace",
+        "mac": "Backspace",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
+        "command": "vaporview.selectAllSignals",
+        "key": "ctrl+a",
+        "mac": "cmd+a",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
       }
     ],
     "submenus": [
@@ -358,6 +378,12 @@
         }
       ],
       "webview/context": [
+        {
+          "command": "vaporview.openSource",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "group": "2_variables@0",
+          "icon": "$(go-to-file)"
+        },
         {
           "submenu": "vaporview.timeUnit",
           "group": "1_default@1"
@@ -681,6 +707,11 @@
     },
     "commands": [
       {
+        "command": "vaporview.openSource",
+        "title": "Open Source",
+        "icon": "$(go-to-file)"
+      },
+      {
         "command": "vaporview.openFile",
         "title": "Open File with VaporView"
       },
@@ -736,6 +767,14 @@
       {
         "command": "vaporview.removeSelectedNetlist",
         "title": "Remove Selected"
+      },
+      {
+        "command": "vaporview.deleteSelectedSignals", 
+        "title": "Delete Selected Signals"
+      },
+      {
+        "command": "vaporview.selectAllSignals",
+        "title": "Select All Signals"
       },
       {
         "command": "vaporview.removeSelectedDisplayedSignals",

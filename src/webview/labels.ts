@@ -1,4 +1,4 @@
-import { EventHandler, viewport, arrayMove, NetlistId, ActionType, viewerState, dataManager, RowId, getChildrenByGroupId, getIndexInGroup, sendWebviewContext} from './vaporview';
+import { EventHandler, viewport, arrayMove, NetlistId, ActionType, viewerState, dataManager, RowId, getChildrenByGroupId, getIndexInGroup, sendWebviewContext, handleClickSelection} from './vaporview';
 import { ValueFormat } from './value_format';
 import { vscode, getParentGroupId } from './vaporview';
 import { SignalGroup, VariableItem, htmlSafe } from './signal_item';
@@ -17,11 +17,14 @@ export class LabelsPanels {
   resize1: HTMLElement;
   resize2: HTMLElement;
   dragDivider: HTMLElement | null = null;
+  dragCursorTag: HTMLElement | null = null;
+  dragCursorText: string = "";
 
   // drag handler variables
   labelsList: any            = [];
   idleItems: any             = [];
   idleGroups: any            = [];
+  draggableRows: RowId[]     = [];
   draggableItem: any         = null;
   closestItem: any           = null;
   groupContainer: any        = null;
@@ -98,6 +101,7 @@ export class LabelsPanels {
     this.labelsList  = [];
     const transitions: string[] = [];
     this.labelsList.push('<svg id="drag-divider" style="top: 0px; display:none; pointer-events: none;"><line x1="0" y1="0" x2="100%" y2="0"></line></svg>');
+    this.labelsList.push('<div id="draggable-cursor-tag" class="draggable-label" style="position: fixed; top: 0px; display:none; pointer-events: none;">clock</div>');
     viewerState.displayedSignals.forEach((rowId, index) => {
       const netlistData = dataManager.rowItems[rowId];
       this.labelsList.push(netlistData.createLabelElement());
@@ -113,7 +117,8 @@ export class LabelsPanels {
     const itemIndex    = labelsList.indexOf(clickedLabel);
     if (itemIndex === -1) {return;}
     const rowId = viewerState.displayedSignals[itemIndex];
-    this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
+    //this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
+    handleClickSelection(event, rowId);
   }
 
   clicklabel (event: any) {
@@ -129,7 +134,8 @@ export class LabelsPanels {
           dataManager.rowItems[rowId].toggleCollapse();
         }
     } else {
-      this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
+      //this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
+      handleClickSelection(event, rowId);
     }
   }
 
@@ -159,22 +165,50 @@ export class LabelsPanels {
     this.dragActive        = true;
   }
 
-  setIdleItemsState(rowId: RowId) {
+  setIdleItemsState(rowIdList: RowId[]) {
     // find all idle items and idle expanded dropus
-    this.idleItems = [];
-    this.idleGroups = [];
-    let idleRowIds: number[] = [];
-    viewerState.displayedSignals.forEach((id: RowId) => {
-      if (id === rowId) {return;} // Skip the dragged item itself
-      const signalItem = dataManager.rowItems[id];
-      const rowIdList = signalItem.getFlattenedRowIdList(true, rowId);
-      idleRowIds = idleRowIds.concat(rowIdList);
+
+    const draggableSignals: RowId[] = [];
+    const draggableGroups: RowId[]  = [];
+    this.draggableRows = [];
+
+    const topLevelRowIds = dataManager.removeChildrenFromSignalList(rowIdList);
+    topLevelRowIds.forEach((rowId) => {
+      const signalItem = dataManager.rowItems[rowId];
+      if (signalItem instanceof SignalGroup) {
+        const children = signalItem.getFlattenedRowIdList(false, -1);
+        const childGroups = children.filter((id) => dataManager.rowItems[id] instanceof SignalGroup);
+        draggableGroups.push(...childGroups);
+        this.draggableRows.push(...children);
+      } else if (signalItem instanceof VariableItem) {
+        draggableSignals.push(rowId);
+        this.draggableRows.push(rowId);
+      }
     });
 
-    idleRowIds.forEach((id: RowId) => {
+    this.idleItems = [];
+    this.idleGroups = [];
+    //const draggableRows = draggableSignals.concat(draggableGroups);
+    //let idleRowIds: number[] = [];
+    //viewerState.displayedSignals.forEach((id: RowId) => {
+    //  if (draggableRows.includes(id)) {return;}
+    //  const signalItem = dataManager.rowItems[id];
+    //  const children = signalItem.getFlattenedRowIdList(true, -1);
+    //  const idleRows = children.filter((childId) => !draggableRows.includes(childId));
+    //  idleRowIds = idleRowIds.concat(idleRows);
+    //});
+    this.draggableRows.forEach((id) => {
       const element = this.labels.querySelector(`#label-${id}`);
+      if (element) {
+        element.classList.remove('is-idle');
+        this.idleItems.push(element);
+      }
+    });
+
+    viewerState.visibleSignalsFlat.forEach((id: RowId) => {
       const signalItem = dataManager.rowItems[id];
-      if (signalItem instanceof SignalGroup) {
+      if (signalItem instanceof SignalGroup && !draggableGroups.includes(id)) {
+        const element = this.labels.querySelector(`#label-${id}`);
         if (element) {
           const boundingBox = element.getBoundingClientRect();
           this.idleGroups.push({
@@ -186,6 +220,10 @@ export class LabelsPanels {
         }
       }
     });
+
+    if (rowIdList.length > 1) {
+      this.dragCursorText = rowIdList.length.toString();
+    }
   }
 
   dragStart(event: any) {
@@ -197,8 +235,18 @@ export class LabelsPanels {
     if (!this.draggableItem) {return;}
     const rowId = parseInt(this.draggableItem.id.split('-')[1]);
     if (isNaN(rowId)) {return;}
-    this.draggableItem.classList.remove('is-idle');
 
+    let rowIdList = [rowId];
+    if (viewerState.selectedSignal.includes(rowId)) {
+      rowIdList = viewerState.selectedSignal;
+    }
+
+    const signalItem = dataManager.rowItems[rowId];
+    if (signalItem) {
+      this.dragCursorText = signalItem.getLabelText();
+    }
+
+    this.draggableItem.classList.remove('is-idle');
     this.defaultDragDividerY = this.draggableItem.getBoundingClientRect().top + this.labelsScroll.scrollTop;
     clearTimeout(this.dragFreezeTimeout);
     this.dragFreeze = true;
@@ -207,24 +255,35 @@ export class LabelsPanels {
     viewerState.mouseupEventType = 'rearrange';
 
     this.initializeDragHandler(event);
-    this.setIdleItemsState(rowId);
+    this.setIdleItemsState(rowIdList);
   }
 
   dragStartExternal(event: MouseEvent | any) {
 
     this.initializeDragHandler(event);
-    this.setIdleItemsState(-1);
+    this.setIdleItemsState([]);
     this.defaultDragDividerY = this.labels.getBoundingClientRect().bottom + this.labelsScroll.scrollTop;
     viewerState.mouseupEventType = 'dragAndDrop';
   }
 
-  setDraggableItemClasses(isInternal: boolean) {
-    if (isInternal) {
-      if (!this.draggableItem) {return;}
-      this.draggableItem.classList.remove('is-idle');
-      this.draggableItem.children[0].classList.remove('is-selected');
-      this.draggableItem.classList.add('is-draggable');
+  setDraggableItemClasses() {
+    if (!this.draggableItem) {return;}
+    //this.draggableItem.classList.remove('is-idle');
+    this.dragCursorTag = this.labels.querySelector('#draggable-cursor-tag');
+    if (this.dragCursorTag) {
+      this.dragCursorTag.style.display = 'block';
+      this.dragCursorTag.innerHTML = `${this.dragCursorText}`;
     }
+    this.draggableRows.forEach((rowId) => {
+      const element = this.labels.querySelector(`#label-${rowId}`);
+      if (element) {
+        element.classList.add('is-draggable');
+        element.classList.remove('is-idle');
+      }
+    });
+  }
+
+  setDragDivider() {
     this.dragDivider = this.labels.querySelector('#drag-divider');
     if (this.dragDivider) {this.dragDivider.style.display = 'block'};
     this.dragInProgress = true;
@@ -236,13 +295,13 @@ export class LabelsPanels {
     if (!this.draggableItem) {return;}
     if (this.dragFreeze) {return;}
     if (!this.dragInProgress) {
-      this.setDraggableItemClasses(true);
+      this.setDraggableItemClasses();
+      this.setDragDivider();
     }
 
-    const scrollOffsetY  = this.labelsScroll.scrollTop - this.scrollStartY;
-    const pointerOffsetX = event.clientX - this.pointerStartX;
-    const pointerOffsetY = event.clientY - this.pointerStartY + scrollOffsetY;
-    this.draggableItem.style.transform = `translate(${pointerOffsetX}px, ${pointerOffsetY}px)`;
+    if (this.dragCursorTag) {
+      this.dragCursorTag.style.transform = `translate(${event.clientX}px, ${event.clientY}px)`;
+    }
 
     this.updateIdleItemsStateAndPosition(event);
   }
@@ -251,7 +310,7 @@ export class LabelsPanels {
 
     if (!this.dragInProgress) {
       this.dragStartExternal(event);
-      this.setDraggableItemClasses(false);
+      this.setDragDivider();
     }
 
     this.updateIdleItemsStateAndPosition(event);
@@ -301,7 +360,7 @@ export class LabelsPanels {
 
     idleItems.forEach((item: any) => {
       if (breakFlag) {return;}
-      if (item.classList.contains('is-idle') === false) {return;}
+      if (!item.classList.contains('is-idle') && !item.classList.contains('is-draggable') ) {return;}
       const itemRect = item.getBoundingClientRect();
       if (draggableItemY >= itemRect.top && draggableItemY < itemRect.bottom) {
         dragDividerY = itemRect.top - labelsRect.top;
@@ -362,6 +421,8 @@ export class LabelsPanels {
   clearDragHandler() {
     this.idleItems.forEach((item: any) => {item.style = null;});
     this.idleItems      = [];
+    this.idleGroups     = [];
+    this.draggableRows  = [];
     this.labelsList     = [];
     this.dragInProgress = false;
     this.pointerStartX  = null;
@@ -391,17 +452,18 @@ export class LabelsPanels {
     if (draggableItemRowId === null || isNaN(draggableItemRowId)) {
       throw new Error("Invalid draggable item row ID: " + draggableItemRowId);
     }
-    const oldGroupId = getParentGroupId(draggableItemRowId) || 0;
-    const oldIndex   = getIndexInGroup(draggableItemRowId, oldGroupId) || 0;
-    if (oldGroupId === newGroupId && newIndex > oldIndex) {
-      newIndex = Math.max(newIndex - 1, 0);
+    let rowIdList = [draggableItemRowId];
+    if (viewerState.selectedSignal.includes(draggableItemRowId)) {
+      rowIdList = viewerState.selectedSignal;
     }
+    //const oldGroupId = getParentGroupId(draggableItemRowId) || 0;
+    //const oldIndex   = getIndexInGroup(draggableItemRowId, oldGroupId) || 0;
 
     this.clearDragHandler();
     clearTimeout(this.dragFreezeTimeout);
 
     if (!abort) {
-      this.events.dispatch(ActionType.ReorderSignals, draggableItemRowId, newGroupId, newIndex);
+      this.events.dispatch(ActionType.ReorderSignals, rowIdList, newGroupId, newIndex);
     } else {
       this.renderLabelsPanels();
     }
@@ -505,7 +567,7 @@ export class LabelsPanels {
     this.renderLabelsPanels();
   }
 
-  handleReorderSignalsHierarchy(rowId: number, newGroupId: number, newIndex: number) {
+  handleReorderSignalsHierarchy(rowIdList: number[], newGroupId: number, newIndex: number) {
     this.renderLabelsPanels();
   }
 
@@ -546,14 +608,14 @@ export class LabelsPanels {
     if (this.dragDivider) {this.dragDivider.style.display = 'none'};
     if (rowIdList.length === 0) {return;}
 
-    viewerState.visibleSignalsFlat.forEach((rowId) => {
+    viewerState.displayedSignalsFlat.forEach((rowId) => {
       this.selectRowId(rowId, false);
     });
 
     rowIdList.forEach((rowId) => {
       this.selectRowId(rowId, true);
     });
-    //viewerState.selectedSignal = rowIdList;
+    viewerState.lastSelectedSignal = lastRowId;
     this.renderLabelsPanels();
   }
 

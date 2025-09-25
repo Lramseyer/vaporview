@@ -198,9 +198,10 @@ export class WaveformDataManager {
     }
 
     if (reorder) {
-      moveList.forEach((rowId: RowId) => {
-        this.events.dispatch(ActionType.ReorderSignals, rowId, groupId, moveIndex);
-      });
+      //moveList.forEach((rowId: RowId) => {
+      //  this.events.dispatch(ActionType.ReorderSignals, [rowId], groupId, moveIndex);
+      //});
+      this.events.dispatch(ActionType.ReorderSignals, moveList, groupId, moveIndex);
     }
 
     this.events.dispatch(ActionType.SignalSelect, rowIdList, lastRowId);
@@ -243,7 +244,7 @@ export class WaveformDataManager {
     this.events.dispatch(ActionType.AddVariable, [rowId], false);
 
     if (reorder) {
-      this.events.dispatch(ActionType.ReorderSignals, rowId, parentGroupId, index);
+      this.events.dispatch(ActionType.ReorderSignals, [rowId], parentGroupId, index);
     }
 
     this.nextGroupId++;
@@ -539,24 +540,64 @@ export class WaveformDataManager {
     });
   }
 
-  handleReorderSignals(rowId: number, newGroupId: number, newIndex: number) {
-
-    const oldGroupId = getParentGroupId(rowId) || 0;
-    const oldGroupChildren = getChildrenByGroupId(oldGroupId);
-    const oldIndex = oldGroupChildren.indexOf(rowId);
-
-    if (oldIndex === -1) {return;}
-    if (oldGroupId === newGroupId) {
-      arrayMove(oldGroupChildren, oldIndex, newIndex);
-    } else {
-      oldGroupChildren.splice(oldIndex, 1);
-      const newGroupChildren = getChildrenByGroupId(newGroupId);
-      if (newIndex >= newGroupChildren.length) {
-        newGroupChildren.push(rowId);
-      } else {
-        newGroupChildren.splice(newIndex, 0, rowId);
+  removeChildrenFromSignalList(rowIdList: RowId[]) {
+    let groupChildren: number[] = [];
+    rowIdList.forEach((rowId) => {
+      const rowItem = this.rowItems[rowId];
+      if (rowItem instanceof SignalGroup) {
+        const children = rowItem.getFlattenedRowIdList(false, -1);
+        children.shift(); // Remove the group itself from the list
+        groupChildren = groupChildren.concat(children);
       }
-    }
+    });
+    const filteredRowIdList = rowIdList.filter((rowId) => {
+      return !groupChildren.includes(rowId);
+    });
+    return filteredRowIdList;
+  }
+
+  handleReorderSignals(rowIdList: number[], newGroupId: number, newIndex: number) {
+
+    // If any of the rowIds are groups, we need to remove their children from the list
+    //let groupChildren: number[] = [];
+    //rowIdList.forEach((rowId) => {
+    //  const rowItem = this.rowItems[rowId];
+    //  if (rowItem instanceof SignalGroup) {
+    //    const children = rowItem.getFlattenedRowIdList(false, -1);
+    //    children.shift(); // Remove the group itself from the list
+    //    groupChildren = groupChildren.concat(children);
+    //  }
+    //});
+    //const filteredRowIdList = rowIdList.filter((rowId) => {
+    //  return !groupChildren.includes(rowId);
+    //});
+    const filteredRowIdList = this.removeChildrenFromSignalList(rowIdList);
+    console.log(filteredRowIdList);
+    
+    filteredRowIdList.forEach((rowId, i) => {
+      let dropIndex = newIndex + i;
+      //const rowId = rowIdList[0];
+      const oldGroupId = getParentGroupId(rowId) || 0;
+      const oldGroupChildren = getChildrenByGroupId(oldGroupId);
+      const oldIndex = oldGroupChildren.indexOf(rowId);
+
+      if (oldGroupId === newGroupId && newIndex > oldIndex) {
+        dropIndex = Math.max(dropIndex - 1, 0);
+      }
+
+      if (oldIndex === -1) {return;}
+      if (oldGroupId === newGroupId) {
+        arrayMove(oldGroupChildren, oldIndex, dropIndex);
+      } else {
+        oldGroupChildren.splice(oldIndex, 1);
+        const newGroupChildren = getChildrenByGroupId(newGroupId);
+        if (dropIndex >= newGroupChildren.length) {
+          newGroupChildren.push(rowId);
+        } else {
+          newGroupChildren.splice(dropIndex, 0, rowId);
+        }
+      }
+    });
   }
 
   setDisplayFormat(message: any) {

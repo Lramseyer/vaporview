@@ -215,6 +215,28 @@ export function revealSignal(rowId: RowId) {
   }
 }
 
+export function handleClickSelection(event: MouseEvent, rowId: RowId) {
+  let newSelection: RowId[] = [rowId];
+  if (viewerState.selectedSignal.length === 0 || viewerState.lastSelectedSignal === null) {
+    // No existing selection, just select the clicked row
+  }
+  else if (event.shiftKey) {
+    const lastSelectedIndex = viewerState.visibleSignalsFlat.indexOf(viewerState.lastSelectedSignal);
+    const clickedIndex      = viewerState.visibleSignalsFlat.indexOf(rowId);
+    const startIndex        = Math.min(lastSelectedIndex, clickedIndex);
+    const endIndex          = Math.max(lastSelectedIndex, clickedIndex);
+    const addedSignals      = viewerState.visibleSignalsFlat.slice(startIndex, endIndex + 1).filter(id => !viewerState.selectedSignal.includes(id));
+    newSelection            = viewerState.selectedSignal.concat(addedSignals);
+  } else if (event.ctrlKey || event.metaKey) {
+    if (viewerState.selectedSignal.includes(rowId)) {
+      newSelection = viewerState.selectedSignal.filter(id => id !== rowId);
+    } else {
+      newSelection = viewerState.selectedSignal.concat([rowId]);
+    }
+  }
+  events.dispatch(ActionType.SignalSelect, newSelection, rowId);
+}
+
 export const WAVE_HEIGHT = parseInt(window.getComputedStyle(document.body).getPropertyValue('--waveform-height'));
 
 export function getRowHeightCssClass(height: number) {
@@ -525,6 +547,7 @@ class VaporviewWebview {
     let parentGroupId = getParentGroupId(rowId);
     let parentList: RowId[] = [];
     if (parentGroupId === null) {return;}
+    console.log('handleReorderArrowKeys: ' + direction);
     if (parentGroupId === 0) {
       parentList = viewerState.displayedSignals;
     } else {
@@ -564,7 +587,7 @@ class VaporviewWebview {
       }
     }
 
-    this.events.dispatch(ActionType.ReorderSignals, rowId, parentGroupId, newIndex);
+    this.events.dispatch(ActionType.ReorderSignals, [rowId], parentGroupId, newIndex);
   }
 
   updateVerticalScale(event: any, scale: number) {
@@ -630,8 +653,10 @@ class VaporviewWebview {
   }
 
   // #region Global Events
-  reorderSignals(rowId: number, newGroupId: number, newIndex: number) {
-    this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
+  reorderSignals(rowIdList: number[], newGroupId: number, newIndex: number) {
+    let lastSelectedRowId: RowId | null = viewerState.lastSelectedSignal;
+    if (rowIdList.length === 1) {lastSelectedRowId = rowIdList[0];}
+    this.events.dispatch(ActionType.SignalSelect, [rowIdList], lastSelectedRowId);
   }
 
   handleResizeViewer() {
@@ -652,6 +677,10 @@ class VaporviewWebview {
   }
 
   handleSignalSelect(rowIdList: RowId[], lastSelected: RowId | null = null) {
+
+    const filteredRowIdList = dataManager.removeChildrenFromSignalList(rowIdList);
+    console.log('handleSignalSelect: ' + filteredRowIdList);
+
     if (rowIdList.length === 0) {return;}
     viewerState.lastSelectedSignal = lastSelected;
     viewerState.selectedSignal = rowIdList;

@@ -426,14 +426,23 @@ body {
 }
 
 .waveform-label.is-draggable {
-  background-color:  var(--vscode-editor-inactiveSelectionBackground);
   /*background-color: var(--vscode-list-activeSelectionBackground);
   /*border: 1px solid var(--vscode-focusBorder);*/
-  opacity: 0.75;
+  opacity: 0.33;
+}
+
+.draggable-label {
+  /*background-color:  var(--vscode-editor-inactiveSelectionBackground);*/
+  font: var(--vscode-font-family);
+  height: 17px;
+  font-size: 11px;
+  color: var(--vscode-list-activeSelectionForeground);
+  background-color: var(--vscode-list-activeSelectionBackground);
+  border: 1px solid var(--vscode-focusBorder);
   z-index: 10;
-  border-radius: 14px;
-  padding-right: 7px;
-  cursor: grabbing;
+  align-items:     center;
+  border-radius: 10px;
+  padding: 0px 7px 0px 7px;
 }
 
 .waveform-row p {
@@ -507,16 +516,14 @@ body {
   cursor: pointer;
 }
 
-.is-selected-old {
-  border-top: 4px solid var(--vscode-editor-lineHighlightBorder);
-  border-bottom: 4px solid var(--vscode-editor-lineHighlightBorder);
+.last-selected {
+  border-top: 1px solid var(--vscode-focusBorder);
+  border-bottom: 1px solid var(--vscode-focusBorder);
 }
 
 .is-selected {
   background-color: var(--vscode-list-activeSelectionBackground);
   color: var(--vscode-list-activeSelectionForeground);
-  border-top: 1px solid var(--vscode-focusBorder);
-  border-bottom: 1px solid var(--vscode-focusBorder);
 }
 
 .time-marker {

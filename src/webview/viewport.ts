@@ -1,4 +1,4 @@
-import { vscode, WaveformData, arrayMove, sendWebviewContext, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId, updateDisplayedSignalsFlat, WAVE_HEIGHT } from "./vaporview";
+import { vscode, WaveformData, arrayMove, sendWebviewContext, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId, updateDisplayedSignalsFlat, WAVE_HEIGHT, handleClickSelection } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { labelsPanel } from "./vaporview";
@@ -414,7 +414,8 @@ export class Viewport {
     }
 
     if (button === 0) {
-      this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
+      handleClickSelection(event, rowId);
+      //this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
     }
   }
 
@@ -565,7 +566,7 @@ export class Viewport {
     this.renderAllWaveforms(false);
   }
 
-  handleReorderSignalsHierarchy(rowId: number, newGroupId: number, newIndex: number) {
+  handleReorderSignalsHierarchy(rowIdList: number[], newGroupId: number, newIndex: number) {
 
     updateDisplayedSignalsFlat();
     this.updateSignalOrder();
@@ -628,13 +629,24 @@ export class Viewport {
 
     viewerState.selectedSignal.forEach((rowId) => {
       const element = document.getElementById('waveform-' + rowId);
-      if (element) {element.classList.remove('is-selected');}
+      if (element) {
+        element.classList.remove('is-selected');
+      }
     });
+    if (viewerState.lastSelectedSignal !== null) {
+      const element = document.getElementById('waveform-' + viewerState.lastSelectedSignal);
+      if (element) {element.classList.remove('last-selected');}
+    }
 
     rowIdList.forEach((rowId) => {
       const element = document.getElementById('waveform-' + rowId);
       if (element) {element.classList.add('is-selected');}
     });
+
+    if (lastSelected !== null) {
+      const element = document.getElementById('waveform-' + lastSelected);
+      if (element) {element.classList.add('last-selected');}
+    }
   }
 
   logScaleFromUnits(unit: string | undefined) {

@@ -125,11 +125,14 @@ export class ControlBar {
     if (viewerState.markerTime === null) {return;}
 
     let nearestTime: number = viewport.timeStop;
+    if (direction === -1) {nearestTime = 0;}
     viewerState.selectedSignal.forEach((rowId) => {
+      if (viewerState.markerTime === null) {return;}
       const data  = dataManager.rowItems[rowId];
-      const time  = data.getNextEdge(nearestTime, direction, edge);
+      const time  = data.getNextEdge(viewerState.markerTime, direction, edge);
       if (time === null) {return;}
-      nearestTime = Math.min(nearestTime, time);
+      if (direction === 1)       {nearestTime = Math.min(nearestTime, time);}
+      else if (direction === -1) {nearestTime = Math.max(nearestTime, time);}
     });
 
     this.events.dispatch(ActionType.MarkerSet, nearestTime, 0);

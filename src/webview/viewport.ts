@@ -149,8 +149,7 @@ export class Viewport {
     this.handleZoom = this.handleZoom.bind(this);
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
     this.handleMarkerSet = this.handleMarkerSet.bind(this);
-    //this.handleReorderSignals = this.handleReorderSignals.bind(this);
-    this.handleReorderSignalsHierarchy = this.handleReorderSignalsHierarchy.bind(this);
+    this.handleReorderSignals = this.handleReorderSignals.bind(this);
     this.highlightZoom = this.highlightZoom.bind(this);
     this.drawHighlightZoom = this.drawHighlightZoom.bind(this);
     this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
@@ -161,8 +160,7 @@ export class Viewport {
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
     this.events.subscribe(ActionType.Zoom, this.handleZoom);
-    //this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
-    this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignalsHierarchy);
+    this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
     this.events.subscribe(ActionType.AddVariable, this.handleAddVariable);
     this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
     this.events.subscribe(ActionType.RedrawVariable, this.handleRedrawSignal);
@@ -566,9 +564,7 @@ export class Viewport {
     this.renderAllWaveforms(false);
   }
 
-  handleReorderSignalsHierarchy(rowIdList: number[], newGroupId: number, newIndex: number) {
-
-    updateDisplayedSignalsFlat();
+  handleReorderSignals(rowIdList: number[], newGroupId: number, newIndex: number) {
     this.updateSignalOrder();
   }
 

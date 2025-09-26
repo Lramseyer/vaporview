@@ -73,7 +73,7 @@ export class LabelsPanels {
     this.handleResizeMousedown = this.handleResizeMousedown.bind(this);
     this.handleMarkerSet       = this.handleMarkerSet.bind(this);
     this.handleSignalSelect    = this.handleSignalSelect.bind(this);
-    this.handleReorderSignalsHierarchy  = this.handleReorderSignalsHierarchy.bind(this);
+    this.handleReorderSignals  = this.handleReorderSignals.bind(this);
     this.handleRemoveVariable  = this.handleRemoveVariable.bind(this);
     this.handleAddVariable     = this.handleAddVariable.bind(this);
     this.handleRedrawVariable  = this.handleRedrawVariable.bind(this);
@@ -90,7 +90,7 @@ export class LabelsPanels {
 
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
-    this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignalsHierarchy);
+    this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
     this.events.subscribe(ActionType.AddVariable, this.handleAddVariable);
     this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
     this.events.subscribe(ActionType.RedrawVariable, this.handleRedrawVariable);
@@ -415,6 +415,7 @@ export class LabelsPanels {
       newIndex = dropItemIndex + this.indexOffset;
     }
 
+    console.log(`Drop at group ${newGroupId}, index ${newIndex}`);
     return {newGroupId, newIndex};
   }
 
@@ -567,7 +568,7 @@ export class LabelsPanels {
     this.renderLabelsPanels();
   }
 
-  handleReorderSignalsHierarchy(rowIdList: number[], newGroupId: number, newIndex: number) {
+  handleReorderSignals(rowIdList: number[], newGroupId: number, newIndex: number) {
     this.renderLabelsPanels();
   }
 

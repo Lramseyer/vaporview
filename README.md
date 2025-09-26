@@ -197,6 +197,14 @@ This extension requires VScode 1.96.0 or later
 
 # Development Roadmap
 
+## 1.4.2 - Upcoming Release
+
+- Added
+  - Multi signal select
+  - Multi signal reorder
+- Fixed
+  Drag and drop from tree view places signals at the end of group
+
 ## 1.4.1 - Latest Release
 
 - Added

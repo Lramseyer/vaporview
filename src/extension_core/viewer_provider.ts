@@ -923,7 +923,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     let groupPath: string[] = [];
     let index = undefined;
     if (e.groupPath) {groupPath = e.groupPath}
-    if (e.dropIndex) {index = e.dropIndex;}
+    if (e.dropIndex || e.dropIndex === 0) {index = e.dropIndex;}
 
     if (document !== this.activeDocument) {return;}
     const metadata = netlistIdList.map(id => document.netlistIdTable[id].netlistItem);

@@ -201,6 +201,8 @@ export class WaveformDataManager {
       //moveList.forEach((rowId: RowId) => {
       //  this.events.dispatch(ActionType.ReorderSignals, [rowId], groupId, moveIndex);
       //});
+      console.log(index);
+      console.log(`Reorder to group ${groupId}, index ${moveIndex}`);
       this.events.dispatch(ActionType.ReorderSignals, moveList, groupId, moveIndex);
     }
 
@@ -558,46 +560,28 @@ export class WaveformDataManager {
 
   handleReorderSignals(rowIdList: number[], newGroupId: number, newIndex: number) {
 
-    // If any of the rowIds are groups, we need to remove their children from the list
-    //let groupChildren: number[] = [];
-    //rowIdList.forEach((rowId) => {
-    //  const rowItem = this.rowItems[rowId];
-    //  if (rowItem instanceof SignalGroup) {
-    //    const children = rowItem.getFlattenedRowIdList(false, -1);
-    //    children.shift(); // Remove the group itself from the list
-    //    groupChildren = groupChildren.concat(children);
-    //  }
-    //});
-    //const filteredRowIdList = rowIdList.filter((rowId) => {
-    //  return !groupChildren.includes(rowId);
-    //});
+    let dropIndex = newIndex;
     const filteredRowIdList = this.removeChildrenFromSignalList(rowIdList);
-    console.log(filteredRowIdList);
-    
+    const newGroupChildren = getChildrenByGroupId(newGroupId);
     filteredRowIdList.forEach((rowId, i) => {
-      let dropIndex = newIndex + i;
-      //const rowId = rowIdList[0];
+      
       const oldGroupId = getParentGroupId(rowId) || 0;
       const oldGroupChildren = getChildrenByGroupId(oldGroupId);
       const oldIndex = oldGroupChildren.indexOf(rowId);
-
+      oldGroupChildren.splice(oldIndex, 1);
+      
       if (oldGroupId === newGroupId && newIndex > oldIndex) {
-        dropIndex = Math.max(dropIndex - 1, 0);
-      }
-
-      if (oldIndex === -1) {return;}
-      if (oldGroupId === newGroupId) {
-        arrayMove(oldGroupChildren, oldIndex, dropIndex);
-      } else {
-        oldGroupChildren.splice(oldIndex, 1);
-        const newGroupChildren = getChildrenByGroupId(newGroupId);
-        if (dropIndex >= newGroupChildren.length) {
-          newGroupChildren.push(rowId);
-        } else {
-          newGroupChildren.splice(dropIndex, 0, rowId);
-        }
+        dropIndex -= 1;
       }
     });
+    
+    dropIndex = Math.min(Math.max(dropIndex, 0), newGroupChildren.length);
+    filteredRowIdList.forEach((rowId, i) => {
+      newGroupChildren.splice(dropIndex + i, 0, rowId);
+    });
+
+    updateDisplayedSignalsFlat();
+    console.log(filteredRowIdList);
   }
 
   setDisplayFormat(message: any) {

@@ -541,6 +541,7 @@ class VaporviewWebview {
   }
 
   handleReorderArrowKeys(direction: number) {
+
     if (viewerState.selectedSignal.length !== 1) {return;}
     const rowId = viewerState.selectedSignal[0];
     if (rowId === null) {return;}
@@ -584,6 +585,9 @@ class VaporviewWebview {
             newIndex = adjacentGroup.children.length;
           }
         }
+      // not sure why, but we need to increment the index if moving down
+      } else if (direction > 0) {
+        newIndex += 1;
       }
     }
 
@@ -656,7 +660,7 @@ class VaporviewWebview {
   reorderSignals(rowIdList: number[], newGroupId: number, newIndex: number) {
     let lastSelectedRowId: RowId | null = viewerState.lastSelectedSignal;
     if (rowIdList.length === 1) {lastSelectedRowId = rowIdList[0];}
-    this.events.dispatch(ActionType.SignalSelect, [rowIdList], lastSelectedRowId);
+    //this.events.dispatch(ActionType.SignalSelect, [rowIdList], lastSelectedRowId);
   }
 
   handleResizeViewer() {

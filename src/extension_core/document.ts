@@ -603,20 +603,24 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
       itemsRemaining = childItems.remainingItems;
       startIndex    += childItems.totalReturned;
 
-      childItems.scopes.forEach((child: any) => {
-        result.push(createScope(child.name, child.type, scopePath, child.id, -1, this.uri));
-      });
-      childItems.vars.forEach((child: any) => {
+      const scopes: NetlistItem[] = childItems.scopes?.map((child: any) => {
+        return createScope(child.name, child.type, scopePath, child.id, -1, this.uri);
+      }) || [];
+      const vars:   NetlistItem[] = childItems.vars?.map((child: any) => {
+        return createVar(child.name, child.type, child.encoding.split('(')[0], scopePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, false /*isFsdb*/, this.uri);
+      }) || [];
+
+      result.push(...(scopes.sort((a, b) => a.name.localeCompare(b.name))));
+      
+      vars.sort((a, b) => a.name.localeCompare(b.name)).forEach((varItem) => { 
         // Need to handle the case where we get a variable with the same name but
         // different bit ranges.
-        const encoding = child.encoding.split('(')[0];
-        const varItem = createVar(child.name, child.type, encoding, scopePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, false /*isFsdb*/, this.uri);
-        if (varTable[child.name] === undefined) {
-          varTable[child.name] = [varItem];
+        if (varTable[varItem.name] === undefined) {
+          varTable[varItem.name] = [varItem];
         } else {
-          varTable[child.name].push(varItem);
+          varTable[varItem.name].push(varItem);
         }
-        this.netlistIdTable[child.netlistId] = {netlistItem: varItem, displayedItem: undefined, signalId: child.signalId};
+        this.netlistIdTable[varItem.netlistId] = {netlistItem: varItem, displayedItem: undefined, signalId: varItem.signalId};
       });
 
       callLimit--;

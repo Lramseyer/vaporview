@@ -10,10 +10,11 @@ use std::io::{self, BufReader, Cursor, Read, Seek, SeekFrom, Write};
 //use std::result;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
+use std::sync::Arc;
+use std::cmp::max;
 use wellen::{FileFormat, Hierarchy, ScopeRef, Signal, SignalRef, SignalSource, TimeTable, TimescaleUnit, WellenError, VarRef};
 use wellen::viewers::{read_body, read_header, ReadBodyContinuation, HeaderResult};
 use wellen::LoadOptions;
-use std::sync::Arc;
 use core::ops::Index;
 use lz4_flex::frame::FrameEncoder;
 use serde::Deserialize;
@@ -442,7 +443,8 @@ impl Guest for Filecontext {
     let event_count = time_table.len();
     let time_table_length = time_table.len(); 
     let time_end = time_table[time_table_length - 1];
-    let time_end_extend = time_end + (time_end as f32 / time_table_length as f32).ceil() as u64;
+    let time_extend = max((time_end as f32 / time_table_length as f32).ceil() as u64, 1);
+    let time_end_extend = time_end + time_extend;
     //log(&format!("Event count: {:?}", event_count));
     if event_count <= 128 {
       min_timestamp = time_table[event_count - 1];

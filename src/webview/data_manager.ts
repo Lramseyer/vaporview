@@ -592,22 +592,38 @@ export class WaveformDataManager {
     if (this.rowItems[rowId] === undefined) {return;}
     const netlistData = this.rowItems[rowId];
     if (netlistData instanceof VariableItem === false) {return;}
+    const signalWidth = netlistData.signalWidth;
 
+    let updateAllSelected = false;
+    let rowIdList = [rowId];
+    let redrawList = [rowId];
+    if (viewerState.selectedSignal.includes(rowId)) {
+      rowIdList = viewerState.selectedSignal;
+    }
+    
+    // Color - this is applied to all selected signals if the selected signal is being updated
+    rowIdList.forEach((rId) => {
+      const data = this.rowItems[rId];
+      if (data instanceof VariableItem === false) {return;}
+      if (message.color !== undefined) {
+        customColorKey = message.customColors;
+        data.colorIndex = message.color;
+        data.setColorFromColorIndex();
+        updateAllSelected = true;
+      }
+    });
+
+    // Number format
     if (message.numberFormat !== undefined) {
       let valueFormat = valueFormatList.find((format) => format.id === message.numberFormat);
       if (valueFormat === undefined) {valueFormat = formatBinary;}
-      netlistData.formatValid = false;
+      netlistData.formatCached = false;
       netlistData.formattedValues = [];
       netlistData.valueFormat = valueFormat;
       netlistData.cacheValueFormat();
     }
-    
-    if (message.color !== undefined) {
-      customColorKey = message.customColors;
-      netlistData.colorIndex = message.color;
-      netlistData.setColorFromColorIndex();
-    }
 
+    // Rendering type
     if (message.renderType !== undefined) {
       switch (message.renderType) {
         case "binary":        netlistData.renderType = binaryWaveformRenderer; break;
@@ -625,15 +641,18 @@ export class WaveformDataManager {
       netlistData.setSignalContextAttribute();
     }
 
+    // Row height
     if (message.rowHeight !== undefined) {
       netlistData.rowHeight = message.rowHeight;
       viewport.updateElementHeight(rowId);
     }
 
+    // Vertical scale
     if (message.verticalScale !== undefined) {
       netlistData.verticalScale = message.verticalScale;
     }
 
+    // Value link command
     if (message.valueLinkCommand !== undefined) {
 
       if (netlistData.valueLinkCommand === "" && message.valueLinkCommand !== "") {
@@ -648,15 +667,19 @@ export class WaveformDataManager {
       netlistData.valueLinkIndex   = -1;
     }
 
+    // Edge guides
     if (message.annotateValue !== undefined) {
       viewport.annotateWaveform(rowId, message.annotateValue);
       viewport.updateBackgroundCanvas(false);
     }
 
     sendWebviewContext();
-
     netlistData.setSignalContextAttribute();
-    this.events.dispatch(ActionType.RedrawVariable, rowId);
+
+    if (updateAllSelected) {redrawList = viewerState.selectedSignal;}
+    redrawList.forEach((rId) => {
+      this.events.dispatch(ActionType.RedrawVariable, rId);
+    });
   }
 
   getNearestTransitionIndex(signalId: SignalId, time: number) {

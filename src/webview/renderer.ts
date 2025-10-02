@@ -76,7 +76,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     const adjustedTime  = time - viewportSpecs.timeScrollLeft;
     let points          = [[adjustedTime, 0]];
     const endPoints     = [[adjustedTime, 0]];
-    let xzPoints: any   = [];
+    let xzPoints: any[] = [];
     //const xzValues: string[]        = [];
     let textElements: any[]    = [];
     let spansChunk      = true;
@@ -127,7 +127,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
         // We group the empty text elements that are too small to render together to
         // reduce the number of DOM operations
         if (elementWidth > minTextWidth) {
-          if (netlistData.formatValid) {
+          if (netlistData.formatCached) {
             parsedValue = netlistData.formattedValues[i - 1];
           } else {
             parsedValue = parseValue(value, signalWidth, !is4State);
@@ -175,7 +175,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     }
 
     if (elementWidth > minTextWidth) {
-      if (netlistData.formatValid) {
+      if (netlistData.formatCached) {
         parsedValue = netlistData.formattedValues[endIndex - 1];
       } else {
         parsedValue = parseValue(value, signalWidth, !is4State);
@@ -307,8 +307,8 @@ export const binaryWaveformRenderer: WaveformRenderer = {
     let initialValue2state = parseInt(initialValue);
     let initialTime        = initialState[0];
     let initialTimeOrStart = Math.max(initialState[0], -10);
-    const minDrawWidth  = viewportSpecs.pixelTime / viewportSpecs.pixelRatio;
-    let xzPath:any         = [];
+    const minDrawWidth     = viewportSpecs.pixelTime / viewportSpecs.pixelRatio;
+    let xzPath: any[]      = [];
     const drawColor        = netlistData.color;
     const xzColor          = viewportSpecs.xzColor;
     const viewerWidthTime  = viewportSpecs.viewerWidthTime;
@@ -330,7 +330,7 @@ export const binaryWaveformRenderer: WaveformRenderer = {
     let lastDrawTime   = 0;
     let lastNoDrawTime: any = null;
     let noDrawFlag     = false;
-    let noDrawPath: any     = [];
+    let noDrawPath: any[]     = [];
     let lastDrawValue  = initialValue2state;
     let lastnoDrawValue: any = null;
 
@@ -493,7 +493,7 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
   const minDrawWidth  = viewportSpecs.pixelTime / (viewportSpecs.pixelRatio * 4);
   const timeScrollLeft   = viewportSpecs.timeScrollLeft;
   const timeScrollRight  = viewportSpecs.timeScrollRight - timeScrollLeft;
-  let xzPath: any        = [];
+  let xzPath: any[]      = [];
   const valueIs9State    = netlistData.valueFormat.is9State;
 
   const rowHeight      = netlistData.rowHeight * WAVE_HEIGHT;
@@ -505,7 +505,7 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
     initialValue2state = "0";
   }
 
-  let accumulatedPath: any = [[-10 * viewportSpecs.pixelTime, 0]];
+  let accumulatedPath: any[] = [[-10 * viewportSpecs.pixelTime, 0]];
   accumulatedPath.push([initialTime - timeScrollLeft, evalCoordinates(initialValue2state)]);
 
   let value2state    = "0";
@@ -513,7 +513,7 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
   let lastDrawTime   = 0;
   let lastNoDrawTime: any = null;
   let noDrawFlag     = false;
-  let noDrawPath: any     = [];
+  let noDrawPath: any[]     = [];
   let lastDrawValue  = initialValue2state;
   let lastnoDrawValue: any = null;
 

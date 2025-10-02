@@ -101,13 +101,16 @@ export interface ValueFormat {
   formatString: (value: string, width: number, is2State: boolean) => string;
 
   // Function to check if the string is valid in the search bar
-  checkValid: (value: string) => boolean;
+  checkValidSearch: (value: string) => boolean;
 
   // Function to parse the value back to a binary string for searching
   parseValueForSearch: (value: string) => string;
 
   // Function to check if the value is a 9-state value
   is9State: (value: string) => boolean;
+
+  // Function to check if the value format can be applied to a signal
+  checkWidth: (width: number) => boolean;
 }
 
 // #region Format Hexadecimal
@@ -140,7 +143,7 @@ export const formatHex: ValueFormat = {
     }
   },
 
-  checkValid: (inputText: string) => {
+  checkValidSearch: (inputText: string) => {
     if (inputText.match(/^(0x)?[0-9a-fA-FxzXZ_]+$/)) {return true;}
     else {return false;}
   },
@@ -155,6 +158,8 @@ export const formatHex: ValueFormat = {
   },
 
   is9State: valueIs9State,
+
+  checkWidth: (width: number) => {return width > 1;},
 };
 
 // #region Format Octal
@@ -187,7 +192,7 @@ export const formatOctal: ValueFormat = {
     }
   },
 
-  checkValid: (inputText: string) => {
+  checkValidSearch: (inputText: string) => {
     if (inputText.match(/^[0-7xzXZ_]+$/)) {return true;}
     else {return false;}
   },
@@ -202,6 +207,8 @@ export const formatOctal: ValueFormat = {
   },
 
   is9State: valueIs9State,
+
+  checkWidth: (width: number) => {return width > 1;},
 };
 
 // #region Format Binary
@@ -212,7 +219,7 @@ export const formatBinary: ValueFormat = {
 
   formatString: formatBinaryString,
 
-  checkValid: (inputText: string) => {
+  checkValidSearch: (inputText: string) => {
     if (inputText.match(/^b?[01xzXZdD_]+$/)) {return true;}
     else {return false;}
   },
@@ -222,6 +229,8 @@ export const formatBinary: ValueFormat = {
   },
 
   is9State: valueIs9State,
+
+  checkWidth: (width: number) => {return width > 0;},
 };
 
 // #region Format Decimal
@@ -239,7 +248,7 @@ const formatDecimal: ValueFormat = {
     return stringArray.map((chunk) => {return parseInt(chunk, 2).toString(10);}).join('_');
   },
 
-  checkValid: (inputText: string) => {
+  checkValidSearch: (inputText: string) => {
     if (inputText.match(/^[0-9xzXZ_,]+$/)) {return true;}
     else {return false;}
   },
@@ -254,6 +263,8 @@ const formatDecimal: ValueFormat = {
   },
 
   is9State: valueIs9State,
+
+  checkWidth: (width: number) => {return width > 1;},
 };
 
 // #region Format Signed
@@ -269,7 +280,7 @@ const formatSignedInt: ValueFormat = {
     return signedBinaryStringToInt(inputString).toString();
   },
 
-  checkValid: (inputText: string) => {
+  checkValidSearch: (inputText: string) => {
     if (inputText.match(/^-?[0-9xzXZ_,]+$/)) {return true;}
     else {return false;}
   },
@@ -290,6 +301,8 @@ const formatSignedInt: ValueFormat = {
   },
 
   is9State: valueIs9State,
+
+  checkWidth: (width: number) => {return width > 1;},
 };
 
 // #region Format Float 8
@@ -298,9 +311,10 @@ export const formatFloat8: ValueFormat = {
   rightJustify: false,
   symbolText: "f8",
   formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 4, 3, is2State);},
-  checkValid: checkValidFloat,
+  checkValidSearch: checkValidFloat,
   parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 4, 3);},
   is9State: valueIs9State,
+  checkWidth: (width: number) => {return width === 8;},
 };
 
 // #region Format Float 16
@@ -309,9 +323,10 @@ export const formatFloat16: ValueFormat = {
   rightJustify: false,
   symbolText: "f16",
   formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 5, 10, is2State);},
-  checkValid: checkValidFloat,
+  checkValidSearch: checkValidFloat,
   parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 5, 10);},
   is9State: valueIs9State,
+  checkWidth: (width: number) => {return width === 16;},
 };
 
 // #region Format BFloat 16
@@ -320,9 +335,10 @@ export const formatBFloat16: ValueFormat = {
   rightJustify: false,
   symbolText: "b16",
   formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 8, 7, is2State);},
-  checkValid: checkValidFloat,
+  checkValidSearch: checkValidFloat,
   parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 8, 7);},
   is9State: valueIs9State,
+  checkWidth: (width: number) => {return width === 16;},
 };
 
 // #region TensorFloat 32
@@ -331,9 +347,10 @@ export const formatTensorFloat32: ValueFormat = {
   rightJustify: false,
   symbolText: "t19",
   formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 8, 10, is2State);},
-  checkValid: checkValidFloat,
+  checkValidSearch: checkValidFloat,
   parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 8, 10);},
   is9State: valueIs9State,
+  checkWidth: (width: number) => {return width === 19;},
 };
 
 // #region Format Float 32
@@ -342,9 +359,10 @@ export const formatFloat32: ValueFormat = {
   rightJustify: false,
   symbolText: "f32",
   formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 8, 23, is2State);},
-  checkValid: checkValidFloat,
+  checkValidSearch: checkValidFloat,
   parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 8, 23);},
   is9State: valueIs9State,
+  checkWidth: (width: number) => {return width === 32;},
 };
 
 // #region Format Float 64
@@ -353,9 +371,10 @@ export const formatFloat64: ValueFormat = {
   rightJustify: false,
   symbolText: "f64",
   formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 11, 52, is2State);},
-  checkValid: checkValidFloat,
+  checkValidSearch: checkValidFloat,
   parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 11, 52);},
   is9State: valueIs9State,
+  checkWidth: (width: number) => {return width === 64;},
 };
 
 // #region Format ASCII
@@ -381,7 +400,7 @@ export const formatAscii: ValueFormat = {
     return result;
   },
 
-  checkValid: (inputText: string) => {
+  checkValidSearch: (inputText: string) => {
     if (inputText.match(/^[\x20-\xFF]*$/)) {return true;}
     else {return false;}
   },
@@ -394,6 +413,8 @@ export const formatAscii: ValueFormat = {
   },
 
   is9State: valueIs9State,
+
+  checkWidth: (width: number) => {return width > 1;},
 };
 
 // #region Format String
@@ -406,7 +427,7 @@ export const formatString: ValueFormat = {
     return inputString;
   },
 
-  checkValid: (inputText: string) => {
+  checkValidSearch: (inputText: string) => {
     return true;
   },
 
@@ -415,6 +436,8 @@ export const formatString: ValueFormat = {
   },
 
   is9State: () => {return false;},
+
+  checkWidth: (width: number) => {return true;},
 };
 
 export const valueFormatList: ValueFormat[] = [

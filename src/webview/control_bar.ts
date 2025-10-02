@@ -246,14 +246,14 @@ export class ControlBar {
       const rowId  = viewerState.selectedSignal[0];
       if (dataManager.rowItems[rowId] instanceof VariableItem) {
         const format = dataManager.rowItems[rowId].valueFormat;
-        const checkValid = format.checkValid;
+        const checkValidSearch = format.checkValidSearch;
         const parseValue = format.parseValueForSearch;
 
         // check to see that the input is valid
         if (this.searchState === SearchState.Time) {
           inputValid = this.checkValidTimeString(inputText);
         } else if (this.searchState === SearchState.Value) {
-          inputValid = checkValid(inputText);
+          inputValid = checkValidSearch(inputText);
           if (inputValid) {this.parsedSearchValue = parseValue(inputText);}
           //console.log(inputValid);
           //console.log(this.parsedSearchValue);

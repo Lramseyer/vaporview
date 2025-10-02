@@ -75,7 +75,7 @@ export class VariableItem extends SignalItem implements RowItem {
   public color: string = "";
   public rowHeight: number = 1;
   public formattedValues: string[] = [];
-  public formatValid: boolean = false;
+  public formatCached: boolean = false;
   public wasRendered: boolean = false;
   public canvas: HTMLCanvasElement | null = null
   public ctx: CanvasRenderingContext2D | null = null
@@ -303,13 +303,13 @@ export class VariableItem extends SignalItem implements RowItem {
       const valueChangeData = dataManager.valueChangeData[this.signalId];
       if (valueChangeData === undefined)     {resolve(); return;}
       if (this.renderType.id !== "multiBit") {resolve(); return;}
-      if (this.formatValid)                  {resolve(); return;}
+      if (this.formatCached)                 {resolve(); return;}
 
       this.formattedValues = valueChangeData.transitionData.map(([, value]) => {
         const is9State = this.valueFormat.is9State(value);
         return this.valueFormat.formatString(value, this.signalWidth, !is9State);
       });
-      this.formatValid = true;
+      this.formatCached = true;
       resolve();
       return;
     });

@@ -210,7 +210,7 @@ export class WaveformDataManager {
     sendWebviewContext();
   }
 
-  addSignalGroup(name: string, groupPath: string[] | undefined, inputParentGroupId: number | undefined) {
+  addSignalGroup(name: string, groupPath: string[] | undefined, inputParentGroupId: number | undefined, eventRowId: number | undefined) {
     const groupId = this.nextGroupId;
     const rowId = this.nextRowId;
 
@@ -218,7 +218,12 @@ export class WaveformDataManager {
     let reorder = false;
     let index = viewerState.displayedSignalsFlat.length;
     let parentGroup = this.getGroupByIdOrName(groupPath, inputParentGroupId);
-    if (parentGroup !== null) {
+    if (eventRowId !== undefined) {
+      parentGroupId = getParentGroupId(eventRowId) || 0;
+      const parentGroupChildren = getChildrenByGroupId(parentGroupId);
+      index = parentGroupChildren.indexOf(eventRowId) + 1;
+      reorder = true;
+    } else if (parentGroup !== null) {
       parentGroupId = parentGroup.groupId;
       index = parentGroup.children.length;
       reorder = true;

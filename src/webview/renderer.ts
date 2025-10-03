@@ -11,8 +11,8 @@ export interface WaveformRenderer {
 // This function actually creates the individual bus elements, and has can
 // potentially called thousands of times during a render
 function busValue(time: number, deltaTime: number, displayValue: string, viewportSpecs: any, justifydirection: string, spansChunk: boolean) {
-  let textTime = displayValue.length * viewportSpecs.characterWidth * viewportSpecs.pixelTime;
-  let padding  = 4 * viewportSpecs.pixelTime;
+  const textTime = displayValue.length * viewportSpecs.characterWidth * viewportSpecs.pixelTime;
+  const padding  = 4 * viewportSpecs.pixelTime;
   let text = displayValue;
   let adjestedDeltaTime = deltaTime;
   let adjustedTime = time;
@@ -132,7 +132,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
           } else {
             parsedValue = parseValue(value, signalWidth, !is4State);
           }
-          spansChunk = spansChunk || (transitionData[i][0] > viewportSpecs.timeScrollRight);
+          //spansChunk = spansChunk || (transitionData[i][0] > viewportSpecs.timeScrollRight);
           textElements.push(busValue(time, elementWidth, parsedValue, viewportSpecs, justifydirection, spansChunk));
         }
 
@@ -146,7 +146,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
 
       time         = transitionData[i][0];
       value        = transitionData[i][1];
-      spansChunk   = false;
+      //spansChunk   = false;
     }
 
     elementWidth = postState[0] - time;

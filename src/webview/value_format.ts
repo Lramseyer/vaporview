@@ -392,7 +392,7 @@ export const formatAscii: ValueFormat = {
       const charCode = parseInt(byte, 2);
       if (charCode < 32) {
         //result += '&#' + charCode.toString() + ';';
-        result += ' ';
+        //result += ' ';
       } else {
         result += String.fromCharCode(charCode);
       }

@@ -449,7 +449,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     for (const signalInfo of signalList) {
       if (signalInfo.dataType && signalInfo.dataType !== 'netlist-variable') {
         const name = signalInfo.groupName;
-        this.newSignalGroup(name, groupPath, undefined);
+        this.newSignalGroup(name, groupPath, undefined, undefined);
         groupPath.push(name);
         const missing = await this.addSignalListToDocument(signalInfo.children, document, groupPath);
         missingSignals.push(...missing);
@@ -1133,7 +1133,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
   }
 
-  public newSignalGroup(name: string, groupPath: string[] | undefined, parentGroupId: number | undefined) {
+  public newSignalGroup(name: string, groupPath: string[] | undefined, parentGroupId: number | undefined, eventRowId: number | undefined) {
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}
@@ -1144,6 +1144,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       groupName: name,
       groupPath: groupPath,
       parentGroupId: parentGroupId,
+      eventRowId: eventRowId,
     });
   }
 

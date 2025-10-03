@@ -176,6 +176,7 @@ export class VariableItem extends SignalItem implements RowItem {
       preventDefaultContextMenuItems: true,
       commandValid: this.valueLinkCommand !== "",
       netlistId: this.netlistId,
+      rowId: dataManager.netlistIdTable[this.netlistId],
       isAnalog: isAnalog,
     }).replace(/\s/g, '%x20')}`;
   }
@@ -535,8 +536,8 @@ export class SignalGroup extends SignalItem implements RowItem {
     this.vscodeContext = `${JSON.stringify({
       webviewSection: "signal-group",
       groupId: this.groupId,
-      preventDefaultContextMenuItems: true,
       rowId: this.rowId,
+      preventDefaultContextMenuItems: true,
     }).replace(/\s/g, '%x20')}`;
   }
 

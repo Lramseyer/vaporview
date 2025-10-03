@@ -81,6 +81,7 @@ export class Viewport {
   // CSS Properties
   colorKey: string[]          = ['green', 'orange', 'blue', 'purple'];
   xzColor: string             = 'red';
+  textColor: string           = 'white';
   rulerTextColor: string      = 'grey';
   rulerGuideColor: string     = 'grey';
   edgeGuideColor: string      = 'orange';
@@ -210,6 +211,9 @@ export class Viewport {
 
     // Non-2-State Signal Color
     this.xzColor = style.getPropertyValue('--vscode-debugTokenExpression-error');
+
+    // Text Color
+    this.textColor = style.getPropertyValue('--vscode-editor-foreground');
 
     // Ruler Color
     this.rulerTextColor = style.getPropertyValue('--vscode-editorLineNumber-foreground');

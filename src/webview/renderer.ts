@@ -208,15 +208,38 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     // Draw diamonds
     ctx.restore();
     ctx.save();
-    //ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, halfCanvasHeight);
     ctx.translate(0.5, halfCanvasHeight);
     ctx.globalAlpha = 1;
-    ctx.fillStyle = drawColor;
     ctx.transform(viewportSpecs.zoomRatio, 0, 0, viewportSpecs.zoomRatio, 0, 0);
     ctx.beginPath();
     points.forEach(([x, y]) => {ctx.lineTo(x, y);});
     endPoints.reverse().forEach(([x, y]) => {ctx.lineTo(x, y);});
-    ctx.fill();
+
+    const fillShape = true;
+
+    if (fillShape) {
+      ctx.fillStyle = drawColor;
+      ctx.fill();
+    } else {
+      ctx.fillStyle = viewportSpecs.backgroundColor;
+      ctx.fill();
+      ctx.restore();
+      ctx.strokeStyle = drawColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.save();
+      ctx.clip();
+      ctx.beginPath();
+      ctx.moveTo(0, 0.5);
+      ctx.lineTo(viewportSpecs.viewerWidth, 0.5);
+      ctx.moveTo(0, canvasHeight - 0.5);
+      ctx.lineTo(viewportSpecs.viewerWidth, canvasHeight - 0.5);
+      ctx.stroke();
+      ctx.restore();
+      ctx.save();
+      ctx.translate(0.5, halfCanvasHeight);
+      ctx.transform(viewportSpecs.zoomRatio, 0, 0, viewportSpecs.zoomRatio, 0, 0);
+    }
 
     //const gradient = ctx.createLinearGradient(0, 2 * minYPosition, 0, -2 * minYPosition);
     //gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
@@ -233,24 +256,44 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     //ctx.fill();
 
     // Draw non-2-state values
-    ctx.fillStyle = xzColor;
+    ctx.beginPath();
     xzPoints.forEach(set => {
-      ctx.beginPath();
       ctx.moveTo(set[0][0], set[0][1]);
       ctx.lineTo(set[1][0], set[1][1]);
       ctx.lineTo(set[2][0], set[2][1]);
       ctx.lineTo(set[3][0], set[3][1]);
-      ctx.closePath();
-      ctx.fill();
+      ctx.lineTo(set[0][0], set[0][1]);
     });
-    ctx.restore();
+
+    if (fillShape) {
+      ctx.fillStyle = xzColor;
+      ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.fillStyle = viewportSpecs.backgroundColor;
+      ctx.fill();
+      ctx.restore();
+      ctx.strokeStyle = xzColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.save();
+      ctx.clip();
+      ctx.beginPath();
+      ctx.moveTo(0, 0.5);
+      ctx.lineTo(viewportSpecs.viewerWidth, 0.5);
+      ctx.moveTo(0, canvasHeight - 0.5);
+      ctx.lineTo(viewportSpecs.viewerWidth, canvasHeight - 0.5);
+      ctx.stroke();
+      ctx.restore();
+      ctx.save();
+    }
 
     // Draw Text
     const textY = halfCanvasHeight + 1;
     ctx.save();
     ctx.translate(0.5, 0);
     ctx.font = 'bold ' + viewportSpecs.fontStyle;
-    ctx.fillStyle = viewportSpecs.backgroundColor;
+    ctx.fillStyle = fillShape ? viewportSpecs.backgroundColor : viewportSpecs.textColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.imageSmoothingEnabled = false;

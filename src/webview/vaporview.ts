@@ -795,6 +795,10 @@ class VaporviewWebview {
     if (settings.rulerLines !== undefined) {
       this.viewport.setRulerLines(settings.rulerLines);
     }
+    if (settings.fillMultiBitValues !== undefined) {
+      this.viewport.fillMultiBitValues = settings.fillMultiBitValues;
+      this.viewport.renderAllWaveforms(true);
+    }
   }
 
   handleSetSelectedSignal(netlistId: NetlistId | undefined) {

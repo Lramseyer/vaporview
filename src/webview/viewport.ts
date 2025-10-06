@@ -78,7 +78,7 @@ export class Viewport {
   updatePending: boolean      = false;
   scrollEventPending: boolean = false;
 
-  // CSS Properties
+  // CSS and styling Properties
   colorKey: string[]          = ['green', 'orange', 'blue', 'purple'];
   xzColor: string             = 'red';
   textColor: string           = 'white';
@@ -91,6 +91,7 @@ export class Viewport {
   fontSize: string            = '12px';
   fontStyle: string           = '12px Menlo';
   characterWidth: number      = 7.69;
+  fillMultiBitValues: boolean = true;
 
   constructor(
     private events: EventHandler,

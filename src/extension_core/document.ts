@@ -189,12 +189,14 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
   }
 
   public setConfigurationSettings() {
-    const scrollingMode = vscode.workspace.getConfiguration('vaporview').get('scrollingMode');
-    const rulerLines    = vscode.workspace.getConfiguration('vaporview').get('showRulerLines');
+    const scrollingMode      = vscode.workspace.getConfiguration('vaporview').get('scrollingMode');
+    const rulerLines         = vscode.workspace.getConfiguration('vaporview').get('showRulerLines');
+    const fillMultiBitValues = vscode.workspace.getConfiguration('vaporview').get('fillMultiBitValues');
     this.webviewPanel?.webview.postMessage({
       command: 'setConfigSettings',
       scrollingMode: scrollingMode,
-      rulerLines: rulerLines
+      rulerLines: rulerLines,
+      fillMultiBitValues: fillMultiBitValues
     });
   }
 

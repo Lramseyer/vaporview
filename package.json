@@ -146,6 +146,12 @@
           "scope": "application",
           "description": "Vertical ruler lines in the waveform viewer."
         },
+        "vaporview.fillMultiBitValues": {
+          "type": "boolean",
+          "default": "true",
+          "scope": "application",
+          "description": "Multi-bit renderer style - If checked, fills the value box with color. If unchecked, only the outline is drawn."
+        },
         "vaporview.customColor1": {
           "type": "string",
           "default": "#cccccc",

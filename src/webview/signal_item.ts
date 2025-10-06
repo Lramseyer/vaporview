@@ -182,7 +182,7 @@ export class VariableItem extends SignalItem implements RowItem {
   }
 
   public getLabelText(): string {
-    return [this.scopePath + this.signalName].join('.');
+    return [this.scopePath, this.signalName].join('.');
   }
 
   public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {

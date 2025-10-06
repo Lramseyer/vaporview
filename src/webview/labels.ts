@@ -101,7 +101,7 @@ export class LabelsPanels {
     this.labelsList  = [];
     const transitions: string[] = [];
     this.labelsList.push('<svg id="drag-divider" style="top: 0px; display:none; pointer-events: none;"><line x1="0" y1="0" x2="100%" y2="0"></line></svg>');
-    this.labelsList.push('<div id="draggable-cursor-tag" class="draggable-label" style="position: fixed; top: 0px; display:none; pointer-events: none;">clock</div>');
+    this.labelsList.push('<div id="draggable-cursor-tag" class="draggable-label" style="position: fixed; top: 0px; display:none; pointer-events: none;"> </div>');
     viewerState.displayedSignals.forEach((rowId, index) => {
       const netlistData = dataManager.rowItems[rowId];
       this.labelsList.push(netlistData.createLabelElement());
@@ -271,7 +271,7 @@ export class LabelsPanels {
     //this.draggableItem.classList.remove('is-idle');
     this.dragCursorTag = this.labels.querySelector('#draggable-cursor-tag');
     if (this.dragCursorTag) {
-      this.dragCursorTag.style.display = 'block';
+      this.dragCursorTag.style.display = 'flex';
       this.dragCursorTag.innerHTML = `${this.dragCursorText}`;
     }
     this.draggableRows.forEach((rowId) => {
@@ -300,7 +300,7 @@ export class LabelsPanels {
     }
 
     if (this.dragCursorTag) {
-      this.dragCursorTag.style.transform = `translate(${event.clientX}px, ${event.clientY}px)`;
+      this.dragCursorTag.style.transform = `translate(${event.clientX + 3}px, ${event.clientY}px)`;
     }
 
     this.updateIdleItemsStateAndPosition(event);

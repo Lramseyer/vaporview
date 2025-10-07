@@ -5,6 +5,7 @@
 - Added
   - Multi signal select
   - Multi signal reorder
+  - Outlined multi-bit renderer - enabled in settings menu
 - Fixed
   - Drag and drop from tree view places signals at the end of group
   - Files with one time table entry now show values

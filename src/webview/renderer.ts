@@ -16,12 +16,13 @@ function busValue(time: number, deltaTime: number, displayValue: string, viewpor
   const adjustedTime        = Math.max(time, viewportSpecs.timeScrollLeft);
   const adjestedDeltaTime   = Math.min(time + deltaTime, viewportSpecs.timeScrollRight) - adjustedTime;
   const characterWidthLimit = adjestedDeltaTime - (2 * padding);
-  let center = true;
-  let text   = displayValue;
+  const centerText          = (textTime <= characterWidthLimit);
+  let text                  = displayValue;
   let xValue;
 
-  if (textTime > characterWidthLimit) {
-    center = false;
+  if (centerText) {
+    xValue = adjustedTime + (adjestedDeltaTime / 2);
+  } else {
     const charCount = Math.floor(characterWidthLimit / (viewportSpecs.characterWidth * viewportSpecs.pixelTime)) - 1;
     if (charCount < 0) {return ["", -100];}
     if (justifydirection) {
@@ -31,17 +32,17 @@ function busValue(time: number, deltaTime: number, displayValue: string, viewpor
       xValue = adjustedTime + padding;
       text = displayValue.slice(0, charCount) + '…';
     }
-  } else {
-    xValue = adjustedTime + (adjestedDeltaTime / 2);
   }
 
   const adjustedXValue = (xValue * viewportSpecs.zoomRatio) - viewportSpecs.pseudoScrollLeft;
-  return [text, adjustedXValue, center];
+  return [text, adjustedXValue, centerText];
 }
 
-function outlineBusValue(ctx: CanvasRenderingContext2D, drawColor: string, backgroundColor: string, viewportSpecs: any, canvasHeight: number) {
-  ctx.fillStyle = backgroundColor;
-  ctx.fill();
+function outlineBusValue(ctx: CanvasRenderingContext2D, drawColor: string, viewportSpecs: any, canvasHeight: number) {
+  ctx.restore();
+  ctx.save();
+  ctx.clip();
+  ctx.clearRect(0, 0, viewportSpecs.viewerWidth, canvasHeight);
   ctx.globalAlpha = 0.1;
   ctx.fillStyle = drawColor;
   ctx.fill();
@@ -59,6 +60,15 @@ function outlineBusValue(ctx: CanvasRenderingContext2D, drawColor: string, backg
   ctx.stroke();
   ctx.restore();
   ctx.save();
+}
+
+function busValueNoDraw(ctx: CanvasRenderingContext2D, alpha: number, lineWidth: number, viewerWidth: number) {
+  ctx.globalAlpha = alpha;
+  ctx.lineWidth = lineWidth;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(viewerWidth, 0);
+  ctx.stroke();
 }
 
 export const multiBitWaveformRenderer: WaveformRenderer = {
@@ -94,7 +104,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     let points          = [[adjustedTime, 0]];
     const endPoints     = [[adjustedTime, 0]];
     let xzPoints: any[] = [];
-    //const xzValues: string[]        = [];
+    //const xzValues: string[] = [];
     let textElements: any[] = [];
     let moveCursor      = false;
     let drawBackgroundStrokes = false;
@@ -103,10 +113,9 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     const drawColor     = netlistData.color;
     const xzColor       = viewportSpecs.xzColor;
     const fillShape     = viewportSpecs.fillMultiBitValues;
-    const minYPosition  = halfCanvasHeight / viewportSpecs.zoomRatio;
+    //const minYPosition  = halfCanvasHeight / viewportSpecs.zoomRatio;
+    let lastDrawTime    = 0;
     let parsedValue;
-
-    let lastDrawTime = 0;
     //const noDrawRanges: any[] = [];
 
     for (let i = startIndex; i < endIndex; i++) {
@@ -126,10 +135,10 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
           //noDrawRanges.push([lastDrawTime, adjustedTime]);
         }
 
-        is4State     = valueIs9State(value);
-        xPosition    = (elementWidth / 2) + adjustedTime;
-        //yPosition    =  Math.max(elementWidth * 2, minYPosition);
-        yPosition    =  elementWidth * 2;
+        is4State  = valueIs9State(value);
+        xPosition = (elementWidth / 2) + adjustedTime;
+        yPosition =  elementWidth * 2;
+        //yPosition =  Math.max(elementWidth * 2, minYPosition);
         if (is4State) {
           xzPoints.push([[adjustedTime, 0], [xPosition, yPosition], [adjustedTimeEnd, 0], [xPosition, -yPosition]]);
         } else {
@@ -161,8 +170,8 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
         moveCursor = true;
       }
 
-      time         = transitionData[i][0];
-      value        = transitionData[i][1];
+      time  = transitionData[i][0];
+      value = transitionData[i][1];
       //spansChunk   = false;
     }
 
@@ -180,8 +189,8 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
         //noDrawRanges.push([lastDrawTime, adjustedTime]);
       }
 
-      xPosition    = (elementWidth / 2) + adjustedTime;
-      is4State     = valueIs9State(value);
+      xPosition = (elementWidth / 2) + adjustedTime;
+      is4State  = valueIs9State(value);
       if (is4State) {
         xzPoints.push([[adjustedTime, 0], [xPosition, elementWidth * 2], [adjustedTimeEnd, 0], [xPosition, -elementWidth * 2]]);
       } else {
@@ -205,21 +214,14 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     ctx.translate(0, halfCanvasHeight);
 
     // No Draw Line
-    ctx.globalAlpha = 0.4;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(viewportSpecs.viewerWidth, 0);
     ctx.strokeStyle = drawColor;
-    ctx.stroke();
-
-    ctx.globalAlpha = 0.8;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(viewportSpecs.viewerWidth, 0);
-    ctx.strokeStyle = drawColor;
-    ctx.stroke();
+    if (fillShape) {
+      busValueNoDraw(ctx, 0.4, 3, viewportSpecs.viewerWidth);
+      busValueNoDraw(ctx, 0.8, 1, viewportSpecs.viewerWidth);
+    } else {
+      busValueNoDraw(ctx, 0.5, 6, viewportSpecs.viewerWidth);
+      busValueNoDraw(ctx, 1, 5, viewportSpecs.viewerWidth);
+    }
     ctx.moveTo(0, 0);
 
     // Draw diamonds
@@ -236,7 +238,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
       ctx.fillStyle = drawColor;
       ctx.fill();
     } else {
-      outlineBusValue(ctx, drawColor, viewportSpecs.backgroundColor, viewportSpecs, canvasHeight);
+      outlineBusValue(ctx, drawColor, viewportSpecs, canvasHeight);
       ctx.translate(0.5, halfCanvasHeight);
       ctx.transform(viewportSpecs.zoomRatio, 0, 0, viewportSpecs.zoomRatio, 0, 0);
     }
@@ -270,7 +272,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
       ctx.fill();
       ctx.restore();
     } else {
-      outlineBusValue(ctx, xzColor, viewportSpecs.backgroundColor, viewportSpecs, canvasHeight);
+      outlineBusValue(ctx, xzColor, viewportSpecs, canvasHeight);
     }
 
     // Draw Text
@@ -337,31 +339,29 @@ export const binaryWaveformRenderer: WaveformRenderer = {
     let initialValue2state = parseInt(initialValue);
     let initialTime        = initialState[0];
     let initialTimeOrStart = Math.max(initialState[0], -10);
-    const minDrawWidth     = viewportSpecs.pixelTime / viewportSpecs.pixelRatio;
     let xzPath: any[]      = [];
+    const minDrawWidth     = viewportSpecs.pixelTime / viewportSpecs.pixelRatio;
     const drawColor        = netlistData.color;
     const xzColor          = viewportSpecs.xzColor;
     const viewerWidthTime  = viewportSpecs.viewerWidthTime;
     const timeScrollLeft   = viewportSpecs.timeScrollLeft;
     const timeScrollRight  = viewportSpecs.timeScrollRight - timeScrollLeft;
     const valueIs9State    = netlistData.valueFormat.is9State;
-
-    const rowHeight      = netlistData.rowHeight * WAVE_HEIGHT;
-    const canvasHeight   = rowHeight - 8;
+    const rowHeight        = netlistData.rowHeight * WAVE_HEIGHT;
+    const canvasHeight     = rowHeight - 8;
 
     if (valueIs9State(initialValue)) {
       initialValue2state = 0;
     }
     const startScreenX  = -10 * viewportSpecs.pixelTime
     let accumulatedPath = [[startScreenX, 0], [startScreenX, initialValue2state]];
-
-    let value2state    = 0;
+    let value2state     = 0;
     // No Draw Code
-    let lastDrawTime   = 0;
+    let lastDrawTime    = 0;
     let lastNoDrawTime: any = null;
-    let noDrawFlag     = false;
-    let noDrawPath: any[]     = [];
-    let lastDrawValue  = initialValue2state;
+    let noDrawFlag      = false;
+    let noDrawPath: any[] = [];
+    let lastDrawValue   = initialValue2state;
     let lastnoDrawValue: any = null;
 
     for (let i = startIndex; i < endIndex; i++) {

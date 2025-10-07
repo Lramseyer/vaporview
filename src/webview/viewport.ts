@@ -327,8 +327,8 @@ export class Viewport {
   }
 
   getTimeFromClick(event: MouseEvent) {
-    //const bounds    = this.scrollArea.getBoundingClientRect();
-    const pixelLeft = Math.round(event.pageX - this.scrollAreaBounds.left);
+    const eventLeft = Math.round(event.pageX - this.scrollAreaBounds.left);
+    const pixelLeft = Math.min(Math.max(0, eventLeft), this.viewerWidth);
     return Math.round((pixelLeft + this.pseudoScrollLeft) * this.pixelTime);
   }
 
@@ -467,7 +467,7 @@ export class Viewport {
     const timeStart = this.getTimeFromClick(this.highlightStartEvent);
     const timeEnd   = this.getTimeFromClick(this.highlightEndEvent);
     const time      = Math.round((timeStart + timeEnd) / 2);
-    const width     = Math.abs(this.highlightStartEvent.pageX - this.highlightEndEvent.pageX);
+    const width     = Math.abs((timeEnd - timeStart) * this.zoomRatio);
     const amount    = Math.log2(width / this.viewerWidth);
 
     if (this.highlightElement) {

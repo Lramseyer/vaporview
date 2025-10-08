@@ -143,10 +143,6 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.removeSelectedSignalsFromDocument('netlist');
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeSelectedDisplayedSignals', (e) => {
-    viewerProvider.removeSelectedSignalsFromDocument('displayedSignals');
-  }));
-
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeAllInScope', (e) => {
     if (e.collapsibleState === vscode.TreeItemCollapsibleState.None) {return;}
     viewerProvider.removeSignalList(e.children);

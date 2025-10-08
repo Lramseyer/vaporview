@@ -261,55 +261,6 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
 
 }
 
-export class DisplayedSignalsViewProvider implements vscode.TreeDataProvider<NetlistItem> {
-  private treeData: NetlistItem[] = [];
-  private _onDidChangeTreeData: vscode.EventEmitter<NetlistItem | undefined> = new vscode.EventEmitter<NetlistItem | undefined>();
-  readonly onDidChangeTreeData: vscode.Event<NetlistItem | undefined> = this._onDidChangeTreeData.event;
-
-  // Method to set the tree data
-  public setTreeData(netlistItems: NetlistItem[]) {
-    this.treeData = netlistItems;
-    this._onDidChangeTreeData.fire(undefined); // Trigger a refresh of the Netlist view
-  }
-
-  public hide() {
-    this.setTreeData([]);
-  }
-
-  public getTreeData(): NetlistItem[] {return this.treeData;}
-
-  getTreeItem(element:  NetlistItem): vscode.TreeItem {return element;}
-  getChildren(element?: NetlistItem): Thenable<NetlistItem[]> {
-    if (element) {return Promise.resolve(element.children);} // Return the children of the selected element
-    else         {return Promise.resolve(this.treeData);} // Return the top-level netlist items
-  }
-
-  public addSignalToTreeData(netlistItem: NetlistItem): NetlistItem {
-    const n = netlistItem;
-    const displayedItem = new NetlistItem(n.label, n.type, n.encoding, n.width, n.signalId, n.netlistId, n.name, n.scopePath, n.msb, n.lsb, -1, n.children, vscode.TreeItemCollapsibleState.None, n.checkboxState, n.resourceUri);
-    displayedItem.iconPath = n.iconPath;
-    this.treeData.push(displayedItem);
-    this._onDidChangeTreeData.fire(undefined); // Trigger a refresh of the Netlist view
-    return displayedItem;
-  }
-
-  public removeSignalFromTreeData(netlistItem: NetlistItem) {
-    const index = this.treeData.indexOf(netlistItem);
-    if (index > -1) {
-      this.treeData.splice(index, 1);
-    }
-    this._onDidChangeTreeData.fire(undefined); // Trigger a refresh of the Netlist view
-  }
-
-  public getParent(element: NetlistItem): vscode.ProviderResult<NetlistItem> {
-    return null;
-  }
-
-  refresh(): void {
-    this._onDidChangeTreeData.fire(undefined);
-  }
-}
-
 interface TreeCheckboxChangeEvent<T> {
   item: T;
   checked: boolean;

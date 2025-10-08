@@ -83,12 +83,6 @@ See [Tree Item API docs](https://code.visualstudio.com/api/references/vscode-api
 - **package.json path:** contributes.menus.view/item/context
 - **when:** view == 'waveformViewerNetlistView'
 
-### Displayed Signals View
-
-- **ID:** waveformViewerDisplayedSignalsView
-- **package.json path:** contributes.menus.view/item/context
-- **when:** view == 'waveformViewerDisplayedSignalsView'
-
 ### Menu Groups
 
 - 1_default

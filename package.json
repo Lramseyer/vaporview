@@ -59,10 +59,6 @@
         {
           "id": "waveformViewerNetlistView",
           "name": "Netlist"
-        },
-        {
-          "id": "waveformViewerDisplayedSignalsView",
-          "name": "Displayed Signals"
         }
       ]
     },
@@ -313,11 +309,6 @@
           "group": "1_default@2"
         },
         {
-          "command": "vaporview.removeSelectedDisplayedSignals",
-          "when": "viewItem == 'netlistVar' && view == 'waveformViewerDisplayedSignalsView'",
-          "group": "1_default@3"
-        },
-        {
           "command": "vaporview.addAllInScopeShallow",
           "when": "viewItem == 'netlistScope'",
           "group": "1_default@4"
@@ -339,27 +330,27 @@
         },
         {
           "command": "vaporview.copyName",
-          "when": "view == 'waveformViewerNetlistView' || view == 'waveformViewerDisplayedSignalsView'",
+          "when": "view == 'waveformViewerNetlistView'",
           "group": "1_default@8"
         },
         {
           "command": "vaporview.addVariableByInstancePath",
-          "when": "view == 'waveformViewerNetlistView' || view == 'waveformViewerDisplayedSignalsView'",
+          "when": "view == 'waveformViewerNetlistView'",
           "group": "2_addVariable"
         },
         {
           "command": "vaporview.saveViewerSettings",
-          "when": "view == 'waveformViewerNetlistView' || view == 'waveformViewerDisplayedSignalsView'",
+          "when": "view == 'waveformViewerNetlistView'",
           "group": "3_saveLoad@1"
         },
         {
           "command": "vaporview.loadViewerSettings",
-          "when": "view == 'waveformViewerNetlistView' || view == 'waveformViewerDisplayedSignalsView'",
+          "when": "view == 'waveformViewerNetlistView'",
           "group": "3_saveLoad@2"
         },
         {
           "command": "vaporview.reloadFile",
-          "when": "view == 'waveformViewerNetlistView' || view == 'waveformViewerDisplayedSignalsView'",
+          "when": "view == 'waveformViewerNetlistView'",
           "group": "4_reload"
         }
       ],
@@ -741,10 +732,6 @@
       },
       {
         "command": "vaporview.removeSelectedNetlist",
-        "title": "Remove Selected"
-      },
-      {
-        "command": "vaporview.removeSelectedDisplayedSignals",
         "title": "Remove Selected"
       },
       {

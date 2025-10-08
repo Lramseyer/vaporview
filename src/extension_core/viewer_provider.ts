@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import { getTokenColorsForTheme } from './extension';
 import { VaporviewDocument, VaporviewDocumentFsdb, VaporviewDocumentWasm } from './document';
 import { SurferDocument } from './surfer_document';
-import { NetlistTreeDataProvider, DisplayedSignalsViewProvider, NetlistItem, WebviewCollection, netlistItemDragAndDropController } from './tree_view';
+import { NetlistTreeDataProvider, NetlistItem, WebviewCollection, netlistItemDragAndDropController } from './tree_view';
 import { getInstancePath } from './tree_view';
 
 export type NetlistId = number;
@@ -97,14 +97,11 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
   public netlistTreeDataProvider: NetlistTreeDataProvider;
   public netlistView: vscode.TreeView<NetlistItem>;
-  public displayedSignalsTreeDataProvider: DisplayedSignalsViewProvider;
-  public displayedSignalsView: vscode.TreeView<NetlistItem>;
   public deltaTimeStatusBarItem: vscode.StatusBarItem;
   public markerTimeStatusBarItem: vscode.StatusBarItem;
   public selectedSignalStatusBarItem: vscode.StatusBarItem;
 
   public netlistViewSelectedSignals: NetlistItem[] = [];
-  public displayedSignalsViewSelectedSignals: NetlistItem[] = [];
   public log: vscode.OutputChannel;
   public get numDocuments(): number {return this.numDocuments;}
 
@@ -136,14 +133,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     });
     this._context.subscriptions.push(this.netlistView);
 
-    this.displayedSignalsTreeDataProvider = new DisplayedSignalsViewProvider();
-    this.displayedSignalsView = vscode.window.createTreeView('waveformViewerDisplayedSignalsView', {
-      treeDataProvider: this.displayedSignalsTreeDataProvider,
-      manageCheckboxStateManually: true,
-      canSelectMany: true,
-    });
-    this._context.subscriptions.push(this.displayedSignalsView);
-
     // Create a status bar item for marker time, delta time, and selected signal
     this.markerTimeStatusBarItem     = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 97);
     this.deltaTimeStatusBarItem      = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
@@ -158,8 +147,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.netlistView.onDidCollapseElement(this.handleNetlistCollapseElement);
     this.netlistView.onDidChangeSelection(this.handleNetlistViewSelectionChanged, this, this._context.subscriptions);
     this.netlistView.onDidChangeCheckboxState(this.handleNetlistCheckboxChange, this, this._context.subscriptions);
-    this.displayedSignalsView.onDidChangeSelection(this.handleDisplayedSignalsViewSelectionChanged, this, this._context.subscriptions);
-    this.displayedSignalsView.onDidChangeCheckboxState(this.handleDisplayedViewSelectionChanged, this, this._context.subscriptions);
   }
 
   async openCustomDocument(
@@ -183,7 +170,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       updateViews: (uri: vscode.Uri) => {
         if (this.activeDocument?.uri !== uri) {return;}
         this.netlistTreeDataProvider.loadDocument(document);
-        this.displayedSignalsTreeDataProvider.setTreeData(document.displayedSignals);
       },
       emitEvent: (e: any) => {this.emitEvent(e);},
       removeFromCollection: (uri: vscode.Uri, document: VaporviewDocument) => {
@@ -248,7 +234,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
 
     this.netlistTreeDataProvider.loadDocument(document);
-    this.displayedSignalsTreeDataProvider.setTreeData(document.displayedSignals);
 
     return document;
   }
@@ -286,7 +271,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     webviewPanel.onDidChangeViewState(e => {
 
       this.netlistViewSelectedSignals = [];
-      this.displayedSignalsViewSelectedSignals = [];
 
       if (e.webviewPanel.active) {
         this.onDidChangeViewStateActive(document, webviewPanel);
@@ -532,7 +516,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     const settings = document.getSettings();
     this.netlistTreeDataProvider.hide();
-    this.displayedSignalsTreeDataProvider.hide();
     await document.reload();
 
     // No need to call this, as it will be called in viewport.init()
@@ -689,9 +672,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         this.selectedSignalStatusBarItem.text += ' (' + event.transitionCount + ' value change' + plural;
       }
       this.selectedSignalStatusBarItem.show();
-      //if (NetlistIdRef.displayedItem) {
-      //  this.displayedSignalsView.reveal(NetlistIdRef.displayedItem, {select: true, focus: false});
-      //}
     } else {
       this.selectedSignalStatusBarItem.hide();
     }
@@ -728,14 +708,12 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.lastActiveWebview  = webviewPanel;
     this.lastActiveDocument = document;
     this.netlistTreeDataProvider.loadDocument(document);
-    this.displayedSignalsTreeDataProvider.setTreeData(this.activeDocument.displayedSignals);
   }
 
   onDidChangeViewStateInactive() {
     this.activeWebview  = undefined;
     this.activeDocument = undefined;
     this.netlistTreeDataProvider.hide();
-    this.displayedSignalsTreeDataProvider.hide();
     this.deltaTimeStatusBarItem.hide();
     this.markerTimeStatusBarItem.hide();
     this.selectedSignalStatusBarItem.hide();
@@ -755,9 +733,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     const NetlistIdRef = this.activeDocument.netlistIdTable[netlistId];
     if (NetlistIdRef.netlistItem) {
       this.netlistView.reveal(NetlistIdRef.netlistItem, {select: true, focus: false, expand: 3});
-      if (NetlistIdRef.displayedItem) {
-        this.displayedSignalsView.reveal(NetlistIdRef.displayedItem, {select: true, focus: false});
-      }
     }
   }
 
@@ -951,8 +926,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       const metadata   = element;
       const netlistId  = metadata.netlistId;
       this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Checked);
-      const displayedItem = this.displayedSignalsTreeDataProvider.addSignalToTreeData(metadata);
-      document.setNetlistIdTable(netlistId, displayedItem);
+      document.setNetlistIdTable(netlistId);
       netlistIdList.push(netlistId);
     });
     document.renderSignals(netlistIdList, groupPath, index);
@@ -1102,11 +1076,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (metadataELements) {
       const netlistItem = metadataELements.netlistItem;
       this.netlistTreeDataProvider.setCheckboxState(netlistItem, vscode.TreeItemCheckboxState.Unchecked);
-      const displayedItem = metadataELements.displayedItem;
-      if (displayedItem) {
-        this.displayedSignalsTreeDataProvider.removeSignalFromTreeData(displayedItem);
-        document.setNetlistIdTable(netlistId, undefined);
-      }
+      document.setNetlistIdTable(netlistId);
     }
   }
 
@@ -1128,8 +1098,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     if (view === 'netlist') {
       this.removeSignalList(this.netlistViewSelectedSignals);
-    } else if (view === 'displayedSignals') {
-      this.removeSignalList(this.displayedSignalsViewSelectedSignals);
     }
   }
 
@@ -1308,13 +1276,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         source: "netlistView",
       });
     }
-  };
-
-  private handleDisplayedSignalsViewSelectionChanged = (e: vscode.TreeViewSelectionChangeEvent<NetlistItem>) => {
-    this.displayedSignalsViewSelectedSignals = [];
-    e.selection.forEach((element) => {
-      this.displayedSignalsViewSelectedSignals.push(element);
-    });
   };
 
   private handleNetlistCollapseElement = (e: vscode.TreeViewExpansionEvent<NetlistItem>) => {

@@ -18,7 +18,6 @@ import { json } from 'stream/consumers';
 export type NetlistIdTable = NetlistIdRef[];
 export type NetlistIdRef = {
   netlistItem: NetlistItem;
-  displayedItem: NetlistItem | undefined;
   signalId: SignalId;
 };
 type WaveformTopMetadata = {
@@ -235,10 +234,9 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     }
   }
 
-  public setNetlistIdTable(netlistId: NetlistId, displayedSignalViewRef: NetlistItem | undefined) {
+  public setNetlistIdTable(netlistId: NetlistId) {
     const viewRef = this._netlistIdTable[netlistId];
     if (viewRef === undefined) {return;}
-    viewRef.displayedItem = displayedSignalViewRef;
     this._netlistIdTable[netlistId] = viewRef;
   }
 
@@ -520,13 +518,13 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
 
       const scope = createScope(name, tpe, "", id, -1, this.uri);
       this.treeData.push(scope);
-      this._netlistIdTable[id] = {netlistItem: scope, displayedItem: undefined, signalId: 0};
+      this._netlistIdTable[id] = {netlistItem: scope, signalId: 0};
     },
     setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number) => {
 
       const varItem = createVar(name, tpe, encoding, "", id, signalid, width, msb, lsb, false /*isFsdb*/, this.uri);
       this.treeData.push(varItem);
-      this._netlistIdTable[id] = {netlistItem: varItem, displayedItem: undefined, signalId: signalid};
+      this._netlistIdTable[id] = {netlistItem: varItem, signalId: signalid};
     },
     setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
       this.setMetadata(scopecount, varcount, timescale, timeunit);
@@ -623,7 +621,7 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
         } else {
           varTable[varItem.name].push(varItem);
         }
-        this.netlistIdTable[varItem.netlistId] = {netlistItem: varItem, displayedItem: undefined, signalId: varItem.signalId};
+        this.netlistIdTable[varItem.netlistId] = {netlistItem: varItem, signalId: varItem.signalId};
       });
 
       callLimit--;
@@ -1021,7 +1019,7 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
     const varItem = createVar(name, type, encoding, path, netlistId, signalId, width, msb, lsb, true /*isFsdb*/, this.uri);
     this.fsdbCurrentScope!.children.push(varItem);
 
-    this.netlistIdTable[varItem.netlistId] = { netlistItem: varItem, displayedItem: undefined, signalId: varItem.signalId };
+    this.netlistIdTable[varItem.netlistId] = { netlistItem: varItem, signalId: varItem.signalId };
   }
 
   fsdbArrayBeginCallback(name: string, path: string, netlistId: number) {

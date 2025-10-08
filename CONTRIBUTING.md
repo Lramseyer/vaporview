@@ -62,9 +62,7 @@ The data structures of this extension really are the key to making it work as we
     - document: VaporviewDocument (reference)
     - treeData: NetlistItem[] (extends vscode.TreeItem)
   - netlistView: vscode.TreeView<NetlistItem>
-  - displayedSignalsTreeDataProvider: DisplayedSignalsViewProvider (implements vscode.TreeDataProvider<NetlistItem>)
     - treeData: NetlistItem[] (extends vscode.TreeItem)
-  - displayedSignalsView: vscode.TreeView<NetlistItem>
   - deltaTimeStatusBarItem: vscode.StatusBarItem
   - markerTimeStatusBarItem: vscode.StatusBarItem
   - selectedSignalStatusBarItem: vscode.StatusBarItem
@@ -73,7 +71,6 @@ The data structures of this extension really are the key to making it work as we
   - lastActiveWebview: vscode.WebviewPanel
   - lastActiveDocument: VaporviewDocument
   - netlistViewSelectedSignals: NetlistItem[]
-  - displayedSignalsViewSelectedSignals: NetlistItem[]
   - webviews: webviewCollection()
     - numWebviews: number
     - resource: string
@@ -87,10 +84,8 @@ The data structures of this extension really are the key to making it work as we
   - webviewPanel: vscode.WebviewPanel
   - _webviewInitialized: boolean
   - treeData: NetlistItem[] (extends vscode.TreeItem)
-  - displayedSignals: NetlistItem[] (extends vscode.TreeItem)
   - _netlistTable: NetlistlIdRef[]
     - netlistItem: NetlistItem
-    - displayedItem: NetlistItem | undefined
     - signalId: string
   - metadata: WaveformTopMetadata
     - fileName: string
@@ -219,8 +214,6 @@ Markers are essentially an SVG line that's drawn in the .column-chunk. This was 
 I'm going to be honest, I was lazy in my implementation of this, and there are a bunch of global variables just lying around. I could probably put them into an object to make it a little safer.
 
 Here are some of the important structures for the viewer:
-
-- displayedSignals: netlistId[]
 
 - waveformData: Map<signalId, transitionData>
   - transitionData: TransitionData[]

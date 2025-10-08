@@ -423,12 +423,12 @@ export class VariableItem extends SignalItem implements RowItem {
     }
   }
 
-  handleValueLink(time: number, snapToTime: number) {
+  handleValueLink(time: number, snapToTime: number): boolean {
 
-    if (this.valueLinkCommand === "") {return;}
-    if (this.renderType.id !== 'multiBit') {return;}
-    if (this.valueLinkIndex < 0) {return;}
-    if (time !== snapToTime) {return;}
+    if (this.valueLinkCommand === "") {return false;}
+    if (this.renderType.id !== 'multiBit') {return false;}
+    if (this.valueLinkIndex < 0) {return false;}
+    if (time !== snapToTime) {return false;}
 
     const command        = this.valueLinkCommand;
     const signalId       = this.signalId;
@@ -452,6 +452,7 @@ export class VariableItem extends SignalItem implements RowItem {
     }
 
     vscode.postMessage({ command: 'executeCommand', commandName: command, args: event });
+    return true;
   }
 
   public dispose() {

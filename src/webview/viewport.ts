@@ -410,8 +410,8 @@ export class Viewport {
       if (pixelDistance < snapToDistance) {snapToTime = nearestTime;}
 
       if (button === 0 && (event.ctrlKey || event.metaKey)) {
-        signalItem.handleValueLink(time, snapToTime);
-        return;
+        const linkClicked = signalItem.handleValueLink(time, snapToTime);
+        if (linkClicked) {return;}
       }
       this.events.dispatch(ActionType.MarkerSet, snapToTime, button);
     }

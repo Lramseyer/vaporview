@@ -2,6 +2,8 @@
 
 This is the official API for Vaporview. This will remain stable for all future releases. Anything listed as a proposed API is subject to change. If you would like to see anything added to the API, please file an [issue](https://github.com/Lramseyer/vaporview/issues), or add it to the github [discussions](https://github.com/Lramseyer/vaporview/discussions/63).
 
+If you need help implementing an API feature into your extension, feel free to reach out to me directly or hop on [matrix chat](https://element.fossi-chat.org/#/room/#vaporview:fossi-chat.org).
+
 Planned upodates to the API
 
 - More commands

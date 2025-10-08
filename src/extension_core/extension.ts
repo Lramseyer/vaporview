@@ -107,7 +107,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeSignal', (e) => {
     if (e && e.netlistId !== undefined) {
-      viewerProvider.removeSignalFromDocument(e.netlistId);
+      viewerProvider.removeSignalFromDocument(e.netlistId, true);
     }
   }));
 

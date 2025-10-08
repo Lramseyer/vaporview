@@ -763,11 +763,19 @@ class VaporviewWebview {
     });
   }
 
-  removeVariable(netlistId: NetlistId | null) {
+  removeVariable(netlistId: NetlistId | null, removeAllSelected: boolean | undefined) {
     if (netlistId === null) {return;}
 
     const rowId = dataManager.netlistIdTable[netlistId];
     const index = viewerState.visibleSignalsFlat.indexOf(rowId);
+
+    console.log('removeVariable: ' + rowId + ', removeAllSelected: ' + removeAllSelected);
+    if (viewerState.selectedSignal.includes(rowId) && removeAllSelected) {
+      viewerState.selectedSignal.forEach((selectedRowId) => {
+        if (selectedRowId === rowId) {return;} // already handled below
+        this.removeVariableInternal(selectedRowId);
+      });
+    }
 
     this.events.dispatch(ActionType.RemoveVariable, rowId, true);
     if (viewerState.selectedSignal.length === 1 && viewerState.selectedSignal[0] === rowId) {
@@ -856,7 +864,7 @@ class VaporviewWebview {
       case 'getContext':            {sendWebviewContext(); break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
       case 'add-variable':          {dataManager.addVariable(message.signalList, message.groupPath, undefined, message.index); break;}
-      case 'remove-signal':         {this.removeVariable(message.netlistId); break;}
+      case 'remove-signal':         {this.removeVariable(message.netlistId, message.removeAllSelected); break;}
       case 'remove-group':          {this.removeSignalGroup(message.groupId, message.recursive); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}
       case 'update-waveform-chunk-compressed': {dataManager.updateWaveformChunkCompressed(message); break;}

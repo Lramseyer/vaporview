@@ -379,12 +379,13 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     });
   }
 
-  public removeSignalFromWebview(netlistId: NetlistId) {
+  public removeSignalFromWebview(netlistId: NetlistId, removeAllSelected: boolean) {
     if (!this.webviewPanel) {return;}
 
     this.webviewPanel.webview.postMessage({
       command: 'remove-signal',
-      netlistId: netlistId
+      netlistId: netlistId,
+      removeAllSelected: removeAllSelected
    });
 
     const metadata = this.netlistIdTable[netlistId]?.netlistItem;
@@ -392,7 +393,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
       eventType: 'removeVariable',
       uri: this.uri,
       instancePath: getInstancePath(metadata),
-      netlistId: metadata.netlistId,
+      netlistId: metadata.netlistId
     })
   }
 

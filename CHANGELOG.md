@@ -1,5 +1,7 @@
 # Change Log
 
+Issue #93 fix removes too many spaces
+
 ## 1.4.2 - Upcoming Release
 
 - Added
@@ -11,6 +13,7 @@
   - Files with one time table entry now show values
   - New groups now appear where right click event happened
 - Removed "Displayed Signals" View
+- Netlist hierarchy displays items in alphabetical order
 
 ## 1.4.1 - 9/12/2025 - Latest Release
 

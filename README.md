@@ -212,6 +212,7 @@ This extension requires VScode 1.96.0 or later
   - Files with one time table entry now show values
   - New groups now appear where right click event happened
 - Removed "Displayed Signals" View
+- Netlist hierarchy displays items in alphabetical order
 
 ## 1.4.1 - Latest Release
 
@@ -258,6 +259,7 @@ Also special thanks to the Surfer team for their support and encouragement and a
 - [@lramseyer](https://github.com/Lramseyer) (Owner)
 - [@heyfey](https://github.com/heyfey)
 - [@marco-fr](https://github.com/marco-fr)
+- [@DGGua](https://github.com/DGGua)
 
 ## Misc
 

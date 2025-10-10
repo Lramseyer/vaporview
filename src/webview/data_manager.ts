@@ -201,8 +201,6 @@ export class WaveformDataManager {
       //moveList.forEach((rowId: RowId) => {
       //  this.events.dispatch(ActionType.ReorderSignals, [rowId], groupId, moveIndex);
       //});
-      console.log(index);
-      console.log(`Reorder to group ${groupId}, index ${moveIndex}`);
       this.events.dispatch(ActionType.ReorderSignals, moveList, groupId, moveIndex);
     }
 
@@ -210,7 +208,7 @@ export class WaveformDataManager {
     sendWebviewContext();
   }
 
-  addSignalGroup(name: string, groupPath: string[] | undefined, inputParentGroupId: number | undefined, eventRowId: number | undefined) {
+  addSignalGroup(name: string, groupPath: string[] | undefined, inputParentGroupId: number | undefined, eventRowId: number | undefined, moveSelected: boolean) {
     const groupId = this.nextGroupId;
     const rowId = this.nextRowId;
 
@@ -250,7 +248,20 @@ export class WaveformDataManager {
     updateDisplayedSignalsFlat();
     this.events.dispatch(ActionType.AddVariable, [rowId], false);
 
-    if (reorder) {
+    let moveValid = true
+    if (moveSelected && viewerState.selectedSignal.length > 0) {
+      this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignal, groupId, 0);
+
+      const filteredRowIdList = this.removeChildrenFromSignalList(viewerState.selectedSignal);
+      const parentGroupRowId = this.groupIdTable[parentGroupId];
+      filteredRowIdList.forEach((id) => {
+        const item = this.rowItems[id];
+        const childItems = item.getFlattenedRowIdList(false, -1);
+        if (childItems.includes(parentGroupRowId)) {moveValid = false;}
+      });
+    }
+
+    if (reorder && moveValid) {
       this.events.dispatch(ActionType.ReorderSignals, [rowId], parentGroupId, index);
     }
 

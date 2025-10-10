@@ -415,7 +415,6 @@ export class LabelsPanels {
       newIndex = dropItemIndex + this.indexOffset;
     }
 
-    console.log(`Drop at group ${newGroupId}, index ${newIndex}`);
     return {newGroupId, newIndex};
   }
 

@@ -435,19 +435,24 @@
           "group": "3_groups@1"
         },
         {
+          "command": "vaporview.newGroupFromSelection",
+          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "group": "3_groups@2"
+        },
+        {
           "command": "vaporview.renameSignalGroup",
           "when": "webviewSection == 'signal-group' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "3_groups@2"
+          "group": "3_groups@3"
         },
         {
           "command": "vaporview.ungroupSignals",
           "when": "webviewSection == 'signal-group' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "3_groups@3"
+          "group": "3_groups@4"
         },
         {
           "command": "vaporview.deleteGroup",
           "when": "webviewSection == 'signal-group' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "3_groups@3"
+          "group": "3_groups@5"
         },
         {
           "command": "vaporview.saveViewerSettings",
@@ -762,6 +767,10 @@
       {
         "command": "vaporview.newSignalGroup",
         "title": "New Group"
+      },
+      {
+        "command": "vaporview.newGroupFromSelection",
+        "title": "New Group from Selection"
       },
       {
         "command": "vaporview.renameSignalGroup",

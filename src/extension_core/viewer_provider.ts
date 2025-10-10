@@ -433,7 +433,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     for (const signalInfo of signalList) {
       if (signalInfo.dataType && signalInfo.dataType !== 'netlist-variable') {
         const name = signalInfo.groupName;
-        this.newSignalGroup(name, groupPath, undefined, undefined);
+        this.newSignalGroup(name, groupPath, undefined, undefined, false);
         groupPath.push(name);
         const missing = await this.addSignalListToDocument(signalInfo.children, document, groupPath);
         missingSignals.push(...missing);
@@ -672,6 +672,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         this.selectedSignalStatusBarItem.text += ' (' + event.transitionCount + ' value change' + plural;
       }
       this.selectedSignalStatusBarItem.show();
+    } else if (event.selectedSignalCount > 1) {
+      this.selectedSignalStatusBarItem.text = event.selectedSignalCount + ' signals selected';
     } else {
       this.selectedSignalStatusBarItem.hide();
     }
@@ -1101,7 +1103,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
   }
 
-  public newSignalGroup(name: string, groupPath: string[] | undefined, parentGroupId: number | undefined, eventRowId: number | undefined) {
+  public newSignalGroup(name: string, groupPath: string[] | undefined, parentGroupId: number | undefined, eventRowId: number | undefined, moveSelected: boolean) {
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}
@@ -1113,6 +1115,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       groupPath: groupPath,
       parentGroupId: parentGroupId,
       eventRowId: eventRowId,
+      moveSelected: moveSelected,
     });
   }
 

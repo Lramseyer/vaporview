@@ -261,17 +261,18 @@ export function sendDisplayedSignals() {
 
 function createWebviewContext() {
   let selectedNetlistId: any = null; 
-  //if (viewerState.selectedSignal !== null) {
-  //  const data = dataManager.rowItems[viewerState.selectedSignal];
-  //  if (data instanceof VariableItem) {
-  //    selectedNetlistId = data.netlistId;
-  //  }
-  //}
+  if (viewerState.selectedSignal.length === 1) {
+    const data = dataManager.rowItems[viewerState.selectedSignal[0]];
+    if (data instanceof VariableItem) {
+      selectedNetlistId = data.netlistId;
+    }
+  }
   return  {
     markerTime: viewerState.markerTime,
     altMarkerTime: viewerState.altMarkerTime,
     displayTimeUnit: viewport.displayTimeUnit,
     selectedSignal: selectedNetlistId,
+    selectedSignalCount: viewerState.selectedSignal.length,
     transitionCount: dataManager.getTransitionCount(),
     zoomRatio: vaporview.viewport.zoomRatio,
     scrollLeft: vaporview.viewport.pseudoScrollLeft,
@@ -548,7 +549,6 @@ class VaporviewWebview {
     let parentGroupId = getParentGroupId(rowId);
     let parentList: RowId[] = [];
     if (parentGroupId === null) {return;}
-    console.log('handleReorderArrowKeys: ' + direction);
     if (parentGroupId === 0) {
       parentList = viewerState.displayedSignals;
     } else {
@@ -682,8 +682,7 @@ class VaporviewWebview {
 
   handleSignalSelect(rowIdList: RowId[], lastSelected: RowId | null = null) {
 
-    const filteredRowIdList = dataManager.removeChildrenFromSignalList(rowIdList);
-    console.log('handleSignalSelect: ' + filteredRowIdList);
+    //const filteredRowIdList = dataManager.removeChildrenFromSignalList(rowIdList);
 
     if (rowIdList.length === 0) {return;}
     viewerState.lastSelectedSignal = lastSelected;
@@ -701,13 +700,15 @@ class VaporviewWebview {
     let instancePath = netlistData.scopePath + '.' + netlistData.signalName;
     if (netlistData.scopePath === "") {instancePath = netlistData.signalName;}
 
-    vscode.postMessage({
-      command: 'emitEvent',
-      eventType: 'signalSelect',
-      uri: viewerState.uri,
-      instancePath: instancePath,
-      netlistId: netlistId,
-    });
+    if (rowIdList.length === 1) {
+      vscode.postMessage({
+        command: 'emitEvent',
+        eventType: 'signalSelect',
+        uri: viewerState.uri,
+        instancePath: instancePath,
+        netlistId: netlistId,
+      });
+    }
   }
 
 // #region Helper Functions
@@ -769,7 +770,6 @@ class VaporviewWebview {
     const rowId = dataManager.netlistIdTable[netlistId];
     const index = viewerState.visibleSignalsFlat.indexOf(rowId);
 
-    console.log('removeVariable: ' + rowId + ', removeAllSelected: ' + removeAllSelected);
     if (viewerState.selectedSignal.includes(rowId) && removeAllSelected) {
       viewerState.selectedSignal.forEach((selectedRowId) => {
         if (selectedRowId === rowId) {return;} // already handled below
@@ -792,8 +792,26 @@ class VaporviewWebview {
     if (groupId === 0) {return;}
     const rowId = dataManager.groupIdTable[groupId];
     if (rowId === undefined) {return;}
+    const index = viewerState.visibleSignalsFlat.indexOf(rowId);
+
+    const groupItem = dataManager.rowItems[rowId];
+    if (!(groupItem instanceof SignalGroup)) {return;}
+    const childRowIdList = groupItem.getFlattenedRowIdList(false, -1);
+    let newSelected = viewerState.selectedSignal.map(id => id);
+    childRowIdList.forEach((childRowId) => {
+      if (newSelected.includes(childRowId)) {
+        newSelected = newSelected.filter(id => id !== childRowId);
+      }
+    });
 
     this.events.dispatch(ActionType.RemoveVariable, rowId, recursive);
+    if (newSelected.length === 0) {
+      const newindex = Math.max(0, Math.min(viewerState.visibleSignalsFlat.length - 1, index));
+      const newRowId = viewerState.visibleSignalsFlat[newindex];
+      this.events.dispatch(ActionType.SignalSelect, [newRowId], newRowId);
+    } else {
+      this.events.dispatch(ActionType.SignalSelect, newSelected, viewerState.lastSelectedSignal);
+    }
   }
 
   handleSetConfigSettings(settings: any) {
@@ -868,7 +886,7 @@ class VaporviewWebview {
       case 'remove-group':          {this.removeSignalGroup(message.groupId, message.recursive); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}
       case 'update-waveform-chunk-compressed': {dataManager.updateWaveformChunkCompressed(message); break;}
-      case 'newSignalGroup':        {dataManager.addSignalGroup(message.groupName, message.groupPath, message.parentGroupId, message.eventRowId); break;}
+      case 'newSignalGroup':        {dataManager.addSignalGroup(message.groupName, message.groupPath, message.parentGroupId, message.eventRowId, message.moveSelected); break;}
       case 'renameSignalGroup':     {dataManager.renameSignalGroup(message.groupId, message.groupName); break;}
       case 'handle-keypress':       {this.externalKeyDownHandler(message); break;}
       case 'setDisplayFormat':      {dataManager.setDisplayFormat(message); break;}

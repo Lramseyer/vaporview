@@ -350,6 +350,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
         netlistId:   metadata.netlistId,
         type:        metadata.type,
         encoding:    metadata.encoding,
+        enumType:    metadata.enumType,
      });
 
       this._delegate.emitEvent({
@@ -520,9 +521,9 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
       this.treeData.push(scope);
       this._netlistIdTable[id] = {netlistItem: scope, signalId: 0};
     },
-    setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number) => {
+    setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number, enumtype: string) => {
 
-      const varItem = createVar(name, tpe, encoding, "", id, signalid, width, msb, lsb, false /*isFsdb*/, this.uri);
+      const varItem = createVar(name, tpe, encoding, "", id, signalid, width, msb, lsb, enumtype, false /*isFsdb*/, this.uri);
       this.treeData.push(varItem);
       this._netlistIdTable[id] = {netlistItem: varItem, signalId: signalid};
     },
@@ -608,7 +609,7 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
         return createScope(child.name, child.type, scopePath, child.id, -1, this.uri);
       }) || [];
       const vars:   NetlistItem[] = childItems.vars?.map((child: any) => {
-        return createVar(child.name, child.type, child.encoding.split('(')[0], scopePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, false /*isFsdb*/, this.uri);
+        return createVar(child.name, child.type, child.encoding.split('(')[0], scopePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, child.enumType, false /*isFsdb*/, this.uri);
       }) || [];
 
       result.push(...(scopes.sort((a, b) => a.name.localeCompare(b.name))));
@@ -1016,7 +1017,8 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
   * Called by fsdbWorker when traversing a var.
   */
   fsdbVarCallback(name: string, type: string, encoding: string, path: string, netlistId: NetlistId, signalId: SignalId, width: number, msb: number, lsb: number) {
-    const varItem = createVar(name, type, encoding, path, netlistId, signalId, width, msb, lsb, true /*isFsdb*/, this.uri);
+    const enumType = "";
+    const varItem = createVar(name, type, encoding, path, netlistId, signalId, width, msb, lsb, enumType, true /*isFsdb*/, this.uri);
     this.fsdbCurrentScope!.children.push(varItem);
 
     this.netlistIdTable[varItem.netlistId] = { netlistItem: varItem, signalId: varItem.signalId };

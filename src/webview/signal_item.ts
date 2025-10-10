@@ -90,6 +90,7 @@ export class VariableItem extends SignalItem implements RowItem {
     public variableType: string,
     public encoding: string,
     public renderType: WaveformRenderer,
+    public enumType: string,
   ) {
     super();
 

@@ -60,7 +60,7 @@ export function createScope(
     name = name.replace(regex, '');
   }
 
-  const module    = new NetlistItem(name, typename, 'none', 0, 0, netlistId, name, path, 0, 0, scopeOffsetIdx, [], vscode.TreeItemCollapsibleState.Collapsed, undefined, uri);
+  const module    = new NetlistItem(name, typename, 'none', 0, 0, netlistId, name, path, 0, 0, "", scopeOffsetIdx, [], vscode.TreeItemCollapsibleState.Collapsed, undefined, uri);
   module.iconPath = icon;
 
   return module;
@@ -98,6 +98,7 @@ export function createVar(
   width: number,
   msb: number,
   lsb: number,
+  enumType: string,
   isFsdb: boolean,
   uri: vscode.Uri
 ) {
@@ -112,7 +113,7 @@ export function createVar(
     name = name.replace(regex, '');
   }
 
-  const variable = new NetlistItem(label, type, encoding, width, signalId, netlistId, name, path, msb, lsb, -1, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked, uri);
+  const variable = new NetlistItem(label, type, encoding, width, signalId, netlistId, name, path, msb, lsb, enumType, -1, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked, uri);
   const typename = type.toLocaleLowerCase();
   let icon;
 
@@ -286,6 +287,7 @@ export class NetlistItem extends vscode.TreeItem {
     public readonly scopePath: string,
     public readonly msb:        number,
     public readonly lsb:        number,
+    public readonly enumType:   string,
     public readonly scopeOffsetIdx: number, // Only used in fsdb
     public children:         NetlistItem[] = [],
     public collapsibleState: vscode.TreeItemCollapsibleState,

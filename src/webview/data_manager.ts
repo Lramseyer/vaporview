@@ -1,4 +1,4 @@
-import { SignalId, NetlistId, WaveformData, ValueChange, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove, labelsPanel, outputLog, getIndexInGroup, CollapseState } from './vaporview';
+import { SignalId, NetlistId, WaveformData, ValueChange, EnumEntry, EnumData, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove, labelsPanel, outputLog, getIndexInGroup, CollapseState } from './vaporview';
 import { formatBinary, formatHex, ValueFormat, formatString, valueFormatList } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer, signedLinearWaveformRenderer, signedSteppedrWaveformRenderer } from './renderer';
 import { SignalGroup, VariableItem, RowItem } from './signal_item';
@@ -18,6 +18,7 @@ export class WaveformDataManager {
   rowItems: RowItem[]             = []; // rowId is the key/index, RowItem is the value
   netlistIdTable: RowId[]         = []; // netlist ID is the key/index, rowId is the value
   groupIdTable: RowId[]           = []; // group ID is the key/index, rowId is the value
+  enumTable: Record<string, EnumData> = {}; // enum type is the key/index, array of enum values is the value
   valueChangeDataTemp: any        = [];
   private nextRowId: number       = 0;
   private nextGroupId: number     = 1;
@@ -119,6 +120,7 @@ export class WaveformDataManager {
     let updateFlag     = false;
     //let selectedSignal = viewerState.selectedSignal;
     const signalIdList: any  = [];
+    const enumTableList: any = [];
     const netlistIdList: any = [];
     const rowIdList: any     = [];
     const moveList: any      = [];
@@ -128,6 +130,7 @@ export class WaveformDataManager {
 
       const netlistId = signal.netlistId;
       const signalId  = signal.signalId;
+      const enumType  = signal.enumType;
       let rowId       = this.nextRowId;
       lastRowId       = rowId;
 
@@ -155,11 +158,13 @@ export class WaveformDataManager {
         signal.type,
         signal.encoding,
         signal.signalWidth === 1 ? binaryWaveformRenderer : multiBitWaveformRenderer,
+        enumType
       );
 
       this.rowItems[rowId] = varItem;
       netlistIdList.push(netlistId);
 
+      // Check for value change data
       if (this.valueChangeData[signalId] !== undefined) {
         //selectedSignal = [rowId];
         updateFlag     = true;
@@ -173,9 +178,19 @@ export class WaveformDataManager {
           totalChunks: 0,
         };
       }
+
+      // Check for enum type
+      if (enumType !== undefined && enumType !== "" ) {
+        if (this.enumTable[enumType] === undefined) {
+          enumTableList.push(enumType);
+        }
+      }
+
     });
 
     this.request(signalIdList);
+    // This is a stub for future enum fetching
+    //this.requestEnums(enumTableList);
 
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowIdList);
 
@@ -577,15 +592,28 @@ export class WaveformDataManager {
   handleReorderSignals(rowIdList: number[], newGroupId: number, newIndex: number) {
 
     let dropIndex = newIndex;
+    const groupRowId = this.groupIdTable[newGroupId];
     const filteredRowIdList = this.removeChildrenFromSignalList(rowIdList);
     const newGroupChildren = getChildrenByGroupId(newGroupId);
+
+    // Prevent moving a group into itself or one of its children
+    let abort = false;
+    if (groupRowId === undefined && newGroupId > 0) {return;}
+    filteredRowIdList.forEach((rowId) => {
+      if (rowId === groupRowId) {abort = true;}
+      const item = this.rowItems[rowId];
+      const childItems = item.getFlattenedRowIdList(false, -1);
+      if (childItems.includes(groupRowId)) {abort = true;}
+    });
+    if (abort) {return;}
+
     filteredRowIdList.forEach((rowId, i) => {
-      
+
       const oldGroupId = getParentGroupId(rowId) || 0;
       const oldGroupChildren = getChildrenByGroupId(oldGroupId);
       const oldIndex = oldGroupChildren.indexOf(rowId);
       oldGroupChildren.splice(oldIndex, 1);
-      
+
       if (oldGroupId === newGroupId && newIndex > oldIndex) {
         dropIndex -= 1;
       }

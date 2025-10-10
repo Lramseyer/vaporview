@@ -84,6 +84,7 @@ pub struct VarData {
   width: u32,
   msb: i32,
   lsb: i32,
+  enum_name: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -105,12 +106,18 @@ pub fn get_var_data(hierarchy: &Hierarchy, v: VarRef) -> VarData {
   let mut msb: i32 = -1;
   let mut lsb: i32 = -1;
   let bits = variable.index();
+  let enum_type = variable.enum_type(&hierarchy);
   match bits {
     Some(b) => {msb = b.msb() as i32; lsb = b.lsb() as i32;},
     None => {}
   }
 
-  VarData { name, id, signal_id, tpe, encoding, width, msb, lsb }
+  let enum_name = match enum_type {
+    Some(e) => e.0.to_string(),
+    None => "".to_string(),
+  };
+
+  VarData { name, id, signal_id, tpe, encoding, width, msb, lsb, enum_name }
 }
 
 pub fn get_scope_data(hierarchy: &Hierarchy, s: ScopeRef) -> ScopeData {
@@ -397,7 +404,7 @@ impl Guest for Filecontext {
 
     for v in hierarchy.vars() {
       let var_data = get_var_data(&hierarchy, v);
-      setvartop(&var_data.name, var_data.id, var_data.signal_id, &var_data.tpe, &var_data.encoding, var_data.width, var_data.msb, var_data.lsb);
+      setvartop(&var_data.name, var_data.id, var_data.signal_id, &var_data.tpe, &var_data.encoding, var_data.width, var_data.msb, var_data.lsb, &var_data.enum_name);
     }
   }
 
@@ -515,7 +522,7 @@ impl Guest for Filecontext {
       index+=1;
 
       let var_data = get_var_data(&hierarchy, v);
-      let var_string = format!("{{\"name\": {:?},\"netlistId\": {:?},\"signalId\": {:?},\"type\": {:?},\"encoding\": {:?}, \"width\": {:?}, \"msb\": {:?}, \"lsb\": {:?}}}", var_data.name, var_data.id, var_data.signal_id, var_data.tpe, var_data.encoding, var_data.width, var_data.msb, var_data.lsb);
+      let var_string = format!("{{\"name\": {:?},\"netlistId\": {:?},\"signalId\": {:?},\"type\": {:?},\"encoding\": {:?}, \"width\": {:?}, \"msb\": {:?}, \"lsb\": {:?}, \"enumType\": {:?}}}", var_data.name, var_data.id, var_data.signal_id, var_data.tpe, var_data.encoding, var_data.width, var_data.msb, var_data.lsb, var_data.enum_name);
 
       items_returned += 1;
       return_length += (var_string.len() as u32) + 1;

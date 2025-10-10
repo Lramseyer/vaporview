@@ -1,7 +1,5 @@
 # Change Log
 
-Issue #93 fix removes too many spaces
-
 ## 1.4.2 - Upcoming Release
 
 - Added

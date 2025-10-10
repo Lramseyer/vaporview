@@ -19,6 +19,8 @@ export type NetlistId = number;
 export type SignalId  = number;
 export type RowId     = number;
 export type ValueChange = [number, string];
+export type EnumEntry   = [string, string];
+export type EnumData = EnumEntry[];
 
 export enum CollapseState {
   None      = 0,

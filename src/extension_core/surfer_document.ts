@@ -77,8 +77,8 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
       this.treeData.push(scope);
       this._netlistIdTable[id] = { netlistItem: scope, signalId: 0 };
     },
-    setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number) => {
-      const varItem = createVar(name, tpe, encoding, "", id, signalid, width, msb, lsb, false /*isFsdb*/, this.uri);
+    setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number, enumtype: string) => {
+      const varItem = createVar(name, tpe, encoding, "", id, signalid, width, msb, lsb, enumtype, false /*isFsdb*/, this.uri);
       this.treeData.push(varItem);
       this._netlistIdTable[id] = { netlistItem: varItem, signalId: signalid };
     },
@@ -143,7 +143,7 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
       });
       childItems.vars.forEach((child: any) => {
         const encoding = child.encoding.split('(')[0];
-        const varItem = createVar(child.name, child.type, encoding, scopePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, false /*isFsdb*/, this.uri);
+        const varItem = createVar(child.name, child.type, encoding, scopePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, child.enumType, false /*isFsdb*/, this.uri);
         if (varTable[child.name] === undefined) {
           varTable[child.name] = [varItem];
         } else {

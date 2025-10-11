@@ -6,6 +6,7 @@ import { formatBinary, formatHex, ValueFormat, valueFormatList } from './value_f
 import { WaveformDataManager } from './data_manager';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { VariableItem, SignalGroup, RowItem } from './signal_item';
+import { copyWaveDrom } from './wavedrom';
 
 declare function acquireVsCodeApi(): VsCodeApi;
 export const vscode = acquireVsCodeApi();
@@ -896,7 +897,7 @@ class VaporviewWebview {
       case 'setMarker':             {this.events.dispatch(ActionType.MarkerSet, message.time, message.markerType); break;}
       case 'setTimeUnits':          {this.viewport.updateUnits(message.units, true); break;}
       case 'setSelectedSignal':     {this.handleSetSelectedSignal(message.netlistId); break;}
-      case 'copyWaveDrom':          {dataManager.copyWaveDrom(); break;}
+      case 'copyWaveDrom':          {copyWaveDrom(); break;}
       case 'copyValueAtMarker':     {labelsPanel.copyValueAtMarker(message.netlistId); break;}
       case 'updateColorTheme':      {this.events.dispatch(ActionType.UpdateColorTheme); break;}
       default:                      {outputLog('Unknown webview message type: ' + message.command); break;}

@@ -1,6 +1,6 @@
 # Change Log
 
-## 1.4.2 - Upcoming Release
+## 1.4.2 - 10/11/2025 - Latest Release
 
 - Added
   - Multi signal select
@@ -13,7 +13,7 @@
 - Removed "Displayed Signals" View
 - Netlist hierarchy displays items in alphabetical order
 
-## 1.4.1 - 9/12/2025 - Latest Release
+## 1.4.1 - 9/12/2025
 
 - Added
   - Drag and drop from netlist view to add variables into the viewer

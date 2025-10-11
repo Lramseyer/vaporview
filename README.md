@@ -72,7 +72,7 @@ Signals may be added or removed through VaporView view container. Click on the V
 
 To Add a signal, simply click the "+" ocon to the right of the netlist element in the "Netlist" view. It will also show in the "Displayed Signals" view.
 
-**New in 1.4.1:** Signals can also be added by dragging and dropping them from the netlist view to the viewer. Make sure to hold **Shift** before dropping them into the viewer (this is a VScode limitation.)
+Signals can also be added by dragging and dropping them from the netlist view to the viewer. Make sure to hold **Shift** before dropping them into the viewer - note that this is a VScode requirement.
 
 ### Removing Signals
 
@@ -201,7 +201,7 @@ This extension requires VScode 1.96.0 or later
 
 # Development Roadmap
 
-## 1.4.2 - Upcoming Release
+## 1.4.2 - Latest Release - 10/11/2025
 
 - Added
   - Multi signal select
@@ -213,23 +213,6 @@ This extension requires VScode 1.96.0 or later
   - New groups now appear where right click event happened
 - Removed "Displayed Signals" View
 - Netlist hierarchy displays items in alphabetical order
-
-## 1.4.1 - Latest Release
-
-- Added
-  - Drag and drop from netlist view to add variables into the viewer
-  - Signal height can now be set to 2x, 4x, and 8x
-  - Analog signals can now be vertically zoomed in and out
-  - ASCII value format
-  - Terminal link handler for Surfer Surver
-- API
-  - Added (proposed) onDidDropInWaveformViewer event
-- Fixed
-  - Word wrap display glitch in values display causing "->" indicator to word wrap
-  - Labels panel can no longer be resized to a negative width
-- Other
-  - Upgraded to wellen 0.19.0
-  - Updated Netlist icon colors to a more consistent set of colors
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

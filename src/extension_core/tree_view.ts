@@ -60,7 +60,7 @@ export function createScope(
     name = name.replace(regex, '');
   }
 
-  const module    = new NetlistItem(name, typename, 'none', 0, 0, netlistId, name, path, 0, 0, "", scopeOffsetIdx, [], vscode.TreeItemCollapsibleState.Collapsed, undefined, uri);
+  const module    = new NetlistItem(name, "", typename, 'none', 0, 0, netlistId, name, path, 0, 0, "", scopeOffsetIdx, [], vscode.TreeItemCollapsibleState.Collapsed, undefined, uri);
   module.iconPath = icon;
 
   return module;
@@ -90,6 +90,7 @@ const enumIcon    = new vscode.ThemeIcon('symbol-parameter', chartsGreen);
 
 export function createVar(
   name: string,
+  paramValue: string,
   type: string,
   encoding: string,
   path: string,
@@ -113,7 +114,7 @@ export function createVar(
     name = name.replace(regex, '');
   }
 
-  const variable = new NetlistItem(label, type, encoding, width, signalId, netlistId, name, path, msb, lsb, enumType, -1, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked, uri);
+  const variable = new NetlistItem(label, paramValue, type, encoding, width, signalId, netlistId, name, path, msb, lsb, enumType, -1, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked, uri);
   const typename = type.toLocaleLowerCase();
   let icon;
 
@@ -275,16 +276,17 @@ export class NetlistItem extends vscode.TreeItem {
   public numberFormat: string;
   public fsdbVarLoaded: boolean = false; // Only used in fsdb
   public resourceUri: vscode.Uri;
-
+  
   constructor(
     public readonly label:      string,
+    public readonly paramValue: string,
     public readonly type:       string,
     public readonly encoding:   string,
     public readonly width:      number,
     public readonly signalId:   SignalId, // Signal-specific information
     public readonly netlistId:  NetlistId, // Netlist-specific information
     public readonly name:       string,
-    public readonly scopePath: string,
+    public readonly scopePath:  string,
     public readonly msb:        number,
     public readonly lsb:        number,
     public readonly enumType:   string,
@@ -311,6 +313,7 @@ export class NetlistItem extends vscode.TreeItem {
       this.contextValue = 'netlistScope'; // Set a context value for parent nodes
     }
 
+    this.description = (paramValue !== "") ? parseInt(paramValue, 2).toString(10) : "";
     this.resourceUri = vscode.Uri.parse(`waveform://${uri.fsPath}#${fragmentId}&net=${fullName + name}`);
   }
 

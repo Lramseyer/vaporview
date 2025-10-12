@@ -52,6 +52,7 @@ lazy_static! {
   static ref _body: Mutex<ReadBodyEnum> = Mutex::new(ReadBodyEnum::None);
   static ref _time_table: Mutex<Option<TimeTable>> = Mutex::new(None);
   static ref _signal_source: Mutex<Option<SignalSource>> = Mutex::new(None);
+  static ref _param_table: Mutex<Option<Vec<(u32, String)>>> = Mutex::new(None);
   
   // Chunked data reassembly
   static ref _chunks: Mutex<Vec<Vec<u8>>> = Mutex::new(Vec::new());
@@ -79,12 +80,13 @@ pub struct VarData {
   name: String,
   id: u32,
   signal_id: u32,
-  tpe: String,
+  var_type: String,
   encoding: String,
   width: u32,
   msb: i32,
   lsb: i32,
   enum_name: String,
+  param_value: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -99,10 +101,12 @@ pub fn get_var_data(hierarchy: &Hierarchy, v: VarRef) -> VarData {
   let variable = hierarchy.index(v);
   let name = variable.name(&hierarchy).to_string();
   let id = v.index() as u32;
-  let tpe = format!("{:?}", variable.var_type());
+  let tpe = variable.var_type();
+  let var_type = format!("{:?}", tpe);
   let encoding = format!("{:?}", variable.signal_encoding());
   let width = variable.length().unwrap_or(0);
-  let signal_id = variable.signal_ref().index() as u32;
+  let signal_ref = variable.signal_ref();
+  let signal_id = signal_ref.index() as u32;
   let mut msb: i32 = -1;
   let mut lsb: i32 = -1;
   let bits = variable.index();
@@ -117,7 +121,12 @@ pub fn get_var_data(hierarchy: &Hierarchy, v: VarRef) -> VarData {
     None => "".to_string(),
   };
 
-  VarData { name, id, signal_id, tpe, encoding, width, msb, lsb, enum_name }
+  let mut param_value: Option<String> = None;
+  if tpe == wellen::VarType::Parameter {
+    param_value = get_parameter_value(signal_id);
+    log(&format!("Parameter {} value: {:?}", name, param_value));
+  }
+  VarData { name, id, signal_id, var_type, encoding, width, msb, lsb, enum_name, param_value }
 }
 
 pub fn get_scope_data(hierarchy: &Hierarchy, s: ScopeRef) -> ScopeData {
@@ -127,6 +136,55 @@ pub fn get_scope_data(hierarchy: &Hierarchy, s: ScopeRef) -> ScopeData {
   let tpe = format!("{:?}", scope.scope_type());
   ScopeData { name, id, tpe }
 }
+
+fn load_parameters() {
+  let mut global_signal_source = _signal_source.lock().unwrap();
+  let signal_source = global_signal_source.as_mut().unwrap();
+
+  let global_hierarchy = _hierarchy.lock().unwrap();
+  let hierarchy = global_hierarchy.as_ref().unwrap();
+
+  let signal_list = hierarchy.iter_vars()
+    .filter(|var| {var.var_type() == wellen::VarType::Parameter})
+    .map(|var| {var.signal_ref()});
+
+  let signal_data = signal_source.load_signals(&signal_list.collect::<Vec<SignalRef>>(), hierarchy, false);
+  let param_table_option = signal_data.iter().map(|(s, signal)| {
+    let index = signal.get_first_time_idx();
+    let data_offset = match index {
+      Some(i) => signal.get_offset(i),
+      None => None
+    };
+    let value= match data_offset {
+      Some(offset) => Some(signal.get_value_at(&offset, 0)),
+      None => None
+    };
+    (s, value)
+  });
+  let param_table = param_table_option.filter(|(_, v)| {v.is_some()})
+    .map(|(s, v)| {(s.index() as u32, v.unwrap().to_string())})
+    .collect::<Vec<(u32, String)>>();
+
+  let mut global_param_table = _param_table.lock().unwrap();
+  *global_param_table = Some(param_table);
+}
+
+fn get_parameter_value(signalid: u32) -> Option<String> {
+  let global_param_table = _param_table.lock().unwrap();
+  let param_table = global_param_table.as_ref();
+  if param_table.is_none() {
+    return None;
+  } else {
+    let param_table = param_table.unwrap();
+    for (id, value) in param_table.iter() {
+      if *id == signalid {
+        return Some(value.clone());
+      }
+    }
+  }
+  None
+}
+
 
 fn send_enum_data(name: &str, values: &str) {
   let max_return_length = 65000;
@@ -416,7 +474,7 @@ impl Guest for Filecontext {
 
     for v in hierarchy.vars() {
       let var_data = get_var_data(&hierarchy, v);
-      setvartop(&var_data.name, var_data.id, var_data.signal_id, &var_data.tpe, &var_data.encoding, var_data.width, var_data.msb, var_data.lsb, &var_data.enum_name);
+      setvartop(&var_data.name, var_data.id, var_data.signal_id, &var_data.var_type, &var_data.encoding, var_data.width, var_data.msb, var_data.lsb, &var_data.enum_name);
     }
   }
 
@@ -456,6 +514,11 @@ impl Guest for Filecontext {
         return;
       }
     }
+
+    // Drop only the mutex guards that would cause deadlock in load_parameters
+    drop(global_hierarchy);
+    drop(global_signal_source);
+    load_parameters();
 
     let time_table = global_time_table.as_ref().unwrap();
     let mut min_timestamp = 9999999;
@@ -534,7 +597,11 @@ impl Guest for Filecontext {
       index+=1;
 
       let var_data = get_var_data(&hierarchy, v);
-      let var_string = format!("{{\"name\": {:?},\"netlistId\": {:?},\"signalId\": {:?},\"type\": {:?},\"encoding\": {:?}, \"width\": {:?}, \"msb\": {:?}, \"lsb\": {:?}, \"enumType\": {:?}}}", var_data.name, var_data.id, var_data.signal_id, var_data.tpe, var_data.encoding, var_data.width, var_data.msb, var_data.lsb, var_data.enum_name);
+      let param_value = match &var_data.param_value {
+        Some(v) => v.clone(),
+        None => "".to_string(),
+      };
+      let var_string = format!("{{\"name\": {:?},\"netlistId\": {:?},\"signalId\": {:?},\"type\": {:?},\"encoding\": {:?}, \"width\": {:?}, \"msb\": {:?}, \"lsb\": {:?}, \"enumType\": {:?}, \"paramValue\": {:?}}}", var_data.name, var_data.id, var_data.signal_id, var_data.var_type, var_data.encoding, var_data.width, var_data.msb, var_data.lsb, var_data.enum_name, param_value);
 
       items_returned += 1;
       return_length += (var_string.len() as u32) + 1;

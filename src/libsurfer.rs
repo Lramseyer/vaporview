@@ -146,7 +146,7 @@ impl SurferRemote {
     
     for v in hier.vars() {
       let var_data = get_var_data(hier, v);
-      setvartop(&var_data.name, var_data.id, var_data.signal_id, &var_data.tpe, &var_data.encoding, var_data.width, var_data.msb, var_data.lsb, &var_data.enum_name);
+      setvartop(&var_data.name, var_data.id, var_data.signal_id, &var_data.var_type, &var_data.encoding, var_data.width, var_data.msb, var_data.lsb, &var_data.enum_name);
     }
     
   }

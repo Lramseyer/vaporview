@@ -8,9 +8,22 @@ import * as LZ4 from 'lz4js';
 // This will be populated when a custom color is set
 export let customColorKey = [];
 
+type SignalQueueEntry = {
+  type: 'signal',
+  id: SignalId
+}
+
+type EnumQueueEntry = {
+  type: 'enum',
+  name: string,
+  netlistId: NetlistId
+}
+
+type QueueEntry = SignalQueueEntry | EnumQueueEntry;
+
 export class WaveformDataManager {
-  requested: SignalId[] = [];
-  queued:    SignalId[] = [];
+  requested: QueueEntry[] = [];
+  queued:    QueueEntry[] = [];
   requestActive: boolean = false;
   requestStart: number = 0;
 
@@ -20,6 +33,7 @@ export class WaveformDataManager {
   groupIdTable: RowId[]           = []; // group ID is the key/index, rowId is the value
   enumTable: Record<string, EnumData> = {}; // enum type is the key/index, array of enum values is the value
   valueChangeDataTemp: any        = [];
+  emumTableTemp: any              = [];
   private nextRowId: number       = 0;
   private nextGroupId: number     = 1;
 
@@ -60,13 +74,16 @@ export class WaveformDataManager {
   // Value Change Blocks. Batch fetching is much faster than individual fetches,
   // so this queue will ensure that fetches are grouped while waiting for any
   // previous fetches to complete.
-  request(signalIdList: SignalId[]) {
-    this.queued = this.queued.concat(signalIdList);
+  requestData(signalIdList: SignalId[], enumList: EnumQueueEntry[]) {
+    const signalList = signalIdList.map(id => ({type: 'signal', id} as SignalQueueEntry));
+    this.queued      = this.queued.concat(enumList, signalList);
     this.fetch();
   }
 
-  receive(signalId: SignalId) {
-    this.requested = this.requested.filter((id) => id !== signalId);
+  receiveSignal(signalId: SignalId) {
+    this.requested = this.requested.filter(entry => {
+      return !(entry.type === 'signal' && entry.id === signalId);
+    });
     if (this.requested.length === 0) {
       this.requestActive = false;
       this.fetch();
@@ -83,9 +100,12 @@ export class WaveformDataManager {
     this.queued        = [];
 
     vscode.postMessage({
-      command: 'fetchTransitionData',
-      signalIdList: this.requested,
+      command: 'fetchDataFromFile',
+      requestList: this.requested,
     });
+
+    // Prevent Enum requests from holding up signal requests, since emums are cached along with the netlist hierarchy
+    this.requested = this.requested.filter(entry => entry.type === 'signal');
   }
 
   getGroupByIdOrName(groupPath: string[] | undefined, parentGroupId: number | undefined): SignalGroup | null {
@@ -182,15 +202,13 @@ export class WaveformDataManager {
       // Check for enum type
       if (enumType !== undefined && enumType !== "" ) {
         if (this.enumTable[enumType] === undefined) {
-          enumTableList.push(enumType);
+          enumTableList.push({type: 'enum', name: enumType, netlistId: netlistId} as EnumQueueEntry);
         }
       }
 
     });
 
-    this.request(signalIdList);
-    // This is a stub for future enum fetching
-    //this.requestEnums(enumTableList);
+    this.requestData(signalIdList, enumTableList);
 
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowIdList);
 
@@ -357,7 +375,7 @@ export class WaveformDataManager {
 
     //console.log('all chunks loaded');
 
-    this.receive(signalId);
+    this.receiveSignal(signalId);
 
     // const transitionData = JSON.parse(this.valueChangeDataTemp[signalId].chunkData.join(""));
     const chunkData = this.valueChangeDataTemp[signalId].chunkData;
@@ -375,6 +393,32 @@ export class WaveformDataManager {
     }
 
     this.updateWaveform(signalId, transitionData, message.min, message.max);
+  }
+
+  updateEnumChunk(message: any) {
+
+    const enumName = message.enumName;
+    if (this.emumTableTemp[enumName] === undefined || this.emumTableTemp[enumName].totalChunks === 0) {
+      this.emumTableTemp[enumName] = {
+        totalChunks: message.totalChunks,
+        chunkLoaded: new Array(message.totalChunks).fill(false),
+        chunkData:   new Array(message.totalChunks).fill(""),
+      };
+    }
+
+    this.emumTableTemp[enumName].chunkData[message.chunkNum]   = message.enumDataChunk;
+    this.emumTableTemp[enumName].chunkLoaded[message.chunkNum] = true;
+    const allChunksLoaded = this.emumTableTemp[enumName].chunkLoaded.every((chunk: any) => {return chunk;});
+
+    if (!allChunksLoaded) {return;}
+
+    const enumData = JSON.parse(this.emumTableTemp[enumName].chunkData.join(""));
+
+    if (!this.requestActive) {
+      outputLog("Enum Request time: " + (Date.now() - this.requestStart) / 1000 + " seconds");
+    }
+
+    this.updateEnum(enumName, enumData);
   }
 
   updateWaveformChunkCompressed(message: any) {
@@ -396,7 +440,7 @@ export class WaveformDataManager {
 
     //console.log('all compressed chunks loaded');
 
-    this.receive(signalId);
+    this.receiveSignal(signalId);
 
     try {
       // Concatenate all compressed chunks
@@ -480,6 +524,12 @@ export class WaveformDataManager {
       this.events.dispatch(ActionType.RedrawVariable, rowId);
       netlistData.cacheValueFormat();
     });
+  }
+
+  updateEnum(enumName: string, enumData: EnumEntry[]) {
+    this.enumTable[enumName] = enumData;
+    this.emumTableTemp[enumName] = undefined;
+
   }
 
   groupNameExists(name: string, parentGroupId: number): boolean {

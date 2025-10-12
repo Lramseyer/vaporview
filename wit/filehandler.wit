@@ -23,6 +23,7 @@ world filehandler {
   import setmetadata: func (scopecount: u32, varcount: u32, timescale: u32, timeunit: string);
   import setchunksize: func(chunksize: u64, timeend: u64, timetablelength: u64);
 	import sendtransitiondatachunk: func(signalid: u32, totalchunks: u32, chunknum: u32, min: f64, max: f64, data: string);
+  import sendenumdata: func(name: string, totalchunks: u32, chunknum: u32, data: string);
   import sendcompressedtransitiondata: func(signalid: u32, signalwidth: u32, totalchunks: u32, chunknum: u32, min: f64, max: f64, compresseddata: list<u8>, originalsize: u32);
 
 	export loadfile: func(size: u64, fd: u32, loadstatic: bool, buffersize: u32);
@@ -33,6 +34,7 @@ world filehandler {
   // so we will convert to JSON string
   export getchildren: func(id: u32, startindex: u32) -> string;
   export getsignaldata: func(signalidlist: list<u32>);
+  export getenumdata: func(netlistidlist: list<u32>);
   export getvaluesattime: func(time: u64, paths: string) -> string;
   export loadremotestatus: func(status: list<u8>) -> string;
   export loadremotechunk: func(chunk-type: u32, chunk-data: list<u8>, chunk-index: u32, total-chunks: u32);

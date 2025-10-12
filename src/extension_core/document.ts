@@ -43,6 +43,19 @@ interface fsWrapper {
   close: (fd: number) => void;
 }
 
+export type SignalQueueEntry = {
+  type: 'signal',
+  id: SignalId
+}
+
+export type EnumQueueEntry = {
+  type: 'enum',
+  name: string,
+  netlistId: NetlistId
+}
+
+export type QueueEntry = SignalQueueEntry | EnumQueueEntry;
+
 type FsdbWorkerMessage = {
   id: string;
   result: any;
@@ -368,6 +381,23 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     });
   }
 
+  public fetchData(requestList: QueueEntry[]) {
+    const signalIdList: SignalId[] = [];
+    const enumList: EnumQueueEntry[] = [];
+    requestList.forEach((entry) => {
+      if (entry.type === 'signal') {
+        signalIdList.push(entry.id);
+      } else if (entry.type === 'enum') {
+        enumList.push(entry);
+      }
+    });
+    if (enumList.length > 0) {
+      this.getEnumData(enumList);
+    }
+    if (signalIdList.length === 0) {return;}
+    this.getSignalData(signalIdList);
+  }
+
   public revealSignalInWebview(netlistId: NetlistId) {
     // Render the signal with the provided ID
     if (!this.webviewPanel) {return;}
@@ -421,6 +451,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
 
   public abstract getChildrenExternal(element: NetlistItem | undefined): Promise<NetlistItem[]>;
   public abstract getSignalData(signalIdList: SignalId[]): Promise<void>;
+  public abstract getEnumData(enumNameList: EnumQueueEntry[]): Promise<void>;
   public abstract getValuesAtTime(e: any): Promise<any>;
   protected abstract load(): Promise<void>;
   public abstract unload(): Promise<void>;
@@ -543,6 +574,15 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
         chunkNum: chunknum,
         min: min,
         max: max
+      });
+    },
+    sendenumdata: (name: string, totalchunks: number, chunknum: number, data: string) => {
+      this.webviewPanel?.webview.postMessage({
+        command: 'update-enum-chunk',
+        enumName: name,
+        enumDataChunk: data,
+        totalChunks: totalchunks,
+        chunkNum: chunknum,
       });
     },
     sendcompressedtransitiondata: (signalid: number, signalwidth: number, totalchunks: number, chunknum: number, min: number, max: number, compresseddata: Uint8Array, originalsize: number) => {
@@ -674,6 +714,11 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
 
   public async getSignalData(signalIdList: SignalId[]) {
     this.wasmApi.getsignaldata(signalIdList);
+  }
+
+  public async getEnumData(enumNameList: EnumQueueEntry[]) {
+    const netlistIdList = enumNameList.map((entry) => entry.netlistId);
+    this.wasmApi.getenumdata(netlistIdList);
   }
 
   public async unload() {
@@ -906,6 +951,12 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
     });
     // Run all tasks concurrently and wait for them to complete.
     // await Promise.all(tasks);
+  }
+
+  public async getEnumData(enumNameList: EnumQueueEntry[]) {
+    // Not Implemented for FSDB
+    // TODO(heyfey): Implement fetching enum data for FSDB
+    return;
   }
 
   public async getValuesAtTime(e: any): Promise<any> {

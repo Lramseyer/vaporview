@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Worker } from 'worker_threads';
-import { VaporviewDocument, NetlistIdTable } from './document';
+import { VaporviewDocument, NetlistIdTable, QueueEntry, EnumQueueEntry } from './document';
 import { SignalId, NetlistId, VaporviewDocumentDelegate } from './viewer_provider';
 import { filehandler } from './filehandler';
 import { NetlistItem, createScope, createVar, getInstancePath } from './tree_view';
@@ -97,6 +97,15 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
         chunkNum: chunknum,
         min: min,
         max: max
+      });
+    },
+    sendenumdata: (name: string, totalchunks: number, chunknum: number, data: string) => {
+      this.webviewPanel?.webview.postMessage({
+        command: 'update-enum-chunk',
+        enumName: name,
+        enumDataChunk: data,
+        totalChunks: totalchunks,
+        chunkNum: chunknum,
       });
     },
     sendcompressedtransitiondata: (signalid: number, signalwidth: number, totalchunks: number, chunknum: number, min: number, max: number, compresseddata: Uint8Array, originalsize: number) => {
@@ -207,6 +216,10 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
         });
       });
     }
+  }
+
+  public async getEnumData(enumNameList: EnumQueueEntry[]): Promise<void> {
+    return;
   }
 
   public async getValuesAtTime(e: any): Promise<any> {

@@ -128,6 +128,18 @@ pub fn get_scope_data(hierarchy: &Hierarchy, s: ScopeRef) -> ScopeData {
   ScopeData { name, id, tpe }
 }
 
+fn send_enum_data(name: &str, values: &str) {
+  let max_return_length = 65000;
+  let result_length = values.len();
+  let chunk_count = (result_length as f32 / max_return_length as f32).ceil() as u32;
+  for i in 0..chunk_count {
+    let start = i * max_return_length;
+    let end = std::cmp::min((i + 1) * max_return_length, result_length as u32);
+    let chunk = &values[start as usize..end as usize];
+    sendenumdata(name, chunk_count, i, chunk);
+  }
+}
+
 fn parse_value_change_data_json(signal: &Signal, time_index: &[u32], signalid: u32) {
   let global_time_table = _time_table.lock().unwrap();
   let time_table = global_time_table.as_ref().unwrap();
@@ -591,6 +603,36 @@ impl Guest for Filecontext {
       //log(&format!("Signal Data Sent!"));
     });
 
+  }
+
+  fn getenumdata(netlistidlist: Vec<u32>) {
+    let global_hierarchy = _hierarchy.lock().unwrap();
+    let hierarchy = global_hierarchy.as_ref().unwrap();
+
+    log(&format!("Getting enum data for netlist IDs: {:?}", netlistidlist));
+
+    netlistidlist.iter().for_each(|netlistid| {
+      let var_ref_option = VarRef::from_index(*netlistid as usize);
+      match var_ref_option {
+        Some(var_ref) => {
+          let variable = hierarchy.index(var_ref);
+          let enum_data = variable.enum_type(&hierarchy);
+          match enum_data {
+            Some(data) => {
+              let name = data.0.to_string();
+              let values = data.1;
+              serde_json::to_string(&values).map_or_else(
+                |err| {outputlog(&format!("Error serializing enum values for {}: {:?}", name, err));},
+                |json| {send_enum_data(&name, &json);}
+              );
+            },
+            None => {return;}
+          }
+        },
+        None => {return;}
+      }
+  
+    });
   }
 
   fn getvaluesattime(time: u64, paths: String) -> String {

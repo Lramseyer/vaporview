@@ -257,7 +257,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'restoreState':        {this.applySettings(e.state, this.getDocumentFromUri(e.uri.toString())); break;}
         case 'contextUpdate':       {this.updateStatusBarItems(document, e); break;}
         case 'emitEvent':           {this.emitEvent(e); break;}
-        case 'fetchTransitionData': {document.getSignalData(e.signalIdList); break;}
+        case 'fetchDataFromFile':   {document.fetchData(e.requestList); break;}
         case 'removeVariable':      {this.removeSignalFromDocument(e.netlistId, false); break;}
         case 'close-webview':       {webviewPanel.dispose(); break;}
         case 'handleDrop':          {this.handleWebviewDrop(e); break;}

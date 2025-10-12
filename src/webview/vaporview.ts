@@ -2,7 +2,6 @@ import { error, group } from 'console';
 import { Viewport } from './viewport';
 import { LabelsPanels } from './labels';
 import { ControlBar } from './control_bar';
-import { formatBinary, formatHex, ValueFormat, valueFormatList } from './value_format';
 import { WaveformDataManager } from './data_manager';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { VariableItem, SignalGroup, RowItem } from './signal_item';

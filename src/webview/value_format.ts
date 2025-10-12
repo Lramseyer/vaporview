@@ -9,7 +9,8 @@
 // contributes.menus.vaporview.valueFormat.
 // 3. Register the new command in the extension.ts (which has examples)
 
-import { htmlSafe } from "./signal_item";
+import { htmlSafe, VariableItem } from "./signal_item";
+import { dataManager } from "./vaporview";
 
 export function  valueIs9State(value: string): boolean {
   if (value.match(/[uxzwlh-]/)) {return true;}
@@ -381,7 +382,7 @@ export const formatFloat64: ValueFormat = {
 export const formatAscii: ValueFormat = {
   id: "ascii",
   rightJustify: false,
-  symbolText: "abc",
+  symbolText: "txt",
   formatString: (inputString: string, width: number, is2State: boolean) => {
     if (!is2State) {
       return formatBinaryString(inputString);
@@ -416,6 +417,29 @@ export const formatAscii: ValueFormat = {
 
   checkWidth: (width: number) => {return width > 1;},
 };
+
+// #region Format Enum
+// Enum format is a special case where the value is looked up in a table
+// to get the string representation. The enum type is stored in the netlist item.
+export class EnumValueFormat implements ValueFormat {
+  public id = "enum";
+  public rightJustify = false;
+  public symbolText = "abc";
+  constructor(public enumType: string) {this.enumType = enumType;}
+
+  public formatString = (inputString: string, width: number, is2State: boolean) => {
+    // This function is a placeholder and will be replaced in the VariableItem class
+    const enumTable = dataManager.enumTable[this.enumType];
+    const result = enumTable.find((entry) => {return entry[0] === inputString;});
+    if (result) {return htmlSafe(result[1]);}
+    return htmlSafe(inputString);
+  }
+
+  public checkValidSearch = (inputText: string) => {return dataManager.enumTable[this.enumType].find((entry) => {return entry[0] === inputText;}) !== undefined;}
+  public parseValueForSearch = (inputText: string) => {return inputText;}
+  public is9State = () => {return false;}
+  public checkWidth = (width: number) => {return true;}
+}
 
 // #region Format String
 export const formatString: ValueFormat = {
@@ -455,6 +479,19 @@ export const valueFormatList: ValueFormat[] = [
   formatAscii,
   formatString
 ];
+
+export function getNumberFormatById(netlistData: VariableItem, numberFormatId: string): ValueFormat {
+  let valueFormat = valueFormatList.find((format) => format.id === numberFormatId);
+  if (valueFormat !== undefined) {return valueFormat;}
+  if (numberFormatId === "enum") {
+    const enumType = netlistData.enumType;
+    if (enumType !== undefined && enumType !== "") {
+      return new EnumValueFormat(enumType);
+    }
+  }
+
+  return formatBinary;
+}
 
 // Profiling code:
 //let vectors = []

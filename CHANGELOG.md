@@ -1,5 +1,10 @@
 # Change Log
 
+## 1.4.3 - Upcoming release
+
+- Added
+  - Support for Enums
+
 ## 1.4.2 - 10/11/2025 - Latest Release
 
 - Added

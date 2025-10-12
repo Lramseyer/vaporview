@@ -216,11 +216,16 @@ This extension requires VScode 1.96.0 or later
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 
+## 1.4.3 - Updcoming Release
+
+- Added
+  - Support for ENum types
+- Work In Progress
+
 ## Other Planned Features
 
 In no particular order of priority, here's a list of features that are on my radar. If you have any preferences as to which should be priorized, or a suggestion that is not on this list, leave a comment on the [github discussions](https://github.com/Lramseyer/VaporView/discussions)!
 
-- Add support for custom Enums and named values. Including callback functions for those daring enough!
 - Improve renderer to better render non-2 state
 
 # About This Extension

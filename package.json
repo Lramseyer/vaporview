@@ -472,48 +472,53 @@
       ],
       "vaporview.valueFormat": [
         {
-          "command": "vaporview.displayAsBinary",
+          "command": "vaporview.displayAsEnum",
           "group": "0_default@1",
-          "when": "webviewSection == 'signal' && width > '1'"
+          "when": "webviewSection == 'signal' && enum == true"
         },
         {
-          "command": "vaporview.displayAsHexadecimal",
+          "command": "vaporview.displayAsBinary",
           "group": "0_default@2",
           "when": "webviewSection == 'signal' && width > '1'"
         },
         {
-          "command": "vaporview.displayAsOctal",
+          "command": "vaporview.displayAsHexadecimal",
           "group": "0_default@3",
           "when": "webviewSection == 'signal' && width > '1'"
         },
         {
-          "command": "vaporview.displayAsDecimal",
+          "command": "vaporview.displayAsOctal",
           "group": "0_default@4",
           "when": "webviewSection == 'signal' && width > '1'"
         },
         {
-          "command": "vaporview.displayAsDecimalSigned",
+          "command": "vaporview.displayAsDecimal",
           "group": "0_default@5",
           "when": "webviewSection == 'signal' && width > '1'"
         },
         {
-          "command": "vaporview.displayAsFloat",
+          "command": "vaporview.displayAsDecimalSigned",
           "group": "0_default@6",
+          "when": "webviewSection == 'signal' && width > '1'"
+        },
+        {
+          "command": "vaporview.displayAsFloat",
+          "group": "0_default@7",
           "when": "webviewSection == 'signal' && (width == '8' || width == '16' || width == '32' || width == '64')"
         },
         {
           "command": "vaporview.displayAsBFloat",
-          "group": "0_default@7",
+          "group": "0_default@8",
           "when": "webviewSection == 'signal' && width == '16'"
         },
         {
           "command": "vaporview.displayAsTFloat",
-          "group": "0_default@8",
+          "group": "0_default@9",
           "when": "webviewSection == 'signal' && width == '19'"
         },
         {
           "command": "vaporview.displayAsAscii",
-          "group": "0_default@9",
+          "group": "0_default@10",
           "when": "webviewSection == 'signal' && width > '1'"
         }
       ],
@@ -819,6 +824,10 @@
       {
         "command": "vaporview.displayAsAscii",
         "title": "ASCII"
+      },
+      {
+        "command": "vaporview.displayAsEnum",
+        "title": "Enum"
       },
       {
         "command": "vaporview.renderMultiBit",

@@ -1,5 +1,5 @@
 import { dataManager, viewport, CollapseState, NetlistId, RowId, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, WAVE_HEIGHT } from "./vaporview";
-import { formatBinary, formatHex, formatString, ValueFormat } from "./value_format";
+import { EnumValueFormat, formatBinary, formatHex, formatString, ValueFormat } from "./value_format";
 import { WaveformRenderer } from "./renderer";
 import { customColorKey } from "./data_manager";
 import { vscode, labelsPanel } from "./vaporview";
@@ -99,6 +99,8 @@ export class VariableItem extends SignalItem implements RowItem {
       this.colorIndex  = 1;
     } else if (this.encoding === "Real") {
       this.valueFormat = formatString;
+    } else if (this.enumType !== "") {
+      this.valueFormat = new EnumValueFormat(this.enumType);
     } else {
       this.valueFormat = this.signalWidth === 1 ? formatBinary : formatHex;
     }
@@ -179,6 +181,7 @@ export class VariableItem extends SignalItem implements RowItem {
       netlistId: this.netlistId,
       rowId: dataManager.netlistIdTable[this.netlistId],
       isAnalog: isAnalog,
+      enum: this.enumType !== "",
     }).replace(/\s/g, '%x20')}`;
   }
 
@@ -300,7 +303,11 @@ export class VariableItem extends SignalItem implements RowItem {
     }
   }
 
-  public async cacheValueFormat() {
+  public async cacheValueFormat(force: boolean) {
+    if (force) {
+      this.formatCached = false;
+      this.formattedValues = [];
+    }
     return new Promise<void>((resolve) => {
       const valueChangeData = dataManager.valueChangeData[this.signalId];
       if (valueChangeData === undefined)     {resolve(); return;}
@@ -639,7 +646,7 @@ export class SignalGroup extends SignalItem implements RowItem {
   //public renderWaveform() {this.wasRendered = true;}
   public getValueAtTime(time: number): string[] {return [""];}
   public setColorFromColorIndex() {return;}
-  public async cacheValueFormat() {return new Promise<void>((resolve) => {return;});}
+  public async cacheValueFormat(force: boolean) {return new Promise<void>((resolve) => {return;});}
   public resize() {return;}
 
   public dispose() {

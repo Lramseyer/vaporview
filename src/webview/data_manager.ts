@@ -1,5 +1,5 @@
 import { SignalId, NetlistId, WaveformData, ValueChange, EnumEntry, EnumData, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove, labelsPanel, outputLog, getIndexInGroup, CollapseState } from './vaporview';
-import { formatBinary, formatHex, ValueFormat, formatString, valueFormatList } from './value_format';
+import { getNumberFormatById } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer, signedLinearWaveformRenderer, signedSteppedrWaveformRenderer } from './renderer';
 import { SignalGroup, VariableItem, RowItem } from './signal_item';
 // @ts-ignore
@@ -188,7 +188,7 @@ export class WaveformDataManager {
       if (this.valueChangeData[signalId] !== undefined) {
         //selectedSignal = [rowId];
         updateFlag     = true;
-        varItem.cacheValueFormat();
+        varItem.cacheValueFormat(false);
       } else if (this.valueChangeDataTemp[signalId] !== undefined) {
         this.valueChangeDataTemp[signalId].netlistIdList.push(netlistId);
       } else if (this.valueChangeDataTemp[signalId] === undefined) {
@@ -522,7 +522,7 @@ export class WaveformDataManager {
       const netlistData = this.rowItems[rowId];
       if (netlistData === undefined || netlistData instanceof VariableItem === false) {return;}
       this.events.dispatch(ActionType.RedrawVariable, rowId);
-      netlistData.cacheValueFormat();
+      netlistData.cacheValueFormat(false);
     });
   }
 
@@ -530,6 +530,13 @@ export class WaveformDataManager {
     this.enumTable[enumName] = enumData;
     this.emumTableTemp[enumName] = undefined;
 
+    viewerState.displayedSignalsFlat.forEach((rowId) => {
+      const netlistData = this.rowItems[rowId];
+      if (netlistData instanceof VariableItem === false) {return;}
+      if (netlistData.enumType !== enumName) {return;}
+      netlistData.cacheValueFormat(true);
+      this.events.dispatch(ActionType.RedrawVariable, rowId);
+    });
   }
 
   groupNameExists(name: string, parentGroupId: number): boolean {
@@ -694,7 +701,7 @@ export class WaveformDataManager {
     if (viewerState.selectedSignal.includes(rowId)) {
       rowIdList = viewerState.selectedSignal;
     }
-    
+
     // Color - this is applied to all selected signals if the selected signal is being updated
     rowIdList.forEach((rId) => {
       const data = this.rowItems[rId];
@@ -709,12 +716,8 @@ export class WaveformDataManager {
 
     // Number format
     if (message.numberFormat !== undefined) {
-      let valueFormat = valueFormatList.find((format) => format.id === message.numberFormat);
-      if (valueFormat === undefined) {valueFormat = formatBinary;}
-      netlistData.formatCached = false;
-      netlistData.formattedValues = [];
-      netlistData.valueFormat = valueFormat;
-      netlistData.cacheValueFormat();
+      netlistData.valueFormat = getNumberFormatById(netlistData, message.numberFormat);
+      netlistData.cacheValueFormat(true);
     }
 
     // Rendering type
@@ -730,7 +733,7 @@ export class WaveformDataManager {
       }
 
       if (netlistData.renderType.id === "multiBit") {
-        netlistData.cacheValueFormat();
+        netlistData.cacheValueFormat(false);
       }
       netlistData.setSignalContextAttribute();
     }

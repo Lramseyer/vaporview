@@ -166,10 +166,12 @@ export class VariableItem extends SignalItem implements RowItem {
     this.viewportElement = waveformContainer;
   }
 
+  public isAnalogSignal() {return this.renderType.id === 'linear' || this.renderType.id === 'linearSigned' ||
+                            this.renderType.id === 'stepped' || this.renderType.id === 'steppedSigned';}
+
   public setSignalContextAttribute() {
     const renderType = this.renderType.id;
-    const isAnalog = renderType === 'linear' || renderType === 'linearSigned' || 
-                    renderType === 'stepped' || renderType === 'steppedSigned';
+    const isAnalog = this.isAnalogSignal();
     this.vscodeContext = `${JSON.stringify({
       webviewSection: "signal",
       scopePath: this.scopePath,

@@ -709,15 +709,35 @@ export class WaveformDataManager {
       rowIdList = viewerState.selectedSignal;
     }
 
-    // Color - this is applied to all selected signals if the selected signal is being updated
     rowIdList.forEach((rId) => {
       const data = this.rowItems[rId];
       if (data instanceof VariableItem === false) {return;}
+
+      // Color - this is applied to all selected signals if the selected signal is being updated
       if (message.color !== undefined) {
         customColorKey = message.customColors;
         data.colorIndex = message.color;
         data.setColorFromColorIndex();
         updateAllSelected = true;
+      }
+
+      // Row height
+      if (message.rowHeight !== undefined) {
+        data.rowHeight = message.rowHeight;
+        viewport.updateElementHeight(rId);
+        updateAllSelected = true;
+      }
+
+      // Rendering type
+      if (message.renderType !== undefined) {
+        this.setRenderType(data, message.renderType);
+        updateAllSelected = true;
+      }
+
+      // Vertical scale
+      const isAnalong = data.isAnalogSignal();
+      if (message.verticalScale !== undefined && isAnalong) {
+        data.verticalScale = message.verticalScale;
       }
     });
 
@@ -725,35 +745,6 @@ export class WaveformDataManager {
     if (message.numberFormat !== undefined) {
       netlistData.valueFormat = getNumberFormatById(netlistData, message.numberFormat);
       netlistData.cacheValueFormat(true);
-    }
-
-    // Rendering type
-    if (message.renderType !== undefined) {
-      switch (message.renderType) {
-        case "binary":        netlistData.renderType = binaryWaveformRenderer; break;
-        case "multiBit":      netlistData.renderType = multiBitWaveformRenderer; break;
-        case "linear":        netlistData.renderType = linearWaveformRenderer; break;
-        case "stepped":       netlistData.renderType = steppedrWaveformRenderer; break;
-        case "linearSigned":  netlistData.renderType = signedLinearWaveformRenderer; break;
-        case "steppedSigned": netlistData.renderType = signedSteppedrWaveformRenderer; break;
-        default:              netlistData.renderType = multiBitWaveformRenderer; break;
-      }
-
-      if (netlistData.renderType.id === "multiBit") {
-        netlistData.cacheValueFormat(false);
-      }
-      netlistData.setSignalContextAttribute();
-    }
-
-    // Row height
-    if (message.rowHeight !== undefined) {
-      netlistData.rowHeight = message.rowHeight;
-      viewport.updateElementHeight(rowId);
-    }
-
-    // Vertical scale
-    if (message.verticalScale !== undefined) {
-      netlistData.verticalScale = message.verticalScale;
     }
 
     // Value link command
@@ -784,6 +775,27 @@ export class WaveformDataManager {
     redrawList.forEach((rId) => {
       this.events.dispatch(ActionType.RedrawVariable, rId);
     });
+  }
+
+  setRenderType(netlistData: VariableItem, renderType: string) {
+    if (netlistData instanceof VariableItem === false) {return;}
+    if (netlistData.signalWidth !== 1) {
+      switch (renderType) {
+        case "multiBit":      netlistData.renderType = multiBitWaveformRenderer; break;
+        case "linear":        netlistData.renderType = linearWaveformRenderer; break;
+        case "stepped":       netlistData.renderType = steppedrWaveformRenderer; break;
+        case "linearSigned":  netlistData.renderType = signedLinearWaveformRenderer; break;
+        case "steppedSigned": netlistData.renderType = signedSteppedrWaveformRenderer; break;
+        default:              netlistData.renderType = multiBitWaveformRenderer; break;
+      }
+    } else if (netlistData.signalWidth === 1 && renderType === "binary") {
+      netlistData.renderType = binaryWaveformRenderer;
+    }
+
+    if (netlistData.renderType.id === "multiBit") {
+      netlistData.cacheValueFormat(false);
+    }
+    netlistData.setSignalContextAttribute();
   }
 
   getNearestTransitionIndex(signalId: SignalId, time: number) {

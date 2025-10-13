@@ -28,12 +28,12 @@ export class WaveformDataManager {
   requestStart: number = 0;
 
   valueChangeData: WaveformData[] = []; // signalId is the key/index, WaveformData is the value
+  valueChangeDataTemp: any        = [];
+  enumTable: Record<string, EnumData> = {}; // enum type is the key/index, array of enum values is the value
+  emumTableTemp: Record<string, EnumData> = {}
   rowItems: RowItem[]             = []; // rowId is the key/index, RowItem is the value
   netlistIdTable: RowId[]         = []; // netlist ID is the key/index, rowId is the value
   groupIdTable: RowId[]           = []; // group ID is the key/index, rowId is the value
-  enumTable: Record<string, EnumData> = {}; // enum type is the key/index, array of enum values is the value
-  valueChangeDataTemp: any        = [];
-  emumTableTemp: any              = [];
   private nextRowId: number       = 0;
   private nextGroupId: number     = 1;
 
@@ -60,13 +60,20 @@ export class WaveformDataManager {
 
   unload() {
     this.valueChangeData     = [];
-    this.rowItems            = [];
     this.valueChangeDataTemp = [];
+    this.enumTable           = {};
+    this.emumTableTemp       = {};
+    this.rowItems            = [];
     this.netlistIdTable      = [];
     this.groupIdTable        = [];
     this.nextRowId           = 0;
     this.nextGroupId         = 1;
     this.waveDromClock       = {netlistId: null, edge: ""};
+
+    this.requested           = [];
+    this.queued              = [];
+    this.requestActive       = false;
+    this.requestStart        = 0;
   }
 
   // This is a simple queue to handle the fetching of waveform data

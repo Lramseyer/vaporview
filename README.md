@@ -219,8 +219,8 @@ See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.m
 ## 1.4.3 - Updcoming Release
 
 - Added
-  - Support for ENum types
-- Work In Progress
+  - Support for Enums
+  - Parameter values display in netlist view
 
 ## Other Planned Features
 

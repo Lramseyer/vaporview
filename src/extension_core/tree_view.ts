@@ -279,7 +279,7 @@ export class NetlistItem extends vscode.TreeItem {
   
   constructor(
     public readonly label:      string,
-    public readonly paramValue: string,
+    public          paramValue: string,
     public readonly type:       string,
     public readonly encoding:   string,
     public readonly width:      number,
@@ -313,8 +313,14 @@ export class NetlistItem extends vscode.TreeItem {
       this.contextValue = 'netlistScope'; // Set a context value for parent nodes
     }
 
-    this.description = (paramValue !== "") ? parseInt(paramValue, 2).toString(10) : "";
+    //this.description = (paramValue !== "") ? parseInt(paramValue, 2).toString(10) : "";
+    this.setParamValue(paramValue);
     this.resourceUri = vscode.Uri.parse(`waveform://${uri.fsPath}#${fragmentId}&net=${fullName + name}`);
+  }
+
+  setParamValue(paramValue: string) {
+    this.paramValue  = paramValue;
+    this.description = (paramValue !== "") ? parseInt(paramValue, 2).toString(10) : "";
   }
 
   // Method to recursively find a child element in the tree

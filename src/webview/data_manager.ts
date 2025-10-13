@@ -30,7 +30,7 @@ export class WaveformDataManager {
   valueChangeData: WaveformData[] = []; // signalId is the key/index, WaveformData is the value
   valueChangeDataTemp: any        = [];
   enumTable: Record<string, EnumData> = {}; // enum type is the key/index, array of enum values is the value
-  emumTableTemp: Record<string, EnumData> = {}
+  emumTableTemp: any              = {}
   rowItems: RowItem[]             = []; // rowId is the key/index, RowItem is the value
   netlistIdTable: RowId[]         = []; // netlist ID is the key/index, rowId is the value
   groupIdTable: RowId[]           = []; // group ID is the key/index, rowId is the value

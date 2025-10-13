@@ -59,6 +59,7 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
 
     this._delegate.updateViews(this.uri);
     this.setTerminalLinkProvider();
+    this.getTopLevelParameters();
   }
 
   public readonly service: filehandler.Imports.Promisified = {
@@ -125,6 +126,19 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
 
   public async createWasmApi(wasmModule: WebAssembly.Module) {
     this.wasmApi = await filehandler._.bind(this.service, wasmModule, this._wasmWorker);
+  }
+
+  private async getTopLevelParameters() {
+    if (!this.wasmApi) {return;}
+    const signalIdList    = this.treeData.filter(item => item.type === 'Parameter').map((param) => param.signalId);
+    const params          = await this.wasmApi.getparametervalues(signalIdList);
+    const parameterValues = JSON.parse(params);
+    this.treeData.filter(item => item.type === 'Parameter').forEach((param) => {
+      const paramValue = parameterValues.find((entry: any) => entry[0] === param.signalId);
+      if (paramValue) {
+        param.setParamValue(paramValue[1]);
+      }
+    });
   }
 
   async getChildrenExternal(element: NetlistItem | undefined) {
@@ -194,7 +208,7 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
       }
     }
 
-    element.children = result;
+    element.children = this.sortNetlistScopeChildren(result);
     return Promise.resolve(element.children);
   }
 

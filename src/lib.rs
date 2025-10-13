@@ -545,6 +545,20 @@ impl Guest for Filecontext {
     *global_body = ReadBodyEnum::None;
   }
 
+  fn getparametervalues(signalidlist: Vec<u32>) -> String {
+    let mut result: Vec<(u32, String)> = Vec::new();
+    signalidlist.iter().for_each(|signalid| {
+      let param_value = get_parameter_value(*signalid);
+      if param_value.is_some() {
+        result.push((*signalid, param_value.unwrap()));
+      }
+    });
+    // convert result to JSON string
+    let result_string = serde_json::to_string(&result);
+    log(result_string.as_ref().unwrap());
+    return result_string.unwrap_or("[]".to_string());
+  }
+
   // returns a JSON string of the children of the given path
   // Since WASM is limited to 64K memory, we need to limit the return size
   // and allow the function to be called multiple times to get all the data

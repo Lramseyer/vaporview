@@ -32,6 +32,7 @@ world filehandler {
 
   // wit2ts seems to have issues returning lists of custom types
   // so we will convert to JSON string
+  export getparametervalues: func(signalidlist: list<u32>) -> string;
   export getchildren: func(id: u32, startindex: u32) -> string;
   export getsignaldata: func(signalidlist: list<u32>);
   export getenumdata: func(netlistidlist: list<u32>);

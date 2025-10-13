@@ -220,7 +220,8 @@ See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.m
 
 - Added
   - Support for Enums
-  - Parameter values display in netlist view
+  - Sort netlist View to show Parameters at the top
+  - Show Parameter values in netlist view
 
 ## Other Planned Features
 

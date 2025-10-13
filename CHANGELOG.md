@@ -4,7 +4,8 @@
 
 - Added
   - Support for Enums
-  - Parameter values display in netlist view
+  - Sort netlist View to show Parameters at the top
+  - Show Parameter values in netlist view
 
 ## 1.4.2 - 10/11/2025 - Latest Release
 

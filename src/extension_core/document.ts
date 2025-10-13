@@ -13,6 +13,7 @@ import { SignalId, NetlistId, VaporviewDocumentDelegate, scaleFromUnits, logScal
 import { filehandler } from './filehandler';
 import { NetlistItem, createScope, createVar, getInstancePath } from './tree_view';
 import { json } from 'stream/consumers';
+import { sign } from 'crypto';
 
 export type NetlistIdTable = NetlistIdRef[];
 export type NetlistIdRef = {
@@ -249,6 +250,21 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     const viewRef = this._netlistIdTable[netlistId];
     if (viewRef === undefined) {return;}
     this._netlistIdTable[netlistId] = viewRef;
+  }
+
+  public sortNetlistScopeChildren(netlistItems: NetlistItem[]) {
+
+    let result = [];
+    const scopes  = netlistItems.filter(item => item.contextValue === 'netlistScope');
+    const variables = netlistItems.filter(item => item.contextValue !== 'netlistScope');
+    const parameters = variables.filter(item => item.type === 'Parameter');
+    const signals    = variables.filter(item => item.type !== 'Parameter');
+
+    result.push(...(scopes.sort((a, b) => a.name.localeCompare(b.name))));
+    result.push(...(parameters.sort((a, b) => a.name.localeCompare(b.name))));
+    result.push(...(signals.sort((a, b) => a.name.localeCompare(b.name))));
+
+    return result;
   }
 
   public setMetadata(scopecount: number, varcount: number, timescale: number, timeunit: string) {
@@ -531,11 +547,12 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
 
     this._delegate.updateViews(this.uri);
     await this._readBody(fileType);
-
+    
     this._delegate.logOutputChannel("Finished parsing waveforms for " + this.uri.fsPath);
     this._delegate.logOutputChannel("Time: " + (Date.now() - netlistFinishTime) / 1000 + " seconds");
 
     this.setTerminalLinkProvider();
+    this.getTopLevelParameters();
   }
 
   public readonly service: filehandler.Imports.Promisified = {
@@ -625,6 +642,19 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
     }
   }
 
+  private async getTopLevelParameters() {
+    if (!this.wasmApi) {return;}
+    const signalIdList    = this.treeData.filter(item => item.type === 'Parameter').map((param) => param.signalId);
+    const params          = await this.wasmApi.getparametervalues(signalIdList);
+    const parameterValues = JSON.parse(params);
+    this.treeData.filter(item => item.type === 'Parameter').forEach((param) => {
+      const paramValue = parameterValues.find((entry: any) => entry[0] === param.signalId);
+      if (paramValue) {
+        param.setParamValue(paramValue[1]);
+      }
+    });
+  }
+
   async getChildrenExternal(element: NetlistItem | undefined) {
 
     if (!element) {return Promise.resolve(this.treeData);} // Return the top-level netlist items
@@ -657,9 +687,11 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
         return createVar(child.name, child.paramValue, child.type, child.encoding.split('(')[0], scopePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, child.enumType, false /*isFsdb*/, this.uri);
       }) || [];
 
-      result.push(...(scopes.sort((a, b) => a.name.localeCompare(b.name))));
+      //result.push(...(scopes.sort((a, b) => a.name.localeCompare(b.name))));
+      result.push(...(scopes));
       
-      vars.sort((a, b) => a.name.localeCompare(b.name)).forEach((varItem) => { 
+      //vars.sort((a, b) => a.name.localeCompare(b.name)).forEach((varItem) => { 
+      vars.forEach((varItem) => { 
         // Need to handle the case where we get a variable with the same name but
         // different bit ranges.
         if (varTable[varItem.name] === undefined) {
@@ -704,7 +736,7 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
       }
     }
 
-    element.children = result;
+    element.children = this.sortNetlistScopeChildren(result);
     return Promise.resolve(element.children);
   }
 

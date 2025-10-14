@@ -112,7 +112,8 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.newSignalGroup', (e) => {
-    viewerProvider.newSignalGroup(e.name, e.groupPath, e.parentGroupId, e.rowId, false);
+    if (e) {viewerProvider.newSignalGroup(e.name, e.groupPath, e.parentGroupId, e.rowId, false);}
+    else {viewerProvider.newSignalGroup(undefined, undefined, undefined, undefined, false);}
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.newGroupFromSelection', (e) => {

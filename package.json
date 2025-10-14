@@ -233,6 +233,11 @@
         "key": "alt+-",
         "mac": "alt+-",
         "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
+        "command": "vaporview.newSignalGroup",
+        "key": "g",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus"
       }
     ],
     "submenus": [
@@ -431,7 +436,7 @@
         },
         {
           "command": "vaporview.newSignalGroup",
-          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus",
           "group": "3_groups@1"
         },
         {

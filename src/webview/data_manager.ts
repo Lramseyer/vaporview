@@ -1,4 +1,4 @@
-import { SignalId, NetlistId, WaveformData, ValueChange, EnumEntry, EnumData, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove, labelsPanel, outputLog, getIndexInGroup, CollapseState } from './vaporview';
+import { SignalId, NetlistId, WaveformData, ValueChange, EnumEntry, EnumData, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove, labelsPanel, outputLog, getIndexInGroup, CollapseState, controlBar } from './vaporview';
 import { getNumberFormatById } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer, signedLinearWaveformRenderer, signedSteppedrWaveformRenderer } from './renderer';
 import { SignalGroup, VariableItem, RowItem } from './signal_item';
@@ -248,7 +248,9 @@ export class WaveformDataManager {
     sendWebviewContext();
   }
 
-  addSignalGroup(name: string, groupPath: string[] | undefined, inputParentGroupId: number | undefined, eventRowId: number | undefined, moveSelected: boolean) {
+  addSignalGroup(name: string | undefined, groupPath: string[] | undefined, inputParentGroupId: number | undefined, eventRowId: number | undefined, moveSelected: boolean) {
+    if (controlBar.searchInFocus) {return;}
+
     const groupId = this.nextGroupId;
     const rowId = this.nextRowId;
 

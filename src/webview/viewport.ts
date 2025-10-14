@@ -626,7 +626,7 @@ export class Viewport {
 
   handleSignalSelect(rowIdList: RowId[], lastSelected: RowId | null) {
 
-    if (rowIdList.length === 0) {return;}
+    //if (rowIdList.length === 0) {return;}
 
     viewerState.selectedSignal.forEach((rowId) => {
       const element = document.getElementById('waveform-' + rowId);

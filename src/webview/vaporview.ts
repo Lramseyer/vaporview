@@ -503,9 +503,11 @@ class VaporviewWebview {
 
     if ((e.key === 'ArrowRight') && (viewerState.markerTime !== null)) {
       if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, this.viewport.timeStop, 0);}
+      else if (e.altKey || e.ctrlKey) {/* Do nothing */}
       else           {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime + 1, 0);}
     } else if ((e.key === 'ArrowLeft') && (viewerState.markerTime !== null)) {
       if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, 0, 0);}
+      else if (e.altKey || e.ctrlKey) {/* Do nothing */}
       else           {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime - 1, 0);}
 
 
@@ -654,6 +656,8 @@ class VaporviewWebview {
         viewport.highlightElement.remove();
         viewport.highlightElement = null;
       }
+    } else if (viewerState.mouseupEventType === null && abort) {
+      this.events.dispatch(ActionType.SignalSelect, [], null);
     }
     viewerState.mouseupEventType = null;
   }
@@ -686,21 +690,27 @@ class VaporviewWebview {
 
     //const filteredRowIdList = dataManager.removeChildrenFromSignalList(rowIdList);
 
-    if (rowIdList.length === 0) {return;}
+    //if (rowIdList.length === 0) {return;}
     viewerState.lastSelectedSignal = lastSelected;
     viewerState.selectedSignal = rowIdList;
 
-    if (lastSelected === null) {return;}
-    const netlistData = dataManager.rowItems[lastSelected];
+    //if (lastSelected === null) {return;}
     sendWebviewContext();
-    revealSignal(rowIdList[0]);
+    if (rowIdList.length > 0) {
+      revealSignal(rowIdList[0]);
+    }
     viewerState.selectedSignal = rowIdList;
+    let instancePath = null;
+    let netlistId = null;
 
-    if (netlistData === undefined) {return;}
-    const netlistId = netlistData.netlistId;
-    if (!(netlistData instanceof VariableItem)) {return;}
-    let instancePath = netlistData.scopePath + '.' + netlistData.signalName;
-    if (netlistData.scopePath === "") {instancePath = netlistData.signalName;}
+    if (lastSelected !== null) {
+      const netlistData = dataManager.rowItems[lastSelected];
+      if (netlistData === undefined) {return;}
+      netlistId = netlistData.netlistId;
+      if (!(netlistData instanceof VariableItem)) {return;}
+      instancePath = netlistData.scopePath + '.' + netlistData.signalName;
+      if (netlistData.scopePath === "") {instancePath = netlistData.signalName;}
+    }
 
     if (rowIdList.length === 1) {
       vscode.postMessage({

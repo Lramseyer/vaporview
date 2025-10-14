@@ -606,7 +606,7 @@ export class LabelsPanels {
 
     this.dragActive = false;
     if (this.dragDivider) {this.dragDivider.style.display = 'none'};
-    if (rowIdList.length === 0) {return;}
+    //if (rowIdList.length === 0) {return;}
 
     viewerState.displayedSignalsFlat.forEach((rowId) => {
       this.selectRowId(rowId, false);

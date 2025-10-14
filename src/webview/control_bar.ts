@@ -14,6 +14,12 @@ enum SearchState {
   Value = 1
 }
 
+enum SelectedSignalWidth {
+  None       = 0,
+  SingleBit  = 1,
+  MultiBit   = 2
+}
+
 export class ControlBar {
   private zoomInButton: HTMLElement;
   private zoomOutButton: HTMLElement;
@@ -109,7 +115,7 @@ export class ControlBar {
 
     this.setButtonState(this.previousButton, ButtonState.Disabled);
     this.setButtonState(this.mouseScroll, ButtonState.Selected);
-    this.updateButtonsForSelectedWaveform(null);
+    this.updateNextEdgeButtons([]);
 
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
     this.handleRedrawVariable = this.handleRedrawVariable.bind(this);
@@ -121,6 +127,7 @@ export class ControlBar {
   }
 
   goToNextTransition(direction: number, edge: string[]) {
+    console.log("Go to next transition: " + direction + ' ' + edge);
     if (viewerState.selectedSignal.length === 0) {return;}
     if (viewerState.markerTime === null) {return;}
 
@@ -195,17 +202,38 @@ export class ControlBar {
     this.setButtonState(this.nextEdge, selectable);
   }
 
-  updateButtonsForSelectedWaveform(width: number | null) {
-    if (width === null) {
+  updateNextEdgeButtons(rowIdList: RowId[]) {
+
+    const width = this.getSelectedSignalWidths(rowIdList);
+
+    if (width === SelectedSignalWidth.None) {
       this.setBinaryEdgeButtons(ButtonState.Disabled);
       this.setBusEdgeButtons(ButtonState.Disabled);
-    } else if (width === 1) {
+    } else if (width === SelectedSignalWidth.SingleBit) {
       this.setBinaryEdgeButtons(ButtonState.Enabled);
       this.setBusEdgeButtons(ButtonState.Enabled);
     } else {
       this.setBinaryEdgeButtons(ButtonState.Disabled);
       this.setBusEdgeButtons(ButtonState.Enabled);
     }
+  }
+
+  getSelectedSignalWidths(rowIdList: RowId[]) {
+    let result = SelectedSignalWidth.None;
+    let isSingleBit: boolean[] = [];
+    rowIdList.forEach((rowId) => {
+      const signalItem = dataManager.rowItems[rowId];
+      if (signalItem instanceof VariableItem === false) {return;}
+      isSingleBit.push(signalItem.signalWidth === 1);
+    });
+    const allSingleBit = isSingleBit.reduce((prev, curr) => {return prev && curr;}, true);
+
+    if (allSingleBit && isSingleBit.length > 0) {
+      result = SelectedSignalWidth.SingleBit;
+    } else if (isSingleBit.length > 0) {
+      result = SelectedSignalWidth.MultiBit;
+    }
+    return result;
   }
 
   handleSearchButtonSelect(button: number) {
@@ -330,19 +358,14 @@ export class ControlBar {
   }
 
   handleSignalSelect(rowIdList: RowId[], lastSelected: RowId | null = null) {
-    if (rowIdList.length !== 1) {
-      this.updateButtonsForSelectedWaveform(null);
-      return;
-    }
 
+    this.updateNextEdgeButtons(rowIdList);
+
+    if (rowIdList.length !== 1) {return;}
     const signalItem = dataManager.rowItems[rowIdList[0]];
-    if (signalItem === undefined || signalItem instanceof VariableItem === false) {
-      this.updateButtonsForSelectedWaveform(null);
-      return;
+    if (signalItem && signalItem instanceof VariableItem) {
+      this.valueEqualsSymbol.textContent = signalItem.valueFormat.symbolText;
     }
-
-    this.updateButtonsForSelectedWaveform(signalItem.signalWidth);
-    this.valueEqualsSymbol.textContent = signalItem.valueFormat.symbolText;
   }
 
   handleRedrawVariable(rowId: RowId) {

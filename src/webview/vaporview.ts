@@ -806,18 +806,27 @@ class VaporviewWebview {
     if (rowId === undefined) {return;}
     const index = viewerState.visibleSignalsFlat.indexOf(rowId);
 
-    const groupItem = dataManager.rowItems[rowId];
-    if (!(groupItem instanceof SignalGroup)) {return;}
-    const childRowIdList = groupItem.getFlattenedRowIdList(false, -1);
-    let newSelected = viewerState.selectedSignal.map(id => id);
-    childRowIdList.forEach((childRowId) => {
-      if (newSelected.includes(childRowId)) {
-        newSelected = newSelected.filter(id => id !== childRowId);
-      }
+    const removeAllSelected = true;
+    let rowIdList: RowId[] = [rowId];
+    if (viewerState.selectedSignal.includes(rowId) && removeAllSelected) {
+      rowIdList = viewerState.selectedSignal;
+    }
+
+    let newSelected = viewerState.selectedSignal;
+    rowIdList.forEach((rId) => {
+      const groupItem = dataManager.rowItems[rId];
+      if (!(groupItem instanceof SignalGroup)) {return;}
+      const childRowIdList = groupItem.getFlattenedRowIdList(false, -1);
+      let newSelected = viewerState.selectedSignal.map(id => id);
+      childRowIdList.forEach((childRowId) => {
+        if (newSelected.includes(childRowId)) {
+          newSelected = newSelected.filter(id => id !== childRowId);
+        }
+      });
+      this.events.dispatch(ActionType.RemoveVariable, rId, recursive);
     });
 
-    this.events.dispatch(ActionType.RemoveVariable, rowId, recursive);
-    if (newSelected.length === 0) {
+    if (newSelected.length === 1) {
       const newindex = Math.max(0, Math.min(viewerState.visibleSignalsFlat.length - 1, index));
       const newRowId = viewerState.visibleSignalsFlat[newindex];
       this.events.dispatch(ActionType.SignalSelect, [newRowId], newRowId);

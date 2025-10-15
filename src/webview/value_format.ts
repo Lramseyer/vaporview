@@ -430,6 +430,7 @@ export class EnumValueFormat implements ValueFormat {
   public formatString = (inputString: string, width: number, is2State: boolean) => {
     // This function is a placeholder and will be replaced in the VariableItem class
     const enumTable = dataManager.enumTable[this.enumType];
+    if (!enumTable) {return htmlSafe(inputString);}
     const result = enumTable.find((entry) => {return entry[0] === inputString;});
     if (result) {return htmlSafe(result[1]);}
     return htmlSafe(inputString);

@@ -870,7 +870,7 @@ class VaporviewWebview {
     // get the group path for the new group id
     let groupPath: string[] = [];
     const groupRowId = dataManager.groupIdTable[newGroupId];
-    if (groupRowId) {
+    if (groupRowId || groupRowId === 0) {
       groupPath = getParentGroupIdList(groupRowId).map((id) => {
         const item = dataManager.rowItems[dataManager.groupIdTable[id]];
         if (item instanceof SignalGroup) {

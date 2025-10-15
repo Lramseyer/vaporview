@@ -261,7 +261,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'removeVariable':      {this.removeSignalFromDocument(e.netlistId, false); break;}
         case 'close-webview':       {webviewPanel.dispose(); break;}
         case 'handleDrop':          {this.handleWebviewDrop(e); break;}
-        default: {this.log.appendLine('Unknown message type from webview: ' + JSON.stringify(e.command)); break;}
+        default: {this.log.appendLine('Unknown message type from webview: ' + JSON.stringify(e)); break;}
       }
 
       if (e.type === 'response')    {this.onMessage(e);}

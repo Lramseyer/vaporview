@@ -1,7 +1,7 @@
 import { SignalId, NetlistId, WaveformData, ValueChange, EnumEntry, EnumData, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove, labelsPanel, outputLog, getIndexInGroup, CollapseState, controlBar } from './vaporview';
 import { getNumberFormatById } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer, signedLinearWaveformRenderer, signedSteppedrWaveformRenderer } from './renderer';
-import { SignalGroup, VariableItem, RowItem } from './signal_item';
+import { SignalGroup, VariableItem, RowItem, NameType } from './signal_item';
 // @ts-ignore
 import * as LZ4 from 'lz4js';
 
@@ -730,16 +730,26 @@ export class WaveformDataManager {
         updateAllSelected = true;
       }
 
-      // Rendering type
-      if (message.renderType !== undefined) {
-        this.setRenderType(data, message.renderType);
-        updateAllSelected = true;
-      }
-
       // Vertical scale
       const isAnalong = data.isAnalogSignal();
       if (message.verticalScale !== undefined && isAnalong) {
         data.verticalScale = message.verticalScale;
+      }
+
+      // Name Type
+      if (message.nameType !== undefined) {
+        if (message.nameType === NameType.fullPath || 
+            message.nameType === NameType.signalName || 
+            message.nameType === NameType.custom) {
+          data.nameType = message.nameType;
+          updateAllSelected = true;
+        }
+      }
+
+      // Rendering type
+      if (message.renderType !== undefined) {
+        this.setRenderType(data, message.renderType);
+        updateAllSelected = true;
       }
     });
 

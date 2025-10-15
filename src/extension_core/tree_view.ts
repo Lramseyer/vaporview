@@ -296,31 +296,37 @@ export class NetlistItem extends vscode.TreeItem {
     public checkboxState:    vscode.TreeItemCheckboxState | undefined = undefined, // Display preference
     uri: vscode.Uri
   ) {
-    let fullName = "";
-    if (scopePath !== "") {fullName += scopePath + ".";}
-    fullName;
 
     super(label, collapsibleState);
+    const fullName = this.getFullName();
     this.numberFormat = "hexadecimal";
-    this.tooltip = "Name: " + fullName + label + "\n" + "Type: " + type + "\n";
+
     let fragmentId = "";
     if (collapsibleState === vscode.TreeItemCollapsibleState.None) {
       fragmentId = 'var=' + netlistId;
       this.contextValue = 'netlistVar'; // Set a context value for leaf nodes
-      this.tooltip += "Width: " + width + "\n" + "Encoding: " + encoding;
     } else {
       fragmentId = 'scope=' + netlistId;
       this.contextValue = 'netlistScope'; // Set a context value for parent nodes
     }
 
-    //this.description = (paramValue !== "") ? parseInt(paramValue, 2).toString(10) : "";
-    this.setParamValue(paramValue);
+    this.setParamAndTooltip(paramValue);
     this.resourceUri = vscode.Uri.parse(`waveform://${uri.fsPath}#${fragmentId}&net=${fullName + name}`);
   }
 
-  setParamValue(paramValue: string) {
+  getFullName(): string {return (this.scopePath !== "") ? this.scopePath + "." + this.label : this.label;}
+
+  setParamAndTooltip(paramValue: string) {
     this.paramValue  = paramValue;
     this.description = (paramValue !== "") ? parseInt(paramValue, 2).toString(10) : "";
+    this.tooltip     = "Name: " + this.getFullName() + "\n" + "Type: " + this.type + "\n";
+
+    if (this.collapsibleState === vscode.TreeItemCollapsibleState.None) {
+      this.tooltip += "Width: " + this.width + "\n" + "Encoding: " + this.encoding;
+    }
+    if (this.paramValue !== "") {
+      this.tooltip += "\n" + "Parameter Value: " + this.description;
+    }
   }
 
   // Method to recursively find a child element in the tree
@@ -352,11 +358,6 @@ export class NetlistItem extends vscode.TreeItem {
     } else {
       return null;
     }
-  }
-
-  handleCommand() {
-    //console.log("handleCommand()");
-    //console.log(this);
   }
 
   // Method to toggle the checkbox state

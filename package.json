@@ -272,6 +272,11 @@
         "when": "webviewSection == 'signal'"
       },
       {
+        "id": "vaporview.nameType",
+        "label": "Name",
+        "when": "webviewSection == 'signal'"
+      },
+      {
         "id": "vaporview.timeUnit",
         "label": "Time Unit",
         "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
@@ -398,6 +403,11 @@
           "submenu": "vaporview.rowHeight",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "1_waveform_settings@6"
+        },
+        {
+          "submenu": "vaporview.nameType",
+          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "group": "1_waveform_settings@7"
         },
         {
           "command": "vaporview.increaseVerticalScale",
@@ -589,6 +599,28 @@
           "command": "vaporview.rowHeight8x",
           "when": "webviewSection == 'signal'",
           "group": "1_default@3"
+        }
+      ],
+      "vaporview.nameType": [
+        {
+          "command": "vaporview.setNameTypeFullPath",
+          "when": "webviewSection == 'signal'",
+          "group": "1_default@1"
+        },
+        {
+          "command": "vaporview.setNameTypeSignalName",
+          "when": "webviewSection == 'signal'",
+          "group": "1_default@2"
+        },
+        {
+          "command": "vaporview.setNameTypeCustom",
+          "when": "webviewSection == 'signal'",
+          "group": "1_default@3"
+        },
+        {
+          "command": "vaporview.renameSignalGroup",
+          "when": "webviewSection == 'signal'",
+          "group": "1_default@4"
         }
       ],
       "vaporview.timeUnit": [
@@ -784,7 +816,7 @@
       },
       {
         "command": "vaporview.renameSignalGroup",
-        "title": "Rename Group"
+        "title": "Rename"
       },
       {
         "command": "vaporview.ungroupSignals",
@@ -917,6 +949,18 @@
       {
         "command": "vaporview.rowHeight8x",
         "title": "8x"
+      },
+      {
+        "command": "vaporview.setNameTypeFullPath",
+        "title": "Full Path"
+      },
+      {
+        "command": "vaporview.setNameTypeSignalName",
+        "title": "Name Only"
+      },
+      {
+        "command": "vaporview.setNameTypeCustom",
+        "title": "Custom Name"
       },
       {
         "command": "vaporview.increaseVerticalScale",

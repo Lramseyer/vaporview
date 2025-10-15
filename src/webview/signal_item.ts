@@ -6,6 +6,12 @@ import { vscode, labelsPanel } from "./vaporview";
 import { LabelsPanels } from "./labels";
 import { group } from "console";
 
+export enum NameType {
+  fullPath = 'fullPath',
+  signalName = 'signalName',
+  custom = 'custom',
+}
+
 export function htmlSafe(string: string) {
   return string.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -80,6 +86,8 @@ export class VariableItem extends SignalItem implements RowItem {
   public canvas: HTMLCanvasElement | null = null
   public ctx: CanvasRenderingContext2D | null = null
   public verticalScale: number = 1;
+  public nameType: NameType = NameType.fullPath;
+  public customName: string = "";
 
   constructor(
     public readonly netlistId: number,
@@ -94,6 +102,7 @@ export class VariableItem extends SignalItem implements RowItem {
   ) {
     super();
 
+    this.customName = this.signalName;
     if (this.encoding === "String") {
       this.valueFormat = formatString;
       this.colorIndex  = 1;
@@ -108,6 +117,19 @@ export class VariableItem extends SignalItem implements RowItem {
     this.setColorFromColorIndex();
   }
 
+  public createNameText(scopePath: string, signalName: string): string {
+    let result = "";
+    if (this.nameType === NameType.fullPath) {
+      result += `<p style="opacity:50%">${scopePath}</p><p>${signalName}</p>`
+    } else if (this.nameType === NameType.signalName) {
+      result += `<p>${signalName}</p>`;
+    } else if (this.nameType === NameType.custom) {
+      result += `<p>${htmlSafe(this.customName)}</p>`;
+    }
+
+    return result;
+  }
+
   public createLabelElement() {
 
     const rowId         = dataManager.netlistIdTable[this.netlistId];
@@ -120,9 +142,7 @@ export class VariableItem extends SignalItem implements RowItem {
     const selectorClass = isSelectedClass + ' ' + lastSelectedClass;
     const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
     return `<div class="waveform-label is-idle" id="label-${rowId}" title="${tooltip}" data-vscode-context=${this.vscodeContext}>
-              <div class='waveform-row ${selectorClass} ${height}'>
-                <p style="opacity:50%">${scopePath}</p><p>${signalName}</p>
-              </div>
+              <div class='waveform-row ${selectorClass} ${height}'>${this.createNameText(scopePath, signalName)}</div>
             </div>`;
     }
 

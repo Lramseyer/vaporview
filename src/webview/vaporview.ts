@@ -4,7 +4,7 @@ import { LabelsPanels } from './labels';
 import { ControlBar } from './control_bar';
 import { WaveformDataManager } from './data_manager';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
-import { VariableItem, SignalGroup, RowItem } from './signal_item';
+import { VariableItem, SignalGroup, RowItem, NameType } from './signal_item';
 import { copyWaveDrom } from './wavedrom';
 
 declare function acquireVsCodeApi(): VsCodeApi;
@@ -305,6 +305,8 @@ function signalListForSaveFile(rowIdList: RowId[]): any[] {
       colorIndex:       data.colorIndex,
       rowHeight:        data.rowHeight,
       verticalScale:    data.verticalScale,
+      nameType:         data.nameType,
+      customName:       data.customName,
       renderType:       data.renderType.id,
       valueLinkCommand: data.valueLinkCommand,
     });

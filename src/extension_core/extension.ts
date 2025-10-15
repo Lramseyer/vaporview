@@ -393,6 +393,19 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.handleKeyBinding(e, "resetVerticalScale");
   }));
 
+  // #region Name Type
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setNameTypeFullPath', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, {nameType: "fullPath"});
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setNameTypeSignalName', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, {nameType: "signalName"});
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setNameTypeCustom', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, {nameType: "custom"});
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.showRulerLines', (e) => {
     vscode.workspace.getConfiguration('vaporview').update('showRulerLines', true, vscode.ConfigurationTarget.Global);
   }));

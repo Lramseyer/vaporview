@@ -136,7 +136,7 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
     this.treeData.filter(item => item.type === 'Parameter').forEach((param) => {
       const paramValue = parameterValues.find((entry: any) => entry[0] === param.signalId);
       if (paramValue) {
-        param.setParamValue(paramValue[1]);
+        param.setParamAndTooltip(paramValue[1]);
       }
     });
   }

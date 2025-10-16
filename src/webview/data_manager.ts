@@ -311,23 +311,20 @@ export class WaveformDataManager {
     this.nextRowId++;
   }
 
-  renameSignalGroup(groupId: number | undefined, name: string | undefined) {
-    let rowId: number
-    if (groupId) {
-      rowId = this.groupIdTable[groupId];
-      if (rowId === undefined) {return;}
-    }
-    else {
+  renameSignalGroup(rowId: RowId | undefined, name: string | undefined) {
+
+    if (rowId === undefined) {
       if (viewerState.selectedSignal.length === 1 && viewerState.selectedSignal[0] >= 0) {
         rowId = viewerState.selectedSignal[0];
       } else {
         return;
       }
     }
-    const groupItem = this.rowItems[rowId];
-    if (groupItem instanceof SignalGroup === false) {return;}
-    if (name !== undefined && name !== "") {
-      groupItem.label = name;
+    const signalItem = this.rowItems[rowId];
+
+    const trimmedName = name?.trim() || "";
+    if (trimmedName !== "") {
+      signalItem.setLabelText(trimmedName);
       labelsPanel.renderLabelsPanels();
     } else {
       labelsPanel.showRenameInput(rowId);
@@ -742,6 +739,9 @@ export class WaveformDataManager {
             message.nameType === NameType.signalName || 
             message.nameType === NameType.custom) {
           data.nameType = message.nameType;
+          if (message.nameType === NameType.custom && message.customName !== undefined) {
+            data.customName = message.customName;
+          }
           updateAllSelected = true;
         }
       }

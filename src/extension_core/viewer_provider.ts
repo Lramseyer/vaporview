@@ -451,6 +451,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
           colorIndex:    signalInfo.colorIndex,
           rowHeight:     signalInfo.rowHeight,
           verticalScale: signalInfo.verticalScale,
+          nameType:      signalInfo.nameType,
+          customName:    signalInfo.customName,
           renderType:    signalInfo.renderType,
           command:       signalInfo.command,
         });
@@ -1126,10 +1128,12 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     let groupId: number | undefined = e?.groupId;
     let groupName: string | undefined = e?.name;
+    let rowId: number | undefined = e?.rowId;
 
     const panel      = this.activeWebview;
     panel.webview.postMessage({
       command: 'renameSignalGroup',
+      rowId: rowId,
       groupId: groupId,
       groupName: groupName,
     });

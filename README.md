@@ -223,6 +223,7 @@ See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.m
   - Sort netlist View to show Parameters at the top
   - Show Parameter values in netlist view
   - Multi signal select now batch configures row height and render type (on compatible signals)
+  - Custom names for variable items
 - Escape key de-selects all signals
 
 ## Other Planned Features

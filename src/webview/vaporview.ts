@@ -911,7 +911,7 @@ class VaporviewWebview {
       case 'update-waveform-chunk-compressed': {dataManager.updateWaveformChunkCompressed(message); break;}
       case 'update-enum-chunk':     {dataManager.updateEnumChunk(message); break;}
       case 'newSignalGroup':        {dataManager.addSignalGroup(message.groupName, message.groupPath, message.parentGroupId, message.eventRowId, message.moveSelected); break;}
-      case 'renameSignalGroup':     {dataManager.renameSignalGroup(message.groupId, message.groupName); break;}
+      case 'renameSignalGroup':     {dataManager.renameSignalGroup(message.rowId, message.groupName); break;}
       case 'handle-keypress':       {this.externalKeyDownHandler(message); break;}
       case 'setDisplayFormat':      {dataManager.setDisplayFormat(message); break;}
       case 'setWaveDromClock':      {dataManager.waveDromClock = {netlistId: message.netlistId, edge:  message.edge,}; break;}

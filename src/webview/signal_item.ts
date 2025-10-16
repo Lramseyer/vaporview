@@ -57,7 +57,9 @@ export interface RowItem {
   createValueDisplayElement(): string;
   createViewportElement(rowId: number): void;
   setSignalContextAttribute(): void;
+  createWaveformRowContent(): string;
   getLabelText(): string;
+  setLabelText(newLabel: string): void;
   getValueAtTime(time: number): string[];
   getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[];
   rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number
@@ -117,9 +119,11 @@ export class VariableItem extends SignalItem implements RowItem {
     this.setColorFromColorIndex();
   }
 
-  public createNameText(scopePath: string, signalName: string): string {
+  public createWaveformRowContent(): string {
     let result = "";
+    const signalName  = htmlSafe(this.signalName);
     if (this.nameType === NameType.fullPath) {
+      const scopePath = htmlSafe(this.scopePath + '.');
       result += `<p style="opacity:50%">${scopePath}</p><p>${signalName}</p>`
     } else if (this.nameType === NameType.signalName) {
       result += `<p>${signalName}</p>`;
@@ -142,7 +146,7 @@ export class VariableItem extends SignalItem implements RowItem {
     const selectorClass = isSelectedClass + ' ' + lastSelectedClass;
     const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
     return `<div class="waveform-label is-idle" id="label-${rowId}" title="${tooltip}" data-vscode-context=${this.vscodeContext}>
-              <div class='waveform-row ${selectorClass} ${height}'>${this.createNameText(scopePath, signalName)}</div>
+              <div class='waveform-row ${selectorClass} ${height}'>${this.createWaveformRowContent()}</div>
             </div>`;
     }
 
@@ -208,7 +212,18 @@ export class VariableItem extends SignalItem implements RowItem {
   }
 
   public getLabelText(): string {
-    return [this.scopePath, this.signalName].join('.');
+    if (this.nameType === NameType.custom) {
+      return this.customName;
+    } else if (this.nameType === NameType.signalName) {
+      return this.signalName;
+    } else {
+      return [this.scopePath, this.signalName].join('.');
+    }
+  }
+
+  public setLabelText(newLabel: string) {
+    this.customName = newLabel;
+    this.nameType = NameType.custom;
   }
 
   public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {
@@ -573,6 +588,7 @@ export class SignalGroup extends SignalItem implements RowItem {
   }
 
   getLabelText(): string {return this.label;}
+  setLabelText(newLabel: string) {this.label = newLabel;}
 
   public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {
     let result: number[] = [this.rowId];

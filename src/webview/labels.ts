@@ -1,7 +1,7 @@
 import { EventHandler, viewport, arrayMove, NetlistId, ActionType, viewerState, dataManager, RowId, getChildrenByGroupId, getIndexInGroup, sendWebviewContext, handleClickSelection} from './vaporview';
 import { ValueFormat } from './value_format';
 import { vscode, getParentGroupId } from './vaporview';
-import { SignalGroup, VariableItem, htmlSafe } from './signal_item';
+import { SignalGroup, VariableItem, SignalItem, RowItem, htmlSafe } from './signal_item';
 import { sign } from 'crypto';
 
 export class LabelsPanels {
@@ -472,7 +472,8 @@ export class LabelsPanels {
   public showRenameInput(rowId: RowId) {
     this.dragEnd(null, true); // Abort any drag operation
     const signalItem = dataManager.rowItems[rowId];
-    if (!(signalItem instanceof SignalGroup)) {return;}
+    //if (!(signalItem instanceof SignalGroup)) {return;}
+    const isSignalGroup = signalItem instanceof SignalGroup;
     const labelElement = document.getElementById(`label-${rowId}`);
     if (!labelElement) {return;}
     const waveformRow = labelElement.querySelector('.waveform-row');
@@ -480,13 +481,13 @@ export class LabelsPanels {
     waveformRow.classList.remove('is-selected');
     
     // Get the current name for the textarea
-    const currentName = signalItem.label || '';
+    const currentName = signalItem.getLabelText() || '';
     waveformRow.innerHTML = `<textarea id="rename-input-${rowId}" class="rename-input" autocorrect="off" autocapitalize="off" spellcheck="false" wrap="off">${htmlSafe(currentName)}</textarea>`;
     this.renameActive = true;
 
     // Focus the textarea and select all text
     const textarea = document.getElementById(`rename-input-${rowId}`) as HTMLTextAreaElement;
-    const oldName  = signalItem.label;
+    const oldName  = signalItem.getLabelText();
     if (!textarea) {return;}
     textarea.focus();
     textarea.select();
@@ -494,28 +495,32 @@ export class LabelsPanels {
     // Handle Enter key to submit rename
     textarea.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        const newNameInput = textarea.value.trim() || signalItem.label;
+        const newNameInput = textarea.value.trim() || signalItem.getLabelText();
         const parentGroupId = getParentGroupId(rowId) || 0;
-        const isTaken = dataManager.groupNameExists(newNameInput, parentGroupId);
-        const newName = isTaken ? oldName : newNameInput;
+        const isTaken = dataManager.groupNameExists(newNameInput, parentGroupId) && isSignalGroup;
+        const isempty = newNameInput.trim().length === 0;
+        const isValid = !isempty && !isTaken;
         e.preventDefault();
-        this.finishRename(signalItem, waveformRow, newName);
+        this.finishRename(rowId, waveformRow, newNameInput, isValid);
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        this.finishRename(signalItem, waveformRow, oldName);
+        this.finishRename(rowId, waveformRow, oldName, false);
       }
     });
 
     // Handle blur to cancel rename
-    textarea.addEventListener('blur', () => {this.finishRename(signalItem, waveformRow, oldName);});
+    textarea.addEventListener('blur', () => {this.finishRename(rowId, waveformRow, oldName, false);});
   }
 
-  private finishRename(signalItem: SignalGroup, waveformRow: Element, newName: string) {
+  private finishRename(rowId: RowId, waveformRow: Element, newName: string, renameValid: boolean) {
+    const signalItem = dataManager.rowItems[rowId];
     if (!this.renameActive) {return;}
-    this.renameActive     = false;
-    signalItem.label      = newName ? newName.trim() : signalItem.label;
+    this.renameActive = false;
+    if (renameValid) {
+      signalItem.setLabelText(newName.trim());
+    }
     waveformRow.innerHTML = signalItem.createWaveformRowContent();
-    if (viewerState.selectedSignal.includes(signalItem.rowId)) {
+    if (viewerState.selectedSignal.includes(rowId)) {
       waveformRow.classList.add('is-selected');
     }
     sendWebviewContext();

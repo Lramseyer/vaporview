@@ -688,7 +688,7 @@ export class WaveformDataManager {
     });
 
     updateDisplayedSignalsFlat();
-    console.log(filteredRowIdList);
+    //console.log(filteredRowIdList);
   }
 
   setDisplayFormat(message: any) {

@@ -127,7 +127,7 @@ export class ControlBar {
   }
 
   goToNextTransition(direction: number, edge: string[]) {
-    console.log("Go to next transition: " + direction + ' ' + edge);
+    //console.log("Go to next transition: " + direction + ' ' + edge);
     if (viewerState.selectedSignal.length === 0) {return;}
     if (viewerState.markerTime === null) {return;}
 

@@ -249,7 +249,7 @@ export class WaveformDataManager {
   }
 
   addSignalGroup(name: string | undefined, groupPath: string[] | undefined, inputParentGroupId: number | undefined, eventRowId: number | undefined, moveSelected: boolean) {
-    if (controlBar.searchInFocus) {return;}
+    if (controlBar.searchInFocus || labelsPanel.renameActive) {return;}
 
     const groupId = this.nextGroupId;
     const rowId = this.nextRowId;

@@ -145,7 +145,7 @@ This command takes the URI to a waveform dump file.
 
 ## waveformViewer.addVariable
 
-Add a variable to the viewer
+Add a variable to the viewer. If a scope is specified, it will add all of the scope children to the viewer.
 
 ### Arguments: object
 
@@ -156,6 +156,7 @@ Add a variable to the viewer
 - **name** - (Optional*) - Variable name
 - **msb** - (Optional) - Most Significant Bit
 - **lsb** - (Optional) - Least Significant Bit
+- **recursive** - (optional) - If a path to a scope is specified, it will recursively add all of the children if set to true
 
 Note that a variable must be specified with at least of the following set of keys, and priority is as follows:
 

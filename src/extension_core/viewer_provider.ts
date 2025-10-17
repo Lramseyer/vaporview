@@ -831,7 +831,10 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     switch (action) {
       case 'add': {
-        if (metadata.contextValue !== 'netlistScope') {
+        if (metadata.contextValue === 'netlistScope') {
+          const recursive = e.recursive === true;
+          this.addAllInScopeToDocument(metadata, recursive, 128);
+        } else {
           this.addSignalsToDocument(document, [metadata], [], undefined);
         }
         break;

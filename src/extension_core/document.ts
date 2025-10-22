@@ -142,6 +142,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
   public treeData:         NetlistItem[] = [];
   public displayedSignals: NetlistItem[] = [];
   protected _netlistIdTable: NetlistIdTable = [];
+  private sortNetlist: boolean = vscode.workspace.getConfiguration('vaporview').get('sortNetlist') || false;
   protected readonly _delegate: VaporviewDocumentDelegate;
   // Webview
   public webviewPanel: vscode.WebviewPanel | undefined = undefined;
@@ -260,9 +261,15 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     const parameters = variables.filter(item => item.type === 'Parameter');
     const signals    = variables.filter(item => item.type !== 'Parameter');
 
-    result.push(...(scopes.sort((a, b) => a.name.localeCompare(b.name))));
-    result.push(...(parameters.sort((a, b) => a.name.localeCompare(b.name))));
-    result.push(...(signals.sort((a, b) => a.name.localeCompare(b.name))));
+    if (this.sortNetlist) {
+      result.push(...(scopes.sort((a, b) => a.name.localeCompare(b.name))));
+      result.push(...(parameters.sort((a, b) => a.name.localeCompare(b.name))));
+      result.push(...(signals.sort((a, b) => a.name.localeCompare(b.name))));
+    } else {
+      result.push(...scopes);
+      result.push(...parameters);
+      result.push(...signals);
+    }
 
     return result;
   }
@@ -457,6 +464,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
   }
 
   public async reload() {
+    this.sortNetlist = vscode.workspace.getConfiguration('vaporview').get('sortNetlist') || false;
     await this.unload();
     await this.load();
     this._fileUpdated = false;

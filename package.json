@@ -148,6 +148,12 @@
           "scope": "application",
           "description": "Multi-bit renderer style - If checked, fills the value box with color. If unchecked, only the outline is drawn."
         },
+        "vaporview.sortNetlist": {
+          "type": "boolean",
+          "default": "false",
+          "scope": "application",
+          "description": "Alphabetically sort scopes, parameters, and variables in the netlist view"
+        },
         "vaporview.customColor1": {
           "type": "string",
           "default": "#cccccc",

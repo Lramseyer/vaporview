@@ -5,6 +5,7 @@
 - Added
   - Support for Enums
   - Sort netlist View to show Parameters at the top
+    - Alphabetical sorting is now a user option
   - Show Parameter values in netlist view
   - Multi signal select now batch configures row height and render type (on compatible signals)
   - Custom names for variable items

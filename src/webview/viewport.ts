@@ -1,4 +1,4 @@
-import { vscode, WaveformData, arrayMove, sendWebviewContext, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId, updateDisplayedSignalsFlat, WAVE_HEIGHT, handleClickSelection } from "./vaporview";
+import { vscode, WaveformData, arrayMove, sendWebviewContext, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId, updateDisplayedSignalsFlat, WAVE_HEIGHT, handleClickSelection, controlBar } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { labelsPanel } from "./vaporview";
@@ -274,14 +274,17 @@ export class Viewport {
     const context: any = {
       webviewSection: 'ruler',
       preventDefaultContextMenuItems: true,
-      rulerLines: this.rulerLines
+      rulerLines: this.rulerLines,
+      fillBitVector: this.fillMultiBitValues
     };
 
     unitsList.forEach((unit) => {
       context[unit] = maxTime >= (10 ** this.logScaleFromUnits(unit));
     });
 
-    this.rulerElement.setAttribute("data-vscode-context", `${JSON.stringify(context).replace(/\s/g, '%x20')}`);
+    const contextAttribute = `${JSON.stringify(context).replace(/\s/g, '%x20')}`;
+    this.rulerElement.setAttribute("data-vscode-context", contextAttribute);
+    controlBar.settings.setAttribute("data-vscode-context", contextAttribute);
   }
 
   public resizeCanvas(canvasElement: HTMLElement, ctx: CanvasRenderingContext2D, width: number, height: number) {

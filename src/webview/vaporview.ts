@@ -291,6 +291,7 @@ function signalListForSaveFile(rowIdList: RowId[]): any[] {
       result.push({
         dataType:  "signal-group",
         groupName: data.label,
+        collapseState: data.collapseState,
         children:  signalListForSaveFile(data.children)
       });
     }
@@ -847,6 +848,7 @@ class VaporviewWebview {
     if (settings.fillMultiBitValues !== undefined) {
       this.viewport.fillMultiBitValues = settings.fillMultiBitValues;
       this.viewport.renderAllWaveforms(true);
+      this.viewport.setRulerVscodeContext();
     }
   }
 

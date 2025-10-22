@@ -39,6 +39,7 @@ export class ControlBar {
   private touchScroll: HTMLElement;
   private mouseScroll: HTMLElement;
   private autoReload: HTMLElement;
+  settings: HTMLElement;
 
   private searchContainer: any;
   private searchBar: any;
@@ -73,6 +74,7 @@ export class ControlBar {
     this.touchScroll   = document.getElementById('touchpad-scroll-button')!;
     this.mouseScroll   = document.getElementById('mouse-scroll-button')!;
     this.autoReload    = document.getElementById('autoReload')!;
+    this.settings      = document.getElementById('settings-menu')!;
     this.searchContainer = document.getElementById('search-container');
     this.searchBar     = document.getElementById('search-bar');
     this.valueIconRef  = document.getElementById('value-icon-reference');
@@ -109,9 +111,13 @@ export class ControlBar {
     this.previousButton.addEventListener('click', (e: any) => {this.handleSearchGoTo(-1);});
     this.nextButton.addEventListener(    'click', (e: any) => {this.handleSearchGoTo(1);});
   
+    // Scroll Type settngs
     this.autoScroll.addEventListener(    'click', (e: any) => {this.handleScrollModeClick("Auto");});
     this.touchScroll.addEventListener(   'click', (e: any) => {this.handleScrollModeClick("Touchpad");});
     this.mouseScroll.addEventListener(   'click', (e: any) => {this.handleScrollModeClick("Mouse");});
+
+    // Settings menu
+    this.settings.addEventListener(      'click', (e: any) => {this.clickSettings(e);});
 
     this.setButtonState(this.previousButton, ButtonState.Disabled);
     this.setButtonState(this.mouseScroll, ButtonState.Selected);
@@ -175,6 +181,14 @@ export class ControlBar {
     this.setButtonState(this.mouseScroll, ButtonState.Enabled);
     this.setButtonState(this.touchScroll, ButtonState.Enabled);
     this.setButtonState(this.autoScroll, ButtonState.Selected);
+  }
+
+  clickSettings(e: any) {
+    e.preventDefault();
+    e.target.dispatchEvent(
+      new MouseEvent("contextmenu", { bubbles: true, clientX: e.clientX, clientY: e.clientY })
+    );
+    e.stopPropagation();
   }
 
   setButtonState(buttonId: any, state: number) {

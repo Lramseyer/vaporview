@@ -61,6 +61,10 @@ body {
   padding: 0 10px 0 10px;
 }
 
+.control-bar-right {
+  margin-left: auto;
+}
+
 .control-bar-button {
   padding: 2px 2px 2px 2px;
   margin: 4px 0px 4px 4px;

@@ -6,15 +6,16 @@ VaporView is an open source waveform viewer extension for Visual Studio Code - [
 
 # Waveform Viewer Features
 
-Natively supports VCD, FST, and GHW waveform dump formats. Also supports FSDB files where external libraries are present (see [build FSDB addon](https://github.com/Lramseyer/vaporview/blob/main/GETTING_STARTED.md#optional-build-fsdb-addon)).
-
-VaporView opens the waveform dump files in an interactive viewer, where you can:
-- Add, remove, and rearrange signals
-- Pan and zoom in on the view
+- Native support for VCD, FST, and GHW files
+- Smooth panning and zooming using touchpad gestures or a scroll wheel
+- Add, remove, rearrange, and grouping of signals in the viewer
 - Place and move markers
 - Search for values witin a waveform dump
+- Terminal Links for timestamps and instance paths
+- Remote waveform viewing via VScode SSH and surfer surver
+- IDE integration with other language extensions
 
-For use of other waveform dump formats such as LXT, VZT, GTKwave offers conversion tools. Proprietery formats such as WLF and VPD can also be converted, but require you to compile GTKwave. See the [GTKwave Manual](https://gtkwave.sourceforge.net/gtkwave.pdf) for details - page 16, and 69 for an overview.
+Vaporview Also supports FSDB files where external libraries are present (see [build FSDB addon](https://github.com/Lramseyer/vaporview/blob/main/GETTING_STARTED.md#optional-build-fsdb-addon)). For use of other waveform dump formats such as LXT, VZT, GTKwave offers conversion tools. Proprietery formats such as WLF and VPD can also be converted, but require you to compile GTKwave. See the [GTKwave Manual](https://gtkwave.sourceforge.net/gtkwave.pdf) for details - page 16, and 69 for an overview.
 
 # VScode IDE Integration
 
@@ -30,20 +31,14 @@ When clicking on instance path links, paths that point to a variable will add th
 
 ## Interoperability With Other Extensions
 
+List of extensions that connect to Vaporview:
+
 - [SV Pathfinder](https://marketplace.visualstudio.com/items?itemName=heyfey.sv-pathfinder) - RTL Linking and tracing - [Github](https://github.com/heyfey/sv-pathfinder)
+- [slang-server](https://marketplace.visualstudio.com/items?itemName=Hudson-River-Trading.vscode-slang) - System Verilog Language Server - [Github](https://github.com/hudson-trading/slang-server)
 
-Vaporview has a set of commands and event emitters that allow interaction with other extensions. This allows for powerful features like RTL linking, in editor debugging, and firmware tracing while being HDL and simulator agnostic. See the [API docs](https://github.com/Lramseyer/vaporview/blob/main/API_DOCS.md) if you are interested in integrating Vaporview into your extension. A summary of the API features that other extension developers will be able to use are listed below:
+### API details
 
-- Commands
-  - Adding and removing variables
-  - Placing markers at specific times
-  - Revealing items in the netlist
-- Event emitters
-  - Adding, removing, and selecting variables
-  - Placing markers
-  - Dragging custom tree items into the viewer (not finalized)
-- Adding custom context menu items
-- Signal value links
+Vaporview has a set of commands and event emitters that allow interaction with other extensions. This allows for powerful features like RTL linking, in editor debugging, and firmware tracing while being HDL and simulator agnostic. See the [API docs](https://github.com/Lramseyer/vaporview/blob/main/API_DOCS.md) if you are interested in integrating Vaporview into your extension.
 
 ## Remote Waveform Viewing
 
@@ -148,6 +143,7 @@ Vaporview can display values in different number formats. To change the value fo
 | Decimal        | ❌ No                 | Left              |
 | Floating Point | ❌ No                 | Left              |
 | ASCII          | ❌ No                 | Left              |
+| Enum           | ❌ No                 | Left              |
 
 ## Waveform Color
 
@@ -159,9 +155,15 @@ Vaporview supports 8 different waveform colors. The colors are based off the [se
 
 Aside from the binary and multi-bit waveform renderers, Vaporview supports displaying analog signals. Any multi-bit variable or Real type supports this. Analog signals can be displayed wither as a linear or stepped line. In the case of binary vlues, the Y value can be evaluated as either a signed or unsigned value. To change the Render Type, right click on the signal in the viewer and select **Render Type** -> and select the render type you wish to use for the signal.
 
-## Multi-bit display type
+### Multi-bit display type
 
 The multi-bit renderer defaults to shaded shapes, but the more traditional outlined shapes can be enabled in the settings by de-selecting "Fill Multi Bit Values" ("vaporview.fillMultiBitValues": false)
+
+### Analog Waveforms
+
+Vaporview supports analog waveforms for Real and Bit Vector data types. For Bit Vector data types, waveforms can be interpreted as signed or unsigned values. Analog waveforms support different row heights as well as vertical zooming.
+
+To adjust the row height, right click on the signal, and select your desired row height. To vertically zoom, select the signal and press **Alt +/-** to vertically zoom
 
 ## Time Units
 

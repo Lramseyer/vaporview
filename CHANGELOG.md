@@ -8,6 +8,7 @@
   - Show Parameter values in netlist view
   - Multi signal select now batch configures row height and render type (on compatible signals)
   - Custom names for variable items
+  - Settings button on the right side of the control bar
 - Escape key de-selects all signals
 
 ## 1.4.2 - 10/11/2025 - Latest Release

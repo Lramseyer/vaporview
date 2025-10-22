@@ -414,6 +414,31 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.workspace.getConfiguration('vaporview').update('showRulerLines', false, vscode.ConfigurationTarget.Global);
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.fillBitVector', (e) => {
+    vscode.workspace.getConfiguration('vaporview').update('fillMultiBitValues', true, vscode.ConfigurationTarget.Global);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.outlineBitVector', (e) => {
+    vscode.workspace.getConfiguration('vaporview').update('fillMultiBitValues', false, vscode.ConfigurationTarget.Global);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setMouseScollingMode', (e) => {
+    vscode.workspace.getConfiguration('vaporview').update('scrollingMode', "Mouse", vscode.ConfigurationTarget.Global);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setTouchpadScollingMode', (e) => {
+    vscode.workspace.getConfiguration('vaporview').update('scrollingMode', "Touchpad", vscode.ConfigurationTarget.Global);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setAutoScollingMode', (e) => {
+    vscode.workspace.getConfiguration('vaporview').update('scrollingMode', "Auto", vscode.ConfigurationTarget.Global);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.viewVaporViewSettings', (e) => {
+    // Open VScode Settings to the Vaporview Section
+    vscode.commands.executeCommand('workbench.action.openSettings', "vaporview");
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.dummy', (e) => {
     viewerProvider.log.appendLine("Command called: 'vaporview.dummy' " + JSON.stringify(e));
   }));

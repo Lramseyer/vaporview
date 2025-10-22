@@ -280,6 +280,11 @@
         "id": "vaporview.timeUnit",
         "label": "Time Unit",
         "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
+        "id": "vaporview.scrollMode",
+        "label": "Scrolling Mode",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
       }
     ],
     "menus": {
@@ -370,14 +375,34 @@
           "group": "1_default@1"
         },
         {
+          "submenu": "vaporview.scrollMode",
+          "when": "webviewSection == 'ruler' && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "group": "1_default@2"
+        },
+        {
           "command": "vaporview.showRulerLines",
           "when": "webviewSection == 'ruler' && rulerLines == false && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "1_default@2"
+          "group": "1_default@3"
         },
         {
           "command": "vaporview.hideRulerLines",
           "when": "webviewSection == 'ruler' && rulerLines == true && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "1_default@2"
+          "group": "1_default@3"
+        },
+        {
+          "command": "vaporview.fillBitVector",
+          "when": "webviewSection == 'ruler' && fillBitVector == false && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "group": "1_default@4"
+        },
+        {
+          "command": "vaporview.outlineBitVector",
+          "when": "webviewSection == 'ruler' && fillBitVector == true && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "group": "1_default@4"
+        },
+        {
+          "command": "vaporview.viewVaporViewSettings",
+          "when": "webviewSection == 'ruler' && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "group": "1_default@5"
         },
         {
           "submenu": "vaporview.valueFormat",
@@ -653,6 +678,23 @@
           "command": "vaporview.setTimeUnitsFemtoseconds",
           "when": "fs == true",
           "group": "1_default@6"
+        }
+      ],
+      "vaporview.scrollMode": [
+        {
+          "command": "vaporview.setMouseScollingMode",
+          "when": "webviewSection == 'ruler'",
+          "group": "1_default@1"
+        },
+        {
+          "command": "vaporview.setTouchpadScollingMode",
+          "when": "webviewSection == 'ruler'",
+          "group": "1_default@2"
+        },
+        {
+          "command": "vaporview.setAutoScollingMode",
+          "when": "webviewSection == 'ruler'",
+          "group": "1_default@3"
         }
       ],
       "vaporview.renderType": [
@@ -1005,6 +1047,30 @@
       {
         "command": "vaporview.hideRulerLines",
         "title": "Hide Ruler Lines"
+      },
+      {
+        "command": "vaporview.fillBitVector",
+        "title": "Shade Bit Vectors"
+      },
+      {
+        "command": "vaporview.outlineBitVector",
+        "title": "Outline Bit Vectors"
+      },
+      {
+        "command": "vaporview.setMouseScollingMode",
+        "title": "Mouse Wheel"
+      },
+      {
+        "command": "vaporview.setTouchpadScollingMode",
+        "title": "Touchpad"
+      },
+      {
+        "command": "vaporview.setAutoScollingMode",
+        "title": "Auto Detect"
+      },
+      {
+        "command": "vaporview.viewVaporViewSettings",
+        "title": "More Settings..."
       },
       {
         "command": "vaporview.viewVaporViewSidebar",

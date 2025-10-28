@@ -11,6 +11,8 @@
   - Custom names for variable items
   - Settings button on the right side of the control bar
 - Escape key de-selects all signals
+- API
+  - waveformViewer.addVariable will now add all variables in a scope if it is specified
 
 ## 1.4.2 - 10/11/2025 - Latest Release
 

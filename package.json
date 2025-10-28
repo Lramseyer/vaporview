@@ -24,7 +24,11 @@
     "GHW",
     "FSDB",
     "Logic Simulation",
-    "Logic Analyzer"
+    "Logic Analyzer",
+    "FPGA",
+    "Graph",
+    "Verilog",
+    "VHDL"
   ],
   "engines": {
     "vscode": "^1.96.0"

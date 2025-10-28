@@ -223,10 +223,14 @@ See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.m
 - Added
   - Support for Enums
   - Sort netlist View to show Parameters at the top
+    - Alphabetical sorting is now a user option
   - Show Parameter values in netlist view
   - Multi signal select now batch configures row height and render type (on compatible signals)
   - Custom names for variable items
+  - Settings button on the right side of the control bar
 - Escape key de-selects all signals
+- API
+  - waveformViewer.addVariable will now add all variables in a scope if it is specified
 
 ## Other Planned Features
 

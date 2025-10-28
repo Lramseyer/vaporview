@@ -124,7 +124,7 @@ pub fn get_var_data(hierarchy: &Hierarchy, v: VarRef) -> VarData {
   let mut param_value: Option<String> = None;
   if tpe == wellen::VarType::Parameter {
     param_value = get_parameter_value(signal_id);
-    log(&format!("Parameter {} value: {:?}", name, param_value));
+    //log(&format!("Parameter {} value: {:?}", name, param_value));
   }
   VarData { name, id, signal_id, var_type, encoding, width, msb, lsb, enum_name, param_value }
 }

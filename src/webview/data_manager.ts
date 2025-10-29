@@ -727,10 +727,12 @@ export class WaveformDataManager {
     const signalWidth = netlistData.signalWidth;
 
     let updateAllSelected = false;
+    let updateSelected = false;
     let rowIdList = [rowId];
     let redrawList = [rowId];
     if (viewerState.selectedSignal.includes(rowId)) {
       rowIdList = viewerState.selectedSignal;
+      updateSelected = true;
     }
 
     rowIdList.forEach((rId) => {
@@ -808,7 +810,7 @@ export class WaveformDataManager {
     sendWebviewContext();
     netlistData.setSignalContextAttribute();
 
-    if (updateAllSelected) {redrawList = viewerState.selectedSignal;}
+    if (updateAllSelected && updateSelected) {redrawList = viewerState.selectedSignal;}
     redrawList.forEach((rId) => {
       this.events.dispatch(ActionType.RedrawVariable, rId);
     });

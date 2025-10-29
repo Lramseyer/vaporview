@@ -660,7 +660,9 @@ class VaporviewWebview {
         viewport.highlightElement = null;
       }
     } else if (viewerState.mouseupEventType === null && abort) {
-      this.events.dispatch(ActionType.SignalSelect, [], null);
+      if (!labelsPanel.renameActive) {
+        this.events.dispatch(ActionType.SignalSelect, [], null);
+      }
     }
     viewerState.mouseupEventType = null;
   }

@@ -504,6 +504,7 @@ export class LabelsPanels {
         this.finishRename(rowId, waveformRow, newNameInput, isValid);
       } else if (e.key === 'Escape') {
         e.preventDefault();
+        e.stopPropagation();
         this.finishRename(rowId, waveformRow, oldName, false);
       }
     });

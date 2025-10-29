@@ -11,6 +11,7 @@
   - Custom names for variable items
   - Settings button on the right side of the control bar
 - Escape key de-selects all signals
+- Group expanded state is preserved on reload
 - API
   - waveformViewer.addVariable will now add all variables in a scope if it is specified
 

@@ -331,6 +331,31 @@ export class WaveformDataManager {
     }
   }
 
+  editSignalGroup(message: any) {
+
+
+    const groupPath = message.groupPath;
+    const groupId = message.groupId;
+    const name = message.name;
+    const isExpanded = message.isExpanded;
+
+    let groupItem = this.getGroupByIdOrName(groupPath, groupId);
+    if (groupItem === null) {return;}
+
+    if (name !== undefined) {
+      groupItem.setLabelText(name);
+      labelsPanel.renderLabelsPanels();
+    }
+
+    if (isExpanded !== undefined) {
+      if (isExpanded) {
+        groupItem.expand();
+      } else {
+        groupItem.collapse();
+      }
+    }
+  }
+
   handleRemoveVariable(rowId: any, recursive: boolean) {
 
     const signalItem = this.rowItems[rowId];

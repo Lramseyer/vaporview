@@ -437,6 +437,9 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         groupPath.push(name);
         const missing = await this.addSignalListToDocument(signalInfo.children, document, groupPath);
         missingSignals.push(...missing);
+        // Collapse group 
+        const isExpanded = signalInfo.collapseState === 2;
+        this.editSignalGroup(undefined, groupPath, undefined, isExpanded);
         groupPath.pop();
         continue;
       }
@@ -1108,7 +1111,13 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
   }
 
-  public newSignalGroup(name: string | undefined, groupPath: string[] | undefined, parentGroupId: number | undefined, eventRowId: number | undefined, moveSelected: boolean) {
+  public newSignalGroup(
+    name: string | undefined,
+    groupPath: string[] | undefined,
+    parentGroupId: number | undefined,
+    eventRowId: number | undefined,
+    moveSelected: boolean,
+  ) {
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}
@@ -1133,12 +1142,28 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     let groupName: string | undefined = e?.name;
     let rowId: number | undefined = e?.rowId;
 
-    const panel      = this.activeWebview;
+    const panel = this.activeWebview;
     panel.webview.postMessage({
       command: 'renameSignalGroup',
       rowId: rowId,
       groupId: groupId,
       groupName: groupName,
+    });
+  }
+
+  public editSignalGroup(groupId: number | undefined, groupPath: string[] | undefined, name: string | undefined, isExpanded: boolean | undefined) {
+
+    if (!this.activeWebview) {return;}
+    if (!this.activeDocument) {return;}
+    if (!this.activeWebview.visible) {return;}
+
+    const panel = this.activeWebview;
+    panel.webview.postMessage({
+      command: 'editSignalGroup',
+      groupId: groupId,
+      groupPath: groupPath,
+      name: name,
+      isExpanded: isExpanded,
     });
   }
 

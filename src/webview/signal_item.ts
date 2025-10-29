@@ -1,4 +1,4 @@
-import { dataManager, viewport, CollapseState, NetlistId, RowId, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, WAVE_HEIGHT } from "./vaporview";
+import { dataManager, viewport, CollapseState, NetlistId, RowId, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, WAVE_HEIGHT, sendWebviewContext } from "./vaporview";
 import { EnumValueFormat, formatBinary, formatHex, formatString, ValueFormat } from "./value_format";
 import { WaveformRenderer } from "./renderer";
 import { customColorKey } from "./data_manager";
@@ -656,6 +656,7 @@ export class SignalGroup extends SignalItem implements RowItem {
     this.collapseState = CollapseState.Expanded;
     labelsPanel.renderLabelsPanels();
     this.showHideViewportRows();
+    sendWebviewContext();
   }
 
   public collapse() {
@@ -671,6 +672,7 @@ export class SignalGroup extends SignalItem implements RowItem {
     }
     labelsPanel.renderLabelsPanels();
     this.showHideViewportRows();
+    sendWebviewContext();
   }
 
   public toggleCollapse() {

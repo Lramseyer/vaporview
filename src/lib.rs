@@ -53,6 +53,7 @@ lazy_static! {
   static ref _time_table: Mutex<Option<TimeTable>> = Mutex::new(None);
   static ref _signal_source: Mutex<Option<SignalSource>> = Mutex::new(None);
   static ref _param_table: Mutex<Option<Vec<(u32, String)>>> = Mutex::new(None);
+  static ref _param_id_list: Mutex<Option<Vec<SignalRef>>> = Mutex::new(None);
   
   // Chunked data reassembly
   static ref _chunks: Mutex<Vec<Vec<u8>>> = Mutex::new(Vec::new());
@@ -137,36 +138,36 @@ pub fn get_scope_data(hierarchy: &Hierarchy, s: ScopeRef) -> ScopeData {
   ScopeData { name, id, tpe }
 }
 
-fn load_parameters() {
-  let mut global_signal_source = _signal_source.lock().unwrap();
-  let signal_source = global_signal_source.as_mut().unwrap();
+fn load_parameters_and_signals(signal_id_list: Vec<SignalRef>, hierarchy: &Hierarchy, signal_source: &mut SignalSource) -> Vec<(SignalRef, Signal)> {
+  outputlog(&format!("Loading parameters and signals"));
+  let mut global_param_id_list = _param_id_list.lock().unwrap();
+  let param_id_list = global_param_id_list.as_ref().unwrap();
 
-  let global_hierarchy = _hierarchy.lock().unwrap();
-  let hierarchy = global_hierarchy.as_ref().unwrap();
+  let all_signal_ids = [param_id_list.to_vec(), signal_id_list.clone()].concat();
+  let signal_data = signal_source.load_signals(&all_signal_ids, hierarchy, false);
+  let mut return_signals = Vec::new();
+  let mut param_table = Vec::new();
 
-  let signal_list = hierarchy.iter_vars()
-    .filter(|var| {var.var_type() == wellen::VarType::Parameter})
-    .map(|var| {var.signal_ref()});
-
-  let signal_data = signal_source.load_signals(&signal_list.collect::<Vec<SignalRef>>(), hierarchy, false);
-  let param_table_option = signal_data.iter().map(|(s, signal)| {
-    let index = signal.get_first_time_idx();
-    let data_offset = match index {
-      Some(i) => signal.get_offset(i),
-      None => None
-    };
-    let value= match data_offset {
-      Some(offset) => Some(signal.get_value_at(&offset, 0)),
-      None => None
-    };
-    (s, value)
-  });
-  let param_table = param_table_option.filter(|(_, v)| {v.is_some()})
-    .map(|(s, v)| {(s.index() as u32, v.unwrap().to_string())})
-    .collect::<Vec<(u32, String)>>();
+  // Consume signal_data, process params immediately, keep return signals
+  for (s, signal) in signal_data {
+    if param_id_list.contains(&s) {
+      let index = signal.get_first_time_idx();
+      let data_offset = index.and_then(|i| signal.get_offset(i));
+      if let Some(offset) = data_offset {
+        let value = signal.get_value_at(&offset, 0);
+        param_table.push((s.index() as u32, value.to_string()));
+      }
+    }
+    if signal_id_list.contains(&s) {
+      return_signals.push((s, signal));
+    }
+  }
 
   let mut global_param_table = _param_table.lock().unwrap();
   *global_param_table = Some(param_table);
+  *global_param_id_list = None;
+
+  return_signals
 }
 
 fn get_parameter_value(signalid: u32) -> Option<String> {
@@ -441,6 +442,15 @@ impl Guest for Filecontext {
 
     let hierarchy = global_hierarchy.as_ref().unwrap();
 
+    // Get Parameter Signal IDs
+    let mut global_param_id_list = _param_id_list.lock().unwrap();
+    let signal_list = hierarchy.iter_vars()
+      .filter(|var| {var.var_type() == wellen::VarType::Parameter})
+      .map(|var| {var.signal_ref()})
+      .collect::<Vec<SignalRef>>();
+
+    *global_param_id_list = Some(signal_list);
+
     // count the number of scopes and vars
     let scope_count = hierarchy.iter_scopes().count() as u32;
     let var_count = hierarchy.iter_vars().count() as u32;
@@ -515,10 +525,10 @@ impl Guest for Filecontext {
       }
     }
 
-    // Drop only the mutex guards that would cause deadlock in load_parameters
-    drop(global_hierarchy);
-    drop(global_signal_source);
-    load_parameters();
+    let global_file_format = _file_format.lock().unwrap();
+    if *global_file_format != FileFormat::Fst {
+      load_parameters_and_signals(Vec::new(), hierarchy, &mut global_signal_source.as_mut().unwrap());
+    }
 
     let time_table = global_time_table.as_ref().unwrap();
     let mut min_timestamp = 9999999;
@@ -555,7 +565,7 @@ impl Guest for Filecontext {
     });
     // convert result to JSON string
     let result_string = serde_json::to_string(&result);
-    log(result_string.as_ref().unwrap());
+    //log(result_string.as_ref().unwrap());
     return result_string.unwrap_or("[]".to_string());
   }
 
@@ -633,11 +643,14 @@ impl Guest for Filecontext {
   fn getsignaldata(signalidlist: Vec<u32>) {
     //log(&format!("Getting signal data for signal: {:?}", signalid));
 
-    let mut global_signal_source = _signal_source.lock().unwrap();
-    let signal_source = global_signal_source.as_mut().unwrap();
+    let global_param_id_list = _param_id_list.lock().unwrap();
+    let param_id_list = global_param_id_list.as_ref();
 
     let global_hierarchy = _hierarchy.lock().unwrap();
     let hierarchy = global_hierarchy.as_ref().unwrap();
+
+    let mut global_signal_source = _signal_source.lock().unwrap();
+    let signal_source = global_signal_source.as_mut().unwrap();
 
     let mut signal_ref_list: Vec<SignalRef> = Vec::new();
     signalidlist.iter().for_each(|signalid| {
@@ -653,7 +666,17 @@ impl Guest for Filecontext {
       }
     });
 
-    let signals_loaded = signal_source.load_signals(&signal_ref_list, hierarchy, false);
+    let parameters_loaded = param_id_list.is_none();
+    drop(global_param_id_list);
+
+    // load_signals() is a potentially expensive operation, so we want to batch them together
+    // if the parameters are not loaded, we load them with the signals
+    let signals_loaded: Vec<(SignalRef, Signal)>;
+    if parameters_loaded {
+      signals_loaded = signal_source.load_signals(&signal_ref_list, hierarchy, false);
+    } else {
+      signals_loaded = load_parameters_and_signals(signal_ref_list, hierarchy, signal_source);
+    }
     signals_loaded.iter().for_each(|(s, signal)| {
 
       let signalid = s.index() as u32;
@@ -690,7 +713,7 @@ impl Guest for Filecontext {
     let global_hierarchy = _hierarchy.lock().unwrap();
     let hierarchy = global_hierarchy.as_ref().unwrap();
 
-    log(&format!("Getting enum data for netlist IDs: {:?}", netlistidlist));
+    //log(&format!("Getting enum data for netlist IDs: {:?}", netlistidlist));
 
     netlistidlist.iter().for_each(|netlistid| {
       let var_ref_option = VarRef::from_index(*netlistid as usize);

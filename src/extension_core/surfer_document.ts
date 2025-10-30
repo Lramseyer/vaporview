@@ -128,17 +128,36 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
     this.wasmApi = await filehandler._.bind(this.service, wasmModule, this._wasmWorker);
   }
 
+  private getParametersInTreeData(treeData: NetlistItem[]) {
+    let result: NetlistItem[] = [];
+    treeData.forEach((item) => {
+      if (item.type === 'Parameter') {
+        result.push(item);
+      }
+      if (item.children.length > 0) {
+        result.push(...this.getParametersInTreeData(item.children as NetlistItem[]));
+      }
+    });
+    return result;
+  }
+
   private async getTopLevelParameters() {
+    if (this.parametersLoaded) {return;}
     if (!this.wasmApi) {return;}
-    const signalIdList    = this.treeData.filter(item => item.type === 'Parameter').map((param) => param.signalId);
+
+    const parameterItems  = this.getParametersInTreeData(this.treeData);
+    const signalIdList    = parameterItems.map((param) => param.signalId);
     const params          = await this.wasmApi.getparametervalues(signalIdList);
     const parameterValues = JSON.parse(params);
-    this.treeData.filter(item => item.type === 'Parameter').forEach((param) => {
+    parameterItems.forEach((param) => {
       const paramValue = parameterValues.find((entry: any) => entry[0] === param.signalId);
       if (paramValue) {
         param.setParamAndTooltip(paramValue[1]);
       }
     });
+    // set tree data provider to refresh
+    this._delegate.updateViews(this.uri);
+    this.parametersLoaded = true;
   }
 
   async getChildrenExternal(element: NetlistItem | undefined) {

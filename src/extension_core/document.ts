@@ -143,6 +143,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
   public displayedSignals: NetlistItem[] = [];
   protected _netlistIdTable: NetlistIdTable = [];
   private sortNetlist: boolean = vscode.workspace.getConfiguration('vaporview').get('sortNetlist') || false;
+  public parametersLoaded: boolean = false;
   protected readonly _delegate: VaporviewDocumentDelegate;
   // Webview
   public webviewPanel: vscode.WebviewPanel | undefined = undefined;
@@ -283,7 +284,6 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
   }
 
   public setChunkSize(chunksize: bigint, timeend: bigint, timetablelength: bigint) {
-    //this._setChunkSize(Number(chunksize));
     const newMinTimeStemp         = 10 ** (Math.round(Math.log10(Number(chunksize) / 128)) | 0);
     this.metadata.defaultZoom     = 4 / newMinTimeStemp;
     this.metadata.timeEnd         = Number(timeend);
@@ -299,12 +299,6 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     const disposable = vscode.window.registerTerminalLinkProvider(terminalLinkProvider);
     this.disposables.push(disposable);
   }
-
-  //private _setChunkSize(minTimeStemp: number) {
-  //  // Prevent weird zoom ratios causing strange floating point math errors
-  //  const newMinTimeStemp     = 10 ** (Math.round(Math.log10(minTimeStemp / 128)) | 0);
-  //  this.metadata.defaultZoom = 4 / newMinTimeStemp;
-  //}
 
   public reveal() {
     if (!this.webviewPanel) {return;}
@@ -560,7 +554,9 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
     this._delegate.logOutputChannel("Time: " + (Date.now() - netlistFinishTime) / 1000 + " seconds");
 
     this.setTerminalLinkProvider();
-    this.getTopLevelParameters();
+    if (fileType !== 'fst') {
+      this.getTopLevelParameters();
+    }
   }
 
   public readonly service: filehandler.Imports.Promisified = {
@@ -650,17 +646,36 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
     }
   }
 
+  private getParametersInTreeData(treeData: NetlistItem[]) {
+    let result: NetlistItem[] = [];
+    treeData.forEach((item) => {
+      if (item.type === 'Parameter') {
+        result.push(item);
+      }
+      if (item.children.length > 0) {
+        result.push(...this.getParametersInTreeData(item.children as NetlistItem[]));
+      }
+    });
+    return result;
+  }
+
   private async getTopLevelParameters() {
+    if (this.parametersLoaded) {return;}
     if (!this.wasmApi) {return;}
-    const signalIdList    = this.treeData.filter(item => item.type === 'Parameter').map((param) => param.signalId);
+
+    const parameterItems  = this.getParametersInTreeData(this.treeData);
+    const signalIdList    = parameterItems.map((param) => param.signalId);
     const params          = await this.wasmApi.getparametervalues(signalIdList);
     const parameterValues = JSON.parse(params);
-    this.treeData.filter(item => item.type === 'Parameter').forEach((param) => {
+    parameterItems.forEach((param) => {
       const paramValue = parameterValues.find((entry: any) => entry[0] === param.signalId);
       if (paramValue) {
         param.setParamAndTooltip(paramValue[1]);
       }
     });
+    // set tree data provider to refresh
+    this._delegate.updateViews(this.uri);
+    this.parametersLoaded = true;
   }
 
   async getChildrenExternal(element: NetlistItem | undefined) {
@@ -759,6 +774,7 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
 
   public async getSignalData(signalIdList: SignalId[]) {
     this.wasmApi.getsignaldata(signalIdList);
+    this.getTopLevelParameters();
   }
 
   public async getEnumData(enumNameList: EnumQueueEntry[]) {

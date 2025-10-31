@@ -459,6 +459,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
 
   public async reload() {
     this.sortNetlist = vscode.workspace.getConfiguration('vaporview').get('sortNetlist') || false;
+    this.parametersLoaded = false;
     await this.unload();
     await this.load();
     this._fileUpdated = false;

@@ -422,15 +422,15 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.workspace.getConfiguration('vaporview').update('fillMultiBitValues', false, vscode.ConfigurationTarget.Global);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setMouseScollingMode', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setMouseScrollingMode', (e) => {
     vscode.workspace.getConfiguration('vaporview').update('scrollingMode', "Mouse", vscode.ConfigurationTarget.Global);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setTouchpadScollingMode', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setTouchpadScrollingMode', (e) => {
     vscode.workspace.getConfiguration('vaporview').update('scrollingMode', "Touchpad", vscode.ConfigurationTarget.Global);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setAutoScollingMode', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setAutoScrollingMode', (e) => {
     vscode.workspace.getConfiguration('vaporview').update('scrollingMode', "Auto", vscode.ConfigurationTarget.Global);
   }));
 

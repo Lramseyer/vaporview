@@ -10,18 +10,18 @@ VaporView is an open source waveform viewer extension for Visual Studio Code - [
 - Smooth panning and zooming using touchpad gestures or a scroll wheel
 - Add, remove, rearrange, and grouping of signals in the viewer
 - Place and move markers
-- Search for values witin a waveform dump
+- Search for values within a waveform dump
 - Terminal Links for timestamps and instance paths
 - Remote waveform viewing via VScode SSH and surfer surver
 - IDE integration with other language extensions
 
-Vaporview Also supports FSDB files where external libraries are present (see [build FSDB addon](https://github.com/Lramseyer/vaporview/blob/main/GETTING_STARTED.md#optional-build-fsdb-addon)). For use of other waveform dump formats such as LXT, VZT, GTKwave offers conversion tools. Proprietery formats such as WLF and VPD can also be converted, but require you to compile GTKwave. See the [GTKwave Manual](https://gtkwave.sourceforge.net/gtkwave.pdf) for details - page 16, and 69 for an overview.
+Vaporview Also supports FSDB files where external libraries are present (see [build FSDB addon](https://github.com/Lramseyer/vaporview/blob/main/GETTING_STARTED.md#optional-build-fsdb-addon)). For use of other waveform dump formats such as LXT, VZT, GTKwave offers conversion tools. Proprietary formats such as WLF and VPD can also be converted, but require you to compile GTKwave. See the [GTKwave Manual](https://gtkwave.sourceforge.net/gtkwave.pdf) for details - page 16, and 69 for an overview.
 
 # VScode IDE Integration
 
 ## Terminal Links
 
-VaporView associates timestamps and netlist paths as links in the terminal. These links are activated by **Ctrl + Clicking** on the link. Timespamp links will place the marker at the designated timestamp and move the viewer to that marker (if necessary) whereas netlist path links will add the designated signal into the viewer. The following formats are recognized by VaporView:
+VaporView associates timestamps and netlist paths as links in the terminal. These links are activated by **Ctrl + Clicking** on the link. Timestamp links will place the marker at the designated timestamp and move the viewer to that marker (if necessary) whereas netlist path links will add the designated signal into the viewer. The following formats are recognized by VaporView:
 
 - UVM timestamp - ie: `@ 50000`
 - Timestamp with Units - ie: `50,000 ns` (comma is optional)
@@ -65,13 +65,13 @@ Signals may be added or removed through VaporView view container. Click on the V
 
 ### Adding Signals
 
-To Add a signal, simply click the "+" ocon to the right of the netlist element in the "Netlist" view. It will also show in the "Displayed Signals" view.
+To Add a signal, simply click the "+" icon to the right of the netlist element in the "Netlist" view. It will also show in the "Displayed Signals" view.
 
 Signals can also be added by dragging and dropping them from the netlist view to the viewer. Make sure to hold **Shift** before dropping them into the viewer - note that this is a VScode requirement.
 
 ### Removing Signals
 
-To remove a signal, that signal can be un-checked from either the "Netlist" view or the "Displayed Signals" view. From the viewer, you can either select the signal you would like to remode and hit **Delete**, or right click on a signal in the viewer and select **remove signal** from the menu.
+To remove a signal, that signal can be un-checked from either the "Netlist" view or the "Displayed Signals" view. From the viewer, you can either select the signal you would like to remove and hit **Delete**, or right click on a signal in the viewer and select **remove signal** from the menu.
 
 ### Other less common ways
 
@@ -81,7 +81,7 @@ Signals can be added via a terminal link, and they can be added or removed via A
 
 ## Scrolling
 
-The scroll wheel (or touchpad scroll) is used to pan in time or scroll up or down. By default, auto detect scrolling mode is enabled. To toggle between scrolling modes, click the **"Auto detech Mouse/Touchpad Scrolling"**, **"Enable Touchpad Scrolling"**, or **"Enable Mouse Scrolling"** Button on the top right.
+The scroll wheel (or touchpad scroll) is used to pan in time or scroll up or down. By default, auto detect scrolling mode is enabled. To toggle between scrolling modes, click the **"Auto detect Mouse/Touchpad Scrolling"**, **"Enable Touchpad Scrolling"**, or **"Enable Mouse Scrolling"** Button on the top right.
 
 ### Mouse Scrolling
 
@@ -149,11 +149,11 @@ Vaporview can display values in different number formats. To change the value fo
 
 Vaporview supports 8 different waveform colors. The colors are based off the [semantic token colors](https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide) for VScode text.* There are 4 builtin colors, and 4 custom colors that can be configured in the vaporview settings. To change the color, right click on the waveform, select **Color** -> and select the color you wish to use.
 
-*Unforunately, the VScode API does not make these colors visible to custom webviews yet. It is an [open issue](https://github.com/microsoft/vscode/issues/32813), so there's a hack in place. The default waveform colors will not follow suit with all color themes, but it should work broadly between light themes and dark themes.
+*Unfortunately, the VScode API does not make these colors visible to custom webviews yet. It is an [open issue](https://github.com/microsoft/vscode/issues/32813), so there's a hack in place. The default waveform colors will not follow suit with all color themes, but it should work broadly between light themes and dark themes.
 
 ## Waveform Render Types
 
-Aside from the binary and multi-bit waveform renderers, Vaporview supports displaying analog signals. Any multi-bit variable or Real type supports this. Analog signals can be displayed wither as a linear or stepped line. In the case of binary vlues, the Y value can be evaluated as either a signed or unsigned value. To change the Render Type, right click on the signal in the viewer and select **Render Type** -> and select the render type you wish to use for the signal.
+Aside from the binary and multi-bit waveform renderers, Vaporview supports displaying analog signals. Any multi-bit variable or Real type supports this. Analog signals can be displayed wither as a linear or stepped line. In the case of binary values, the Y value can be evaluated as either a signed or unsigned value. To change the Render Type, right click on the signal in the viewer and select **Render Type** -> and select the render type you wish to use for the signal.
 
 ### Multi-bit display type
 
@@ -167,11 +167,11 @@ To adjust the row height, right click on the signal, and select your desired row
 
 ## Time Units
 
-You can change the Time Units in one of 2 ways: clicking the Time Status Bar in the lower right hand corner of the window, or by right clicking on the time ruler and selecting uits from the **Time Unit** menu.
+You can change the Time Units in one of 2 ways: clicking the Time Status Bar in the lower right hand corner of the window, or by right clicking on the time ruler and selecting units from the **Time Unit** menu.
 
 ## Saving and loading opened signals
 
-VaporView allows you to save and load your signal list. This can be done either by right clicking anywhere in the viewer or netlist and selecting **"Save Vaproview Settings"** or **"Load Vaproview Settings"**. You can also access the command directly by pressing **Ctrl + Shift + P** and Type **">Save Vaproview Settings"** or **">Load Vaproview Settings"** and press **Enter** to slect the command. A dialog box will pop up prompting which file you would like to save/load settings from.
+VaporView allows you to save and load your signal list. This can be done either by right clicking anywhere in the viewer or netlist and selecting **"Save Vaporview Settings"** or **"Load Vaporview Settings"**. You can also access the command directly by pressing **Ctrl + Shift + P** and Type **">Save Vaporview Settings"** or **">Load Vaporview Settings"** and press **Enter** to select the command. A dialog box will pop up prompting which file you would like to save/load settings from.
 
 **Note:** The settings will only load for the active viewer tab that is in focus, and will look up signals by name. If the module paths have changed, it may not load in the signals properly. The settings files however are plaintext (JSON) and can be edited if need be.
 
@@ -218,7 +218,7 @@ This extension requires VScode 1.96.0 or later
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 
-## 1.4.3 - Updcoming Release
+## 1.4.3 - Upcoming Release
 
 - Added
   - Support for Enums
@@ -232,12 +232,6 @@ See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.m
 - Group expanded state is preserved on reload
 - API
   - waveformViewer.addVariable will now add all variables in a scope if it is specified
-
-## Other Planned Features
-
-In no particular order of priority, here's a list of features that are on my radar. If you have any preferences as to which should be priorized, or a suggestion that is not on this list, leave a comment on the [github discussions](https://github.com/Lramseyer/VaporView/discussions)!
-
-- Improve renderer to better render non-2 state
 
 # About This Extension
 

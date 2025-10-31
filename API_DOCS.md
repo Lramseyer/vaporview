@@ -4,18 +4,18 @@ This is the official API for Vaporview. This will remain stable for all future r
 
 If you need help implementing an API feature into your extension, feel free to reach out to me directly or hop on [matrix chat](https://element.fossi-chat.org/#/room/#vaporview:fossi-chat.org).
 
-Planned upodates to the API
+Planned updates to the API
 
 - More commands
 - Custom name translations
 - Custom transactions
 - URI schema for netlist elements
 
-One point of caution is that the instance pathcan vary depending on tools used to elaborate the RTL, so there may be small changes made to how instance paths are listed. Please let me know if you run into any issues reconciling instance paths!
+One point of caution is that the instance path can vary depending on tools used to elaborate the RTL, so there may be small changes made to how instance paths are listed. Please let me know if you run into any issues reconciling instance paths!
 
 ## Overview
 
-Vaporview is designed with the VSCode IDE expereince in mind, so this document serves to help enable extension interoperability. This document outlines vaporview command subscriptions, and commands that are emitted.
+Vaporview is designed with the VSCode IDE experience in mind, so this document serves to help enable extension interoperability. This document outlines vaporview command subscriptions, and commands that are emitted.
 
 - Custom context [right click] menu items
 - Adding, removing, and selecting variables
@@ -25,7 +25,7 @@ Vaporview is designed with the VSCode IDE expereince in mind, so this document s
 
 # Context Menus
 
-Custom context [right click] menu commands can be added to vaporview componets such as the netlist viewer and and waveform viewer, and those context menu items can call commands to other extensions.
+Custom context [right click] menu commands can be added to vaporview components such as the netlist viewer and and waveform viewer, and those context menu items can call commands to other extensions.
 
 ## Waveform Viewer Document (document webview)
 
@@ -73,7 +73,7 @@ All signals in the webview will emit the following attributes when right clicked
 
 ## Netlist View and Displayed Signals View
 
-Context menu items can be added to the netlist view and displayed signals view. View IDs are listed below. Tree Item [netlist element] attributes are also outlined. However, keep in mind that for constructing a conditional menu, keep in mind that only the **contextValue** can be used for [when clause](https://code.visualstudio.com/api/references/when-clause-contexts) statements. However, when a command is called, all attributes are visible in an event object if passend into the first argument of the command handler function.
+Context menu items can be added to the netlist view and displayed signals view. View IDs are listed below. Tree Item [netlist element] attributes are also outlined. However, keep in mind that for constructing a conditional menu, keep in mind that only the **contextValue** can be used for [when clause](https://code.visualstudio.com/api/references/when-clause-contexts) statements. However, when a command is called, all attributes are visible in an event object if passed into the first argument of the command handler function.
 
 See [Tree Item API docs](https://code.visualstudio.com/api/references/vscode-api#TreeItem) for details
 
@@ -127,9 +127,9 @@ Note: Tree items in both the Netlist View and the Displayed Signals View have th
 
 # Command Inputs
 
-In an attempt to future proof and maintain compatibility with any potential future waveform viewers, most public commands will be prefixed with the "waveformViewer" prefix instead of "vapoview". Commands listed in this API may take in arguments, which will usually be an object with the arguments named. This is to maintain compatibility with any context menu items.
+In an attempt to future proof and maintain compatibility with any potential future waveform viewers, most public commands will be prefixed with the "waveformViewer" prefix instead of "vaporview". Commands listed in this API may take in arguments, which will usually be an object with the arguments named. This is to maintain compatibility with any context menu items.
 
-Note that this is not an exhaustive list of input commands in Vaporview, however once the API is finalized for 1.4, these commands come with a gaurantee that nothing will be removed from the schema. In other words, there will be no changes to these commands that might otherwise break another extension.
+Note that this is not an exhaustive list of input commands in Vaporview, however once the API is finalized for 1.4, these commands come with a guarantee that nothing will be removed from the schema. In other words, there will be no changes to these commands that might otherwise break another extension.
 
 ## vaporview.openFile
 
@@ -224,7 +224,7 @@ Returns a list of open waveform viewer documents
 Remember that to get a valid return value, all vscode commands must be called with an await keyword!
 
 - **documents** - List of URIs corresponding to open documents
-- **lastActiveDocument** - URI of last active or currently active wavefrom viewer document
+- **lastActiveDocument** - URI of last active or currently active waveform viewer document
 
 ## waveformViewer.getViewerState
 
@@ -255,7 +255,7 @@ Note that if an instance path input is not found in the netlist, the result will
 
 Vaporview emits events when users perform actions in the viewer. If there's anything you wish to see added to this list, please comment on the [github issues](https://github.com/Lramseyer/vaporview/issues) page.
 
-All events are emitted regaurdless of their source action - click, key press, or external action.
+All events are emitted regardless of their source action - click, key press, or external action.
 
 ## onDidSetMarker
 
@@ -337,7 +337,7 @@ context.subscriptions.push(subscription);
 
 # Signal Value Links
 
-Something that has been in my roadmap for a while is the ability to "Allow users to link .objdump files to a program counter value for a more integrated debug experience" This was something I wanted when I first created vaporview (because I was debugging a CPU with no GDB or ETM tracing.) How cool would it be to debug a CPU with a waveform dump and actually connect it back to the line of code it's running? In brainstorming how to implelent it, I have a proposed solution, but it's actually a more general solution.
+Something that has been in my roadmap for a while is the ability to "Allow users to link .objdump files to a program counter value for a more integrated debug experience" This was something I wanted when I first created vaporview (because I was debugging a CPU with no GDB or ETM tracing.) How cool would it be to debug a CPU with a waveform dump and actually connect it back to the line of code it's running? In brainstorming how to implement it, I have a proposed solution, but it's actually a more general solution.
 
 ## How to Use
 
@@ -428,9 +428,9 @@ const disposable_2 = vscode.commands.registerCommand(
 
 # Vaporview URI schema (proposal)
 
-Vaporview will start supporting URIs to navigate within the viewer. It will use the scheme **waveform** to denote that it is a waveform document. Much like how VScode supports fragments to select lines and ranges of lines, vaporview schemes will support time values, time ranges, and instance paths of signals. All tree itmes in the netlist view will contain their respective URIs as the resourceUri field, and support drag and drop. This way, if you want your extension to support dragging and dropping netlist items, you can.
+Vaporview will start supporting URIs to navigate within the viewer. It will use the scheme **waveform** to denote that it is a waveform document. Much like how VScode supports fragments to select lines and ranges of lines, vaporview schemes will support time values, time ranges, and instance paths of signals. All tree items in the netlist view will contain their respective URIs as the resourceUri field, and support drag and drop. This way, if you want your extension to support dragging and dropping netlist items, you can.
 
-The **fragment** of the URI can contain an instance path, time value, or time range, and will be delimeted by an "&"
+The **fragment** of the URI can contain an instance path, time value, or time range, and will be delimited by an "&"
 
 **Time** and **Time ranges** will be encoded as **t:5000** or **t:4000ns** (units are optional) for a time range, use a dash to delimit
 
@@ -438,7 +438,7 @@ The **fragment** of the URI can contain an instance path, time value, or time ra
 
 # Save File Format (Proposal)
 
-Note tha this is a proposal, which does not reflect the actual file format. I plan to coordinate with the Surfer team to standardize on a format, and this oultlines the things I would want for vaporview.
+Note tha this is a proposal, which does not reflect the actual file format. I plan to coordinate with the Surfer team to standardize on a format, and this outlines the things I would want for vaporview.
 
 ## Window Configuration
 

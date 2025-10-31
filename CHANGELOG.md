@@ -85,7 +85,7 @@
   - Zoom to Fit button on control bar
 - Fixed issues:
   - Context menu items now appear when right clicking on value display column
-  - "Load/Save Vporview Settings" Menus appearing where they shouldn't
+  - "Load/Save Vaporview Settings" Menus appearing where they shouldn't
   - Terminal Links only match for paths with valid top level scopes
 
 ## 1.3.2 - 3/18/2025
@@ -101,7 +101,7 @@
 
 # 1.3.1 - 3/2/2025
 
-- Port pender path to HTML5 canvas (previously used SVGs)
+- Port render path to HTML5 canvas (previously used SVGs)
   - Improves text placement in multi bit-waveform renderer
   - Greatly improves scrolling/zoom experience - no more async chunk loading!
   - Fixes issue where linear, stepped, and binary waveforms display a gap when zoomed in really far
@@ -130,7 +130,7 @@
 ## 1.2.6 - 12/18/2024
 
 - Added GHW file support
-- Added Support for Real and String datatypes
+- Added Support for Real and String data types
 - Improved 9 state rendering
 - Added Octal number formatting
 - Added more Netlist View icons, and colored them consistently
@@ -148,7 +148,7 @@
 - Fixed 'webview is disposed' errors
 - Refactored Core Extension and Webview. Converted Webview to Typescript
   - Organized functions into appropriate classes, and split into multiple files
-  - Ported build proces back to esbuild
+  - Ported build process back to esbuild
   - Added .vscodeignore file to keep build size reasonable
 
 # 1.2.0 - 11/14/2024
@@ -202,7 +202,7 @@
 
 ## 0.9.6 - 4/20/2024
 
-- Improved render performance when loading lots of milti-bit waveforms or zooming out really far
+- Improved render performance when loading lots of multi-bit waveforms or zooming out really far
 - Fix 4 state value hex conversion
 - Fix display glitch of single bit waveforms
 - 4 state values now display as red text

@@ -1282,17 +1282,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
   };
 
-  private handleDisplayedViewSelectionChanged = (e: vscode.TreeCheckboxChangeEvent<NetlistItem>) => {
-
-    const metadata = e.items[0][0];
-
-    if (!this.activeWebview?.visible) {return;}
-    if (!this.activeDocument?.webviewInitialized) {return;}
-    if (metadata.checkboxState !== vscode.TreeItemCheckboxState.Unchecked) {return;}
-
-    this.removeSignalFromDocument(metadata.netlistId, false);
-  };
-
   // onDidChangeSelection() event returns readonly elements
   // so we need to copy the selected elements to a new array
   // Six one way, half a dozen the other. One is just more concise...

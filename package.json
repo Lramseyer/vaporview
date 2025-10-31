@@ -447,17 +447,17 @@
         {
           "command": "vaporview.increaseVerticalScale",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer' && isAnalog",
-          "group": "1_waveform_settings@7"
+          "group": "1_waveform_settings@8"
         },
         {
           "command": "vaporview.decreaseVerticalScale",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer' && isAnalog",
-          "group": "1_waveform_settings@8"
+          "group": "1_waveform_settings@9"
         },
         {
           "command": "vaporview.resetVerticalScale",
           "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer' && isAnalog",
-          "group": "1_waveform_settings@9"
+          "group": "1_waveform_settings@10"
         },
         {
           "command": "vaporview.removeSignal",
@@ -692,17 +692,17 @@
       ],
       "vaporview.scrollMode": [
         {
-          "command": "vaporview.setMouseScollingMode",
+          "command": "vaporview.setMouseScrollingMode",
           "when": "webviewSection == 'ruler'",
           "group": "1_default@1"
         },
         {
-          "command": "vaporview.setTouchpadScollingMode",
+          "command": "vaporview.setTouchpadScrollingMode",
           "when": "webviewSection == 'ruler'",
           "group": "1_default@2"
         },
         {
-          "command": "vaporview.setAutoScollingMode",
+          "command": "vaporview.setAutoScrollingMode",
           "when": "webviewSection == 'ruler'",
           "group": "1_default@3"
         }
@@ -1067,15 +1067,15 @@
         "title": "Outline Bit Vectors"
       },
       {
-        "command": "vaporview.setMouseScollingMode",
+        "command": "vaporview.setMouseScrollingMode",
         "title": "Mouse Wheel"
       },
       {
-        "command": "vaporview.setTouchpadScollingMode",
+        "command": "vaporview.setTouchpadScrollingMode",
         "title": "Touchpad"
       },
       {
-        "command": "vaporview.setAutoScollingMode",
+        "command": "vaporview.setAutoScrollingMode",
         "title": "Auto Detect"
       },
       {

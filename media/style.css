@@ -521,11 +521,13 @@ body {
 }
 
 .last-selected {
-  border-top: 1px solid var(--vscode-focusBorder);
-  border-bottom: 1px solid var(--vscode-focusBorder);
+  border-top: 1px solid var(--vscode-focusBorder) !important;
+  border-bottom: 1px solid var(--vscode-focusBorder) !important;
 }
 
 .is-selected {
+  border-top: 1px dotted var(--vscode-contrastActiveBorder);
+  border-bottom: 1px dotted var(--vscode-contrastActiveBorder);
   background-color: var(--vscode-list-activeSelectionBackground);
   color: var(--vscode-list-activeSelectionForeground);
 }

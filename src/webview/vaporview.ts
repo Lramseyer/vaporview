@@ -223,12 +223,14 @@ export function handleClickSelection(event: MouseEvent, rowId: RowId) {
     // No existing selection, just select the clicked row
   }
   else if (event.shiftKey) {
+    // Remove last selected signal from new selection to keep ordering consistent
+    newSelection = viewerState.selectedSignal.filter(id => id !== viewerState.lastSelectedSignal);
     const lastSelectedIndex = viewerState.visibleSignalsFlat.indexOf(viewerState.lastSelectedSignal);
     const clickedIndex      = viewerState.visibleSignalsFlat.indexOf(rowId);
     const startIndex        = Math.min(lastSelectedIndex, clickedIndex);
     const endIndex          = Math.max(lastSelectedIndex, clickedIndex);
-    const addedSignals      = viewerState.visibleSignalsFlat.slice(startIndex, endIndex + 1).filter(id => !viewerState.selectedSignal.includes(id));
-    newSelection            = viewerState.selectedSignal.concat(addedSignals);
+    const addedSignals      = viewerState.visibleSignalsFlat.slice(startIndex, endIndex + 1).filter(id => !newSelection.includes(id));
+    newSelection            = newSelection.concat(addedSignals);
   } else if (event.ctrlKey || event.metaKey) {
     if (viewerState.selectedSignal.includes(rowId)) {
       newSelection = viewerState.selectedSignal.filter(id => id !== rowId);

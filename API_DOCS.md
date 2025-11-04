@@ -139,7 +139,7 @@ Opens a file with vaporview
 
 - **uri** - Document URI
 - **loadAll** - true | false - if set to true, will load all variables into the viewport
-- **maxSignals** - abort loading all variables if netlist contains more than this number of variables. This value will be limited to 64
+- **maxSignals** - abort loading all variables if netlist contains more than this number of variables. This value will be limited to 64. If this value is not specified, it will default to 64.
 
 This command takes the URI to a waveform dump file.
 

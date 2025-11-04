@@ -446,10 +446,10 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       const signal   = signalInfo.name;
       const metadata = await document.findTreeItem(signal, signalInfo.msb, signalInfo.lsb);
       if (metadata !== null) {
-        
+
         this.addSignalsToDocument(document, [metadata], groupPath, undefined);
         // We need to copy the netlistId from the existing wavefrom dump in case the circuit has changed
-        this.setValueFormat(signalInfo.netlistId, {
+        this.setValueFormat(metadata.netlistId, {
           valueFormat:   signalInfo.numberFormat,
           colorIndex:    signalInfo.colorIndex,
           rowHeight:     signalInfo.rowHeight,

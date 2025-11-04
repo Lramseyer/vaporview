@@ -299,10 +299,8 @@ function signalListForSaveFile(rowIdList: RowId[]): any[] {
     }
     if (!(data instanceof VariableItem)) {return;}
 
-    const netlistId = data.netlistId;
     result.push({
       dataType:         "netlist-variable",
-      netlistId:        netlistId,
       name:             data.scopePath + "." + data.signalName,
       numberFormat:     data.valueFormat.id,
       colorIndex:       data.colorIndex,

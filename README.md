@@ -229,7 +229,10 @@ See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.m
   - Custom names for variable items
   - Settings button on the right side of the control bar
 - Escape key de-selects all signals
-- Group expanded state is preserved on reload
+- Fixed
+  - Group expanded state is preserved on reload
+  - Removed netlistId from save files and use instance paths only
+  - Improved signal selection ordering
 - API
   - waveformViewer.addVariable will now add all variables in a scope if it is specified
 

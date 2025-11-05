@@ -1,4 +1,4 @@
-# VaporView
+# Vaporview
 
 VaporView is an open source waveform viewer extension for Visual Studio Code - [download](https://marketplace.visualstudio.com/items?itemName=lramseyer.vaporview)
 
@@ -203,22 +203,7 @@ This extension requires VScode 1.96.0 or later
 
 # Development Roadmap
 
-## 1.4.2 - Latest Release - 10/11/2025
-
-- Added
-  - Multi signal select
-  - Multi signal reorder
-  - Outlined multi-bit renderer - enabled in settings menu
-- Fixed
-  - Drag and drop from tree view places signals at the end of group
-  - Files with one time table entry now show values
-  - New groups now appear where right click event happened
-- Removed "Displayed Signals" View
-- Netlist hierarchy displays items in alphabetical order
-
-See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
-
-## 1.4.3 - Upcoming Release
+## 1.4.3 - 11/4/2025 - Latest Release
 
 - Added
   - Support for Enums
@@ -235,6 +220,8 @@ See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.m
   - Improved signal selection ordering
 - API
   - waveformViewer.addVariable will now add all variables in a scope if it is specified
+
+See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 
 # About This Extension
 

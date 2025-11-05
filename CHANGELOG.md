@@ -1,6 +1,6 @@
 # Change Log
 
-## 1.4.3 - Upcoming release
+## 1.4.3 - 11/4/2025 - Latest Release
 
 - Added
   - Support for Enums
@@ -18,7 +18,7 @@
 - API
   - waveformViewer.addVariable will now add all variables in a scope if it is specified
 
-## 1.4.2 - 10/11/2025 - Latest Release
+## 1.4.2 - 10/11/2025
 
 - Added
   - Multi signal select

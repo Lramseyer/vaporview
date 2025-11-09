@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 
 import { TimestampLinkProvider, NetlistLinkProvider } from './terminal_links';
 import { WaveformViewerProvider } from './viewer_provider';
+import { WCPServer } from './wcp_server';
 import * as path from 'path';
 
 // #region activate()
@@ -26,6 +27,59 @@ export async function activate(context: vscode.ExtensionContext) {
       },
       supportsMultipleEditorsPerDocument: false,
     });
+
+  // Initialize WCP Server
+  let wcpServer: WCPServer | null = null;
+  const wcpEnabled = vscode.workspace.getConfiguration('vaporview').get<boolean>('wcp.enabled', false);
+  const wcpPort = vscode.workspace.getConfiguration('vaporview').get<number>('wcp.port', 0);
+  
+  if (wcpEnabled) {
+    wcpServer = new WCPServer(viewerProvider, context, wcpPort);
+    wcpServer.start().then((port) => {
+      viewerProvider.log.appendLine(`WCP server started on port ${port}`);
+    }).catch((error) => {
+      viewerProvider.log.appendLine(`Failed to start WCP server: ${error.message}`);
+    });
+  }
+
+  // Listen for configuration changes
+  context.subscriptions.push(vscode.workspace.onDidChangeConfiguration((e) => {
+    if (e.affectsConfiguration('vaporview.wcp.enabled') || e.affectsConfiguration('vaporview.wcp.port')) {
+      const newEnabled = vscode.workspace.getConfiguration('vaporview').get<boolean>('wcp.enabled', false);
+      const newPort = vscode.workspace.getConfiguration('vaporview').get<number>('wcp.port', 0);
+      
+      if (newEnabled && !wcpServer) {
+        wcpServer = new WCPServer(viewerProvider, context, newPort);
+        wcpServer.start().then((port) => {
+          viewerProvider.log.appendLine(`WCP server started on port ${port}`);
+        }).catch((error) => {
+          viewerProvider.log.appendLine(`Failed to start WCP server: ${error.message}`);
+        });
+      } else if (!newEnabled && wcpServer) {
+        wcpServer.stop();
+        wcpServer = null;
+        viewerProvider.log.appendLine('WCP server stopped');
+      } else if (newEnabled && wcpServer && newPort !== wcpServer.getPort()) {
+        wcpServer.stop();
+        wcpServer = new WCPServer(viewerProvider, context, newPort);
+        wcpServer.start().then((port) => {
+          viewerProvider.log.appendLine(`WCP server restarted on port ${port}`);
+        }).catch((error) => {
+          viewerProvider.log.appendLine(`Failed to restart WCP server: ${error.message}`);
+        });
+      }
+    }
+  }));
+
+  // Store wcpServer reference for cleanup
+  context.subscriptions.push({
+    dispose: () => {
+      if (wcpServer) {
+        wcpServer.stop();
+        wcpServer = null;
+      }
+    }
+  });
 
   vscode.window.registerTerminalLinkProvider(new TimestampLinkProvider(viewerProvider));
 
@@ -470,6 +524,47 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.openRemoteViewer(serverUrl, bearerToken);
   }));
 
+  // WCP Server commands
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.wcp.start', async () => {
+    if (wcpServer && wcpServer.getIsRunning()) {
+      vscode.window.showInformationMessage(`WCP server is already running on port ${wcpServer.getPort()}`);
+      return;
+    }
+    
+    const port = vscode.workspace.getConfiguration('vaporview').get<number>('wcp.port', 0);
+    wcpServer = new WCPServer(viewerProvider, context, port);
+    try {
+      const actualPort = await wcpServer.start();
+      vscode.window.showInformationMessage(`WCP server started on port ${actualPort}`);
+      await vscode.workspace.getConfiguration('vaporview').update('wcp.enabled', true, vscode.ConfigurationTarget.Global);
+    } catch (error: any) {
+      vscode.window.showErrorMessage(`Failed to start WCP server: ${error.message}`);
+      wcpServer = null;
+    }
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.wcp.stop', async () => {
+    if (!wcpServer || !wcpServer.getIsRunning()) {
+      vscode.window.showInformationMessage('WCP server is not running');
+      return;
+    }
+    
+    wcpServer.stop();
+    wcpServer = null;
+    await vscode.workspace.getConfiguration('vaporview').update('wcp.enabled', false, vscode.ConfigurationTarget.Global);
+    vscode.window.showInformationMessage('WCP server stopped');
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.wcp.status', () => {
+    if (wcpServer && wcpServer.getIsRunning()) {
+      const connectionCount = wcpServer.getConnectionCount();
+      const message = `WCP server is running on TCP port ${wcpServer.getPort()} (${connectionCount} connection${connectionCount !== 1 ? 's' : ''})`;
+      vscode.window.showInformationMessage(message);
+    } else {
+      vscode.window.showInformationMessage('WCP server is not running');
+    }
+  }));
+
   return {
     onDidSetMarker: markerSetEvent,
     onDidSelectSignal: signalSelectEvent,
@@ -481,7 +576,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
 export default WaveformViewerProvider;
 
-export function deactivate() {}
+export function deactivate() {
+  // WCP server cleanup is handled by context subscriptions
+  // All resources registered with context.subscriptions are automatically disposed
+}
 
 export function getTokenColorsForTheme(themeName: string) {
   const tokenColors = new Map();

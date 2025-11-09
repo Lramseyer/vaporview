@@ -192,6 +192,20 @@
           "type": "string",
           "scope": "application",
           "description": "Path to find FSDB reader shared libraries (e.g. libnffr.so, libnsys.so for Linux) for your platform. This is needed for FSDB reading. Example: /home/heyfey/verdi/2022.06/share/FsdbReader/linux64"
+        },
+        "vaporview.wcp.enabled": {
+          "type": "boolean",
+          "default": false,
+          "scope": "application",
+          "description": "Enable Waveform Control Protocol (WCP) server. When enabled, VaporView will start a TCP server that accepts WCP commands to control the waveform viewer."
+        },
+        "vaporview.wcp.port": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 65535,
+          "scope": "application",
+          "description": "Port number for the WCP server. Set to 0 to auto-assign an available port."
         }
       }
     },
@@ -1136,6 +1150,21 @@
       {
         "command": "vaporview.openRemoteViewer",
         "title": "Open Remote Viewer"
+      },
+      {
+        "command": "vaporview.wcp.start",
+        "title": "WCP: Start Server",
+        "category": "VaporView"
+      },
+      {
+        "command": "vaporview.wcp.stop",
+        "title": "WCP: Stop Server",
+        "category": "VaporView"
+      },
+      {
+        "command": "vaporview.wcp.status",
+        "title": "WCP: Show Status",
+        "category": "VaporView"
       }
     ]
   },

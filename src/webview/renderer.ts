@@ -442,7 +442,9 @@ export const binaryWaveformRenderer: WaveformRenderer = {
       }
     }
 
+    // Guarantee a 1 -> 0 transition offscreen, otherwise we get rendering artifacts
     accumulatedPath.push([timeScrollRight + (15 * viewportSpecs.pixelTime), initialValue2state]);
+    accumulatedPath.push([timeScrollRight + (15 * viewportSpecs.pixelTime), 1]);
     accumulatedPath.push([timeScrollRight + (15 * viewportSpecs.pixelTime), 0]);
 
     const waveHeight = canvasHeight - 4;

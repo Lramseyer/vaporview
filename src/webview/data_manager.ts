@@ -177,6 +177,7 @@ export class WaveformDataManager {
       rowIdList.push(rowId);
 
       const varItem = new VariableItem(
+        rowId,
         netlistId,
         signalId,
         signal.signalName,
@@ -197,11 +198,11 @@ export class WaveformDataManager {
         updateFlag     = true;
         varItem.cacheValueFormat(false);
       } else if (this.valueChangeDataTemp[signalId] !== undefined) {
-        this.valueChangeDataTemp[signalId].netlistIdList.push(netlistId);
+        this.valueChangeDataTemp[signalId].rowIdList.push(rowId);
       } else if (this.valueChangeDataTemp[signalId] === undefined) {
         signalIdList.push(signalId);
         this.valueChangeDataTemp[signalId] = {
-          netlistIdList: [netlistId],
+          rowIdList: [rowId],
           totalChunks: 0,
         };
       }
@@ -212,13 +213,10 @@ export class WaveformDataManager {
           enumTableList.push({type: 'enum', name: enumType, netlistId: netlistId} as EnumQueueEntry);
         }
       }
-
     });
 
     this.requestData(signalIdList, enumTableList);
-
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowIdList);
-
     updateDisplayedSignalsFlat();
     this.events.dispatch(ActionType.AddVariable, rowIdList, updateFlag);
 
@@ -238,9 +236,6 @@ export class WaveformDataManager {
     }
 
     if (reorder) {
-      //moveList.forEach((rowId: RowId) => {
-      //  this.events.dispatch(ActionType.ReorderSignals, [rowId], groupId, moveIndex);
-      //});
       this.events.dispatch(ActionType.ReorderSignals, moveList, groupId, moveIndex);
     }
 
@@ -528,11 +523,9 @@ export class WaveformDataManager {
   }
 
   updateWaveform(signalId: SignalId, transitionData: any[], min: number, max: number) {
-    const netlistIdList = this.valueChangeDataTemp[signalId].netlistIdList;
-    const netlistId     = netlistIdList[0];
-    if (netlistId ===  undefined) {console.log('netlistId not found for signalId ' + signalId); return;}
-    const rowId        = this.netlistIdTable[netlistId];
-    const netlistData  = this.rowItems[rowId];
+    const rowIdList    = this.valueChangeDataTemp[signalId].rowIdList;
+    if (rowIdList ===  undefined) {console.log('rowId not found for signalId ' + signalId); return;}
+    const netlistData  = this.rowItems[rowIdList[0]];
     if (netlistData === undefined || netlistData instanceof VariableItem === false) {return;}
     const signalWidth  = netlistData.signalWidth;
     const nullValue = "x".repeat(signalWidth);
@@ -551,8 +544,7 @@ export class WaveformDataManager {
 
     this.valueChangeDataTemp[signalId] = undefined;
 
-    netlistIdList.forEach((netlistId: NetlistId) => {
-      const rowId = this.netlistIdTable[netlistId];
+    rowIdList.forEach((rowId: RowId) => {
       const netlistData = this.rowItems[rowId];
       if (netlistData === undefined || netlistData instanceof VariableItem === false) {return;}
       this.events.dispatch(ActionType.RedrawVariable, rowId);

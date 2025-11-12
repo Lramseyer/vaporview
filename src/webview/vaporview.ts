@@ -534,7 +534,7 @@ class VaporviewWebview {
     else if (e.key === 'Home') {this.events.dispatch(ActionType.MarkerSet, 0, 0);}
     else if (e.key === 'End')  {this.events.dispatch(ActionType.MarkerSet, this.viewport.timeStop, 0);}
 
-    // "N" and Shoft + "N" go to the next transition
+    // "N" and Shift + "N" go to the next transition
     else if (e.key === 'n') {controlBar.goToNextTransition(1, []);}
     else if (e.key === 'N') {controlBar.goToNextTransition(-1, []);}
 
@@ -790,18 +790,16 @@ class VaporviewWebview {
 
     const rowId = dataManager.netlistIdTable[netlistId];
     const index = viewerState.visibleSignalsFlat.indexOf(rowId);
+    let removeList = [rowId];
 
     if (viewerState.selectedSignal.includes(rowId) && removeAllSelected) {
-      //viewerState.selectedSignal.forEach((selectedRowId) => {
-        //});
-      this.events.dispatch(ActionType.RemoveVariable, viewerState.selectedSignal, true);
-    } else {
-      this.events.dispatch(ActionType.RemoveVariable, [rowId], true);
+      removeList = viewerState.selectedSignal;
     }
+    this.events.dispatch(ActionType.RemoveVariable, removeList, true);
 
     if (viewerState.selectedSignal.length === 1 && viewerState.selectedSignal[0] === rowId) {
-      const newindex = Math.max(0, Math.min(viewerState.visibleSignalsFlat.length - 1, index));
-      const newRowId = viewerState.visibleSignalsFlat[newindex];
+      const newIndex = Math.max(0, Math.min(viewerState.visibleSignalsFlat.length - 1, index));
+      const newRowId = viewerState.visibleSignalsFlat[newIndex];
       this.events.dispatch(ActionType.SignalSelect, [newRowId], newRowId);
     } else if (viewerState.selectedSignal.includes(rowId)) {
       const newSelected = viewerState.selectedSignal.filter((id) => id !== rowId);
@@ -838,8 +836,8 @@ class VaporviewWebview {
     this.events.dispatch(ActionType.RemoveVariable, removeList, recursive);
 
     if (newSelected.length === 1) {
-      const newindex = Math.max(0, Math.min(viewerState.visibleSignalsFlat.length - 1, index));
-      const newRowId = viewerState.visibleSignalsFlat[newindex];
+      const newIndex = Math.max(0, Math.min(viewerState.visibleSignalsFlat.length - 1, index));
+      const newRowId = viewerState.visibleSignalsFlat[newIndex];
       this.events.dispatch(ActionType.SignalSelect, [newRowId], newRowId);
     } else {
       this.events.dispatch(ActionType.SignalSelect, newSelected, viewerState.lastSelectedSignal);

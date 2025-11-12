@@ -34,7 +34,7 @@ export abstract class SignalItem {
   public abstract createValueDisplayElement(): string
   public abstract getValueAtTime(time: number): string[]
   public getNearestTransition(time: number) {return null}
-  public formatVlaue(value: any): string {return "";}
+  public formatValue(value: any): string {return "";}
   public renderWaveform() {return;}
   public handleValueLink(time: number, snapToTime: number) {return;}
   public getAllEdges(valueList: string[]): number[] {return [];}
@@ -92,6 +92,7 @@ export class VariableItem extends SignalItem implements RowItem {
   public customName: string = "";
 
   constructor(
+    public readonly rowId: RowId,
     public readonly netlistId: number,
     public signalId: number,
     public signalName: string,
@@ -136,26 +137,24 @@ export class VariableItem extends SignalItem implements RowItem {
 
   public createLabelElement() {
 
-    const rowId         = dataManager.netlistIdTable[this.netlistId];
     const height        = getRowHeightCssClass(this.rowHeight);
     const signalName    = htmlSafe(this.signalName);
     const scopePath     = htmlSafe(this.scopePath + '.');
     const fullPath      = htmlAttributeSafe(scopePath + signalName);
     const isSelectedClass   = this.isSelected ? 'is-selected' : '';
-    const lastSelectedClass = viewerState.lastSelectedSignal === rowId ? 'last-selected' : '';
+    const lastSelectedClass = viewerState.lastSelectedSignal === this.rowId ? 'last-selected' : '';
     const selectorClass = isSelectedClass + ' ' + lastSelectedClass;
     const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
-    return `<div class="waveform-label is-idle" id="label-${rowId}" title="${tooltip}" data-vscode-context=${this.vscodeContext}>
+    return `<div class="waveform-label is-idle" id="label-${this.rowId}" title="${tooltip}" data-vscode-context=${this.vscodeContext}>
               <div class='waveform-row ${selectorClass} ${height}'>${this.createWaveformRowContent()}</div>
             </div>`;
     }
 
   public createValueDisplayElement() {
-    const rowId = dataManager.netlistIdTable[this.netlistId];
-    let   value = labelsPanel.valueAtMarker[rowId];
+    let   value = labelsPanel.valueAtMarker[this.rowId];
     if (value === undefined) {value = [];}
     const isSelectedClass   = this.isSelected ? 'is-selected' : '';
-    const lastSelectedClass = viewerState.lastSelectedSignal === rowId ? 'last-selected' : '';
+    const lastSelectedClass = viewerState.lastSelectedSignal === this.rowId ? 'last-selected' : '';
     const selectorClass = isSelectedClass + ' ' + lastSelectedClass;
     const height        = getRowHeightCssClass(this.rowHeight);
     const joinString    = '<p style="color:var(--vscode-foreground)">-></p>';
@@ -168,7 +167,7 @@ export class VariableItem extends SignalItem implements RowItem {
       return `<p style="color:${colorStyle}">${displayValue}</p>`;
     }).join(joinString);
 
-    return `<div class="value-display-item ${selectorClass} ${height}" id="value-${rowId}" data-vscode-context=${this.vscodeContext}>${pElement}</div>`;
+    return `<div class="value-display-item ${selectorClass} ${height}" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}>${pElement}</div>`;
   }
 
   public createViewportElement(rowId: number) {
@@ -205,7 +204,7 @@ export class VariableItem extends SignalItem implements RowItem {
       preventDefaultContextMenuItems: true,
       commandValid: this.valueLinkCommand !== "",
       netlistId: this.netlistId,
-      rowId: dataManager.netlistIdTable[this.netlistId],
+      rowId: this.rowId,
       isAnalog: isAnalog,
       enum: this.enumType !== "",
     }).replace(/\s/g, '%x20')}`;
@@ -227,14 +226,11 @@ export class VariableItem extends SignalItem implements RowItem {
   }
 
   public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {
-    const rowId = dataManager.netlistIdTable[this.netlistId];
-    if (ignoreRowId === rowId) {return [];}
-    return [rowId];
+    if (ignoreRowId === this.rowId) {return [];}
+    return [this.rowId];
   }
 
-  public rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number {
-    return 1;
-  }
+  public rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number {return 1;}
 
   public findParentGroupId(rowId: RowId): number | null {return null;}
 
@@ -246,7 +242,7 @@ export class VariableItem extends SignalItem implements RowItem {
     if (!data) {return;}
     if (!this.ctx) {return;}
 
-    // find the closest timestampt to timeScrollLeft
+    // find the closest timestamp to timeScrollLeft
     const valueChanges = data.transitionData;
     const startIndex   = Math.max(dataManager.binarySearch(valueChanges, viewport.timeScrollLeft - (2 * viewport.pixelTime)), 1);
     const endIndex     = dataManager.binarySearch(valueChanges, viewport.timeScrollRight);

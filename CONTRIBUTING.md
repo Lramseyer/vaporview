@@ -112,7 +112,6 @@ The data structures of this extension really are the key to making it work as we
   - children: NetlistItem[]
     - ...
   - collapsibleState: vscode.TreeItemCollapsibleState
-  - checkboxState: vscode.TreeItemCheckboxState
   - contextValue: string
 
 - NetlistID: number

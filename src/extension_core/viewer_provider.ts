@@ -146,7 +146,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.netlistView.onDidExpandElement(this.handleNetlistExpandElement);
     this.netlistView.onDidCollapseElement(this.handleNetlistCollapseElement);
     this.netlistView.onDidChangeSelection(this.handleNetlistViewSelectionChanged, this, this._context.subscriptions);
-    this.netlistView.onDidChangeCheckboxState(this.handleNetlistCheckboxChange, this, this._context.subscriptions);
   }
 
   async openCustomDocument(
@@ -258,7 +257,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'contextUpdate':       {this.updateStatusBarItems(document, e); break;}
         case 'emitEvent':           {this.emitEvent(e); break;}
         case 'fetchDataFromFile':   {document.fetchData(e.requestList); break;}
-        case 'removeVariable':      {this.removeSignalFromDocument(e.netlistId, false); break;}
+        //case 'removeVariable':      {document.removeSignalFromWebview(e.netlistId, false); break;}
         case 'close-webview':       {webviewPanel.dispose(); break;}
         case 'handleDrop':          {this.handleWebviewDrop(e); break;}
         default: {this.log.appendLine('Unknown message type from webview: ' + JSON.stringify(e)); break;}
@@ -267,7 +266,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       if (e.type === 'response')    {this.onMessage(e);}
     }, this, this._context.subscriptions);
 
-    // Handle switching tabb events
+    // Handle switching tab events
     webviewPanel.onDidChangeViewState(e => {
 
       this.netlistViewSelectedSignals = [];
@@ -298,7 +297,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     webviewPanel.webview.options = { enableScripts: true, };
     webviewPanel.webview.html    = this.getHtmlContent(webviewPanel.webview);
 
-    // Register the document in the dcoument collection
+    // Register the document in the document collection
     const entry = { resource: document.uri.toString(), document};
     this.documentCollection.add(entry);
     this._numDocuments++;
@@ -394,7 +393,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
 
     //let version  = vscode.extensions.getExtension('Lramseyer.vaporview')?.packageJSON.version;
-    // show open file diaglog
+    // show open file dialog
     const fileData = await new Promise<any>((resolve, reject) => {
       vscode.window.showOpenDialog({
         canSelectFiles: true,
@@ -447,8 +446,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       const metadata = await document.findTreeItem(signal, signalInfo.msb, signalInfo.lsb);
       if (metadata !== null) {
 
-        this.addSignalsToDocument(document, [metadata], groupPath, undefined);
-        // We need to copy the netlistId from the existing wavefrom dump in case the circuit has changed
+        document.renderSignals([metadata.netlistId], groupPath, undefined);
+        // We need to copy the netlistId from the existing waveform dump in case the circuit has changed
         this.setValueFormat(metadata.netlistId, {
           valueFormat:   signalInfo.numberFormat,
           colorIndex:    signalInfo.colorIndex,
@@ -540,7 +539,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       if (webview) {
         webview.webview.postMessage({
           command: 'updateColorTheme',
-          //colorPallatte: colorPallatte
+          //colorPalate: colorPalate
         });
       }
     });
@@ -668,8 +667,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.markerTimeStatusBarItem.show();
 
     if (w.selectedSignal || w.selectedSignal === 0) {
-      const NetlistIdRef = document.netlistIdTable[w.selectedSignal];
-      const signalName = NetlistIdRef.netlistItem.name;
+      const netlistData = document.netlistIdTable[w.selectedSignal];
+      const signalName = netlistData.name;
       this.selectedSignalStatusBarItem.text = 'Selected signal: ' + signalName;
 
       if (event.transitionCount !== null) {
@@ -737,9 +736,9 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
   showInNetlistView(netlistId: NetlistId) {
     if (!this.activeDocument) {return;}
-    const NetlistIdRef = this.activeDocument.netlistIdTable[netlistId];
-    if (NetlistIdRef.netlistItem) {
-      this.netlistView.reveal(NetlistIdRef.netlistItem, {select: true, focus: false, expand: 3});
+    const netlistItem = this.activeDocument.netlistIdTable[netlistId];
+    if (netlistItem) {
+      this.netlistView.reveal(netlistItem, {select: true, focus: false, expand: 3});
     }
   }
 
@@ -783,12 +782,11 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     // Check for netlistId in the event
     if (e.netlistId !== undefined) {
-      const metadataRef = document.netlistIdTable[e.netlistId];
-      if (metadataRef === undefined) {
+      metadata = document.netlistIdTable[e.netlistId];
+      if (metadata === undefined) {
         vscode.window.showWarningMessage('Signal not found: ' + e.netlistId);
         return null;
       }
-      metadata = metadataRef.netlistItem;
     
     } else {
       // Check for instance path
@@ -838,14 +836,14 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
           const recursive = e.recursive === true;
           this.addAllInScopeToDocument(metadata, recursive, 128);
         } else {
-          this.addSignalsToDocument(document, [metadata], [], undefined);
+          document.renderSignals([metadata.netlistId], [], undefined);
         }
         break;
       } 
       case 'remove': {
         if (metadata.contextValue !== 'netlistScope') {
           const netlistId = metadata.netlistId;
-          this.removeSignalFromDocument(netlistId, false);
+          document.removeSignalFromWebview(netlistId, false);
         }
         break;
       } 
@@ -886,7 +884,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
   private handleWebviewDrop(e: any) {
 
-    const unknwonUriList: vscode.Uri[] = [];
+    const unknownUriList: vscode.Uri[] = [];
     const netlistIdList: NetlistId[] = [];
     const document = this.getDocumentFromUri(e.uri.external);
     if (!document) {return;}
@@ -894,7 +892,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     e.resourceUriList.forEach((uri: vscode.Uri) => {
       if (uri.scheme !== 'waveform') {
-        unknwonUriList.push(uri);
+        unknownUriList.push(uri);
         return;
       }
       const fragment = uri.fragment;
@@ -911,36 +909,22 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (e.dropIndex || e.dropIndex === 0) {index = e.dropIndex;}
 
     if (document !== this.activeDocument) {return;}
-    const metadata = netlistIdList.map(id => document.netlistIdTable[id].netlistItem);
-    this.addSignalsToDocument(document, metadata, groupPath, index);
+    document.renderSignals(netlistIdList, groupPath, index);
 
     // Emit an event for the unknown URIs so that other extensions can handle them if needed
-    if (unknwonUriList.length === 0) {return;}
+    if (unknownUriList.length === 0) {return;}
     WaveformViewerProvider.externalDropEventEmitter.fire({
       uri: e.uri,
-      resourceUriList: unknwonUriList,
+      resourceUriList: unknownUriList,
       groupPath: groupPath,
       index: index
     });
   }
 
-  private addSignalsToDocument(document: VaporviewDocument, netlistElements: NetlistItem[], groupPath: string[], index: number | undefined) {
-    //if (!this.activeWebview) {return;}
-    //if (!this.activeDocument) {return;}
-    //if (!this.activeWebview.visible) {return;}
-
-    //const document = this.activeDocument;
-    const netlistIdList: NetlistId[] = [];
-
-    netlistElements.forEach((element) => {
-      const metadata   = element;
-      const netlistId  = metadata.netlistId;
-      this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Checked);
-      document.setNetlistIdTable(netlistId);
-      netlistIdList.push(netlistId);
-    });
-    document.renderSignals(netlistIdList, groupPath, index);
-  }
+  //private addSignalsToDocument(document: VaporviewDocument, netlistElements: NetlistItem[], groupPath: string[], index: number | undefined) {
+  //  const netlistIdList = netlistElements.map((element) => element.netlistId);
+  //  document.renderSignals(netlistIdList, groupPath, index);
+  //}
 
   public async addSignalByNameToDocument(signalName: string) {
 
@@ -979,7 +963,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (isDisplayed !== undefined) {
       document.revealSignalInWebview(netlistId);
     } else {
-      this.addSignalsToDocument(document, [metadata], [], undefined);
+      document.renderSignals([netlistId], [], undefined);
     }
   }
 
@@ -1040,7 +1024,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       const parentScope = netlistScopes.shift();
       const children = await document.getChildrenExternal(parentScope);
       children.forEach((element) => {
-        if (element.contextValue === 'netlistVar' && element.checkboxState === vscode.TreeItemCheckboxState.Unchecked) {
+        if (element.contextValue === 'netlistVar') {
           netlistVariables.push(element);
         }
         else if (element.contextValue === 'netlistScope' && recursive) {
@@ -1058,36 +1042,26 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (!document) {return;}
 
     const elementList = netlistElements.filter((element) => {
-      return element.checkboxState === vscode.TreeItemCheckboxState.Unchecked && 
-             element.contextValue === 'netlistVar';
-    });
+      return element.contextValue === 'netlistVar';
+    }).map((element) => element.netlistId);
 
     if ((elementList.length > 24) && !noWarning) {
       // show warning message
       vscode.window.showWarningMessage('You are about to add a large number of signals to the waveform viewer. This may cause performance issues. Do you want to continue?', 'Yes', 'No').then((response) => {
         if (response === 'Yes') {
-          this.addSignalsToDocument(document, elementList, [], undefined);
+          document.renderSignals(elementList, [], undefined);
         } 
       });
     } else {
-      this.addSignalsToDocument(document, elementList, [], undefined);
+      document.renderSignals(elementList, [], undefined);
     }
   }
 
   public removeSignalFromDocument(netlistId: NetlistId, removeAllSelected: boolean) {
-
     if (!this.activeDocument) {return;}
     if (!this.activeWebview?.visible) {return;}
 
-    const document = this.activeDocument;
-    document.removeSignalFromWebview(netlistId, removeAllSelected);
-
-    const metadataELements = document.netlistIdTable[netlistId];
-    if (metadataELements) {
-      const netlistItem = metadataELements.netlistItem;
-      this.netlistTreeDataProvider.setCheckboxState(netlistItem, vscode.TreeItemCheckboxState.Unchecked);
-      document.setNetlistIdTable(netlistId);
-    }
+    this.activeDocument.removeSignalFromWebview(netlistId, removeAllSelected);
   }
 
   public removeSignalList(signalList: NetlistItem[]) {
@@ -1096,19 +1070,9 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (!this.activeWebview.visible) {return;}
 
     signalList.forEach((element) => {
-      const metadata  = element;
-      const netlistId = metadata.netlistId;
-      if (element.checkboxState === vscode.TreeItemCheckboxState.Checked) {
-        this.removeSignalFromDocument(netlistId, false);
-      }
+      if (element.contextValue !== 'netlistVar') {return;}
+      this.activeDocument?.removeSignalFromWebview(element.netlistId, false);
     });
-  }
-
-  public removeSelectedSignalsFromDocument(view: string) {
-
-    if (view === 'netlist') {
-      this.removeSignalList(this.netlistViewSelectedSignals);
-    }
   }
 
   public newSignalGroup(
@@ -1188,14 +1152,14 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}
 
-    const panel      = this.activeWebview;
-    const document   = this.activeDocument;
-    const netlistRef = document.netlistIdTable[id];
-    const format     = properties.valueFormat;
+    const panel       = this.activeWebview;
+    const document    = this.activeDocument;
+    const netlistData = document.netlistIdTable[id];
+    const format      = properties.valueFormat;
 
-    if (netlistRef) {
+    if (netlistData) {
       if (format !== undefined) {
-        netlistRef.netlistItem.numberFormat = format;
+        netlistData.numberFormat = format;
       }
     }
 
@@ -1251,36 +1215,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     return htmlContent;
   }
-
-  // View Container Event handlers
-  private handleNetlistCheckboxChange = (e: vscode.TreeCheckboxChangeEvent<NetlistItem>) => {
-
-    //console.log('onDidChangeCheckboxState()');
-    //console.log(changedItem);
-    //console.log(this.netlistView);
-    const metadata = e.items[0][0];
-
-    if (!this.activeWebview?.visible) {return;}
-    if (!this.activeDocument?.webviewInitialized) {
-      this.log.appendLine('Webview not initialized');
-      this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Unchecked);
-      return;
-    }
-
-    // If the item is a parent node, uncheck it
-    if (metadata.contextValue == "netlistScope") {
-      this.netlistTreeDataProvider.setCheckboxState(metadata, vscode.TreeItemCheckboxState.Unchecked);
-      return;
-    }
-
-    //console.log(metadata);
-
-    if (metadata.checkboxState === vscode.TreeItemCheckboxState.Checked) {
-      this.addSignalsToDocument(this.activeDocument, [metadata], [], undefined);
-    } else if (metadata.checkboxState === vscode.TreeItemCheckboxState.Unchecked) {
-      this.removeSignalFromDocument(metadata.netlistId, false);
-    }
-  };
 
   // onDidChangeSelection() event returns readonly elements
   // so we need to copy the selected elements to a new array

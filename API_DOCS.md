@@ -106,7 +106,6 @@ See [Tree Item API docs](https://code.visualstudio.com/api/references/vscode-api
 Note: Tree items in both the Netlist View and the Displayed Signals View have the same set of attributes.
 
 - **contextValue** - "netlistVar" | "netlistScope" - see [Tree Item API docs](https://code.visualstudio.com/api/references/vscode-api#TreeItem) and scroll down to the contextValue section.
-- **checkboxState** - [VScode Tree Item Checkbox State](https://code.visualstudio.com/api/references/vscode-api#TreeItemCheckboxState)
 - **collapsibleState** - [VScode Tree Item Collapsible State](https://code.visualstudio.com/api/references/vscode-api#TreeItemCollapsibleState)
 - **children** - Child Netlist Elements
 - **iconPath** - [VScode Tree Item Icon Path](https://code.visualstudio.com/api/references/vscode-api#IconPath)
@@ -270,8 +269,8 @@ Emitted when the marker changes value in the viewer.
 Emitted when a signal is selected by either the user, or externally
 
 - **uri** - uri
-- **instancePath** - string
-- **netlistId** - number
+- **instancePath** - string[]
+- **netlistId** - number[]
 - **source** - "netlistView" | "viewer"
 
 ## onDidAddVariable
@@ -279,16 +278,16 @@ Emitted when a signal is selected by either the user, or externally
 Emitted when a variable is added to the viewer
 
 - **uri** - uri
-- **instancePath** - string
-- **netlistId** - number
+- **instancePath** - string[]
+- **netlistId** - number[]
 
 ## onDidRemoveVariable
 
 Emitted when a variable is removed from the viewer
 
 - **uri** - uri
-- **instancePath** - string
-- **netlistId** - number
+- **instancePath** - string[]
+- **netlistId** - number[]
 
 ## onDidDropInWaveformViewer (proposed)
 

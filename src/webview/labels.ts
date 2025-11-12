@@ -80,7 +80,7 @@ export class LabelsPanels {
     this.handleUpdateColor     = this.handleUpdateColor.bind(this);
 
     // Event handlers to handle clicking on a waveform label to select a signal
-    labels.addEventListener(      'click', (e) => this.clicklabel(e));
+    labels.addEventListener(      'click', (e) => this.clickLabel(e));
     valueDisplay.addEventListener('click', (e) => this.clickValueDisplay(e));
     // resize handler to handle column resizing
     resize1.addEventListener("mousedown",   (e) => {this.handleResizeMousedown(e, resize1, 1);});
@@ -121,7 +121,7 @@ export class LabelsPanels {
     handleClickSelection(event, rowId);
   }
 
-  clicklabel (event: any) {
+  clickLabel(event: any) {
     if (this.dragInProgress) {return;}
     if (this.renameActive) {return;}
     const clickedLabel = event.target.closest('.waveform-label');
@@ -166,7 +166,7 @@ export class LabelsPanels {
   }
 
   setIdleItemsState(rowIdList: RowId[]) {
-    // find all idle items and idle expanded dropus
+    // find all idle items and idle expanded groups
 
     const draggableSignals: RowId[] = [];
     const draggableGroups: RowId[]  = [];
@@ -569,7 +569,7 @@ export class LabelsPanels {
     this.renderLabelsPanels();
   }
 
-  handleRemoveVariable(rowId: any, recursive: boolean) {
+  handleRemoveVariable(rowId: RowId[], recursive: boolean) {
     this.renderLabelsPanels();
   }
 
@@ -595,17 +595,6 @@ export class LabelsPanels {
     const signalItem = dataManager.rowItems[rowId];
     if (!signalItem) {return;}
     signalItem.isSelected = isSelected;
-    //const labelElement = signalItem.labelElement;
-    //const valueDisplayElement = signalItem.valueDisplayElement;
-    //if (!labelElement) {return;}
-    //if (!valueDisplayElement) {return;}
-    //if (isSelected) {
-    //  labelElement.children[0].classList.add('is-selected');
-    //  valueDisplayElement.classList.add('is-selected');
-    //} else {
-    //  labelElement.children[0].classList.remove('is-selected');
-    //  valueDisplayElement.classList.remove('is-selected');
-    //}
   }
 
   handleSignalSelect(rowIdList: RowId[], lastRowId: RowId | null) {

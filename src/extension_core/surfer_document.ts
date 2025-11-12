@@ -76,12 +76,12 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
     setscopetop: (name: string, id: number, tpe: string) => {
       const scope = createScope(name, tpe, "", id, -1, this.uri);
       this.treeData.push(scope);
-      this._netlistIdTable[id] = { netlistItem: scope, signalId: 0 };
+      this._netlistIdTable[id] = scope;
     },
     setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number, enumtype: string) => {
       const varItem = createVar(name, "", tpe, encoding, "", id, signalid, width, msb, lsb, enumtype, false /*isFsdb*/, this.uri);
       this.treeData.push(varItem);
-      this._netlistIdTable[id] = { netlistItem: varItem, signalId: signalid };
+      this._netlistIdTable[id] = varItem;
     },
     setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
       this.setMetadata(scopecount, varcount, timescale, timeunit);
@@ -191,7 +191,7 @@ export class SurferDocument extends VaporviewDocument implements vscode.CustomDo
         } else {
           varTable[child.name].push(varItem);
         }
-        this.netlistIdTable[child.netlistId] = { netlistItem: varItem, signalId: child.signalId };
+        this.netlistIdTable[child.netlistId] = varItem;
       });
 
       callLimit--;

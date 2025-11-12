@@ -60,7 +60,7 @@ export function createScope(
     name = name.replace(regex, '');
   }
 
-  const module    = new NetlistItem(name, "", typename, 'none', 0, 0, netlistId, name, path, 0, 0, "", scopeOffsetIdx, [], vscode.TreeItemCollapsibleState.Collapsed, undefined, uri);
+  const module    = new NetlistItem(name, "", typename, 'none', 0, 0, netlistId, name, path, 0, 0, "", scopeOffsetIdx, [], vscode.TreeItemCollapsibleState.Collapsed, uri);
   module.iconPath = icon;
 
   return module;
@@ -114,7 +114,7 @@ export function createVar(
     name = name.replace(regex, '');
   }
 
-  const variable = new NetlistItem(label, paramValue, type, encoding, width, signalId, netlistId, name, path, msb, lsb, enumType, -1, [], vscode.TreeItemCollapsibleState.None, vscode.TreeItemCheckboxState.Unchecked, uri);
+  const variable = new NetlistItem(label, paramValue, type, encoding, width, signalId, netlistId, name, path, msb, lsb, enumType, -1, [], vscode.TreeItemCollapsibleState.None, uri);
   const typename = type.toLocaleLowerCase();
   let icon;
 
@@ -223,11 +223,6 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
   readonly onDidChangeTreeData: vscode.Event<NetlistItem | undefined> = this._onDidChangeTreeData.event;
   private document: VaporviewDocument | undefined;
 
-  public setCheckboxState(netlistItem: NetlistItem, checkboxState: vscode.TreeItemCheckboxState) {
-    netlistItem.checkboxState = checkboxState;
-    this._onDidChangeTreeData.fire(undefined); // Trigger a refresh of the Netlist view
-  }
-
   public loadDocument(document: VaporviewDocument) {
     this.setTreeData(document.treeData);
     this.document = document;
@@ -257,21 +252,11 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
     return null;
   }
 
-  refresh(): void {
-    this._onDidChangeTreeData.fire(undefined);
-  }
-
-}
-
-interface TreeCheckboxChangeEvent<T> {
-  item: T;
-  checked: boolean;
+  refresh(): void {this._onDidChangeTreeData.fire(undefined);}
 }
 
 // #region NetlistItem
 export class NetlistItem extends vscode.TreeItem {
-  private _onDidChangeCheckboxState: vscode.EventEmitter<vscode.TreeItem | undefined | null> = new vscode.EventEmitter<vscode.TreeItem | undefined | null>();
-  onDidChangeCheckboxState: vscode.Event<vscode.TreeItem | undefined | null> = this._onDidChangeCheckboxState.event;
 
   public numberFormat: string;
   public fsdbVarLoaded: boolean = false; // Only used in fsdb
@@ -293,7 +278,6 @@ export class NetlistItem extends vscode.TreeItem {
     public readonly scopeOffsetIdx: number, // Only used in fsdb
     public children:         NetlistItem[] = [],
     public collapsibleState: vscode.TreeItemCollapsibleState,
-    public checkboxState:    vscode.TreeItemCheckboxState | undefined = undefined, // Display preference
     uri: vscode.Uri
   ) {
 
@@ -350,8 +334,7 @@ export class NetlistItem extends vscode.TreeItem {
       await document.getChildrenExternal(this);
     }
 
-    const childItem     = this.children.find((child) => child.name === currentModule);
-
+    const childItem = this.children.find((child) => child.name === currentModule);
 
     if (childItem) {
       return await childItem.findChild(subModules.join("."), document, msb, lsb);
@@ -359,22 +342,12 @@ export class NetlistItem extends vscode.TreeItem {
       return null;
     }
   }
-
-  // Method to toggle the checkbox state
-  toggleCheckboxState() {
-    this.checkboxState = this.checkboxState === vscode.TreeItemCheckboxState.Checked
-      ? vscode.TreeItemCheckboxState.Unchecked
-      : vscode.TreeItemCheckboxState.Checked;
-    this._onDidChangeCheckboxState.fire(this);
-  }
 }
 
 // We don't need to do anything special for drag and drop because the resource URI has the data we need
 export const netlistItemDragAndDropController: vscode.TreeDragAndDropController<NetlistItem> = {
   dragMimeTypes: [],
   dropMimeTypes: [],
-  handleDrag: (source: readonly NetlistItem[], dataTransfer: vscode.DataTransfer, token: vscode.CancellationToken) => {
-    return Promise.resolve()
-  },
+  handleDrag: (source: readonly NetlistItem[], dataTransfer: vscode.DataTransfer, token: vscode.CancellationToken) => {return Promise.resolve()},
   handleDrop: (target: NetlistItem | undefined, dataTransfer: vscode.DataTransfer, token: vscode.CancellationToken) => {return Promise.resolve()},
 }

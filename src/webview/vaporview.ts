@@ -223,14 +223,12 @@ export function handleClickSelection(event: MouseEvent, rowId: RowId) {
     // No existing selection, just select the clicked row
   }
   else if (event.shiftKey) {
-    // Remove last selected signal from new selection to keep ordering consistent
-    newSelection = viewerState.selectedSignal.filter(id => id !== viewerState.lastSelectedSignal);
     const lastSelectedIndex = viewerState.visibleSignalsFlat.indexOf(viewerState.lastSelectedSignal);
     const clickedIndex      = viewerState.visibleSignalsFlat.indexOf(rowId);
     const startIndex        = Math.min(lastSelectedIndex, clickedIndex);
     const endIndex          = Math.max(lastSelectedIndex, clickedIndex);
-    const addedSignals      = viewerState.visibleSignalsFlat.slice(startIndex, endIndex + 1).filter(id => !newSelection.includes(id));
-    newSelection            = newSelection.concat(addedSignals);
+    const addedSignals      = viewerState.visibleSignalsFlat.slice(startIndex, endIndex + 1).filter(id => !viewerState.selectedSignal.includes(id));
+    newSelection            = viewerState.selectedSignal.concat(addedSignals);
   } else if (event.ctrlKey || event.metaKey) {
     if (viewerState.selectedSignal.includes(rowId)) {
       newSelection = viewerState.selectedSignal.filter(id => id !== rowId);
@@ -299,8 +297,10 @@ function signalListForSaveFile(rowIdList: RowId[]): any[] {
     }
     if (!(data instanceof VariableItem)) {return;}
 
+    const netlistId = data.netlistId;
     result.push({
       dataType:         "netlist-variable",
+      netlistId:        netlistId,
       name:             data.scopePath + "." + data.signalName,
       numberFormat:     data.valueFormat.id,
       colorIndex:       data.colorIndex,
@@ -390,10 +390,12 @@ class VaporviewWebview {
     this.webview.addEventListener('dragover', (e) => {labelsPanel.dragMoveExternal(e);});
     this.webview.addEventListener('drop', (e) => {this.handleDrop(e);});
 
+    this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
     this.handleMarkerSet    = this.handleMarkerSet.bind(this);
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
     this.reorderSignals     = this.reorderSignals.bind(this);
 
+    this.events.subscribe(ActionType.Resize, this.handleRemoveVariable);
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
     this.events.subscribe(ActionType.ReorderSignals, this.reorderSignals);
@@ -541,7 +543,7 @@ class VaporviewWebview {
       viewerState.selectedSignal.forEach((rowId) => {
         const rowItem = dataManager.rowItems[rowId];
         if (!(rowItem instanceof VariableItem)) {return;}
-        this.removeVariableInternal(rowId);
+        this.removeVariable(rowItem.netlistId, true);
       });
     }
 
@@ -705,25 +707,26 @@ class VaporviewWebview {
       revealSignal(rowIdList[0]);
     }
     viewerState.selectedSignal = rowIdList;
-    let instancePath = null;
-    let netlistId = null;
 
-    if (lastSelected !== null) {
-      const netlistData = dataManager.rowItems[lastSelected];
+    const netlistIdList: number[] = [];
+    const instancePathList: string[] = [];
+    rowIdList.forEach(rowId => {
+      const netlistData = dataManager.rowItems[rowId];
       if (netlistData === undefined) {return;}
-      netlistId = netlistData.netlistId;
       if (!(netlistData instanceof VariableItem)) {return;}
-      instancePath = netlistData.scopePath + '.' + netlistData.signalName;
+      netlistIdList.push(netlistData.netlistId);
+      let instancePath = netlistData.scopePath + '.' + netlistData.signalName;
       if (netlistData.scopePath === "") {instancePath = netlistData.signalName;}
-    }
+      instancePathList.push(instancePath);
+    })
 
     if (rowIdList.length === 1) {
       vscode.postMessage({
         command: 'emitEvent',
         eventType: 'signalSelect',
         uri: viewerState.uri,
-        instancePath: instancePath,
-        netlistId: netlistId,
+        instancePath: instancePathList,
+        netlistId: netlistIdList,
       });
     }
   }
@@ -770,16 +773,17 @@ class VaporviewWebview {
   // We need to let the extension know that we are removing a variable so that
   // it can update the views. Rather than handling it and telling the extension,
   // we just have the extension handle it as normal.
-  removeVariableInternal(rowId: RowId | null) {
-    if (rowId === null) {return;}
-    const netlistId = dataManager.rowItems[rowId].netlistId;
-    if (netlistId === undefined) {return;}
-
-    vscode.postMessage({
-      command: 'removeVariable',
-      netlistId: netlistId
-    });
-  }
+  //removeVariableInternal(rowId: RowId | null) {
+  //  if (rowId === null) {return;}
+  //  const netlistId = dataManager.rowItems[rowId].netlistId;
+  //  if (netlistId === undefined) {return;}
+//
+  //  //vscode.postMessage({
+  //  //  command: 'removeVariable',
+  //  //  netlistId: netlistId
+  //  //});
+  //  this.removeVariable(netlistId, false);
+  //}
 
   removeVariable(netlistId: NetlistId | null, removeAllSelected: boolean | undefined) {
     if (netlistId === null) {return;}
@@ -788,13 +792,13 @@ class VaporviewWebview {
     const index = viewerState.visibleSignalsFlat.indexOf(rowId);
 
     if (viewerState.selectedSignal.includes(rowId) && removeAllSelected) {
-      viewerState.selectedSignal.forEach((selectedRowId) => {
-        if (selectedRowId === rowId) {return;} // already handled below
-        this.removeVariableInternal(selectedRowId);
-      });
+      //viewerState.selectedSignal.forEach((selectedRowId) => {
+        //});
+      this.events.dispatch(ActionType.RemoveVariable, viewerState.selectedSignal, true);
+    } else {
+      this.events.dispatch(ActionType.RemoveVariable, [rowId], true);
     }
 
-    this.events.dispatch(ActionType.RemoveVariable, rowId, true);
     if (viewerState.selectedSignal.length === 1 && viewerState.selectedSignal[0] === rowId) {
       const newindex = Math.max(0, Math.min(viewerState.visibleSignalsFlat.length - 1, index));
       const newRowId = viewerState.visibleSignalsFlat[newindex];
@@ -818,6 +822,7 @@ class VaporviewWebview {
     }
 
     let newSelected = viewerState.selectedSignal;
+    const removeList: RowId[] = []
     rowIdList.forEach((rId) => {
       const groupItem = dataManager.rowItems[rId];
       if (!(groupItem instanceof SignalGroup)) {return;}
@@ -828,8 +833,9 @@ class VaporviewWebview {
           newSelected = newSelected.filter(id => id !== childRowId);
         }
       });
-      this.events.dispatch(ActionType.RemoveVariable, rId, recursive);
+      removeList.push(rId);
     });
+    this.events.dispatch(ActionType.RemoveVariable, removeList, recursive);
 
     if (newSelected.length === 1) {
       const newindex = Math.max(0, Math.min(viewerState.visibleSignalsFlat.length - 1, index));
@@ -838,6 +844,24 @@ class VaporviewWebview {
     } else {
       this.events.dispatch(ActionType.SignalSelect, newSelected, viewerState.lastSelectedSignal);
     }
+  }
+
+  handleRemoveVariable(rowIdList: RowId[], recursive: boolean) {
+    const instancePathList: string[] = [];
+    const netlistIdList: number[] = []
+    rowIdList.forEach(rowId => {
+      const signalItem = dataManager.rowItems[rowId];
+      if (!(signalItem instanceof VariableItem)) {return;}
+      netlistIdList.push(signalItem.netlistId);
+      instancePathList.push(signalItem.scopePath + '.' + signalItem.signalName);
+    });
+    vscode.postMessage({
+      command: 'emitEvent',
+      eventType: 'removeVariable',
+      uri: viewerState.uri,
+      instancePath: instancePathList,
+      netlistId: netlistIdList,
+    });
   }
 
   handleSetConfigSettings(settings: any) {

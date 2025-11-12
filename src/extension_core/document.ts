@@ -15,11 +15,8 @@ import { NetlistItem, createScope, createVar, getInstancePath } from './tree_vie
 import { json } from 'stream/consumers';
 import { sign } from 'crypto';
 
-export type NetlistIdTable = NetlistIdRef[];
-export type NetlistIdRef = {
-  netlistItem: NetlistItem;
-  signalId: SignalId;
-};
+export type NetlistIdTable = NetlistItem[];
+
 type WaveformTopMetadata = {
   timeTableLoaded: boolean;
   moduleCount: number;
@@ -248,12 +245,6 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     }
   }
 
-  public setNetlistIdTable(netlistId: NetlistId) {
-    const viewRef = this._netlistIdTable[netlistId];
-    if (viewRef === undefined) {return;}
-    this._netlistIdTable[netlistId] = viewRef;
-  }
-
   public sortNetlistScopeChildren(netlistItems: NetlistItem[]) {
 
     let result = [];
@@ -344,7 +335,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
 
   public getNameFromNetlistId(netlistId: NetlistId | null) {
     if (netlistId === null) {return null;}
-    const netlistData  = this.netlistIdTable[netlistId]?.netlistItem;
+    const netlistData  = this.netlistIdTable[netlistId];
     const scopePath    = netlistData?.scopePath;
     const signalName   = netlistData?.name;
     const numberFormat = netlistData?.numberFormat;
@@ -367,7 +358,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     if (!this.webviewPanel) {return;}
 
     netlistIdList.forEach((netlistId) => {
-      const metadata  = this.netlistIdTable[netlistId]?.netlistItem;
+      const metadata  = this.netlistIdTable[netlistId];
       if (!metadata) {return;}
 
       signalList.push({
@@ -432,7 +423,7 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
       removeAllSelected: removeAllSelected
    });
 
-    const metadata = this.netlistIdTable[netlistId]?.netlistItem;
+    const metadata = this.netlistIdTable[netlistId];
     this._delegate.emitEvent({
       eventType: 'removeVariable',
       uri: this.uri,
@@ -577,13 +568,13 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
 
       const scope = createScope(name, tpe, "", id, -1, this.uri);
       this.treeData.push(scope);
-      this._netlistIdTable[id] = {netlistItem: scope, signalId: 0};
+      this._netlistIdTable[id] = scope;
     },
     setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number, enumtype: string) => {
 
       const varItem = createVar(name, "", tpe, encoding, "", id, signalid, width, msb, lsb, enumtype, false /*isFsdb*/, this.uri);
       this.treeData.push(varItem);
-      this._netlistIdTable[id] = {netlistItem: varItem, signalId: signalid};
+      this._netlistIdTable[id] = varItem;
     },
     setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
       this.setMetadata(scopecount, varcount, timescale, timeunit);
@@ -723,7 +714,7 @@ export class VaporviewDocumentWasm extends VaporviewDocument implements vscode.C
         } else {
           varTable[varItem.name].push(varItem);
         }
-        this.netlistIdTable[varItem.netlistId] = {netlistItem: varItem, signalId: varItem.signalId};
+        this.netlistIdTable[varItem.netlistId] = varItem;
       });
 
       callLimit--;
@@ -1135,7 +1126,7 @@ export class VaporviewDocumentFsdb extends VaporviewDocument implements vscode.C
     const varItem = createVar(name, paramValue, type, encoding, path, netlistId, signalId, width, msb, lsb, enumType, true /*isFsdb*/, this.uri);
     this.fsdbCurrentScope!.children.push(varItem);
 
-    this.netlistIdTable[varItem.netlistId] = { netlistItem: varItem, signalId: varItem.signalId };
+    this.netlistIdTable[varItem.netlistId] = varItem;
   }
 
   fsdbArrayBeginCallback(name: string, path: string, netlistId: number) {

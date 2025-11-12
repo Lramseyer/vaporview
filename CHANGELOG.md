@@ -1,5 +1,10 @@
 # Change Log
 
+## 1.4.4 - Upcoming Release
+
+- Removed Netlist View Checkboxes
+- Fixed Renderer glitch in Windows affecting binary and bit vector renderer
+
 ## 1.4.3 - 11/4/2025 - Latest Release
 
 - Added

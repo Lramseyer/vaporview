@@ -30,7 +30,7 @@ export class WaveformDataManager {
   valueChangeData: WaveformData[] = []; // signalId is the key/index, WaveformData is the value
   valueChangeDataTemp: any        = [];
   enumTable: Record<string, EnumData> = {}; // enum type is the key/index, array of enum values is the value
-  emumTableTemp: any              = {}
+  enumTableTemp: any              = {}
   rowItems: RowItem[]             = []; // rowId is the key/index, RowItem is the value
   netlistIdTable: RowId[]         = []; // netlist ID is the key/index, rowId is the value
   groupIdTable: RowId[]           = []; // group ID is the key/index, rowId is the value
@@ -62,7 +62,7 @@ export class WaveformDataManager {
     this.valueChangeData     = [];
     this.valueChangeDataTemp = [];
     this.enumTable           = {};
-    this.emumTableTemp       = {};
+    this.enumTableTemp       = {};
     this.rowItems            = [];
     this.netlistIdTable      = [];
     this.groupIdTable        = [];
@@ -111,7 +111,7 @@ export class WaveformDataManager {
       requestList: this.requested,
     });
 
-    // Prevent Enum requests from holding up signal requests, since emums are cached along with the netlist hierarchy
+    // Prevent Enum requests from holding up signal requests, since enums are cached along with the netlist hierarchy
     this.requested = this.requested.filter(entry => entry.type === 'signal');
   }
 
@@ -356,32 +356,35 @@ export class WaveformDataManager {
     }
   }
 
-  handleRemoveVariable(rowId: any, recursive: boolean) {
+  handleRemoveVariable(rowIdList: RowId[], recursive: boolean) {
 
-    const signalItem = this.rowItems[rowId];
-    if (!signalItem) {return;}
-    let rowIdList: RowId[] = [rowId];
-    let children: number[] = []
-    const parentGroupId = getParentGroupId(rowId);
-    const indexInGroup = getIndexInGroup(rowId, parentGroupId);
+    let disposedRowIdList: RowId[] = [];
+    rowIdList.forEach(rowId => {
+      const signalItem = this.rowItems[rowId];
+      if (!signalItem) {return;}
+      let children: number[] = []
+      disposedRowIdList.push(rowId);
+      const parentGroupId = getParentGroupId(rowId);
+      const indexInGroup = getIndexInGroup(rowId, parentGroupId);
 
-    if (recursive) {
-      rowIdList = signalItem.getFlattenedRowIdList(false, -1)
-    } else if (signalItem instanceof SignalGroup) {
-      signalItem.collapseState = CollapseState.Expanded;
-      signalItem.showHideViewportRows()
-      children = signalItem.children;
-    }
-    if (parentGroupId === 0) {
-      viewerState.displayedSignals.splice(indexInGroup, 1, ...children);
-    } else if (parentGroupId && parentGroupId > 0) {
-      const parentGroupitem = this.rowItems[this.groupIdTable[parentGroupId]];
-      if (parentGroupitem instanceof SignalGroup) {
-        parentGroupitem.children.splice(indexInGroup, 1, ...children);
+      if (recursive) {
+        disposedRowIdList = signalItem.getFlattenedRowIdList(false, -1)
+      } else if (signalItem instanceof SignalGroup) {
+        signalItem.collapseState = CollapseState.Expanded;
+        signalItem.showHideViewportRows()
+        children = signalItem.children;
       }
-    }
+      if (parentGroupId === 0) {
+        viewerState.displayedSignals.splice(indexInGroup, 1, ...children);
+      } else if (parentGroupId && parentGroupId > 0) {
+        const parentGroupItem = this.rowItems[this.groupIdTable[parentGroupId]];
+        if (parentGroupItem instanceof SignalGroup) {
+          parentGroupItem.children.splice(indexInGroup, 1, ...children);
+        }
+      }
+    });
 
-    rowIdList.forEach((id: RowId) => {
+    disposedRowIdList.forEach((id: RowId) => {
       this.rowItems[id].dispose();
       delete this.rowItems[id];
     });
@@ -429,21 +432,21 @@ export class WaveformDataManager {
   updateEnumChunk(message: any) {
 
     const enumName = message.enumName;
-    if (this.emumTableTemp[enumName] === undefined || this.emumTableTemp[enumName].totalChunks === 0) {
-      this.emumTableTemp[enumName] = {
+    if (this.enumTableTemp[enumName] === undefined || this.enumTableTemp[enumName].totalChunks === 0) {
+      this.enumTableTemp[enumName] = {
         totalChunks: message.totalChunks,
         chunkLoaded: new Array(message.totalChunks).fill(false),
         chunkData:   new Array(message.totalChunks).fill(""),
       };
     }
 
-    this.emumTableTemp[enumName].chunkData[message.chunkNum]   = message.enumDataChunk;
-    this.emumTableTemp[enumName].chunkLoaded[message.chunkNum] = true;
-    const allChunksLoaded = this.emumTableTemp[enumName].chunkLoaded.every((chunk: any) => {return chunk;});
+    this.enumTableTemp[enumName].chunkData[message.chunkNum]   = message.enumDataChunk;
+    this.enumTableTemp[enumName].chunkLoaded[message.chunkNum] = true;
+    const allChunksLoaded = this.enumTableTemp[enumName].chunkLoaded.every((chunk: any) => {return chunk;});
 
     if (!allChunksLoaded) {return;}
 
-    const enumData = JSON.parse(this.emumTableTemp[enumName].chunkData.join(""));
+    const enumData = JSON.parse(this.enumTableTemp[enumName].chunkData.join(""));
 
     if (!this.requestActive) {
       outputLog("Enum Request time: " + (Date.now() - this.requestStart) / 1000 + " seconds");
@@ -559,7 +562,7 @@ export class WaveformDataManager {
 
   updateEnum(enumName: string, enumData: EnumEntry[]) {
     this.enumTable[enumName] = enumData;
-    this.emumTableTemp[enumName] = undefined;
+    this.enumTableTemp[enumName] = undefined;
 
     viewerState.displayedSignalsFlat.forEach((rowId) => {
       const netlistData = this.rowItems[rowId];
@@ -755,8 +758,8 @@ export class WaveformDataManager {
       }
 
       // Vertical scale
-      const isAnalong = data.isAnalogSignal();
-      if (message.verticalScale !== undefined && isAnalong) {
+      const isAnalog = data.isAnalogSignal();
+      if (message.verticalScale !== undefined && isAnalog) {
         data.verticalScale = message.verticalScale;
       }
 

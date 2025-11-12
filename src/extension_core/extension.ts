@@ -145,7 +145,7 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeSelectedNetlist', (e) => {
-    viewerProvider.removeSelectedSignalsFromDocument('netlist');
+    viewerProvider.removeSignalList(viewerProvider.netlistViewSelectedSignals);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeAllInScope', (e) => {

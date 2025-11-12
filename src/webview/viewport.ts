@@ -576,7 +576,7 @@ export class Viewport {
     this.updateSignalOrder();
   }
 
-  handleRemoveVariable(rowId: RowId, recursive: boolean) {
+  handleRemoveVariable(rowId: RowId[], recursive: boolean) {
 
     //updateDisplayedSignalsFlat();
     this.updateSignalOrder();

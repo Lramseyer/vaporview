@@ -222,6 +222,8 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
   private _onDidChangeTreeData: vscode.EventEmitter<NetlistItem | undefined> = new vscode.EventEmitter<NetlistItem | undefined>();
   readonly onDidChangeTreeData: vscode.Event<NetlistItem | undefined> = this._onDidChangeTreeData.event;
   private document: VaporviewDocument | undefined;
+  private lastClickedTreeItem: vscode.Uri | undefined = undefined;
+  private lastClickedTime: number = 0;
 
   public loadDocument(document: VaporviewDocument) {
     this.setTreeData(document.treeData);
@@ -252,6 +254,23 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
     return null;
   }
 
+  clickNetlistItem(uri: vscode.Uri, netlistId: number) {
+    const currentTime    = Date.now();
+    const deltaTime      = currentTime - this.lastClickedTime;
+    this.lastClickedTime = currentTime;
+    let newUri: vscode.Uri | undefined = uri;
+
+    if (deltaTime < 300 && uri === this.lastClickedTreeItem) {
+      if (!this.document) {return;}
+      if (uri.path !== this.document.uri.fsPath) {return;}
+
+      this.document.renderSignals([netlistId], undefined, undefined);
+      newUri = undefined;
+    }
+
+    this.lastClickedTreeItem = newUri;
+  }
+
   refresh(): void {this._onDidChangeTreeData.fire(undefined);}
 }
 
@@ -261,7 +280,8 @@ export class NetlistItem extends vscode.TreeItem {
   public numberFormat: string;
   public fsdbVarLoaded: boolean = false; // Only used in fsdb
   public resourceUri: vscode.Uri;
-  
+  public readonly command: vscode.Command;
+
   constructor(
     public readonly label:      string,
     public          paramValue: string,
@@ -296,6 +316,12 @@ export class NetlistItem extends vscode.TreeItem {
 
     this.setParamAndTooltip(paramValue);
     this.resourceUri = vscode.Uri.parse(`waveform://${uri.fsPath}#${fragmentId}&net=${fullName + name}`);
+    // vaporview.clickNetlistItem doesn't need to be registered in package.json, since it's internal
+    this.command = {
+      command: "vaporview.clickNetlistItem",
+      title: "Add to viewer",
+      arguments: [{uri: this.resourceUri, netlistId: this.netlistId}]
+    }
   }
 
   getFullName(): string {return (this.scopePath !== "") ? this.scopePath + "." + this.label : this.label;}

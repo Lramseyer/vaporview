@@ -96,6 +96,10 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.executeCommand('workbench.view.extension.vaporView');
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.clickNetlistItem', (e) => {
+    viewerProvider.netlistTreeDataProvider.clickNetlistItem(e.uri, e.netlistId);
+  }));
+
   // Add or remove signal commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.addVariableByInstancePath', (e) => {
     viewerProvider.addVariableByInstancePathToDocument(e);

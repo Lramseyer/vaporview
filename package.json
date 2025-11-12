@@ -66,6 +66,12 @@
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "waveformViewerNetlistView",
+        "contents": "Open a VCD, FST, or GHW file to view the netlist."
+      }
+    ],
     "languages": [
       {
         "id": "wavedump",

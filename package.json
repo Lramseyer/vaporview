@@ -201,7 +201,7 @@
         },
         "vaporview.wcp.port": {
           "type": "number",
-          "default": 0,
+          "default": 54322,
           "minimum": 0,
           "maximum": 65535,
           "scope": "application",
@@ -1154,17 +1154,17 @@
       {
         "command": "vaporview.wcp.start",
         "title": "WCP: Start Server",
-        "category": "VaporView"
+        "category": "Vaporview"
       },
       {
         "command": "vaporview.wcp.stop",
         "title": "WCP: Stop Server",
-        "category": "VaporView"
+        "category": "Vaporview"
       },
       {
         "command": "vaporview.wcp.status",
         "title": "WCP: Show Status",
-        "category": "VaporView"
+        "category": "Vaporview"
       }
     ]
   },

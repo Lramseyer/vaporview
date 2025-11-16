@@ -42,7 +42,7 @@ export class WCPServer {
   constructor(
     viewerProvider: WaveformViewerProvider,
     context: vscode.ExtensionContext,
-    port: number = 0 // 0 means auto-assign
+    port: number = 54322 // 0 means auto-assign
   ) {
     this.viewerProvider = viewerProvider;
     this.context = context;

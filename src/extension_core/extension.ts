@@ -30,8 +30,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Initialize WCP Server
   let wcpServer: WCPServer | null = null;
+  const wcpDefaultPort = 54322;
   const wcpEnabled = vscode.workspace.getConfiguration('vaporview').get<boolean>('wcp.enabled', false);
-  const wcpPort = vscode.workspace.getConfiguration('vaporview').get<number>('wcp.port', 0);
+  const wcpPort = vscode.workspace.getConfiguration('vaporview').get<number>('wcp.port', wcpDefaultPort);
   
   if (wcpEnabled) {
     wcpServer = new WCPServer(viewerProvider, context, wcpPort);
@@ -46,7 +47,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.workspace.onDidChangeConfiguration((e) => {
     if (e.affectsConfiguration('vaporview.wcp.enabled') || e.affectsConfiguration('vaporview.wcp.port')) {
       const newEnabled = vscode.workspace.getConfiguration('vaporview').get<boolean>('wcp.enabled', false);
-      const newPort = vscode.workspace.getConfiguration('vaporview').get<number>('wcp.port', 0);
+      const newPort = vscode.workspace.getConfiguration('vaporview').get<number>('wcp.port', wcpDefaultPort);
       
       if (newEnabled && !wcpServer) {
         wcpServer = new WCPServer(viewerProvider, context, newPort);
@@ -531,12 +532,11 @@ export async function activate(context: vscode.ExtensionContext) {
       return;
     }
     
-    const port = vscode.workspace.getConfiguration('vaporview').get<number>('wcp.port', 0);
+    const port = vscode.workspace.getConfiguration('vaporview').get<number>('wcp.port', wcpDefaultPort);
     wcpServer = new WCPServer(viewerProvider, context, port);
     try {
       const actualPort = await wcpServer.start();
       vscode.window.showInformationMessage(`WCP server started on port ${actualPort}`);
-      await vscode.workspace.getConfiguration('vaporview').update('wcp.enabled', true, vscode.ConfigurationTarget.Global);
     } catch (error: any) {
       vscode.window.showErrorMessage(`Failed to start WCP server: ${error.message}`);
       wcpServer = null;

@@ -368,7 +368,7 @@ export class WCPServer {
       await vscode.commands.executeCommand('waveformViewer.addVariable', args);
     }
 
-    // TODO: Return the IDs for added items
+    // TODO(heyfey): Return the IDs for added items
     return { ids: [] };
   }
 
@@ -419,17 +419,14 @@ export class WCPServer {
     };
   }
 
-  // TODO: displayedSignals does not work now
   private async handleGetItemList(params: any): Promise<any> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
     }
 
-    // Extract netlist IDs from displayed signals
-    const ids = document.displayedSignals.map((item: any) => item.netlistId);
-
-    console.log(document.webviewContext.displayedSignals);
+    // Extract netlist IDs from displayed signals via webview context
+    const ids = document.getDisplayedNetlistIds();
 
     // Return get_item_list response (WCP spec format)
     return {
@@ -475,18 +472,10 @@ export class WCPServer {
       throw new Error('Cannot set color for scope items');
     }
 
-    // TODO: displayedSignals does not work now
-    // // Check if the signal is displayed
-    // let isDisplayed = false;
-    // document.displayedSignals.forEach((element: any) => {
-    //   if (element.netlistId === netlistId) {
-    //     isDisplayed = true;
-    //   }
-    // });
-
-    // if (!isDisplayed) {
-    //   throw new Error(`Signal is not displayed: ${netlistId}`);
-    // }
+    // Require that the signal is currently displayed
+    if (!document.isSignalDisplayed(netlistId)) {
+      throw new Error(`Signal is not displayed: ${netlistId}`);
+    }
 
     // Map color name to colorIndex
     // Supported colors: green, orange, blue, purple, custom1, custom2, custom3, custom4
@@ -553,19 +542,11 @@ export class WCPServer {
         continue;
       }
 
-      // TODO: displayedSignals does not work now
-      // // Check if the signal is displayed before trying to remove it
-      // let isDisplayed = false;
-      // document.displayedSignals.forEach((element: any) => {
-      //   if (element.netlistId === netlistId) {
-      //     isDisplayed = true;
-      //   }
-      // });
-
-      // if (!isDisplayed) {
-      //   // Signal not displayed, skip it (don't throw error)
-      //   continue;
-      // }
+      // Check if the signal is displayed before trying to remove it
+      if (!document.isSignalDisplayed(netlistId)) {
+        // Signal not displayed, skip it (don't throw error)
+        continue;
+      }
 
       // Remove the signal using the document's uri
       const args: any = {
@@ -609,18 +590,10 @@ export class WCPServer {
       throw new Error(`Item not found: ${netlistId}`);
     }
 
-    // TODO: displayedSignals does not work now
-    // // Check if the signal is displayed - error if not displayed
-    // let isDisplayed = false;
-    // document.displayedSignals.forEach((element: any) => {
-    //   if (element.netlistId === netlistId) {
-    //     isDisplayed = true;
-    //   }
-    // });
-
-    // if (!isDisplayed) {
-    //   throw new Error(`Signal is not displayed: ${netlistId}`);
-    // }
+    // Check if the signal is displayed - error if not displayed
+    if (!document.isSignalDisplayed(netlistId)) {
+      throw new Error(`Signal is not displayed: ${netlistId}`);
+    }
 
     // Reveal the signal in the webview
     document.revealSignalInWebview(netlistId);
@@ -983,8 +956,6 @@ export class WCPServer {
       zoom_ratio: state.zoomRatio,
       scroll_left: state.scrollLeft,
       displayed_signals: state.displayedSignals?.map((sig: any) => ({
-        netlist_id: sig.netlistId,
-        instance_path: sig.instancePath,
         name: sig.name
       })) || []
     };

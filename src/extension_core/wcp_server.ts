@@ -392,13 +392,10 @@ export class WCPServer {
       }
 
       // Get the item from netlistIdTable
-      const netlistRef = document.netlistIdTable[netlistId];
-
-      if (!netlistRef || !netlistRef.netlistItem) {
+      const item = document.netlistIdTable[netlistId];
+      if (!item) {
         throw new Error(`Item not found: ${netlistId}`);
       }
-
-      const item = netlistRef.netlistItem;
 
       // Get the full instance path as the name using the helper function
       const instancePath = getInstancePath(item);
@@ -459,13 +456,10 @@ export class WCPServer {
     const uri = document.uri;
 
     // Get the item from netlistIdTable
-    const netlistRef = document.netlistIdTable[netlistId];
-
-    if (!netlistRef || !netlistRef.netlistItem) {
+    const item = document.netlistIdTable[netlistId];
+    if (!item) {
       throw new Error(`Item not found: ${netlistId}`);
     }
-
-    const item = netlistRef.netlistItem;
 
     // Check if it's a signal (only signals can have colors)
     if (item.contextValue === 'netlistScope') {
@@ -584,9 +578,8 @@ export class WCPServer {
     const uri = document.uri;
 
     // Get the item from netlistIdTable
-    const netlistRef = document.netlistIdTable[netlistId];
-
-    if (!netlistRef || !netlistRef.netlistItem) {
+    const item = document.netlistIdTable[netlistId];
+    if (!item) {
       throw new Error(`Item not found: ${netlistId}`);
     }
 

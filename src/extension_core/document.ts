@@ -376,14 +376,19 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     const instancePaths = collectNames(ctxList);
     if (instancePaths.length === 0) {return [];}
 
+    // Use a set to store the instance paths. This is because fsdb somehow might
+    // has more than one netlistId for the same instance path. Which might be a bug in fsdb.
+    // TODO(heyfey): debug this and remove this set if it is not needed.
+    const instancePathSet = new Set(instancePaths);
+
     const result: NetlistId[] = [];
-    for (const [netlistIdStr, ref] of Object.entries(this._netlistIdTable)) {
+    for (const [netlistIdStr, item] of Object.entries(this._netlistIdTable)) {
       const netlistId = Number(netlistIdStr) as NetlistId;
-      const item = ref?.netlistItem;
-      if (!item) {continue;}
       const instancePath = getInstancePath(item);
-      if (instancePaths.includes(instancePath)) {
+      if (instancePathSet.has(instancePath)) {
         result.push(netlistId);
+        // Remove the instance path from the set to avoid duplicates.
+        instancePathSet.delete(instancePath);
       }
     }
 

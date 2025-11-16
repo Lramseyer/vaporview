@@ -4,8 +4,9 @@
 
 import * as net from 'net';
 import * as vscode from 'vscode';
-import { WaveformViewerProvider } from './viewer_provider';
+import { WaveformViewerProvider, scaleFromUnits } from './viewer_provider';
 import { VaporviewDocument } from './document';
+import { getInstancePath } from './tree_view';
 
 export interface WCPCommand {
   method: string;
@@ -29,6 +30,7 @@ interface WCPConnection {
   remoteAddress: string;
 }
 
+// #region WCPServer
 export class WCPServer {
   private server: net.Server | null = null;
   private port: number;
@@ -165,7 +167,7 @@ export class WCPServer {
     } catch (error: any) {
       this.viewerProvider.log.appendLine(`WCP server error parsing message from ${connection.remoteAddress}: ${error.message}`);
       this.viewerProvider.log.appendLine(`Message: ${message}`);
-      
+
       // Send error response if we can parse the ID
       try {
         const parsed = JSON.parse(message);
@@ -190,28 +192,91 @@ export class WCPServer {
     }
   }
 
+  // #region handleCommand
   private async handleCommand(command: WCPCommand): Promise<WCPResponse> {
     try {
       let result: any = null;
 
       switch (command.method) {
+        // Standard WCP commands
         case 'greeting':
           result = await this.handleGreeting(command.params);
           break;
+        case 'add_items':
+          result = await this.handleAddItems(command.params);
+          break;
+        case 'get_item_info':
+          result = await this.handleGetItemInfo(command.params);
+          break;
+        case 'get_item_list':
+          result = await this.handleGetItemList(command.params);
+          break;
+        case 'set_item_color':
+          result = await this.handleSetItemColor(command.params);
+          break;
+        case 'add_markers':
+          this.viewerProvider.log.appendLine('WCP: add_markers command requested but not yet implemented');
+          return {
+            error: {
+              code: -32601,
+              message: 'Method not yet implemented: add_markers'
+            },
+            id: command.id
+          };
+        case 'remove_items':
+          result = await this.handleRemoveItems(command.params);
+          break;
+        case 'focus_item':
+          result = await this.handleFocusItem(command.params);
+          break;
+        case 'set_viewport_to':
+          result = await this.handleSetViewportTo(command.params);
+          break;
+        case 'set_viewport_range':
+          result = await this.handleSetViewportRange(command.params);
+          break;
+        case 'zoom_to_fit':
+          result = await this.handleZoomToFit(command.params);
+          break;
+        case 'load':
+          result = await this.handleLoad(command.params);
+          break;
+        case 'reload':
+          result = await this.handleReload(command.params);
+          break;
+        case 'clear':
+          this.viewerProvider.log.appendLine('WCP: clear command requested but not yet implemented');
+          return {
+            error: {
+              code: -32601,
+              message: 'Method not yet implemented: clear'
+            },
+            id: command.id
+          };
+        case 'shutdown':
+          result = await this.handleShutdown(command.params);
+          break;
+
+        // Deprecated WCP commands
+        case 'add_variables':
+          result = await this.handleAddVariables(command.params);
+          break;
+        case 'add_scope':
+          this.viewerProvider.log.appendLine('WCP: add_scope command requested but not yet implemented');
+          return {
+            error: {
+              code: -32601,
+              message: 'Method not yet implemented: add_scope'
+            },
+            id: command.id
+          };
+
+        // VaporView-specific commands
         case 'get_capabilities':
           result = await this.handleGetCapabilities();
           break;
         case 'open_document':
           result = await this.handleOpenDocument(command.params);
-          break;
-        case 'close_document':
-          result = await this.handleCloseDocument(command.params);
-          break;
-        case 'get_signals':
-          result = await this.handleGetSignals(command.params);
-          break;
-        case 'get_hierarchy':
-          result = await this.handleGetHierarchy(command.params);
           break;
         case 'add_signal':
           result = await this.handleAddSignal(command.params);
@@ -233,12 +298,6 @@ export class WCPServer {
           break;
         case 'get_open_documents':
           result = await this.handleGetOpenDocuments();
-          break;
-        case 'navigate_time':
-          result = await this.handleNavigateTime(command.params);
-          break;
-        case 'get_signal_info':
-          result = await this.handleGetSignalInfo(command.params);
           break;
         default:
           return {
@@ -265,33 +324,566 @@ export class WCPServer {
     }
   }
 
+  // #region Standard WCP command handlers
+  private async handleGreeting(params: any): Promise<any> {
+    // Greeting command - initial handshake
+    // Returns server information, protocol version, and capabilities
+    return {
+      name: 'VaporView',
+      version: '1.4.3',
+      protocol: 'WCP',
+      protocol_version: '0',
+      capabilities: await this.getCapabilitiesList()
+    };
+  }
+
+  private async handleAddItems(params: any): Promise<any> {
+    const document = this.getDocumentFromParams(params);
+    if (!document) {
+      throw new Error('No active document');
+    }
+
+    if (!params.items || !Array.isArray(params.items)) {
+      throw new Error('items array is required');
+    }
+
+    if (params.items.length === 0) {
+      return { ids: [] };
+    }
+
+    const recursive = params.recursive === true;
+
+    // Add each item - process sequentially to ensure proper state tracking
+    for (const itemPath of params.items) {
+      const args: any = {
+        uri: document.uri.toString()
+      };
+
+      if (typeof itemPath !== 'string') {
+        throw new Error('Item path must be a string');
+      }
+      args.instancePath = itemPath;
+      if (recursive) args.recursive = true;
+
+      await vscode.commands.executeCommand('waveformViewer.addVariable', args);
+    }
+
+    // TODO: Return the IDs for added items
+    return { ids: [] };
+  }
+
+  private async handleGetItemInfo(params: any): Promise<any> {
+    const document = this.getDocumentFromParams(params);
+    if (!document) {
+      throw new Error('No active document');
+    }
+
+    if (!params.ids || !Array.isArray(params.ids)) {
+      throw new Error('ids array is required');
+    }
+
+    // Process each ID in order and build results array
+    const results: any[] = [];
+
+    for (const netlistId of params.ids) {
+      // Validate netlist ID
+      if (netlistId === undefined || netlistId === null || typeof netlistId !== 'number') {
+        throw new Error(`Invalid netlist ID: ${netlistId}`);
+      }
+
+      // Get the item from netlistIdTable
+      const netlistRef = document.netlistIdTable[netlistId];
+
+      if (!netlistRef || !netlistRef.netlistItem) {
+        throw new Error(`Item not found: ${netlistId}`);
+      }
+
+      const item = netlistRef.netlistItem;
+
+      // Get the full instance path as the name using the helper function
+      const instancePath = getInstancePath(item);
+
+      // Build ItemInfo
+      results.push({
+        name: instancePath,
+        type: item.type,
+        id: netlistId
+      });
+    }
+
+    // Return get_item_info response (WCP spec format)
+    return {
+      type: "response",
+      command: "get_item_info",
+      results: results
+    };
+  }
+
+  // TODO: displayedSignals does not work now
+  private async handleGetItemList(params: any): Promise<any> {
+    const document = this.getDocumentFromParams(params);
+    if (!document) {
+      throw new Error('No active document');
+    }
+
+    // Extract netlist IDs from displayed signals
+    const ids = document.displayedSignals.map((item: any) => item.netlistId);
+
+    console.log(document.webviewContext.displayedSignals);
+
+    // Return get_item_list response (WCP spec format)
+    return {
+      type: "response",
+      command: "get_item_list",
+      ids: ids
+    };
+  }
+
+  private async handleSetItemColor(params: any): Promise<any> {
+    const document = this.getDocumentFromParams(params);
+    if (!document) {
+      throw new Error('No active document');
+    }
+
+    if (params.id === undefined || params.id === null) {
+      throw new Error('id (netlist ID) parameter is required');
+    }
+
+    if (!params.color) {
+      throw new Error('color parameter is required');
+    }
+
+    // Validate id is a number (netlist ID)
+    if (typeof params.id !== 'number') {
+      throw new Error('id must be a number (netlist ID)');
+    }
+
+    const netlistId = params.id;
+    const uri = document.uri;
+
+    // Get the item from netlistIdTable
+    const netlistRef = document.netlistIdTable[netlistId];
+
+    if (!netlistRef || !netlistRef.netlistItem) {
+      throw new Error(`Item not found: ${netlistId}`);
+    }
+
+    const item = netlistRef.netlistItem;
+
+    // Check if it's a signal (only signals can have colors)
+    if (item.contextValue === 'netlistScope') {
+      throw new Error('Cannot set color for scope items');
+    }
+
+    // TODO: displayedSignals does not work now
+    // // Check if the signal is displayed
+    // let isDisplayed = false;
+    // document.displayedSignals.forEach((element: any) => {
+    //   if (element.netlistId === netlistId) {
+    //     isDisplayed = true;
+    //   }
+    // });
+
+    // if (!isDisplayed) {
+    //   throw new Error(`Signal is not displayed: ${netlistId}`);
+    // }
+
+    // Map color name to colorIndex
+    // Supported colors: green, orange, blue, purple, custom1, custom2, custom3, custom4
+    // See: src/webview/viewport.ts for the colorKey array
+    const colorMap: { [key: string]: number } = {
+      'green': 0,
+      'orange': 1,
+      'blue': 2,
+      'purple': 3,
+      'custom1': 4,
+      'custom2': 5,
+      'custom3': 6,
+      'custom4': 7
+    };
+
+    const colorIndex = colorMap[params.color.toLowerCase()];
+
+    // If color is invalid, do nothing (no error, just return ack)
+    if (colorIndex === undefined) {
+      // Invalid color - do nothing, return ack as per spec
+      return {
+        type: "response",
+        command: "ack",
+        uri: uri.toString()
+      };
+    }
+
+    // Set the color using setValueFormat
+    this.viewerProvider.setValueFormat(netlistId, { colorIndex: colorIndex });
+
+    // Return ack response with uri (WCP spec format)
+    return {
+      type: "response",
+      command: "ack",
+      uri: uri.toString()
+    };
+  }
+
+  private async handleRemoveItems(params: any): Promise<any> {
+    const document = this.getDocumentFromParams(params);
+    if (!document) {
+      throw new Error('No active document');
+    }
+
+    if (!params.ids || !Array.isArray(params.ids)) {
+      throw new Error('ids array is required');
+    }
+
+    const uri = document.uri;
+
+    if (params.ids.length === 0) {
+      // Return ack response with uri (WCP spec format)
+      return {
+        type: "response",
+        command: "ack",
+        uri: uri.toString()
+      };
+    }
+
+    // Remove each item by netlist ID - process sequentially to ensure proper state tracking
+    for (const netlistId of params.ids) {
+      // Skip invalid IDs (don't throw error, just continue)
+      if (netlistId === undefined || netlistId === null || typeof netlistId !== 'number') {
+        continue;
+      }
+
+      // TODO: displayedSignals does not work now
+      // // Check if the signal is displayed before trying to remove it
+      // let isDisplayed = false;
+      // document.displayedSignals.forEach((element: any) => {
+      //   if (element.netlistId === netlistId) {
+      //     isDisplayed = true;
+      //   }
+      // });
+
+      // if (!isDisplayed) {
+      //   // Signal not displayed, skip it (don't throw error)
+      //   continue;
+      // }
+
+      // Remove the signal using the document's uri
+      const args: any = {
+        uri: uri.toString(),
+        netlistId: netlistId
+      };
+
+      await vscode.commands.executeCommand('waveformViewer.removeVariable', args);
+    }
+
+    // Return ack response with uri (WCP spec format)
+    return {
+      type: "response",
+      command: "ack",
+      uri: uri.toString()
+    };
+  }
+
+  private async handleFocusItem(params: any): Promise<any> {
+    const document = this.getDocumentFromParams(params);
+    if (!document) {
+      throw new Error('No active document');
+    }
+
+    if (params.id === undefined || params.id === null) {
+      throw new Error('id (netlist ID) parameter is required');
+    }
+
+    // Validate id is a number (netlist ID)
+    if (typeof params.id !== 'number') {
+      throw new Error('id must be a number (netlist ID)');
+    }
+
+    const netlistId = params.id;
+    const uri = document.uri;
+
+    // Get the item from netlistIdTable
+    const netlistRef = document.netlistIdTable[netlistId];
+
+    if (!netlistRef || !netlistRef.netlistItem) {
+      throw new Error(`Item not found: ${netlistId}`);
+    }
+
+    // TODO: displayedSignals does not work now
+    // // Check if the signal is displayed - error if not displayed
+    // let isDisplayed = false;
+    // document.displayedSignals.forEach((element: any) => {
+    //   if (element.netlistId === netlistId) {
+    //     isDisplayed = true;
+    //   }
+    // });
+
+    // if (!isDisplayed) {
+    //   throw new Error(`Signal is not displayed: ${netlistId}`);
+    // }
+
+    // Reveal the signal in the webview
+    document.revealSignalInWebview(netlistId);
+
+    // Return ack response with uri (WCP spec format)
+    return {
+      type: "response",
+      command: "ack",
+      uri: uri.toString()
+    };
+  }
+
+  private async handleSetViewportTo(params: any): Promise<any> {
+    const document = this.getDocumentFromParams(params);
+    if (!document) {
+      throw new Error('No active document');
+    }
+
+    if (params.timestamp === undefined) {
+      throw new Error('time parameter is required');
+    }
+
+    const uri = document.uri;
+
+    // Convert time units if provided, using the same logic as setMarkerAtTimeWithUnits
+    let time = params.timestamp;
+    if (params.units) {
+      const metadata = document.metadata;
+      const timeScale = metadata.timeScale;
+      const timeUnit = scaleFromUnits(metadata.timeUnit);
+
+      if (!timeScale || !timeUnit) {
+        throw new Error('Document metadata missing timeScale or timeUnit');
+      }
+
+      const scaleFactor = scaleFromUnits(params.units) / (timeUnit * timeScale);
+      time = Math.round(time * scaleFactor);
+    }
+
+    // Check time bounds (same logic as setMarkerAtTime)
+    const timeEnd = document.metadata.timeEnd;
+    if (time < 0 || time > timeEnd) {
+      throw new Error(`Time ${time} is out of bounds (0 to ${timeEnd})`);
+    }
+
+    // Send message to webview to scroll viewport to the specified time
+    if (document.webviewPanel) {
+      document.webviewPanel.webview.postMessage({
+        command: 'setViewportTo',
+        time: time
+      });
+    } else {
+      throw new Error('Webview not available');
+    }
+
+    // Return ack response with uri (WCP spec format)
+    return {
+      type: "response",
+      command: "ack",
+      uri: uri.toString()
+    };
+  }
+
+  private async handleSetViewportRange(params: any): Promise<any> {
+    const document = this.getDocumentFromParams(params);
+    if (!document) {
+      throw new Error('No active document');
+    }
+
+    if (params.start === undefined || params.end === undefined) {
+      throw new Error('start and end parameters are required');
+    }
+
+    const uri = document.uri;
+
+    // Convert time units if provided, using the same logic as setMarkerAtTimeWithUnits
+    let startTime = params.start;
+    let endTime = params.end;
+
+    if (params.units) {
+      const metadata = document.metadata;
+      const timeScale = metadata.timeScale;
+      const timeUnit = scaleFromUnits(metadata.timeUnit);
+
+      if (!timeScale || !timeUnit) {
+        throw new Error('Document metadata missing timeScale or timeUnit');
+      }
+
+      const scaleFactor = scaleFromUnits(params.units) / (timeUnit * timeScale);
+      startTime = Math.round(startTime * scaleFactor);
+      endTime = Math.round(endTime * scaleFactor);
+    }
+
+    // Check time bounds
+    const timeEnd = document.metadata.timeEnd;
+    if (startTime < 0 || endTime > timeEnd || startTime >= endTime) {
+      throw new Error(`Invalid time range: start_time ${startTime} to end_time ${endTime} (valid range: 0 to ${timeEnd})`);
+    }
+
+    // Send message to webview to set viewport range
+    if (document.webviewPanel) {
+      document.webviewPanel.webview.postMessage({
+        command: 'setViewportRange',
+        startTime: startTime,
+        endTime: endTime
+      });
+    } else {
+      throw new Error('Webview not available');
+    }
+
+    // Return ack response with uri (WCP spec format)
+    return {
+      type: "response",
+      command: "ack",
+      uri: uri.toString()
+    };
+  }
+
+  private async handleZoomToFit(params: any): Promise<any> {
+    const document = this.getDocumentFromParams(params);
+    if (!document) {
+      throw new Error('No active document');
+    }
+
+    const uri = document.uri;
+
+    // Zoom to fit using the existing command
+    await vscode.commands.executeCommand('vaporview.zoomToFit', { uri: uri });
+
+    // Return ack response with uri (WCP spec format)
+    return {
+      type: "response",
+      command: "ack",
+      uri: uri.toString()
+    };
+  }
+
+  private async handleLoad(params: any): Promise<any> {
+    // load is an alias for open_document - both return ack response
+    return this.loadDocumentAndReturnAck(params);
+  }
+
+  private async handleReload(params: any): Promise<any> {
+    const document = this.getDocumentFromParams(params);
+    if (!document) {
+      throw new Error('No active document to reload');
+    }
+
+    const uri = document.uri;
+
+    // Reload the document
+    await vscode.commands.executeCommand('vaporview.reloadFile', uri);
+
+    // Return ack response with uri (WCP spec format)
+    return {
+      type: "response",
+      command: "ack",
+      uri: uri.toString()
+    };
+  }
+
+  private async handleShutdown(params: any): Promise<any> {
+    const document = this.getDocumentFromParams(params);
+    if (!document) {
+      throw new Error('No active document');
+    }
+
+    const uri = document.uri;
+
+    // Close the document by closing its editor
+    // Find all editors for this document and close them
+    const tabs = vscode.window.tabGroups.all
+      .flatMap(group => group.tabs)
+      .filter(tab => {
+        const input = tab.input;
+        if (input instanceof vscode.TabInputCustom) {
+          return (input as any).uri?.toString() === uri.toString();
+        }
+        return false;
+      });
+
+    // Close all tabs for this document
+    for (const tab of tabs) {
+      await vscode.window.tabGroups.close(tab);
+    }
+
+    // Return ack response with uri (WCP spec format)
+    return {
+      type: "response",
+      command: "ack",
+      uri: uri.toString()
+    };
+  }
+
+  // #region Deprecated WCP command handlers
+  private async handleAddVariables(params: any): Promise<any> {
+    // Deprecated command - maps to add_items functionality
+    const document = this.getDocumentFromParams(params);
+    if (!document) {
+      throw new Error('No active document');
+    }
+
+    if (!params.variables || !Array.isArray(params.variables)) {
+      throw new Error('variables array is required');
+    }
+
+    if (params.variables.length === 0) {
+      return { success: true, added_count: 0 };
+    }
+
+    // Add each variable - process sequentially
+    let addedCount = 0;
+    for (const variable of params.variables) {
+      // Apply recursive flag from params if not specified in variable
+      const variableWithRecursive = { ...variable };
+      if (params.recursive !== undefined && variableWithRecursive.recursive === undefined) {
+        variableWithRecursive.recursive = params.recursive;
+      }
+
+      const args = this.buildAddVariableArgs(variableWithRecursive, document.uri.toString());
+      if (!args) {
+        // Skip invalid variables but continue processing others
+        continue;
+      }
+
+      try {
+        await vscode.commands.executeCommand('waveformViewer.addVariable', args);
+        addedCount++;
+      } catch (error: any) {
+        // Log error but continue processing other variables
+        this.viewerProvider.log.appendLine(`WCP: Error adding variable: ${error.message}`);
+      }
+    }
+
+    return { success: true, added_count: addedCount };
+  }
+
+  // #region VaporView-specific command handlers
+  private async handleGetCapabilities(): Promise<any> {
+    // Get server capabilities
+    return {
+      capabilities: await this.getCapabilitiesList()
+    };
+  }
+
+  private async handleOpenDocument(params: any): Promise<any> {
+    return this.loadDocumentAndReturnAck(params);
+  }
+
   private async handleAddSignal(params: any): Promise<any> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
     }
 
-    // Map WCP params to Vaporview API
-    const args: any = {
-      uri: params.uri ? vscode.Uri.parse(params.uri) : undefined
-    };
-
-    if (params.netlist_id !== undefined) {
-      args.netlistId = params.netlist_id;
-    } else if (params.instance_path) {
-      args.instancePath = params.instance_path;
-    } else if (params.scope_path && params.name) {
-      args.scopePath = params.scope_path;
-      args.name = params.name;
-    } else {
+    // Map WCP params to Vaporview API using helper function
+    const args = this.buildAddVariableArgs(params, document.uri.toString());
+    if (!args) {
       throw new Error('Signal must be specified with netlist_id, instance_path, or scope_path+name');
     }
 
-    if (params.msb !== undefined) args.msb = params.msb;
-    if (params.lsb !== undefined) args.lsb = params.lsb;
-
     await vscode.commands.executeCommand('waveformViewer.addVariable', args);
-    
+
     return { success: true };
   }
 
@@ -302,7 +894,7 @@ export class WCPServer {
     }
 
     const args: any = {
-      uri: params.uri ? vscode.Uri.parse(params.uri) : undefined
+      uri: document.uri.toString()
     };
 
     if (params.netlist_id !== undefined) {
@@ -317,7 +909,7 @@ export class WCPServer {
     }
 
     await vscode.commands.executeCommand('waveformViewer.removeVariable', args);
-    
+
     return { success: true };
   }
 
@@ -332,14 +924,14 @@ export class WCPServer {
     }
 
     const args: any = {
-      uri: params.uri ? vscode.Uri.parse(params.uri) : undefined,
+      uri: document.uri.toString(),
       time: params.time,
       units: params.units,
       markerType: params.marker_type || 0 // 0 = main marker, 1 = alt marker
     };
 
     await vscode.commands.executeCommand('waveformViewer.setMarker', args);
-    
+
     return { success: true };
   }
 
@@ -350,7 +942,7 @@ export class WCPServer {
     }
 
     const state: any = await vscode.commands.executeCommand('waveformViewer.getViewerState', {
-      uri: params.uri ? vscode.Uri.parse(params.uri) : undefined
+      uri: document.uri.toString()
     });
 
     if (!state) {
@@ -375,7 +967,7 @@ export class WCPServer {
     }
 
     const state: any = await vscode.commands.executeCommand('waveformViewer.getViewerState', {
-      uri: params.uri ? vscode.Uri.parse(params.uri) : undefined
+      uri: document.uri.toString()
     });
 
     if (!state) {
@@ -409,29 +1001,26 @@ export class WCPServer {
     }
 
     const args: any = {
-      uri: params.uri ? vscode.Uri.parse(params.uri) : undefined,
+      uri: document.uri.toString(),
       time: params.time,
       instancePaths: params.instance_paths
     };
 
     const values: any = await vscode.commands.executeCommand('waveformViewer.getValuesAtTime', args);
-    
+
     if (!values || !Array.isArray(values)) {
       return [];
     }
 
-    // Transform to WCP format
     return values.map((v: any) => ({
       instance_path: v.instancePath,
       value: v.value,
-      previous_value: v.value.length > 1 ? v.value[0] : undefined,
-      current_value: v.value.length > 0 ? v.value[v.value.length - 1] : undefined
     }));
   }
 
   private async handleGetOpenDocuments(): Promise<any> {
     const docs: any = await vscode.commands.executeCommand('waveformViewer.getOpenDocuments');
-    
+
     if (!docs) {
       return { documents: [], last_active_document: null };
     }
@@ -442,126 +1031,40 @@ export class WCPServer {
     };
   }
 
-  private async handleNavigateTime(params: any): Promise<any> {
-    const document = this.getDocumentFromParams(params);
-    if (!document) {
-      throw new Error('No active document');
-    }
-
-    if (params.direction === undefined) {
-      throw new Error('direction parameter is required (next_edge, previous_edge, or time_value)');
-    }
-
-    // For time navigation, we'll use the set_marker command
-    if (params.direction === 'time_value' && params.time !== undefined) {
-      return this.handleSetMarker({
-        uri: params.uri,
-        time: params.time,
-        units: params.units
-      });
-    }
-
-    // For edge navigation, we need to use key bindings
-    // This is a simplified implementation - actual edge detection would require more complex logic
-    const webviews = Array.from(this.viewerProvider['webviews'].get(document.uri));
-    if (webviews.length > 0) {
-      const panel = webviews[0];
-      if (params.direction === 'next_edge') {
-        await vscode.commands.executeCommand('vaporview.nextEdge', { uri: document.uri });
-      } else if (params.direction === 'previous_edge') {
-        await vscode.commands.executeCommand('vaporview.previousEdge', { uri: document.uri });
-      }
-    }
-
-    return { success: true };
-  }
-
-  private async handleGetSignalInfo(params: any): Promise<any> {
-    const document = this.getDocumentFromParams(params);
-    if (!document) {
-      throw new Error('No active document');
-    }
-
-    let netlistId: number | undefined;
-    
-    if (params.netlist_id !== undefined) {
-      netlistId = params.netlist_id;
-    } else if (params.instance_path) {
-      // Try to find netlistId from instance path
-      const netlistItem = await document.findTreeItem(params.instance_path, undefined, undefined);
-      if (netlistItem) {
-        netlistId = netlistItem.netlistId;
-      }
-    }
-
-    if (netlistId === undefined) {
-      throw new Error('Could not find signal');
-    }
-
-    const netlistIdRef = document.netlistIdTable[netlistId];
-    if (!netlistIdRef) {
-      throw new Error('Signal not found');
-    }
-
-    const item = netlistIdRef.netlistItem;
-    
-    return {
-      netlist_id: netlistId,
-      instance_path: item.scopePath ? `${item.scopePath}.${item.name}` : item.name,
-      scope_path: item.scopePath || '',
-      name: item.name,
-      type: item.type,
-      width: item.width || 0,
-      encoding: item.encoding || 'none'
+  // #region Helper functions
+  private buildAddVariableArgs(variable: any, uri: string): any {
+    // Helper function to build args for addVariable command from a variable/signal object
+    const args: any = {
+      uri: uri
     };
+
+    if (variable.netlist_id !== undefined) {
+      args.netlistId = variable.netlist_id;
+    } else if (variable.instance_path) {
+      args.instancePath = variable.instance_path;
+    } else if (variable.scope_path && variable.name) {
+      args.scopePath = variable.scope_path;
+      args.name = variable.name;
+    } else {
+      return null; // Invalid variable specification
+    }
+
+    if (variable.msb !== undefined) args.msb = variable.msb;
+    if (variable.lsb !== undefined) args.lsb = variable.lsb;
+    if (variable.recursive !== undefined) args.recursive = variable.recursive;
+
+    return args;
   }
 
-  private async handleGreeting(params: any): Promise<any> {
-    // Greeting command - initial handshake
-    // Returns server information, protocol version, and capabilities
-    return {
-      name: 'VaporView',
-      version: '1.4.3',
-      protocol: 'WCP',
-      protocol_version: '1.0',
-      capabilities: await this.getCapabilitiesList()
-    };
-  }
-
-  private async handleGetCapabilities(): Promise<any> {
-    // Get server capabilities
-    return {
-      capabilities: await this.getCapabilitiesList()
-    };
-  }
-
-  private async getCapabilitiesList(): Promise<string[]> {
-    return [
-      'greeting',
-      'get_capabilities',
-      'open_document',
-      'close_document',
-      'get_open_documents',
-      'get_signals',
-      'get_hierarchy',
-      'add_signal',
-      'remove_signal',
-      'get_signal_info',
-      'set_marker',
-      'get_marker',
-      'get_viewer_state',
-      'get_values_at_time',
-      'navigate_time'
-    ];
-  }
-
-  private async handleOpenDocument(params: any): Promise<any> {
+  private async loadDocumentAndReturnAck(params: any): Promise<any> {
     if (!params || !params.uri) {
       throw new Error('uri parameter is required');
     }
 
-    const uri = vscode.Uri.parse(params.uri);
-    
+    const path = typeof params.uri === 'string' ? params.uri : params.uri.toString();
+    const parsed = vscode.Uri.parse(path);
+    const uri = vscode.Uri.file(parsed.fsPath);
+
     // Open the document with VaporView
     await vscode.commands.executeCommand('vaporview.openFile', {
       uri: uri,
@@ -569,123 +1072,52 @@ export class WCPServer {
       maxSignals: params.max_signals || 64
     });
 
-    return { success: true, uri: uri.toString() };
-  }
-
-  private async handleCloseDocument(params: any): Promise<any> {
-    const document = this.getDocumentFromParams(params);
-    if (!document) {
-      throw new Error('Document not found');
-    }
-
-    // Close the document
-    const uri = document.uri;
-    await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-    
-    // Also try to close via document URI if available
-    const allDocs = await vscode.commands.executeCommand('waveformViewer.getOpenDocuments');
-    // if (allDocs && allDocs.documents) {
-    //   // Document will be closed by VS Code when editor is closed
-    // }
-
-    return { success: true, uri: uri.toString() };
-  }
-
-  private async handleGetSignals(params: any): Promise<any> {
-    const document = this.getDocumentFromParams(params);
-    if (!document) {
-      throw new Error('No active document');
-    }
-
-    // Get all signals from the document
-    const signals: any[] = [];
-    
-    // Iterate through netlistIdTable to get all signals
-    for (const netlistId in document.netlistIdTable) {
-      const netlistIdRef = document.netlistIdTable[parseInt(netlistId)];
-      if (netlistIdRef && netlistIdRef.netlistItem) {
-        const item = netlistIdRef.netlistItem;
-        signals.push({
-          netlist_id: parseInt(netlistId),
-          instance_path: item.scopePath ? `${item.scopePath}.${item.name}` : item.name,
-          scope_path: item.scopePath || '',
-          name: item.name,
-          type: item.type,
-          width: item.width || 0,
-          encoding: item.encoding || 'none'
-        });
-      }
-    }
-
+    // Return ack response with uri (WCP spec format)
     return {
-      signals: signals,
-      count: signals.length
+      type: "response",
+      command: "ack",
+      uri: uri.toString()
     };
   }
 
-  private async handleGetHierarchy(params: any): Promise<any> {
-    const document = this.getDocumentFromParams(params);
-    if (!document) {
-      throw new Error('No active document');
-    }
-
-    // Get signal hierarchy
-    // This returns a tree structure of scopes and signals
-    const buildHierarchy = (item: any): any => {
-      const result: any = {
-        name: item.name,
-        scope_path: item.scopePath || '',
-        type: item.type,
-        netlist_id: item.netlistId
-      };
-
-      if (item.width !== undefined) {
-        result.width = item.width;
-      }
-      if (item.encoding) {
-        result.encoding = item.encoding;
-      }
-      if (item.msb !== undefined) {
-        result.msb = item.msb;
-      }
-      if (item.lsb !== undefined) {
-        result.lsb = item.lsb;
-      }
-
-      // Get children if this is a scope (children are loaded on demand)
-      if (item.children && item.children.length > 0) {
-        result.children = item.children.map((child: any) => buildHierarchy(child));
-      }
-
-      return result;
-    };
-
-    // Get root items from the document's treeData
-    const hierarchy: any[] = [];
-    
-    if (document.treeData && document.treeData.length > 0) {
-      for (const item of document.treeData) {
-        hierarchy.push(buildHierarchy(item));
-      }
-    } else {
-      // If treeData is empty, try to get root items via getChildrenExternal
-      const rootItems = await document.getChildrenExternal(undefined);
-      if (rootItems && rootItems.length > 0) {
-        for (const item of rootItems) {
-          hierarchy.push(buildHierarchy(item));
-        }
-      }
-    }
-
-    return {
-      hierarchy: hierarchy,
-      uri: document.uri.toString()
-    };
+  private async getCapabilitiesList(): Promise<string[]> {
+    return [
+      // Standard WCP commands
+      'greeting',
+      'get_item_list',
+      'get_item_info',
+      'add_items',
+      'load',
+      'reload',
+      'clear',
+      'zoom_to_fit',
+      'set_viewport_to',
+      'set_viewport_range',
+      'focus_item',
+      'set_item_color',
+      'remove_items',
+      'shutdown',
+      'add_variables', // Deprecated but still supported
+      // VaporView-specific commands
+      'get_capabilities',
+      'open_document',
+      'close_document',
+      'get_open_documents',
+      'add_signal',
+      'remove_signal',
+      'set_marker',
+      'get_marker',
+      'get_viewer_state',
+      'get_values_at_time',
+    ];
   }
 
   private getDocumentFromParams(params: any): VaporviewDocument | undefined {
     if (params?.uri) {
-      return this.viewerProvider.getDocumentFromUri(params.uri);
+      const path = typeof params.uri === 'string' ? params.uri : params.uri.toString();
+      const parsed = vscode.Uri.parse(path);
+      const uri = vscode.Uri.file(parsed.fsPath);
+      return this.viewerProvider.getDocumentFromUri(uri.toString());
     }
     return this.viewerProvider.getActiveDocument() || this.viewerProvider.getLastActiveDocument();
   }

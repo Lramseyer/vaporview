@@ -518,13 +518,9 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (!document) {return;}
     if (document.uri.fsPath !== this.activeDocument.uri.fsPath) {return;}
 
-    const settings = document.getSettings();
+    //const settings = document.getSettings();
     this.netlistTreeDataProvider.hide();
     await document.reload();
-
-    // No need to call this, as it will be called in viewport.init()
-    //this.applySettings(settings, this.activeDocument);
-    //console.log(settings);
   }
 
   copyWaveDrom() {
@@ -843,7 +839,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       case 'remove': {
         if (metadata.contextValue !== 'netlistScope') {
           const netlistId = metadata.netlistId;
-          document.removeSignalFromWebview(netlistId, false);
+          document.removeSignalFromWebview(netlistId, undefined, false);
         }
         break;
       } 
@@ -1057,11 +1053,11 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
   }
 
-  public removeSignalFromDocument(netlistId: NetlistId, removeAllSelected: boolean) {
+  public removeSignalFromDocument(netlistId: NetlistId | undefined, rowId: number | undefined, removeAllSelected: boolean) {
     if (!this.activeDocument) {return;}
     if (!this.activeWebview?.visible) {return;}
 
-    this.activeDocument.removeSignalFromWebview(netlistId, removeAllSelected);
+    this.activeDocument.removeSignalFromWebview(netlistId, rowId, removeAllSelected);
   }
 
   public removeSignalList(signalList: NetlistItem[]) {
@@ -1071,7 +1067,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     signalList.forEach((element) => {
       if (element.contextValue !== 'netlistVar') {return;}
-      this.activeDocument?.removeSignalFromWebview(element.netlistId, false);
+      this.activeDocument?.removeSignalFromWebview(element.netlistId, undefined, false);
     });
   }
 
@@ -1185,14 +1181,14 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   }
 
   copyValueAtMarker(e: any) {
-    if (e.netlistId === undefined) {return;}
+    if (e.rowId === undefined) {return;}
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}
 
     this.activeWebview.webview.postMessage({
       command: 'copyValueAtMarker',
-      netlistId: e.netlistId,
+      rowId: e.rowId,
     });
   }
 

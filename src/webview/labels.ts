@@ -139,10 +139,9 @@ export class LabelsPanels {
     }
   }
 
-  copyValueAtMarker(netlistId: NetlistId | undefined) {
+  copyValueAtMarker(rowId: RowId | undefined) {
 
-    if (netlistId === undefined) {return;}
-    const rowId = dataManager.netlistIdTable[netlistId];
+    if (rowId === undefined) {return;}
     const value = this.valueAtMarker[rowId];
     if (value === undefined) {return;}
     const variableItem = dataManager.rowItems[rowId];

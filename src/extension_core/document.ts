@@ -414,22 +414,23 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     });
   }
 
-  public removeSignalFromWebview(netlistId: NetlistId, removeAllSelected: boolean) {
+  public removeSignalFromWebview(netlistId: NetlistId | undefined, rowId: number | undefined, removeAllSelected: boolean) {
     if (!this.webviewPanel) {return;}
 
     this.webviewPanel.webview.postMessage({
       command: 'remove-signal',
       netlistId: netlistId,
+      rowId: rowId,
       removeAllSelected: removeAllSelected
    });
 
-    const metadata = this.netlistIdTable[netlistId];
-    this._delegate.emitEvent({
-      eventType: 'removeVariable',
-      uri: this.uri,
-      instancePath: getInstancePath(metadata),
-      netlistId: metadata.netlistId
-    })
+    //const metadata = this.netlistIdTable[netlistId];
+    //this._delegate.emitEvent({
+    //  eventType: 'removeVariable',
+    //  uri: this.uri,
+    //  instancePath: getInstancePath(metadata),
+    //  netlistId: metadata.netlistId
+    //})
   }
 
   public async unloadTreeData() {

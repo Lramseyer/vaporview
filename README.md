@@ -65,7 +65,7 @@ Signals may be added or removed through VaporView view container. Click on the V
 
 ### Adding Signals
 
-To Add a signal, simply click the "+" icon to the right of the netlist element in the "Netlist" view. It will also show in the "Displayed Signals" view.
+To Add a signal, click the "+" icon to the right of the netlist variable in the "Netlist" view or double click on the variable. It will also show in the "Displayed Signals" view.
 
 Signals can also be added by dragging and dropping them from the netlist view to the viewer. Make sure to hold **Shift** before dropping them into the viewer - note that this is a VScode requirement.
 

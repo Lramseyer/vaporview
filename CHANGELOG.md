@@ -3,6 +3,7 @@
 ## 1.4.4 - Upcoming Release
 
 - Removed Netlist View Checkboxes
+- Added double click handler to netlist view - double click adds variable to viewer
 - Fixed Renderer glitch in Windows affecting binary and bit vector renderer
 
 ## 1.4.3 - 11/4/2025 - Latest Release

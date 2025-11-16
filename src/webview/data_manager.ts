@@ -139,6 +139,14 @@ export class WaveformDataManager {
     return null;
   }
 
+  getRowIdsFromNetlistId(netlistId: NetlistId): RowId[] {
+    return viewerState.visibleSignalsFlat.filter((rowId) => {
+      const data = dataManager.rowItems[rowId];
+      if (!(data instanceof VariableItem)) {return false;}
+      return data.netlistId === netlistId;
+    });
+  }
+
   addVariable(signalList: any, groupPath: string[] | undefined, parentGroupId: number | undefined, index: number | undefined) {
     // Handle rendering a signal, e.g., render the signal based on message content
 

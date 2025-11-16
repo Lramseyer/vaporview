@@ -543,7 +543,7 @@ class VaporviewWebview {
       viewerState.selectedSignal.forEach((rowId) => {
         const rowItem = dataManager.rowItems[rowId];
         if (!(rowItem instanceof VariableItem)) {return;}
-        this.removeVariable(rowItem.netlistId, true);
+        this.removeVariable(rowItem.netlistId, rowId, true);
       });
     }
 
@@ -605,8 +605,8 @@ class VaporviewWebview {
 
   updateVerticalScale(event: any, scale: number) {
     viewerState.selectedSignal.forEach((rowId) => {
-      if (event && event.netlistId !== undefined) {
-        rowId = dataManager.netlistIdTable[event.netlistId];
+      if (event && event.rowId !== undefined) {
+        rowId = event.rowId;
       }
       if (rowId === null) {return;}
       const netlistData = dataManager.rowItems[rowId];
@@ -757,52 +757,44 @@ class VaporviewWebview {
   }
 
   unload() {
-    viewerState.selectedSignal      = [];
-    viewerState.markerTime          = null;
-    viewerState.altMarkerTime       = null;
-    viewerState.displayedSignals    = [];
+    viewerState.selectedSignal       = [];
+    viewerState.markerTime           = null;
+    viewerState.altMarkerTime        = null;
+    viewerState.displayedSignals     = [];
     viewerState.displayedSignalsFlat = [];
-    viewerState.visibleSignalsFlat  = [];
-    viewerState.zoomRatio           = 1;
+    viewerState.visibleSignalsFlat   = [];
+    viewerState.zoomRatio            = 1;
     dataManager.unload();
     labelsPanel.renderLabelsPanels();
     // we don't need to do anything to the viewport, because the ready message will reinitialize it
     vscode.postMessage({type: 'ready'});
   }
 
-  // We need to let the extension know that we are removing a variable so that
-  // it can update the views. Rather than handling it and telling the extension,
-  // we just have the extension handle it as normal.
-  //removeVariableInternal(rowId: RowId | null) {
-  //  if (rowId === null) {return;}
-  //  const netlistId = dataManager.rowItems[rowId].netlistId;
-  //  if (netlistId === undefined) {return;}
-//
-  //  //vscode.postMessage({
-  //  //  command: 'removeVariable',
-  //  //  netlistId: netlistId
-  //  //});
-  //  this.removeVariable(netlistId, false);
-  //}
+  removeVariable(netlistId: NetlistId | undefined, rowId: RowId | undefined, removeAllSelected: boolean | undefined) {
 
-  removeVariable(netlistId: NetlistId | null, removeAllSelected: boolean | undefined) {
-    if (netlistId === null) {return;}
-
-    const rowId = dataManager.netlistIdTable[netlistId];
-    const index = viewerState.visibleSignalsFlat.indexOf(rowId);
-    let removeList = [rowId];
-
-    if (viewerState.selectedSignal.includes(rowId) && removeAllSelected) {
-      removeList = viewerState.selectedSignal;
+    let removeList: RowId[] = [];
+    if (rowId !== undefined) {
+      console.log('Removing variable rowId: ' + rowId);
+      removeList = [rowId];
+      if (viewerState.selectedSignal.includes(rowId) && removeAllSelected) {
+        removeList = viewerState.selectedSignal;
+      }
+    } else if (netlistId !== undefined) {
+      removeList = dataManager.getRowIdsFromNetlistId(netlistId);
+    } else {
+      return;
     }
+
+    const index = viewerState.visibleSignalsFlat.indexOf(viewerState.selectedSignal[0]);
+
     this.events.dispatch(ActionType.RemoveVariable, removeList, true);
 
-    if (viewerState.selectedSignal.length === 1 && viewerState.selectedSignal[0] === rowId) {
+    if (viewerState.selectedSignal.length === 1 && removeList.includes(viewerState.selectedSignal[0])) {
       const newIndex = Math.max(0, Math.min(viewerState.visibleSignalsFlat.length - 1, index));
       const newRowId = viewerState.visibleSignalsFlat[newIndex];
       this.events.dispatch(ActionType.SignalSelect, [newRowId], newRowId);
-    } else if (viewerState.selectedSignal.includes(rowId)) {
-      const newSelected = viewerState.selectedSignal.filter((id) => id !== rowId);
+    } else {
+      const newSelected = viewerState.selectedSignal.filter((id) => removeList.includes(id) === false);
       this.events.dispatch(ActionType.SignalSelect, newSelected, viewerState.lastSelectedSignal);
     }
   }
@@ -878,10 +870,9 @@ class VaporviewWebview {
 
   handleSetSelectedSignal(netlistId: NetlistId | undefined) {
     if (netlistId === undefined) {return;}
-    const rowId = dataManager.netlistIdTable[netlistId];
-    if (rowId === undefined) {return;}
-    if (dataManager.rowItems[rowId] === undefined) {return;}
-    this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
+    const rowIdList = dataManager.getRowIdsFromNetlistId(netlistId);
+    if (rowIdList.length === 0) {return;}
+    this.events.dispatch(ActionType.SignalSelect, rowIdList, rowIdList[0]);
   }
 
   handleDrop(e: DragEvent) {
@@ -931,7 +922,7 @@ class VaporviewWebview {
       case 'getContext':            {sendWebviewContext(); break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
       case 'add-variable':          {dataManager.addVariable(message.signalList, message.groupPath, undefined, message.index); break;}
-      case 'remove-signal':         {this.removeVariable(message.netlistId, message.removeAllSelected); break;}
+      case 'remove-signal':         {this.removeVariable(message.netlistId, message.rowId, message.removeAllSelected); break;}
       case 'remove-group':          {this.removeSignalGroup(message.groupId, message.recursive); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}
       case 'update-waveform-chunk-compressed': {dataManager.updateWaveformChunkCompressed(message); break;}
@@ -946,7 +937,7 @@ class VaporviewWebview {
       case 'setTimeUnits':          {this.viewport.updateUnits(message.units, true); break;}
       case 'setSelectedSignal':     {this.handleSetSelectedSignal(message.netlistId); break;}
       case 'copyWaveDrom':          {copyWaveDrom(); break;}
-      case 'copyValueAtMarker':     {labelsPanel.copyValueAtMarker(message.netlistId); break;}
+      case 'copyValueAtMarker':     {labelsPanel.copyValueAtMarker(message.rowId); break;}
       case 'updateColorTheme':      {this.events.dispatch(ActionType.UpdateColorTheme); break;}
       default:                      {outputLog('Unknown webview message type: ' + message.command); break;}
     }

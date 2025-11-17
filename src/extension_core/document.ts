@@ -350,6 +350,60 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     };
   }
 
+  /**
+   * Returns the list of displayed netlist IDs by flattening the webviewContext.displayedSignals
+   * structure (which mirrors the viewer's root list with groups and variables).
+   * Falls back gracefully if context is not yet populated.
+   * TODO(heyfey): This is extremely inefficient and should be optimized.
+   */
+  public getDisplayedNetlistIds(): NetlistId[] {
+    const ctxList: any[] = this.webviewContext?.displayedSignals || [];
+    if (!Array.isArray(ctxList) || ctxList.length === 0) {return [];}
+
+    const collectNames = (nodes: any[]): string[] => {
+      const names: string[] = [];
+      for (const node of nodes) {
+        if (!node || typeof node !== 'object') {continue;}
+        if (node.dataType === 'netlist-variable' && typeof node.name === 'string') {
+          names.push(node.name);
+        } else if (node.dataType === 'signal-group' && Array.isArray(node.children)) {
+          names.push(...collectNames(node.children));
+        }
+      }
+      return names;
+    };
+
+    const instancePaths = collectNames(ctxList);
+    if (instancePaths.length === 0) {return [];}
+
+    // Use a set to store the instance paths. This is because fsdb somehow might
+    // has more than one netlistId for the same instance path. Which might be a bug in fsdb.
+    // TODO(heyfey): debug this and remove this set if it is not needed.
+    const instancePathSet = new Set(instancePaths);
+
+    const result: NetlistId[] = [];
+    for (const [netlistIdStr, item] of Object.entries(this._netlistIdTable)) {
+      const netlistId = Number(netlistIdStr) as NetlistId;
+      const instancePath = getInstancePath(item);
+      if (instancePathSet.has(instancePath)) {
+        result.push(netlistId);
+        // Remove the instance path from the set to avoid duplicates.
+        instancePathSet.delete(instancePath);
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Returns true if the given netlistId is currently displayed in the viewer.
+   */
+  public isSignalDisplayed(netlistId: NetlistId | null | undefined): boolean {
+    if (netlistId === null || netlistId === undefined) {return false;}
+    const displayed = this.getDisplayedNetlistIds();
+    return displayed.includes(netlistId);
+  }
+
   public async renderSignals(netlistIdList: NetlistId[], moveToGroup: string[] | undefined, index: number | undefined) {
     // Render the signal with the provided ID
     //console.log('renderSignals()');

@@ -934,6 +934,8 @@ class VaporviewWebview {
       case 'setDisplayFormat':      {dataManager.setDisplayFormat(message); break;}
       case 'setWaveDromClock':      {dataManager.waveDromClock = {netlistId: message.netlistId, edge:  message.edge,}; break;}
       case 'setMarker':             {this.events.dispatch(ActionType.MarkerSet, message.time, message.markerType); break;}
+      case 'setViewportTo':         {this.viewport.moveViewToTime(message.time); break;}
+      case 'setViewportRange':      {this.viewport.setViewportRange(message.startTime, message.endTime); break;}
       case 'setTimeUnits':          {this.viewport.updateUnits(message.units, true); break;}
       case 'setSelectedSignal':     {this.handleSetSelectedSignal(message.netlistId); break;}
       case 'copyWaveDrom':          {copyWaveDrom(); break;}

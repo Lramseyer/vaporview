@@ -94,6 +94,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   private activeDocument: VaporviewDocument | undefined;
   private lastActiveWebview: vscode.WebviewPanel | undefined;
   private lastActiveDocument: VaporviewDocument | undefined;
+  public get getActiveDocument(): VaporviewDocument | undefined {return this.activeDocument;}
+  public get getLastActiveDocument(): VaporviewDocument | undefined {return this.lastActiveDocument;}
 
   public netlistTreeDataProvider: NetlistTreeDataProvider;
   public netlistView: vscode.TreeView<NetlistItem>;
@@ -318,13 +320,13 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     else {return this.getDocumentFromUri(uri);}
   }
 
-  public getActiveDocument(): VaporviewDocument | undefined {
-    return this.activeDocument;
-  }
+  //public getActiveDocument(): VaporviewDocument | undefined {
+  //  return this.activeDocument;
+  //}
 
-  public getLastActiveDocument(): VaporviewDocument | undefined {
-    return this.lastActiveDocument;
-  }
+  //public getLastActiveDocument(): VaporviewDocument | undefined {
+  //  return this.lastActiveDocument;
+  //}
 
   public getAllDocuments() {
     const result: any = {

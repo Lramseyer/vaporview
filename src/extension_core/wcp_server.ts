@@ -30,6 +30,25 @@ interface WCPConnection {
   remoteAddress: string;
 }
 
+export const wcpDefaultPort = 54322;
+
+export function updateWCPServerFromConfiguration(wcpServer: WCPServer | null, viewerProvider: WaveformViewerProvider, context: vscode.ExtensionContext): void {
+  const newEnabled = vscode.workspace.getConfiguration('vaporview').get<boolean>('wcp.enabled', false);
+  const newPort = vscode.workspace.getConfiguration('vaporview').get<number>('wcp.port', wcpDefaultPort);
+
+  if (newEnabled && !wcpServer) {
+    wcpServer = new WCPServer(viewerProvider, context, newPort);
+    wcpServer.start();
+  } else if (!newEnabled && wcpServer) {
+    wcpServer.stop();
+    wcpServer = null;
+  } else if (newEnabled && wcpServer && newPort !== wcpServer.getPort()) {
+    wcpServer.stop();
+    wcpServer = new WCPServer(viewerProvider, context, newPort);
+    wcpServer.start()
+  }
+}
+
 // #region WCPServer
 export class WCPServer {
   private server: net.Server | null = null;
@@ -70,6 +89,7 @@ export class WCPServer {
       });
 
       this.server.on('error', (err: NodeJS.ErrnoException) => {
+        this.viewerProvider.log.appendLine(`Failed to start WCP server: ${err.message}`);
         if (err.code === 'EADDRINUSE') {
           this.viewerProvider.log.appendLine(`WCP server port ${this.port} is already in use`);
           reject(err);
@@ -1083,7 +1103,7 @@ export class WCPServer {
       const uri = vscode.Uri.file(parsed.fsPath);
       return this.viewerProvider.getDocumentFromUri(uri.toString());
     }
-    return this.viewerProvider.getActiveDocument() || this.viewerProvider.getLastActiveDocument();
+    return this.viewerProvider.getActiveDocument || this.viewerProvider.getLastActiveDocument;
   }
 
   private sendResponse(connection: WCPConnection, response: WCPResponse): void {

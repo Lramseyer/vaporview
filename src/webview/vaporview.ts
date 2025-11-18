@@ -501,7 +501,7 @@ class VaporviewWebview {
     // left and right arrow keys move the marker
     // ctrl + left and right arrow keys move the marker to the next transition
 
-    let selectedSignalIndex = null;
+    let selectedSignalIndex: number | null = null;
     if (viewerState.lastSelectedSignal !== null) {
       selectedSignalIndex = viewerState.visibleSignalsFlat.indexOf(viewerState.lastSelectedSignal)
     }

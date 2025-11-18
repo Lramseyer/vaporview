@@ -356,47 +356,6 @@ export class Viewport {
     return moveViewer;
   }
 
-  setViewportRange(startTime: number, endTime: number) {
-    if (this.updatePending) {return;}
-    if (startTime < 0 || endTime < startTime || endTime > this.timeStop) {
-      return; // Invalid range
-    }
-
-    const timeRange = endTime - startTime;
-    if (timeRange <= 0) {return;}
-
-    // Calculate the zoom ratio needed to show this range
-    let newZoomRatio = this.viewerWidth / timeRange;
-
-    // Clamp to valid zoom range
-    if (newZoomRatio > this.maxZoomRatio) {
-      newZoomRatio = this.maxZoomRatio;
-    } else if (newZoomRatio < this.minZoomRatio) {
-      newZoomRatio = this.minZoomRatio;
-    }
-
-    this.updatePending = true;
-    this.zoomRatio = newZoomRatio;
-    this.pixelTime = 1 / this.zoomRatio;
-    this.minDrawWidth = this.pixelTime / this.pixelRatio;
-    this.maxScrollLeft = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth, 0));
-
-    // Set scroll position to show the start time at the left edge
-    this.pseudoScrollLeft = Math.max(Math.min(startTime * this.zoomRatio, this.maxScrollLeft), 0);
-    this.timeScrollLeft = this.pseudoScrollLeft * this.pixelTime;
-    this.viewerWidthTime = this.viewerWidth * this.pixelTime;
-    this.timeScrollRight = this.timeScrollLeft + this.viewerWidthTime;
-    this.zoomOffset = Math.log2(this.zoomRatio / this.defaultZoom);
-    const baseZoom = (2 ** Math.floor(this.zoomOffset)) * this.defaultZoom;
-    const spacingRatio = 2 ** (this.zoomOffset - Math.floor(this.zoomOffset));
-    this.rulerTickSpacing = this.minTickSpacing * spacingRatio;
-    this.rulerNumberSpacing = this.minNumberSpacing * spacingRatio;
-    this.rulerNumberIncrement = this.minNumberSpacing / baseZoom;
-
-    this.updateScrollbarResize();
-    this.redrawViewport();
-  }
-
   setValueLinkCursor(keyDown: boolean) {
     if (this.valueLinkObject === null) {return;}
     if (!this.valueLinkObject.canvas)  {return;}
@@ -867,6 +826,29 @@ export class Viewport {
     ctx.stroke();
   }
 
+  setViewportRange(startTime: number, endTime: number) {
+    if (this.updatePending) {return;}
+    if (startTime < 0 || endTime <= startTime || endTime > this.timeStop) {
+      return; // Invalid range
+    }
+
+    const timeRange = endTime - startTime;
+    if (timeRange <= 0) {return;}
+
+    // Calculate the zoom ratio needed to show this range
+    let newZoomRatio = this.viewerWidth / timeRange;
+
+    // Clamp to valid zoom range
+    if (newZoomRatio > this.maxZoomRatio) {
+      newZoomRatio = this.maxZoomRatio;
+    } else if (newZoomRatio < this.minZoomRatio) {
+      newZoomRatio = this.minZoomRatio;
+    }
+
+    const newScrollLeft   = startTime * newZoomRatio;
+    this.applyZoom(newScrollLeft, newZoomRatio);
+  }
+
   handleZoom(amount: number, zoomOrigin: number, screenPosition: number) {
     // -1 zooms in, +1 zooms out
     // zoomRatio is in pixels per time unit
@@ -883,12 +865,18 @@ export class Viewport {
 
     if (newZoomRatio === this.zoomRatio) {return;}
 
+    const newScrollLeft   = (zoomOrigin * newZoomRatio) - screenPosition;
+    this.applyZoom(newScrollLeft, newZoomRatio);
+  }
+
+  applyZoom(newScrollLeft: number, newZoomRatio: number) {
+
     this.updatePending    = true;
     this.zoomRatio        = newZoomRatio;
     this.pixelTime        = 1 / this.zoomRatio;
     this.minDrawWidth     = this.pixelTime / this.pixelRatio;
     this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth, 0));
-    this.pseudoScrollLeft = Math.max(Math.min((zoomOrigin * this.zoomRatio) - screenPosition, this.maxScrollLeft), 0);
+    this.pseudoScrollLeft = Math.max(Math.min(newScrollLeft, this.maxScrollLeft), 0);
     this.timeScrollLeft   = this.pseudoScrollLeft * this.pixelTime;
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
     this.timeScrollRight  = this.timeScrollLeft + this.viewerWidthTime;

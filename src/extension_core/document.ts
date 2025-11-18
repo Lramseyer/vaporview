@@ -12,8 +12,6 @@ import { SignalId, NetlistId, VaporviewDocumentDelegate, scaleFromUnits, logScal
 // See GETTING_STARTED.md for more details
 import { filehandler } from './filehandler';
 import { NetlistItem, createScope, createVar, getInstancePath } from './tree_view';
-import { json } from 'stream/consumers';
-import { sign } from 'crypto';
 
 export type NetlistIdTable = NetlistItem[];
 

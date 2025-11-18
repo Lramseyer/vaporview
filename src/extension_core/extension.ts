@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 
 import { TimestampLinkProvider, NetlistLinkProvider } from './terminal_links';
 import { WaveformViewerProvider } from './viewer_provider';
-import { WCPServer } from './wcp_server';
+import { updateWCPServerFromConfiguration, WCPServer, wcpDefaultPort } from './wcp_server';
 import * as path from 'path';
 
 // #region activate()
@@ -26,51 +26,12 @@ export async function activate(context: vscode.ExtensionContext) {
         retainContextWhenHidden: true,
       },
       supportsMultipleEditorsPerDocument: false,
-    });
+    }
+  );
 
   // Initialize WCP Server
   let wcpServer: WCPServer | null = null;
-  const wcpDefaultPort = 54322;
-  const wcpEnabled = vscode.workspace.getConfiguration('vaporview').get<boolean>('wcp.enabled', false);
-  const wcpPort = vscode.workspace.getConfiguration('vaporview').get<number>('wcp.port', wcpDefaultPort);
-  
-  if (wcpEnabled) {
-    wcpServer = new WCPServer(viewerProvider, context, wcpPort);
-    wcpServer.start().then((port) => {
-      viewerProvider.log.appendLine(`WCP server started on port ${port}`);
-    }).catch((error) => {
-      viewerProvider.log.appendLine(`Failed to start WCP server: ${error.message}`);
-    });
-  }
-
-  // Listen for configuration changes
-  context.subscriptions.push(vscode.workspace.onDidChangeConfiguration((e) => {
-    if (e.affectsConfiguration('vaporview.wcp.enabled') || e.affectsConfiguration('vaporview.wcp.port')) {
-      const newEnabled = vscode.workspace.getConfiguration('vaporview').get<boolean>('wcp.enabled', false);
-      const newPort = vscode.workspace.getConfiguration('vaporview').get<number>('wcp.port', wcpDefaultPort);
-      
-      if (newEnabled && !wcpServer) {
-        wcpServer = new WCPServer(viewerProvider, context, newPort);
-        wcpServer.start().then((port) => {
-          viewerProvider.log.appendLine(`WCP server started on port ${port}`);
-        }).catch((error) => {
-          viewerProvider.log.appendLine(`Failed to start WCP server: ${error.message}`);
-        });
-      } else if (!newEnabled && wcpServer) {
-        wcpServer.stop();
-        wcpServer = null;
-        viewerProvider.log.appendLine('WCP server stopped');
-      } else if (newEnabled && wcpServer && newPort !== wcpServer.getPort()) {
-        wcpServer.stop();
-        wcpServer = new WCPServer(viewerProvider, context, newPort);
-        wcpServer.start().then((port) => {
-          viewerProvider.log.appendLine(`WCP server restarted on port ${port}`);
-        }).catch((error) => {
-          viewerProvider.log.appendLine(`Failed to restart WCP server: ${error.message}`);
-        });
-      }
-    }
-  }));
+  updateWCPServerFromConfiguration(wcpServer, viewerProvider, context);
 
   // Store wcpServer reference for cleanup
   context.subscriptions.push({
@@ -82,12 +43,22 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   });
 
+  // Listen for configuration changes
+  context.subscriptions.push(vscode.workspace.onDidChangeConfiguration((e) => {
+    if (e.affectsConfiguration('vaporview.wcp.enabled') || e.affectsConfiguration('vaporview.wcp.port')) {
+      updateWCPServerFromConfiguration(wcpServer, viewerProvider, context);
+    }
+
+    // TODO: Check if configuration changes affect vaporview
+    viewerProvider.updateConfiguration(e);
+  }));
+
   vscode.window.registerTerminalLinkProvider(new TimestampLinkProvider(viewerProvider));
 
   // I want to get semantic tokens for the current theme
   // The API is not available yet, so I'm just going to log the theme
   vscode.window.onDidChangeActiveColorTheme((e) => {viewerProvider.updateColorTheme(e);});
-  vscode.workspace.onDidChangeConfiguration((e) => {viewerProvider.updateConfiguration(e);});
+  //vscode.workspace.onDidChangeConfiguration((e) => {viewerProvider.updateConfiguration(e);});
 
   const markerSetEvent = WaveformViewerProvider.markerSetEventEmitter.event;
   const signalSelectEvent = WaveformViewerProvider.signalSelectEventEmitter.event;

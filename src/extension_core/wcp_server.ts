@@ -371,22 +371,7 @@ export class WCPServer {
       return { ids: [] };
     }
 
-    const recursive = params.recursive === true;
-
-    // Add each item - process sequentially to ensure proper state tracking
-    for (const itemPath of params.items) {
-      const args: any = {
-        uri: document.uri.toString()
-      };
-
-      if (typeof itemPath !== 'string') {
-        throw new Error('Item path must be a string');
-      }
-      args.instancePath = itemPath;
-      if (recursive) args.recursive = true;
-
-      await vscode.commands.executeCommand('waveformViewer.addVariable', args);
-    }
+    await this.viewerProvider.addItemsToDocument(document, params);
 
     // TODO(heyfey): Return the IDs for added items
     return { ids: [] };

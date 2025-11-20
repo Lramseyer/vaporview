@@ -4,6 +4,7 @@
 
 import * as net from 'net';
 import * as vscode from 'vscode';
+import * as fs from 'fs';
 import { WaveformViewerProvider, scaleFromUnits } from './viewer_provider';
 import { VaporviewDocument } from './document';
 import { getInstancePath } from './tree_view';
@@ -741,15 +742,21 @@ export class WCPServer {
     }
 
     const uri = document.uri;
+    const uriString = uri.toString();
 
     // Reload the document
     await vscode.commands.executeCommand('vaporview.reloadFile', uri);
+
+    // Wait for reload to complete and send waveform_loaded event asynchronously
+    this.waitForDocumentAndSendEvent(uriString).catch((error: any) => {
+      this.viewerProvider.log.appendLine(`WCP: Error waiting for reloaded document ${uriString}: ${error.message}`);
+    });
 
     // Return ack response with uri (WCP spec format)
     return {
       type: "response",
       command: "ack",
-      uri: uri.toString()
+      uri: uriString
     };
   }
 
@@ -1034,6 +1041,28 @@ export class WCPServer {
     const parsed = vscode.Uri.parse(path);
     const uri = vscode.Uri.file(parsed.fsPath);
 
+    // Check if file exists (WCP spec: respond instantly if file is found)
+    try {
+      await fs.promises.access(uri.fsPath, fs.constants.F_OK);
+    } catch (error: any) {
+      throw new Error(`File not found: ${uri.fsPath}`);
+    }
+
+    // Start loading the document asynchronously (don't wait for it)
+    const uriString = uri.toString();
+    this.loadDocumentAndSendEvent(uri, uriString, params).catch((error: any) => {
+      this.viewerProvider.log.appendLine(`WCP: Error loading document ${uriString}: ${error.message}`);
+    });
+
+    // Return ack response immediately (WCP spec: respond instantly if file is found)
+    return {
+      type: "response",
+      command: "ack",
+      uri: uri.toString()
+    };
+  }
+
+  private async loadDocumentAndSendEvent(uri: vscode.Uri, uriString: string, params: any): Promise<void> {
     // Open the document with VaporView
     await vscode.commands.executeCommand('vaporview.openFile', {
       uri: uri,
@@ -1041,12 +1070,33 @@ export class WCPServer {
       maxSignals: params.max_signals || 64
     });
 
-    // Return ack response with uri (WCP spec format)
-    return {
-      type: "response",
-      command: "ack",
-      uri: uri.toString()
-    };
+    // Wait for document to be loaded and send event
+    await this.waitForDocumentAndSendEvent(uriString);
+  }
+
+  private async waitForDocumentAndSendEvent(uriString: string): Promise<void> {
+    // Wait for the document to be ready
+    const maxWaitTime = 600000; // 600 seconds timeout
+    const pollInterval = 100; // Poll every 100ms
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWaitTime) {
+      const document = this.viewerProvider.getDocumentFromUri(uriString);
+      if (document && document.webviewInitialized) {
+        // Document is ready - send waveform_loaded event to all clients
+        this.broadcastEvent({
+          type: "event",
+          event: "waveform_loaded",
+          uri: uriString
+        });
+        return;
+      }
+      // Wait before polling again
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+
+    // Timeout - log error but don't throw (we already sent ack)
+    this.viewerProvider.log.appendLine(`WCP: Document loading timeout for ${uriString}`);
   }
 
   private async getCapabilitiesList(): Promise<string[]> {
@@ -1097,6 +1147,18 @@ export class WCPServer {
       connection.socket.write(jsonResponse, 'utf8');
     } catch (error: any) {
       this.viewerProvider.log.appendLine(`WCP server error sending response to ${connection.remoteAddress}: ${error.message}`);
+    }
+  }
+
+  private broadcastEvent(event: { type: string;[key: string]: any }): void {
+    // Broadcast event to all connected clients (events don't have an id)
+    const eventMessage = JSON.stringify(event) + '\n';
+    for (const connection of this.connections) {
+      try {
+        connection.socket.write(eventMessage, 'utf8');
+      } catch (error: any) {
+        this.viewerProvider.log.appendLine(`WCP server error broadcasting event to ${connection.remoteAddress}: ${error.message}`);
+      }
     }
   }
 }

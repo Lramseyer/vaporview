@@ -141,8 +141,9 @@ The exact command set and semantics follow the WCP specification where possible.
 
 4. **Typical command sequence**
    - `greeting` – discover capabilities and verify connectivity.  
-   - `open_document` or `load` – open a waveform file.  
-   - `add_items` / `add_signal` – add signals to the viewer.  
+   - `open_document` or `load` – open a waveform file (responds immediately with `ack`, then sends `waveform_loaded` event when loading completes).
+   - Wait for `waveform_loaded` event before proceeding with other commands.
+   - `add_items` / `add_signal` – add signals to the viewer.
    - `get_item_list`, `get_item_info`, `focus_item`, `set_viewport_to`, etc.
 
 For a full list of commands and expected parameters/results, see the server implementation in `src/extension_core/wcp_server.ts` and the WCP specification ([wcp on GitLab](https://gitlab.com/waveform-control-protocol/wcp)).
@@ -184,7 +185,12 @@ Vaporview aims to follow the WCP specification as defined in the reference proje
     - `add_items` **does not return an error** if no items were added (e.g., nothing matched or all items were skipped). It still returns a successful response.  
     - On success, `add_items` **always returns**:
       - `{"ids": []}`  
-      even if items were actually added in the viewer. The command is effectively “fire and forget” from the client’s perspective.
+      even if items were actually added in the viewer. The command is effectively "fire and forget" from the client's perspective.
+
+- **`waveform_loaded` event for `load`, `reload`, and `open_document`**
+  - Per the WCP specification, the `load` command responds instantly with `ack` if the file is found, and sends a `waveform_loaded` event when loading completes.
+  - Vaporview implements this behavior for `load`, `reload`, and `open_document` commands.
+  - Clients should listen for the `waveform_loaded` event before sending these commands to avoid race conditions.
 
 These differences should be kept in mind when using generic WCP clients or comparing behavior against the reference implementation described in the WCP project ([wcp on GitLab](https://gitlab.com/waveform-control-protocol/wcp)).
 
@@ -201,7 +207,8 @@ In addition to the standard WCP methods described in the reference project ([wcp
 - **`open_document`**  
   - Convenience wrapper to open a waveform file in Vaporview.  
   - Internally maps to the `vaporview.openFile` command and supports options like `uri`, `load_all`, and `max_signals`.  
-  - Returns a WCP-style ack object including the document `uri`.
+  - Returns a WCP-style ack object including the document `uri` **immediately** if the file is found.
+  - Sends a `waveform_loaded` event to all connected clients when the document is fully loaded.
 
 - **`add_signal`**  
   - Adds a single signal to the viewer using either `netlist_id`, `instance_path`, or `scope_path + name`.  
@@ -234,4 +241,34 @@ In addition to the standard WCP methods described in the reference project ([wcp
   - Internally maps to `waveformViewer.getOpenDocuments` and converts the resulting URIs into strings for WCP clients.
 
 All of these Vaporview-specific WCP methods follow the same transport and request/response structure as the standard WCP commands and respect the optional `uri` parameter described above.
+
+---
+
+## Events
+
+The WCP server broadcasts events to all connected clients. Events are JSON messages with `type: "event"` and do not have an `id` field (unlike command responses).
+
+### `waveform_loaded` Event
+
+The `waveform_loaded` event is sent when a waveform document finishes loading. This event is fired by the following commands:
+
+- **`load`** – After the waveform file is fully loaded
+- **`reload`** – After the document is reloaded and ready
+- **`open_document`** – After the waveform file is fully loaded
+
+**Event Format:**
+```json
+{
+  "type": "event",
+  "event": "waveform_loaded",
+  "uri": "file:///path/to/waveform.vcd"
+}
+```
+
+**Important Notes:**
+- The `load`, `reload`, and `open_document` commands return an `ack` response **immediately** if the file is found (per WCP specification).
+- The `waveform_loaded` event is sent **asynchronously** when loading completes.
+- Clients should set up event listeners **before** sending these commands to avoid missing the event due to race conditions.
+- The event includes the `uri` field, which matches the URI from the `ack` response (normalized by the server).
+- Clients can filter events by URI to wait for a specific document to load.
 

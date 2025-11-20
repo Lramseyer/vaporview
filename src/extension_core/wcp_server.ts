@@ -742,21 +742,24 @@ export class WCPServer {
     }
 
     const uri = document.uri;
-    const uriString = uri.toString();
+    const normalizedUriString = uri.toString();
+
+    // Use original URI from params if provided, otherwise use document URI
+    const originalUriString = params?.uri ? (typeof params.uri === 'string' ? params.uri : params.uri.toString()) : normalizedUriString;
 
     // Reload the document
     await vscode.commands.executeCommand('vaporview.reloadFile', uri);
 
     // Wait for reload to complete and send waveform_loaded event asynchronously
-    this.waitForDocumentAndSendEvent(uriString).catch((error: any) => {
-      this.viewerProvider.log.appendLine(`WCP: Error waiting for reloaded document ${uriString}: ${error.message}`);
+    this.waitForDocumentAndSendEvent(normalizedUriString, originalUriString).catch((error: any) => {
+      this.viewerProvider.log.appendLine(`WCP: Error waiting for reloaded document ${originalUriString}: ${error.message}`);
     });
 
-    // Return ack response with uri (WCP spec format)
+    // Return ack response with original URI format (WCP spec format)
     return {
       type: "response",
       command: "ack",
-      uri: uriString
+      uri: originalUriString
     };
   }
 
@@ -1037,8 +1040,9 @@ export class WCPServer {
       throw new Error('uri parameter is required');
     }
 
-    const path = typeof params.uri === 'string' ? params.uri : params.uri.toString();
-    const parsed = vscode.Uri.parse(path);
+    // Preserve the original URI format from input
+    const originalUriString = typeof params.uri === 'string' ? params.uri : params.uri.toString();
+    const parsed = vscode.Uri.parse(originalUriString);
     const uri = vscode.Uri.file(parsed.fsPath);
 
     // Check if file exists (WCP spec: respond instantly if file is found)
@@ -1049,20 +1053,21 @@ export class WCPServer {
     }
 
     // Start loading the document asynchronously (don't wait for it)
-    const uriString = uri.toString();
-    this.loadDocumentAndSendEvent(uri, uriString, params).catch((error: any) => {
-      this.viewerProvider.log.appendLine(`WCP: Error loading document ${uriString}: ${error.message}`);
+    // Use original URI format for event, but normalized URI for document lookup
+    const normalizedUriString = uri.toString();
+    this.loadDocumentAndSendEvent(uri, normalizedUriString, originalUriString, params).catch((error: any) => {
+      this.viewerProvider.log.appendLine(`WCP: Error loading document ${originalUriString}: ${error.message}`);
     });
 
-    // Return ack response immediately (WCP spec: respond instantly if file is found)
+    // Return ack response immediately with original URI format (WCP spec: respond instantly if file is found)
     return {
       type: "response",
       command: "ack",
-      uri: uri.toString()
+      uri: originalUriString
     };
   }
 
-  private async loadDocumentAndSendEvent(uri: vscode.Uri, uriString: string, params: any): Promise<void> {
+  private async loadDocumentAndSendEvent(uri: vscode.Uri, normalizedUriString: string, originalUriString: string, params: any): Promise<void> {
     // Open the document with VaporView
     await vscode.commands.executeCommand('vaporview.openFile', {
       uri: uri,
@@ -1070,24 +1075,24 @@ export class WCPServer {
       maxSignals: params.max_signals || 64
     });
 
-    // Wait for document to be loaded and send event
-    await this.waitForDocumentAndSendEvent(uriString);
+    // Wait for document to be loaded and send event with original URI format
+    await this.waitForDocumentAndSendEvent(normalizedUriString, originalUriString);
   }
 
-  private async waitForDocumentAndSendEvent(uriString: string): Promise<void> {
+  private async waitForDocumentAndSendEvent(normalizedUriString: string, originalUriString: string): Promise<void> {
     // Wait for the document to be ready
     const maxWaitTime = 600000; // 600 seconds timeout
     const pollInterval = 100; // Poll every 100ms
     const startTime = Date.now();
 
     while (Date.now() - startTime < maxWaitTime) {
-      const document = this.viewerProvider.getDocumentFromUri(uriString);
+      const document = this.viewerProvider.getDocumentFromUri(normalizedUriString);
       if (document && document.webviewInitialized) {
-        // Document is ready - send waveform_loaded event to all clients
+        // Document is ready - send waveform_loaded event with original URI format
         this.broadcastEvent({
           type: "event",
           event: "waveform_loaded",
-          uri: uriString
+          uri: originalUriString
         });
         return;
       }
@@ -1096,7 +1101,7 @@ export class WCPServer {
     }
 
     // Timeout - log error but don't throw (we already sent ack)
-    this.viewerProvider.log.appendLine(`WCP: Document loading timeout for ${uriString}`);
+    this.viewerProvider.log.appendLine(`WCP: Document loading timeout for ${originalUriString}`);
   }
 
   private async getCapabilitiesList(): Promise<string[]> {

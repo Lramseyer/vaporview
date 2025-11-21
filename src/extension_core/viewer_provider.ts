@@ -932,6 +932,37 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
   //  document.renderSignals(netlistIdList, groupPath, index);
   //}
 
+  // This function is only used in WCP command handlers (specifically handleAddItems in wcp_server.ts)
+  public async addItemsToDocument(document: VaporviewDocument, e: any) {
+    const recursive = e.recursive === true;
+    for (const item of e.items) {
+      if (typeof item !== 'string') {
+        vscode.window.showWarningMessage('Item is not a string: ' + item);
+        return;
+      }
+      // remove colon or semicolon from end of signal name
+      const instancePath = item.replace(/[:;]$/, '');
+      // get msb and lsb from signal name
+      const regex  = /\[(\d+:)?(\d+)\]$/;
+      const field  = instancePath.match(regex);
+      const lookup = instancePath.replace(regex, '');
+      const msb   = field ? parseInt(field[1], 10) : undefined;
+      const lsb   = field ? parseInt(field[2], 10) : msb;
+      const metadata = await document.findTreeItem(lookup, msb, lsb);
+
+      if (metadata === null) {
+        vscode.window.showWarningMessage('Signal or scope not found: ' + instancePath);
+        continue;
+      }
+
+      if (metadata.contextValue === 'netlistScope') {
+        this.addChildVariablesToDocument(document, metadata, recursive, 128, true /* noWarning */);
+      } else if (metadata.contextValue === 'netlistVar') {
+        document.renderSignals([metadata.netlistId], [], undefined);
+      }
+    }
+  }
+
   public async addSignalByNameToDocument(signalName: string) {
 
     if (!this.lastActiveDocument) {return;}
@@ -966,7 +997,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       if (element.netlistId === netlistId) {isDisplayed = true;}
     });
 
-    if (isDisplayed !== undefined) {
+    if (isDisplayed) {
       document.revealSignalInWebview(netlistId);
     } else {
       document.renderSignals([netlistId], [], undefined);
@@ -1018,7 +1049,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.addChildVariablesToDocument(document, netlistItem, recursive, maxChildren);
   }
 
-  public async addChildVariablesToDocument(document: VaporviewDocument, netlistItem: NetlistItem, recursive: boolean, maxChildren: number) {
+  public async addChildVariablesToDocument(document: VaporviewDocument, netlistItem: NetlistItem, recursive: boolean, maxChildren: number, noWarning: boolean = false) {
 
     if (netlistItem.contextValue !== 'netlistScope') {return;}
 
@@ -1039,7 +1070,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       });
     }
 
-    this.filterAddSignalsInNetlist(netlistVariables, false);
+    this.filterAddSignalsInNetlist(netlistVariables, noWarning);
   }
 
   public filterAddSignalsInNetlist(netlistElements: NetlistItem[], noWarning: boolean = false) {

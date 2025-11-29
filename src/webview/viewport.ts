@@ -22,6 +22,8 @@ export class Viewport {
   rulerCanvas: CanvasRenderingContext2D;
   backgroundCanvasElement: HTMLElement;
   backgroundCanvas: CanvasRenderingContext2D;
+  markerLabelElement: HTMLElement;
+  altMarkerLabelElement: HTMLElement;
   markerElement: HTMLElement;
   altMarkerElement: HTMLElement;
   netlistLinkElement: HTMLElement | null = null;
@@ -104,6 +106,8 @@ export class Viewport {
     const scrollbarCanvas    = document.getElementById('scrollbarAreaCanvas');
     const rulerElement       = document.getElementById('ruler');
     const rulerCanvas        = document.getElementById('rulerCanvas');
+    const markerLabelElement = document.getElementById('main-marker-label');
+    const altMarkerLabelElement = document.getElementById('alt-marker-label');
     const markerElement      = document.getElementById('main-marker');
     const altMarkerElement   = document.getElementById('alt-marker');
     const backgroundCanvas   = document.getElementById('viewport-background');
@@ -111,6 +115,7 @@ export class Viewport {
     if (scrollArea === null || contentArea === null || scrollbar === null || 
       scrollbarContainer === null || scrollbarCanvas === null || 
       waveformArea === null || rulerElement === null || rulerCanvas === null ||
+      markerLabelElement === null || altMarkerLabelElement === null ||
       markerElement === null || altMarkerElement === null || backgroundCanvas === null) {
       throw new Error('Viewport elements not found');
     }
@@ -127,6 +132,8 @@ export class Viewport {
     this.contentArea            = contentArea;
     this.waveformArea           = waveformArea;
     this.scrollbar              = scrollbar;
+    this.markerLabelElement     = markerLabelElement;
+    this.altMarkerLabelElement  = altMarkerLabelElement;
     this.markerElement          = markerElement;
     this.altMarkerElement       = altMarkerElement;
     this.scrollbarContainer     = scrollbarContainer;
@@ -522,11 +529,18 @@ export class Viewport {
   }
 
   updateMarker() {
+    const clamp = 100;
     if (this.markerElement && viewerState.markerTime !== null) {
-      this.markerElement.style.left = this.getViewportLeft(viewerState.markerTime, 15) + 'px';
+      const screenX = this.getViewportLeft(viewerState.markerTime, clamp);
+      this.markerElement.style.left = screenX + 'px';
+      this.markerLabelElement.style.left = screenX + 'px';
+      
     }
     if (this.altMarkerElement && viewerState.altMarkerTime !== null) {
-      this.altMarkerElement.style.left = this.getViewportLeft(viewerState.altMarkerTime, 15) + 'px';
+      const screenX = this.getViewportLeft(viewerState.altMarkerTime, clamp);
+      this.altMarkerElement.style.left = screenX + 'px';
+      this.altMarkerLabelElement.style.left = screenX + 'px';
+
     }
   }
 
@@ -591,9 +605,11 @@ export class Viewport {
     if (time > this.timeStop || time < 0) {return;}
 
     let element = markerType === 0 ? this.markerElement : this.altMarkerElement;
+    let labelElement = markerType === 0 ? this.markerLabelElement : this.altMarkerLabelElement;
 
     if (time === null) {
       element.style.display = 'none';
+      labelElement.style.display = 'none';
       return;
     }
 
@@ -607,6 +623,8 @@ export class Viewport {
     this.updateMarker();
     this.updateScrollContainer();
     element.style.display = 'block';
+    labelElement.style.display = 'block';
+    labelElement.innerText = this.scaleTime(time) + ' ' + this.displayTimeUnit;
   }
 
   updateScrollContainer() {
@@ -653,6 +671,17 @@ export class Viewport {
     }
   }
 
+  scaleTime(time: number) {
+    let scale;
+    if (this.adjustedLogTimeScale >= 0) {
+      scale = 10 ** this.adjustedLogTimeScale;
+      return time * this.timeScale * scale;
+    } else {
+      scale = 10 ** -this.adjustedLogTimeScale;
+      return time * this.timeScale / scale
+    }
+  }
+
   logScaleFromUnits(unit: string | undefined) {
     switch (unit) {
       case 'zs': return -21;
@@ -672,6 +701,12 @@ export class Viewport {
   updateUnits(units: string, updateContext: boolean) {
     this.displayTimeUnit = units;
     this.adjustedLogTimeScale = this.logScaleFromUnits(this.timeUnit) - this.logScaleFromUnits(units);
+    if (viewerState.markerTime !== null) {
+      this.markerLabelElement.innerText = this.scaleTime(viewerState.markerTime) + ' ' + this.displayTimeUnit;
+    }
+    if (viewerState.altMarkerTime !== null) {
+      this.altMarkerLabelElement.innerText = this.scaleTime(viewerState.altMarkerTime) + ' ' + this.displayTimeUnit;
+    }
     this.updateRuler();
     if (updateContext) {
       sendWebviewContext();

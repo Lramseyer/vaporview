@@ -532,6 +532,29 @@ body {
   color: var(--vscode-list-activeSelectionForeground);
 }
 
+.time-marker-label {
+  position: absolute;
+  top: 8px;
+  z-index: 99;
+  overflow: visible;
+  font-size: var(--vscode-editor-font-size);
+  font-family: var(--vscode-editor-font-family);
+  color: var(--vscode-editorActiveLineNumber-foreground);
+  background-color: var(--vscode-editor-background);
+  padding: 0px 8px 0px 8px;
+  transform: translateX(-50%);
+  box-shadow: 0 0 8px 8px var(--vscode-editor-background);
+  clip-path: polygon(-100% 0, 200% 0, 200% 100%, -100% 100%);
+}
+
+#alt-marker-label:hover {
+  z-index: 101 !important;
+}
+
+#main-marker-label{
+  z-index: 100 !important;
+}
+
 .time-marker {
   position: absolute;
   top: 0;

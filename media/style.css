@@ -261,15 +261,15 @@ body {
 }
 
 .tooltip-left {
-  transform: translateX(-20%);
+  transform: translateX(-15%);
 }
 
 .tooltip-left::before {
-  left: calc(20% - 1px);
+  left: calc(15% - 1px);
 }
 
 .tooltip-left::after {
-  left: 20%;
+  left: 15%;
 }
 
 .tooltip-right {

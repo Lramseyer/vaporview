@@ -231,7 +231,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     ctx.globalAlpha = 1;
     ctx.transform(viewportSpecs.zoomRatio, 0, 0, viewportSpecs.zoomRatio, 0, 0);
     ctx.beginPath();
-    ctx.moveTo(-viewportSpecs.pixelTime * 2, 0);
+    ctx.moveTo(-viewportSpecs.pixelTime * 2, 0); // This seems to fix a Windows render glitch, but cause another one
     points.forEach(([x, y]) => {ctx.lineTo(x, y);});
     endPoints.reverse().forEach(([x, y]) => {ctx.lineTo(x, y);});
 

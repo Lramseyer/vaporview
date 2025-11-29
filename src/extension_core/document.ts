@@ -135,7 +135,6 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
   private _reloadPending: boolean = false;
   // Hierarchy
   public treeData:         NetlistItem[] = [];
-  public displayedSignals: NetlistItem[] = [];
   protected _netlistIdTable: NetlistIdTable = [];
   private sortNetlist: boolean = vscode.workspace.getConfiguration('vaporview').get('sortNetlist') || false;
   public parametersLoaded: boolean = false;
@@ -393,6 +392,22 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     return result;
   }
 
+  public getDisplayedNetlistIds_new(): NetlistId[] {
+    return this.getNetlistIdsFromDisplayedSignals(this.webviewContext.displayedSignals);
+  }
+
+  public getNetlistIdsFromDisplayedSignals(displayedSignals: any[]): NetlistId[] {
+    const result: NetlistId[] = [];
+    displayedSignals.forEach((element: any) => {
+      if (element.dataType === 'netlist-variable') {
+        result.push(element.netlistId);
+      } else if (element.dataType === 'signal-group') {
+        result.push(...this.getNetlistIdsFromDisplayedSignals(element.children));
+      }
+    });
+    return result;
+  }
+
   /**
    * Returns true if the given netlistId is currently displayed in the viewer.
    */
@@ -487,7 +502,6 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
 
   public async unloadTreeData() {
     this.treeData         = [];
-    this.displayedSignals = [];
     this._netlistIdTable  = [];
   }
 

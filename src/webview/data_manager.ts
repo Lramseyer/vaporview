@@ -32,7 +32,6 @@ export class WaveformDataManager {
   enumTable: Record<string, EnumData> = {}; // enum type is the key/index, array of enum values is the value
   enumTableTemp: any              = {}
   rowItems: RowItem[]             = []; // rowId is the key/index, RowItem is the value
-  netlistIdTable: RowId[]         = []; // netlist ID is the key/index, rowId is the value
   groupIdTable: RowId[]           = []; // group ID is the key/index, rowId is the value
   private nextRowId: number       = 0;
   private nextGroupId: number     = 1;
@@ -64,7 +63,6 @@ export class WaveformDataManager {
     this.enumTable           = {};
     this.enumTableTemp       = {};
     this.rowItems            = [];
-    this.netlistIdTable      = [];
     this.groupIdTable        = [];
     this.nextRowId           = 0;
     this.nextGroupId         = 1;
@@ -140,7 +138,7 @@ export class WaveformDataManager {
   }
 
   getRowIdsFromNetlistId(netlistId: NetlistId): RowId[] {
-    return viewerState.visibleSignalsFlat.filter((rowId) => {
+    return viewerState.displayedSignalsFlat.filter((rowId) => {
       const data = dataManager.rowItems[rowId];
       if (!(data instanceof VariableItem)) {return false;}
       return data.netlistId === netlistId;
@@ -168,13 +166,7 @@ export class WaveformDataManager {
       const enumType  = signal.enumType;
       let rowId       = this.nextRowId;
       lastRowId       = rowId;
-
-      if (this.netlistIdTable[netlistId] === undefined) {
-        this.netlistIdTable[netlistId] = rowId;
-        this.nextRowId++;
-      } else {
-        rowId = this.netlistIdTable[netlistId];
-      }
+      this.nextRowId++;
 
       moveList.push(rowId);
 
@@ -721,9 +713,15 @@ export class WaveformDataManager {
 
   setDisplayFormat(message: any) {
 
-    const netlistId = message.netlistId;
-    if (message.netlistId === undefined) {return;}
-    const rowId = this.netlistIdTable[netlistId];
+    let netlistId = message.netlistId;
+    let rowId = message.rowId;
+    if (netlistId === undefined && rowId === undefined) {return;}
+    if (rowId === undefined) {
+      const matchingRows = this.getRowIdsFromNetlistId(netlistId);
+      if (matchingRows.length === 0) {return;}
+      const index = message.index || 0;
+      rowId = matchingRows[index];
+    }
     if (this.rowItems[rowId] === undefined) {return;}
     const netlistData = this.rowItems[rowId];
     if (netlistData instanceof VariableItem === false) {return;}

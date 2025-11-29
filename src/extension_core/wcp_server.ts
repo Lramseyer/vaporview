@@ -504,7 +504,7 @@ export class WCPServer {
     }
 
     // Set the color using setValueFormat
-    this.viewerProvider.setValueFormat(netlistId, { colorIndex: colorIndex });
+    this.viewerProvider.setValueFormat(netlistId, 0, undefined, { colorIndex: colorIndex });
 
     // Return ack response with uri (WCP spec format)
     return {

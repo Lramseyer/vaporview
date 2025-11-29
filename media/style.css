@@ -43,6 +43,8 @@ body {
   overflow: hidden;
 }
 
+/* Control Bar Styles */
+
 #control-bar {
   display: flex;
   grid-column-start: 1;
@@ -192,6 +194,98 @@ body {
   background-color: var(--vscode-editor-background);
 }
 
+/* Tooltip Styles */
+
+.has-tooltip {
+  position: relative;
+}
+
+.has-tooltip:hover .tooltip {
+  visibility: visible;
+  opacity: 1;
+  animation: tooltipFadeIn 0.2s ease-in-out 1s both;
+}
+
+@keyframes tooltipFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.tooltip {
+  visibility: hidden;
+  opacity: 0;
+  width: max-content;
+  max-width: 150px;
+  background-color: var(--vscode-editorHoverWidget-background);
+  color: var(--vscode-editorHoverWidget-foreground);
+  border: 1px solid var(--vscode-editorHoverWidget-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  position: absolute;
+  z-index: 102;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--vscode-font-family);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: normal;
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+  pointer-events: none;
+  text-align: center;
+}
+
+.tooltip-arrow::before {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: calc(50% - 1px);
+  border-width: 4px;
+  border-style: solid;
+  border-color: transparent transparent var(--vscode-editorHoverWidget-border) transparent;
+}
+
+.tooltip-arrow::after {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  margin-top: 1px;
+  border-width: 3px;
+  border-style: solid;
+  border-color: transparent transparent var(--vscode-editorHoverWidget-background) transparent;
+}
+
+.tooltip-left {
+  transform: translateX(-20%);
+}
+
+.tooltip-left::before {
+  left: calc(20% - 1px);
+}
+
+.tooltip-left::after {
+  left: 20%;
+}
+
+.tooltip-right {
+  transform: translateX(-75%);
+}
+
+.tooltip-right::before {
+  left: calc(75% - 1px);
+}
+
+.tooltip-right::after {
+  left: 75%;
+}
+
+/* Labels Panel styles */
+
 #viewer-container {
   display: flex;
   position: relative;
@@ -274,6 +368,8 @@ body {
   cursor: w-resize;
   border-left: 4px solid var(--vscode-sash-hoverBorder);
 }
+
+/* Viewport */
 
 #scrollArea {
   position: relative;
@@ -537,6 +633,7 @@ body {
   top: 8px;
   z-index: 99;
   overflow: visible;
+  width: max-content;
   font-size: var(--vscode-editor-font-size);
   font-family: var(--vscode-editor-font-family);
   color: var(--vscode-editorActiveLineNumber-foreground);

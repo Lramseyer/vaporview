@@ -70,39 +70,48 @@
         </defs>
       </svg>
       <div class="control-bar-group">
-        <div class="control-bar-button" title="Zoom to Fit (Ctrl/Command + 0)" id="zoom-fit-button">
+        <div class="control-bar-button has-tooltip" id="zoom-fit-button">
           <svg class="custom-icon" viewBox="0 0 16 16"><use href="#zoom-fit"/></svg>
+          <span class="tooltip tooltip-arrow tooltip-left">Zoom to Fit (Ctrl/Command + 0)</span>
         </div>
-        <div class="control-bar-button" title="Zoom Out (Ctrl/Command + scroll down)" id="zoom-out-button">
+        <div class="control-bar-button has-tooltip" id="zoom-out-button">
           <div class='codicon codicon-zoom-out' style="font-size:20px"></div>
+          <span class="tooltip tooltip-arrow tooltip-left">Zoom Out (Ctrl/Command + scroll down)</span>
         </div>
-        <div class="control-bar-button" title="Zoom In (Ctrl/Command + scroll up)" id="zoom-in-button">
+        <div class="control-bar-button has-tooltip" id="zoom-in-button">
           <div class='codicon codicon-zoom-in' style="font-size:20px"></div>
+          <span class="tooltip tooltip-arrow tooltip-left">Zoom In (Ctrl/Command + scroll up)</span>
         </div>
       </div>
       <div class="control-bar-group">
-        <div class="control-bar-button" title="Go To Previous Negative Edge Transition" id="previous-negedge-button">
+        <div class="control-bar-button has-tooltip" id="previous-negedge-button">
           <svg class="custom-icon" viewBox="0 0 16 16"><use href="#previous-negedge"/></svg>
+          <span class="tooltip tooltip-arrow">Go To Previous Negative Edge Transition</span>
         </div>
-        <div class="control-bar-button" title="Go To Previous Positive Edge Transition" id="previous-posedge-button">
+        <div class="control-bar-button has-tooltip" id="previous-posedge-button">
           <svg class="custom-icon" viewBox="0 0 16 16"><use href="#previous-posedge"/></svg>
+          <span class="tooltip tooltip-arrow">Go To Previous Positive Edge Transition</span>
         </div>
-        <div class="control-bar-button" title="Go To Previous Transition (Ctrl + &#8678;)" id="previous-edge-button">
+        <div class="control-bar-button has-tooltip" id="previous-edge-button">
           <svg class="custom-icon" viewBox="0 0 16 16"><use href="#previous-edge"/></svg>
+          <span class="tooltip tooltip-arrow">Go To Previous Transition (Ctrl + &#8678;)</span>
         </div>
-        <div class="control-bar-button" title="Go To Next Transition (Ctrl + &#8680;)" id="next-edge-button">
+        <div class="control-bar-button has-tooltip" id="next-edge-button">
           <svg class="custom-icon" viewBox="0 0 16 16"><use href="#next-edge"/></svg>
+          <span class="tooltip tooltip-arrow">Go To Next Transition (Ctrl + &#8680;)</span>
         </div>
-        <div class="control-bar-button" title="Go To Next Positive Edge Transition" id="next-posedge-button">
+        <div class="control-bar-button has-tooltip" id="next-posedge-button">
           <svg class="custom-icon" viewBox="0 0 16 16"><use href="#next-posedge"/></svg>
+        <span class="tooltip tooltip-arrow">Go To Next Positive Edge Transition</span>
         </div>
-        <div class="control-bar-button" title="Go To Next Negative Edge Transition" id="next-negedge-button">
+        <div class="control-bar-button has-tooltip" id="next-negedge-button">
           <svg class="custom-icon" viewBox="0 0 16 16"><use href="#next-negedge"/></svg>
+          <span class="tooltip tooltip-arrow">Go To Next Negative Edge Transition</span>
         </div>
       </div>
       <div class="control-bar-group">
         <div id="search-container">
-          <textarea id="search-bar" class="search-input" autocorrect="off" autocapitalize="off" spellcheck="false" wrap="off" aria-label="Find" placeholder="Search" title="Find"></textarea>
+          <textarea id="search-bar" class="search-input" autocorrect="off" autocapitalize="off" spellcheck="false" wrap="off" aria-label="Find" placeholder="Search"></textarea>
           <div class="search-button selected-button" title="Go to Time specified" id="time-equals-button">
             <svg class="custom-icon" viewBox="0 0 16 16"><use href="#time-equals"/></svg>
           </div>
@@ -110,31 +119,38 @@
             <svg class="custom-icon" viewBox="0 0 16 16"><use id="value-icon-reference" href="#search-hex"/></svg>
           </div>
         </div>
-        <div class="control-bar-button" title="Previous" id="previous-button">
+        <div class="control-bar-button has-tooltip" id="previous-button">
           <div class='codicon codicon-arrow-left' style="font-size:20px"></div>
+          <span class="tooltip tooltip-arrow">Previous</span>
         </div>
-        <div class="control-bar-button" title="Next" id="next-button">
+        <div class="control-bar-button has-tooltip" id="next-button">
           <div class='codicon codicon-arrow-right' style="font-size:20px"></div>
+          <span class="tooltip tooltip-arrow">Next</span>
         </div>
       </div>
       <div class="control-bar-group">
-        <div class="format-button" title="Enable Mouse Scrolling" id="mouse-scroll-button">
+        <div class="format-button has-tooltip" id="mouse-scroll-button">
           <svg class="custom-icon" viewBox="0 0 16 16"><use href="#mouse"/></svg>
+          <span class="tooltip tooltip-arrow">Enable Mouse Scrolling</span>
         </div>
-        <div class="format-button" title="Enable Touchpad Scrolling" id="touchpad-scroll-button">
+        <div class="format-button has-tooltip" id="touchpad-scroll-button">
           <svg class="custom-icon" viewBox="0 0 16 16"><use href="#touchpad"/></svg>
+          <span class="tooltip tooltip-arrow">Enable Touchpad Scrolling</span>
         </div>
-        <div class="format-button" title="Auto Detect Mouse/Touchpad" id="auto-scroll-button">
+        <div class="format-button has-tooltip" id="auto-scroll-button">
           <svg class="custom-icon" viewBox="0 0 16 16"><use href="#auto"/></svg>
+          <span class="tooltip tooltip-arrow">Auto Detect Mouse/Touchpad</span>
         </div>
       </div>
-      <div class="control-bar-group"> 
+      <div class="control-bar-group has-tooltip"> 
         <input type="checkbox" id="autoReload" name="Auto Reload" value="Unchecked" class="control-bar-checkbox">
-        <label for="autoReload" class="control-bar-label" title="Automatically reload when file is updated">Auto Reload</label>
+        <label for="autoReload" class="control-bar-label">Auto Reload</label>
+        <span class="tooltip tooltip-arrow">Automatically reload when file is updated</span>
       </div>
       <div class="control-bar-group control-bar-right"> 
-        <div class="control-bar-button" title="Settings" id="settings-menu">
+        <div class="control-bar-button has-tooltip" id="settings-menu">
           <div class='codicon codicon-more' style="font-size:20px" data-vscode-context='{"preventDefaultContextMenuItems": true, "webviewSection": "ruler" }'></div>
+          <span class="tooltip tooltip-arrow tooltip-right">Settings</span>
         </div>
       </div>
     </div>

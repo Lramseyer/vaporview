@@ -1020,7 +1020,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     //console.log('found signal ' + instancePath);
     const netlistId = metadata.netlistId;
-    const displayedNetlistIds = document.getDisplayedNetlistIds_new();
+    const displayedNetlistIds = document.getDisplayedNetlistIds();
     let isDisplayed = displayedNetlistIds.includes(netlistId);
 
     if (isDisplayed) {

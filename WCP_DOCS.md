@@ -176,8 +176,8 @@ Vaporview aims to follow the WCP specification as defined in the reference proje
   - This is an extension to the spec to better fit VS Code’s multi-document model.
 
 - **Use of `netlist_id` as Displayed Item Reference**  
-  - Vaporview uses its internal `netlist_id` as the WCP “displayed item” identifier.  
-  - Anywhere the WCP spec refers to an item ID (e.g., in `get_item_info`, `get_item_list`, `set_item_color`, `focus_item`, etc.), Vaporview uses `netlist_id` values that come from its netlist table.
+  - Vaporview uses its internal `netlist_id` as the WCP "displayed item" identifier.
+  - Anywhere the WCP spec refers to an item ID (e.g., in `get_item_info`, `get_item_list`, `set_item_color`, `set_value_format`, `focus_item`, etc.), Vaporview uses `netlist_id` values that come from its netlist table.
 
 - **`add_items` return behavior**  
   - In the reference spec, `add_items` may return IDs of added items and can report errors for items that could not be added.  
@@ -226,12 +226,74 @@ In addition to the standard WCP methods described in the reference project ([wcp
   - Sets the main or alternate marker in the viewer at a given time (optionally with units) and marker type (`0` main, `1` alt).  
   - Internally maps to the `waveformViewer.setMarker` command.
 
+- **`set_value_format`**
+  - Sets the displayed value format for a signal (e.g., binary, hexadecimal, decimal, octal, signed, float formats, etc.).
+  - **Parameters:**
+    - `id` (required): The netlist ID of the signal to format
+    - `format` (required): The format string (see supported formats below)
+    - `uri` (optional): Document URI (defaults to active document)
+  - **Supported formats:**
+    - `binary` - Binary representation
+    - `hexadecimal` - Hexadecimal representation
+    - `decimal` - Decimal representation
+    - `octal` - Octal representation
+    - `signed` - Signed decimal representation
+    - `float8`, `float16`, `float32`, `float64` - Floating point formats
+    - `bfloat16` - BFloat16 format
+    - `tensorfloat32` - TensorFloat32 format
+    - `ascii` - ASCII character representation
+    - `string` - String representation
+  - **Returns:** WCP-style ack response with document URI
+  - **Errors:** Returns error if signal is not found, not displayed, or format is invalid (invalid formats return ack without error, per WCP spec)
+  - **Example:**
+    ```json
+    {
+      "method": "set_value_format",
+      "params": {
+        "id": 123,
+        "format": "hexadecimal"
+      },
+      "id": 1
+    }
+    ```
+
 - **`get_marker`**  
   - Reads back the current marker time and units for either the main or alternate marker.  
   - Internally uses `waveformViewer.getViewerState` and translates the result into the WCP `get_marker` response shape.
 
 - **`get_viewer_state`**  
-  - Returns a snapshot of the viewer state (URI, marker times, time unit, zoom ratio, scroll position, and displayed signals).  
+  - Returns a snapshot of the viewer state including URI, marker times, time unit, zoom ratio, scroll position, and displayed signals.
+  - **Parameters:**
+    - `uri` (optional): Document URI (defaults to active document)
+  - **Response format:**
+    ```json
+    {
+      "uri": "file:///path/to/waveform.vcd",
+      "marker_time": 1000,
+      "alt_marker_time": 2000,
+      "time_unit": "ns",
+      "zoom_ratio": 1.5,
+      "scroll_left": 500,
+      "displayed_signals": [
+        {
+          "name": "top.a",
+          "id": 123
+        },
+        {
+          "name": "top.b",
+          "id": 124
+        }
+      ]
+    }
+    ```
+  - **Response fields:**
+    - `uri`: The document URI
+    - `marker_time`: Main marker time in document time units
+    - `alt_marker_time`: Alternate marker time in document time units
+    - `time_unit`: Display time unit (e.g., "ns", "ps", "us")
+    - `zoom_ratio`: Current zoom ratio
+    - `scroll_left`: Horizontal scroll position in time units
+    - `displayed_signals`: Array of displayed signals, each with `name` (instance path) and `id` (netlist ID)
   - Internally maps to `waveformViewer.getViewerState` and converts the result into the WCP-style response.
 
 - **`get_values_at_time`**  

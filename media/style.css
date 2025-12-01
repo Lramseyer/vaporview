@@ -218,8 +218,6 @@ body {
 .tooltip {
   visibility: hidden;
   opacity: 0;
-  width: max-content;
-  max-width: 150px;
   background-color: var(--vscode-editorHoverWidget-background);
   color: var(--vscode-editorHoverWidget-foreground);
   border: 1px solid var(--vscode-editorHoverWidget-border);
@@ -229,14 +227,19 @@ body {
   z-index: 102;
   top: calc(100% + 8px);
   left: 50%;
-  transform: translateX(-50%);
   font-family: var(--vscode-font-family);
   font-size: 12px;
   line-height: 1.4;
   white-space: normal;
   box-shadow: 0 2px 8px var(--vscode-widget-shadow);
   pointer-events: none;
+}
+
+.tooltip-arrow {
+  transform: translateX(-50%);
   text-align: center;
+  width: max-content;
+  max-width: 150px;
 }
 
 .tooltip-arrow::before {
@@ -296,7 +299,7 @@ body {
 }
 
 .labels-container {
-  overflow: hidden;
+
 }
 
 .labels-container::-webkit-scrollbar {
@@ -314,6 +317,7 @@ body {
   grid-column-end: 2;
   grid-row-start: 2;
   grid-row-end: 4;
+  overflow: visible;
 }
 
 #waveform-labels-spacer {
@@ -342,13 +346,14 @@ body {
   grid-row-start: 2;
   grid-row-end: 4;
   color: var(--vscode-debugTokenExpression-number);
+  overflow: hidden;
 }
 
 #resize-2 {
   left: 200px;
 }
 
-@keyframes highlightresize-bar {
+@keyframes highlight-resize-bar {
   0% {
     border-left: 1px solid var(--vscode-editorIndentGuide-background1);
   }
@@ -360,7 +365,7 @@ body {
 .resize-bar.is-idle:hover {
   animation-delay: 500ms;
   animation-iteration-count: 1;
-  animation: highlightresize-bar 100ms forwards;
+  animation: highlight-resize-bar 100ms forwards;
   cursor: w-resize;
 }
 
@@ -631,7 +636,7 @@ body {
 .time-marker-label {
   position: absolute;
   top: 8px;
-  z-index: 99;
+  z-index: 90;
   overflow: visible;
   width: max-content;
   font-size: var(--vscode-editor-font-size);
@@ -642,21 +647,26 @@ body {
   transform: translateX(-50%);
   box-shadow: 0 0 8px 8px var(--vscode-editor-background);
   clip-path: polygon(-100% 0, 200% 0, 200% 100%, -100% 100%);
+  user-select: none;
 }
 
 #alt-marker-label:hover {
-  z-index: 101 !important;
+  z-index: 92 !important;
 }
 
 #main-marker-label{
-  z-index: 100 !important;
+  z-index: 91 !important;
+}
+
+#main-marker-label:hover {
+  z-index: 89 !important;
 }
 
 .time-marker {
   position: absolute;
   top: 0;
   height: 100%;
-  z-index: 100;
+  z-index: 90;
   overflow: visible;
   stroke-width: 1px;
   width: 1px;

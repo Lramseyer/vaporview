@@ -280,7 +280,7 @@ export class NetlistItem extends vscode.TreeItem {
   //public numberFormat: string;
   public fsdbVarLoaded: boolean = false; // Only used in fsdb
   public resourceUri: vscode.Uri;
-  public readonly command: vscode.Command;
+  public readonly command: vscode.Command | undefined;
 
   constructor(
     public readonly label:      string,
@@ -316,11 +316,16 @@ export class NetlistItem extends vscode.TreeItem {
 
     this.setParamAndTooltip(paramValue);
     this.resourceUri = vscode.Uri.parse(`waveform://${uri.fsPath}#${fragmentId}&net=${fullName + name}`);
+
     // vaporview.clickNetlistItem doesn't need to be registered in package.json, since it's internal
-    this.command = {
-      command: "vaporview.clickNetlistItem",
-      title: "Add to viewer",
-      arguments: [{uri: this.resourceUri, netlistId: this.netlistId}]
+    if (this.contextValue === 'netlistVar') {
+      this.command = {
+        command: "vaporview.clickNetlistItem",
+        title: "Add to viewer",
+        arguments: [{uri: this.resourceUri, netlistId: this.netlistId}]
+      }
+    } else {
+      this.command = undefined;
     }
   }
 

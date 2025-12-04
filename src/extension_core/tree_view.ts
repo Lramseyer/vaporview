@@ -277,7 +277,7 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
 // #region NetlistItem
 export class NetlistItem extends vscode.TreeItem {
 
-  public numberFormat: string;
+  //public numberFormat: string;
   public fsdbVarLoaded: boolean = false; // Only used in fsdb
   public resourceUri: vscode.Uri;
   public readonly command: vscode.Command;
@@ -303,7 +303,7 @@ export class NetlistItem extends vscode.TreeItem {
 
     super(label, collapsibleState);
     const fullName = this.getFullName();
-    this.numberFormat = "hexadecimal";
+    //this.numberFormat = "hexadecimal";
 
     let fragmentId = "";
     if (collapsibleState === vscode.TreeItemCollapsibleState.None) {

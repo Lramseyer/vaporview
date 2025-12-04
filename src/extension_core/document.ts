@@ -335,13 +335,13 @@ export abstract class VaporviewDocument extends vscode.Disposable implements vsc
     const netlistData  = this.netlistIdTable[netlistId];
     const scopePath    = netlistData?.scopePath;
     const signalName   = netlistData?.name;
-    const numberFormat = netlistData?.numberFormat;
+    //const numberFormat = netlistData?.numberFormat;
     const msb          = netlistData?.msb;
     const lsb          = netlistData?.lsb;
     //const colorIndex   = netlistData?.colorIndex;
     return {
       name: scopePath + '.' + signalName,
-      numberFormat: numberFormat,
+      //numberFormat: numberFormat,
       msb: msb,
       lsb: lsb,
     };

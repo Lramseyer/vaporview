@@ -4,7 +4,7 @@ import { LabelsPanels } from './labels';
 import { ControlBar } from './control_bar';
 import { WaveformDataManager } from './data_manager';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
-import { VariableItem, SignalGroup, RowItem, NameType } from './signal_item';
+import { VariableItem, SignalGroup, SignalSeparator, RowItem, NameType } from './signal_item';
 import { copyWaveDrom } from './wavedrom';
 
 declare function acquireVsCodeApi(): VsCodeApi;
@@ -293,6 +293,12 @@ function signalListForSaveFile(rowIdList: RowId[]): any[] {
         groupName: data.label,
         collapseState: data.collapseState,
         children:  signalListForSaveFile(data.children)
+      });
+    } else if (data instanceof SignalSeparator) {
+      result.push({
+        dataType: "signal-separator",
+        label:    data.label,
+        rowHeight: data.rowHeight,
       });
     }
     if (!(data instanceof VariableItem)) {return;}
@@ -922,16 +928,18 @@ class VaporviewWebview {
       case 'getContext':            {sendWebviewContext(); break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
       case 'add-variable':          {dataManager.addVariable(message.signalList, message.groupPath, undefined, message.index); break;}
+      case 'setDisplayFormat':      {dataManager.setDisplayFormat(message); break;}
       case 'remove-signal':         {this.removeVariable(message.netlistId, message.rowId, message.removeAllSelected); break;}
-      case 'remove-group':          {this.removeSignalGroup(message.groupId, message.recursive); break;}
-      case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}
-      case 'update-waveform-chunk-compressed': {dataManager.updateWaveformChunkCompressed(message); break;}
-      case 'update-enum-chunk':     {dataManager.updateEnumChunk(message); break;}
       case 'newSignalGroup':        {dataManager.addSignalGroup(message.groupName, message.groupPath, message.parentGroupId, message.eventRowId, message.moveSelected); break;}
       case 'renameSignalGroup':     {dataManager.renameSignalGroup(message.rowId, message.groupName); break;}
       case 'editSignalGroup':       {dataManager.editSignalGroup(message); break;}
+      case 'remove-group':          {this.removeSignalGroup(message.groupId, message.recursive); break;}
+      case 'add-separator':         {dataManager.addSeparator(message.name, message.groupPath, message.parentGroupId, message.eventRowId, message.moveSelected); break;}
+      case 'remove-separator':      {this.removeVariable(undefined, message.rowId, message.removeAllSelected); break;}
+      case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}
+      case 'update-waveform-chunk-compressed': {dataManager.updateWaveformChunkCompressed(message); break;}
+      case 'update-enum-chunk':     {dataManager.updateEnumChunk(message); break;}
       case 'handle-keypress':       {this.externalKeyDownHandler(message); break;}
-      case 'setDisplayFormat':      {dataManager.setDisplayFormat(message); break;}
       case 'setWaveDromClock':      {dataManager.waveDromClock = {netlistId: message.netlistId, edge:  message.edge,}; break;}
       case 'setMarker':             {this.events.dispatch(ActionType.MarkerSet, message.time, message.markerType); break;}
       case 'setViewportTo':         {this.viewport.moveViewToTime(message.time); break;}

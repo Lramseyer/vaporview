@@ -6,6 +6,7 @@ import { VaporviewDocument, VaporviewDocumentFsdb, VaporviewDocumentWasm } from 
 import { SurferDocument } from './surfer_document';
 import { NetlistTreeDataProvider, NetlistItem, WebviewCollection, netlistItemDragAndDropController } from './tree_view';
 import { getInstancePath } from './tree_view';
+import { bool } from '@vscode/wasm-component-model';
 
 export type NetlistId = number;
 export type SignalId  = number;
@@ -259,7 +260,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'contextUpdate':       {this.updateStatusBarItems(document, e); break;}
         case 'emitEvent':           {this.emitEvent(e); break;}
         case 'fetchDataFromFile':   {document.fetchData(e.requestList); break;}
-        //case 'removeVariable':      {document.removeSignalFromWebview(e.netlistId, false); break;}
         case 'close-webview':       {webviewPanel.dispose(); break;}
         case 'handleDrop':          {this.handleWebviewDrop(e); break;}
         default: {this.log.appendLine('Unknown message type from webview: ' + JSON.stringify(e)); break;}
@@ -440,7 +440,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     const missingSignals: string[] = [];
     for (const signalInfo of signalList) {
-      if (signalInfo.dataType && signalInfo.dataType !== 'netlist-variable') {
+      if (signalInfo.dataType && signalInfo.dataType === 'signal-group') {
         const name = signalInfo.groupName;
         this.newSignalGroup(name, groupPath, undefined, undefined, false);
         groupPath.push(name);
@@ -450,6 +450,10 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         const isExpanded = signalInfo.collapseState === 2;
         this.editSignalGroup(undefined, groupPath, undefined, isExpanded);
         groupPath.pop();
+        continue;
+      } else if (signalInfo.dataType && signalInfo.dataType === 'signal-separator') {
+        const name = signalInfo.label;
+        this.newSeparator(name, groupPath, undefined, undefined);
         continue;
       }
       const signal   = signalInfo.name;
@@ -1139,6 +1143,26 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     });
   }
 
+  public newSeparator(
+    name: string | undefined,
+    groupPath: string[] | undefined,
+    parentGroupId: number | undefined,
+    eventRowId: number | undefined
+  ) {
+    if (!this.activeWebview) {return;}
+    if (!this.activeDocument) {return;}
+    if (!this.activeWebview.visible) {return;}
+
+    const panel      = this.activeWebview;
+    panel.webview.postMessage({
+      command: 'add-separator',
+      name: name,
+      groupPath: groupPath,
+      parentGroupId: parentGroupId,
+      eventRowId: eventRowId
+    });
+  }
+
   public renameSignalGroup(e: any | undefined) {
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
@@ -1188,23 +1212,35 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     });
   }
 
-  public setValueFormat(netlistId: NetlistId | undefined, index: number | undefined, rowId: number | undefined, properties: any) {
-    if (netlistId === undefined) {return;}
+  public removeSeparator(rowId: number, removeAllSelected: boolean) {
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}
 
-    const panel       = this.activeWebview;
-    const document    = this.activeDocument;
-    const netlistData = document.netlistIdTable[netlistId];
-    const format      = properties.valueFormat;
+    const panel = this.activeWebview;
+    panel.webview.postMessage({
+      command: 'remove-separator',
+      rowId: rowId,
+      removeAllSelected: removeAllSelected
+    });
+  }
 
-    if (netlistData) {
-      if (format !== undefined) {
-        netlistData.numberFormat = format;
-      }
-    }
+  public setValueFormat(netlistId: NetlistId | undefined, index: number | undefined, rowId: number | undefined, properties: any) {
+    if (netlistId === undefined && rowId === undefined) {return;}
+    if (!this.activeWebview) {return;}
+    if (!this.activeDocument) {return;}
+    if (!this.activeWebview.visible) {return;}
 
+    //const document    = this.activeDocument;
+    //const netlistData = document.netlistIdTable[netlistId];
+    //if (netlistData) {
+    //  if (format !== undefined) {
+    //    netlistData.numberFormat = format;
+    //  }
+    //}
+
+    const panel  = this.activeWebview;
+    const format = properties.valueFormat;
     const color1 = vscode.workspace.getConfiguration('vaporview').get('customColor1');
     const color2 = vscode.workspace.getConfiguration('vaporview').get('customColor2');
     const color3 = vscode.workspace.getConfiguration('vaporview').get('customColor3');

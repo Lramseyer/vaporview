@@ -29,17 +29,21 @@ export abstract class SignalItem {
   public wasRendered: boolean = false;
   public rowHeight: number = 1;
   public isSelected: boolean = false;
+  public abstract readonly rowId: RowId;
 
   public abstract createLabelElement(): string
   public abstract createValueDisplayElement(): string
-  public abstract getValueAtTime(time: number): string[]
+  public getValueAtTime(time: number): string[] {return [""];}
   public getNearestTransition(time: number) {return null}
+  public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {return [this.rowId];}
+  public rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number {return 1;}
+  public findParentGroupId(rowId: RowId): number | null {return null;}
   public formatValue(value: any): string {return "";}
   public renderWaveform() {return;}
   public handleValueLink(time: number, snapToTime: number) {return;}
   public getAllEdges(valueList: string[]): number[] {return [];}
   public getNextEdge(time: number, direction: number, valueList: string[]): number | null {return null;}
-  public abstract resize(): void
+  public resize() {return;}
   public dispose() {return;}
 }
 
@@ -71,6 +75,59 @@ export interface RowItem {
   handleValueLink(time: number, snapToTime: number): void;
   resize(): void;
   dispose(): void;
+}
+
+export class SignalSeparator extends SignalItem implements RowItem {
+
+  constructor(
+    public rowId: number,
+    public label: string,
+  ) {
+    super();
+    this.setSignalContextAttribute();
+  }
+
+  public createWaveformRowContent() {return `<p>${this.label}</p>`;}
+
+  public createLabelElement() {
+    const height            = getRowHeightCssClass(this.rowHeight);
+    const isSelectedClass   = this.isSelected ? 'is-selected' : '';
+    const lastSelectedClass = viewerState.lastSelectedSignal === this.rowId ? 'last-selected' : '';
+    const selectorClass = isSelectedClass + ' ' + lastSelectedClass;
+    //const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
+    return `<div class="waveform-label waveform-separator is-idle" id="label-${this.rowId}" data-vscode-context=${this.vscodeContext}>
+              <div class="waveform-row ${selectorClass} ${height}">${this.createWaveformRowContent()}</div>
+            </div>`;
+    }
+
+  public createValueDisplayElement() {
+
+    const height            = getRowHeightCssClass(this.rowHeight);
+    const isSelectedClass   = this.isSelected ? 'is-selected' : '';
+    const lastSelectedClass = viewerState.lastSelectedSignal === this.rowId ? 'last-selected' : '';
+    const selectorClass     = isSelectedClass + ' ' + lastSelectedClass;
+    let result = `<div class="value-display-item ${selectorClass} ${height}" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}></div>`;
+    return result;
+  }
+
+  public createViewportElement(rowId: number) {
+    const waveformContainer = document.createElement('div');
+    waveformContainer.setAttribute('id', 'waveform-' + rowId);
+    waveformContainer.classList.add('waveform-container');
+    waveformContainer.setAttribute("data-vscode-context", this.vscodeContext);
+    this.viewportElement = waveformContainer;
+  }
+
+  public setSignalContextAttribute() {
+    this.vscodeContext = `${JSON.stringify({
+      webviewSection: "signal-separator",
+      rowId: this.rowId,
+      preventDefaultContextMenuItems: true,
+    }).replace(/\s/g, '%x20')}`;
+  }
+
+  getLabelText(): string {return this.label;}
+  setLabelText(newLabel: string) {this.label = newLabel;}
 }
 
 export class VariableItem extends SignalItem implements RowItem {
@@ -229,10 +286,6 @@ export class VariableItem extends SignalItem implements RowItem {
     if (ignoreRowId === this.rowId) {return [];}
     return [this.rowId];
   }
-
-  public rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number {return 1;}
-
-  public findParentGroupId(rowId: RowId): number | null {return null;}
 
   public renderWaveform() {
 
@@ -680,10 +733,6 @@ export class SignalGroup extends SignalItem implements RowItem {
   }
 
   //public renderWaveform() {this.wasRendered = true;}
-  public getValueAtTime(time: number): string[] {return [""];}
-  public setColorFromColorIndex() {return;}
-  public async cacheValueFormat(force: boolean) {return new Promise<void>((resolve) => {return;});}
-  public resize() {return;}
 
   public dispose() {
     //this.canvas?.remove();

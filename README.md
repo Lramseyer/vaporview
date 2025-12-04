@@ -207,6 +207,7 @@ This extension requires VScode 1.96.0 or later
 
 - Removed Netlist View Checkboxes
 - Added double click handler to netlist view - double click adds variable to viewer
+- Added Signal Separators
 - Allow for multiple instances of the same signal to be displayed in the viewer
 - Updated time ruler to show the marker time
 - Updated control bar tooltips to match VScode style

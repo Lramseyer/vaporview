@@ -4,11 +4,12 @@
 
 - Removed Netlist View Checkboxes
 - Added double click handler to netlist view - double click adds variable to viewer
+- Added Signal Separators
 - Allow for multiple instances of the same signal to be displayed in the viewer
 - Updated time ruler to show the marker time
 - Updated control bar tooltips to match VScode style
-- Fixed Renderer glitch in Windows affecting binary and bit vector renderer
 - Added WCP support @heyfey
+- Fixed Renderer glitch in Windows affecting binary and bit vector renderer
 
 ## 1.4.3 - 11/4/2025 - Latest Release
 

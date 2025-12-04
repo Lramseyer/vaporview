@@ -456,7 +456,7 @@
         },
         {
           "submenu": "vaporview.rowHeight",
-          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "when": "(webviewSection == 'signal') && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "1_waveform_settings@6"
         },
         {
@@ -511,7 +511,7 @@
         },
         {
           "command": "vaporview.renameSignalGroup",
-          "when": "webviewSection == 'signal-group' && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "when": "(webviewSection == 'signal-group' || webviewSection == 'signal-separator') && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "3_groups@3"
         },
         {
@@ -523,6 +523,16 @@
           "command": "vaporview.deleteGroup",
           "when": "webviewSection == 'signal-group' && activeCustomEditorId == 'vaporview.waveformViewer'",
           "group": "3_groups@5"
+        },
+        {
+          "command": "vaporview.newSeparator",
+          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus",
+          "group": "3_groups@6"
+        },
+        {
+          "command": "vaporview.removeSeparator",
+          "when": "webviewSection == 'signal-separator' && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "group": "3_groups@7"
         },
         {
           "command": "vaporview.saveViewerSettings",
@@ -637,22 +647,22 @@
       "vaporview.rowHeight": [
         {
           "command": "vaporview.rowHeight1x",
-          "when": "webviewSection == 'signal'",
+          "when": "(webviewSection == 'signal' || webviewSection == 'signal-separator')",
           "group": "1_default@1"
         },
         {
           "command": "vaporview.rowHeight2x",
-          "when": "webviewSection == 'signal'",
+          "when": "(webviewSection == 'signal' || webviewSection == 'signal-separator')",
           "group": "1_default@2"
         },
         {
           "command": "vaporview.rowHeight4x",
-          "when": "webviewSection == 'signal'",
+          "when": "(webviewSection == 'signal' || webviewSection == 'signal-separator')",
           "group": "1_default@3"
         },
         {
           "command": "vaporview.rowHeight8x",
-          "when": "webviewSection == 'signal'",
+          "when": "(webviewSection == 'signal' || webviewSection == 'signal-separator')",
           "group": "1_default@3"
         }
       ],
@@ -897,6 +907,14 @@
       {
         "command": "vaporview.deleteGroup",
         "title": "Delete Group"
+      },
+      {
+        "command": "vaporview.newSeparator",
+        "title": "New Separator"
+      },
+      {
+        "command": "vaporview.removeSeparator",
+        "title": "Remove Separator"
       },
       {
         "command": "vaporview.displayAsBinary",

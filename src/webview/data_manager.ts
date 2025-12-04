@@ -1,7 +1,7 @@
 import { SignalId, NetlistId, WaveformData, ValueChange, EnumEntry, EnumData, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove, labelsPanel, outputLog, getIndexInGroup, CollapseState, controlBar } from './vaporview';
 import { getNumberFormatById } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer, signedLinearWaveformRenderer, signedSteppedrWaveformRenderer } from './renderer';
-import { SignalGroup, VariableItem, RowItem, NameType } from './signal_item';
+import { SignalGroup, VariableItem, RowItem, NameType, SignalSeparator } from './signal_item';
 // @ts-ignore
 import * as LZ4 from 'lz4js';
 
@@ -306,6 +306,36 @@ export class WaveformDataManager {
     this.nextRowId++;
   }
 
+  addSeparator(name: string | undefined, groupPath: string[] | undefined, parentGroupId: number | undefined, eventRowId: number | undefined, moveSelected: boolean) {
+    if (controlBar.searchInFocus || labelsPanel.renameActive) {return;}
+    const rowId = this.nextRowId;
+    this.nextRowId++;
+
+    viewerState.displayedSignals = viewerState.displayedSignals.concat(rowId);
+    const separatorItem = new SignalSeparator(rowId, name || "---");
+    this.rowItems[rowId] = separatorItem;
+    updateDisplayedSignalsFlat();
+    this.events.dispatch(ActionType.AddVariable, [rowId], false);
+
+    let reorder = false;
+    let index = viewerState.displayedSignalsFlat.length;
+    let parentGroup = this.getGroupByIdOrName(groupPath, parentGroupId);
+    if (eventRowId !== undefined) {
+      parentGroupId = getParentGroupId(eventRowId) || 0;
+      const parentGroupChildren = getChildrenByGroupId(parentGroupId);
+      index = parentGroupChildren.indexOf(eventRowId) + 1;
+      reorder = true;
+    } else if (parentGroup !== null) {
+      parentGroupId = parentGroup.groupId;
+      index = parentGroup.children.length;
+      reorder = true;
+    }
+
+    if (reorder) {
+      this.events.dispatch(ActionType.ReorderSignals, [rowId], parentGroupId, index);
+    }
+  }
+
   renameSignalGroup(rowId: RowId | undefined, name: string | undefined) {
 
     if (rowId === undefined) {
@@ -327,7 +357,6 @@ export class WaveformDataManager {
   }
 
   editSignalGroup(message: any) {
-
 
     const groupPath = message.groupPath;
     const groupId = message.groupId;
@@ -713,6 +742,8 @@ export class WaveformDataManager {
 
   setDisplayFormat(message: any) {
 
+    console.log(message);
+
     let netlistId = message.netlistId;
     let rowId = message.rowId;
     if (netlistId === undefined && rowId === undefined) {return;}
@@ -724,8 +755,7 @@ export class WaveformDataManager {
     }
     if (this.rowItems[rowId] === undefined) {return;}
     const netlistData = this.rowItems[rowId];
-    if (netlistData instanceof VariableItem === false) {return;}
-    const signalWidth = netlistData.signalWidth;
+    if ((netlistData instanceof VariableItem === false) && (netlistData instanceof SignalSeparator === false)) {return;}
 
     let updateAllSelected = false;
     let updateSelected = false;
@@ -738,6 +768,14 @@ export class WaveformDataManager {
 
     rowIdList.forEach((rId) => {
       const data = this.rowItems[rId];
+
+      // Row height
+      if (message.rowHeight !== undefined) {
+        data.rowHeight = message.rowHeight;
+        viewport.updateElementHeight(rId);
+        updateAllSelected = true;
+      }
+
       if (data instanceof VariableItem === false) {return;}
 
       // Color - this is applied to all selected signals if the selected signal is being updated
@@ -745,13 +783,6 @@ export class WaveformDataManager {
         customColorKey = message.customColors;
         data.colorIndex = message.color;
         data.setColorFromColorIndex();
-        updateAllSelected = true;
-      }
-
-      // Row height
-      if (message.rowHeight !== undefined) {
-        data.rowHeight = message.rowHeight;
-        viewport.updateElementHeight(rId);
         updateAllSelected = true;
       }
 
@@ -780,6 +811,8 @@ export class WaveformDataManager {
         updateAllSelected = true;
       }
     });
+
+    if (netlistData instanceof VariableItem === false) {return;}
 
     // Number format
     if (message.numberFormat !== undefined) {

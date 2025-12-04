@@ -158,6 +158,14 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.deleteSignalGroup(e, true);
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.newSeparator', (e) => {
+    viewerProvider.newSeparator(e.name, e.groupPath, e.parentGroupId, e.rowId);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeSeparator', (e) => {
+    viewerProvider.removeSeparator(e.rowId, true);
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.renameSignalGroup', (e) => {
     viewerProvider.renameSignalGroup(e);
   }));

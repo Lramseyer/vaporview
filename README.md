@@ -211,8 +211,9 @@ This extension requires VScode 1.96.0 or later
 - Allow for multiple instances of the same signal to be displayed in the viewer
 - Updated time ruler to show the marker time
 - Updated control bar tooltips to match VScode style
-- Fixed Renderer glitch in Windows affecting binary and bit vector renderer
+- Multi signal select now batch configures number format
 - Added WCP support @heyfey
+- Fixed Renderer glitch in Windows affecting binary and bit vector renderer
 
 ## 1.4.3 - 11/4/2025 - Latest Release
 

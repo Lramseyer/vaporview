@@ -8,6 +8,7 @@
 - Allow for multiple instances of the same signal to be displayed in the viewer
 - Updated time ruler to show the marker time
 - Updated control bar tooltips to match VScode style
+- Multi signal select now batch configures number format
 - Added WCP support @heyfey
 - Fixed Renderer glitch in Windows affecting binary and bit vector renderer
 

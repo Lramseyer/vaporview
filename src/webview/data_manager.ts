@@ -810,15 +810,19 @@ export class WaveformDataManager {
         this.setRenderType(data, message.renderType);
         updateAllSelected = true;
       }
+
+      // Number format
+      if (message.numberFormat !== undefined) {
+        const valueFormat = getNumberFormatById(data, message.numberFormat);
+        if (valueFormat.checkWidth(data.signalWidth)) {
+          data.valueFormat = valueFormat;
+          data.cacheValueFormat(true);
+          updateAllSelected = true;
+        }
+      }
     });
 
     if (netlistData instanceof VariableItem === false) {return;}
-
-    // Number format
-    if (message.numberFormat !== undefined) {
-      netlistData.valueFormat = getNumberFormatById(netlistData, message.numberFormat);
-      netlistData.cacheValueFormat(true);
-    }
 
     // Value link command
     if (message.valueLinkCommand !== undefined) {

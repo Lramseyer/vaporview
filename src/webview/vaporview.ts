@@ -548,7 +548,7 @@ class VaporviewWebview {
     else if (e.key === 'Delete' || e.key === 'Backspace') {
       viewerState.selectedSignal.forEach((rowId) => {
         const rowItem = dataManager.rowItems[rowId];
-        if (!(rowItem instanceof VariableItem)) {return;}
+        if (rowItem instanceof SignalGroup) {return;}
         this.removeVariable(rowItem.netlistId, rowId, true);
       });
     }

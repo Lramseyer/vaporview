@@ -317,7 +317,7 @@ body {
   grid-column-end: 2;
   grid-row-start: 2;
   grid-row-end: 4;
-  overflow: visible;
+  overflow: hidden;
 }
 
 #waveform-labels-spacer {

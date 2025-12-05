@@ -267,7 +267,7 @@
       {
         "command": "vaporview.newSignalGroup",
         "key": "g",
-        "when": "activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus"
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus && !textInputFocus"
       }
     ],
     "submenus": [

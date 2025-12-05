@@ -610,10 +610,12 @@ class VaporviewWebview {
   }
 
   updateVerticalScale(event: any, scale: number) {
-    viewerState.selectedSignal.forEach((rowId) => {
-      if (event && event.rowId !== undefined) {
-        rowId = event.rowId;
-      }
+    let rowIdList: RowId[] = viewerState.selectedSignal;
+    if (event && event.rowId !== undefined && !viewerState.selectedSignal.includes(event.rowId)) {
+      rowIdList = [event.rowId];
+    }
+
+    rowIdList.forEach((rowId) => {
       if (rowId === null) {return;}
       const netlistData = dataManager.rowItems[rowId];
       if (!(netlistData instanceof VariableItem)) {return;}

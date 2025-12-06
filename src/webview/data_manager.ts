@@ -197,6 +197,7 @@ export class WaveformDataManager {
         //selectedSignal = [rowId];
         updateFlag     = true;
         varItem.cacheValueFormat(false);
+        labelsPanel.valueAtMarker[rowId] = varItem.getValueAtTime(viewerState.markerTime);
       } else if (this.valueChangeDataTemp[signalId] !== undefined) {
         this.valueChangeDataTemp[signalId].rowIdList.push(rowId);
       } else if (this.valueChangeDataTemp[signalId] === undefined) {
@@ -576,6 +577,9 @@ export class WaveformDataManager {
     rowIdList.forEach((rowId: RowId) => {
       const netlistData = this.rowItems[rowId];
       if (netlistData === undefined || netlistData instanceof VariableItem === false) {return;}
+        if (viewerState.markerTime) {
+          labelsPanel.valueAtMarker[rowId] = netlistData.getValueAtTime(viewerState.markerTime);
+        }
       this.events.dispatch(ActionType.RedrawVariable, rowId);
       netlistData.cacheValueFormat(false);
     });

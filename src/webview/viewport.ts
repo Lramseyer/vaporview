@@ -956,9 +956,7 @@ export class Viewport {
   handleRedrawSignal(rowId: RowId) {
     const signalItem = dataManager.rowItems[rowId];
     if (!signalItem) {return;}
-    if (viewerState.markerTime !== null) {
-      labelsPanel.valueAtMarker[rowId] = signalItem.getValueAtTime(viewerState.markerTime);
-    }
+    labelsPanel.valueAtMarker[rowId] = signalItem.getValueAtTime(viewerState.markerTime);
     signalItem.renderWaveform();
     signalItem.viewportElement?.setAttribute('data-vscode-context', signalItem.vscodeContext);
   }

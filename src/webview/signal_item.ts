@@ -33,7 +33,7 @@ export abstract class SignalItem {
 
   public abstract createLabelElement(): string
   public abstract createValueDisplayElement(): string
-  public getValueAtTime(time: number): string[] {return [""];}
+  public getValueAtTime(time: number | null): string[] {return [""];}
   public getNearestTransition(time: number) {return null}
   public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {return [this.rowId];}
   public rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number {return 1;}
@@ -64,7 +64,7 @@ export interface RowItem {
   createWaveformRowContent(): string;
   getLabelText(): string;
   setLabelText(newLabel: string): void;
-  getValueAtTime(time: number): string[];
+  getValueAtTime(time: number | null): string[];
   getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[];
   rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number
   findParentGroupId(rowId: RowId): number | null;
@@ -333,16 +333,16 @@ export class VariableItem extends SignalItem implements RowItem {
     this.wasRendered = true;
   }
 
-  public getValueAtTime(time: number) {
-  
+  public getValueAtTime(time: number | null) {
+
     const result: string[] = [];
-    const signalId = this.signalId;
-    const data     = dataManager.valueChangeData[signalId];
-  
+    const data = dataManager.valueChangeData[this.signalId];
+
+    if (time === null) {return result;}
     if (!data) {return result;}
-  
+
     const transitionData  = data.transitionData;
-    const transitionIndex = dataManager.getNearestTransitionIndex(signalId, time);
+    const transitionIndex = dataManager.getNearestTransitionIndex(this.signalId, time);
 
     if (transitionIndex === -1) {return result;}
     if (transitionIndex > 0) {

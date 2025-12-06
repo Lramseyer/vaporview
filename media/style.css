@@ -666,7 +666,7 @@ body {
   position: absolute;
   top: 0;
   height: 100%;
-  z-index: 90;
+  z-index: 20;
   overflow: visible;
   stroke-width: 1px;
   width: 1px;

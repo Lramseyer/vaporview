@@ -826,7 +826,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (netlistIdCount > maxSignals || netlistIdCount > 64) {return;}
 
     document.treeData.forEach(scope => {
-      this.addChildVariablesToDocument(document, scope, true, maxSignals);
+      this.addChildVariablesToDocument(document, scope, true, maxSignals, true);
     });
   }
 

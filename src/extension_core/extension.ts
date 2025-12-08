@@ -71,7 +71,7 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.log.appendLine("Command called: 'vaporview.openFile ' + " + e.uri.toString());
     if (!e.uri) {return;}
     await vscode.commands.executeCommand('vscode.openWith', e.uri, 'vaporview.waveformViewer');
-    if (e.loadAll) {viewerProvider.loadAllVariablesFromFile(e.uri, e.maxSignals || 64);}
+    if (e.loadAll) {viewerProvider.loadAllVariablesFromFile(e.uri.toString(), e.maxSignals || 64);}
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.addVariable', (e) => {

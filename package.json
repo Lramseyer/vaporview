@@ -265,7 +265,7 @@
         "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
       },
       {
-        "command": "vaporview.newSignalGroup",
+        "command": "vaporview.newGroupFromSelection",
         "key": "g",
         "when": "activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus && !textInputFocus"
       }

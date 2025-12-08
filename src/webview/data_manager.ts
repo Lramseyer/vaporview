@@ -254,10 +254,14 @@ export class WaveformDataManager {
     let reorder = false;
     let index = viewerState.displayedSignalsFlat.length;
     let parentGroup = this.getGroupByIdOrName(groupPath, inputParentGroupId);
-    if (eventRowId !== undefined) {
-      parentGroupId = getParentGroupId(eventRowId) || 0;
+    if (eventRowId !== undefined || moveSelected) {
+      let targetRowId = eventRowId;
+      if (targetRowId === undefined) {
+        targetRowId = viewerState.selectedSignal[0];
+      }
+      parentGroupId = getParentGroupId(targetRowId) || 0;
       const parentGroupChildren = getChildrenByGroupId(parentGroupId);
-      index = parentGroupChildren.indexOf(eventRowId) + 1;
+      index = parentGroupChildren.indexOf(targetRowId);
       reorder = true;
     } else if (parentGroup !== null) {
       parentGroupId = parentGroup.groupId;
@@ -288,8 +292,7 @@ export class WaveformDataManager {
 
     let moveValid = true
     if (moveSelected && viewerState.selectedSignal.length > 0) {
-      this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignal, groupId, 0);
-
+      //this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignal, groupId, 0);
       const filteredRowIdList = this.removeChildrenFromSignalList(viewerState.selectedSignal);
       const parentGroupRowId = this.groupIdTable[parentGroupId];
       filteredRowIdList.forEach((id) => {
@@ -301,6 +304,10 @@ export class WaveformDataManager {
 
     if (reorder && moveValid) {
       this.events.dispatch(ActionType.ReorderSignals, [rowId], parentGroupId, index);
+    }
+
+    if (moveSelected && viewerState.selectedSignal.length > 0) {
+      this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignal, groupId, 0);
     }
 
     this.nextGroupId++;
@@ -577,9 +584,7 @@ export class WaveformDataManager {
     rowIdList.forEach((rowId: RowId) => {
       const netlistData = this.rowItems[rowId];
       if (netlistData === undefined || netlistData instanceof VariableItem === false) {return;}
-        if (viewerState.markerTime) {
-          labelsPanel.valueAtMarker[rowId] = netlistData.getValueAtTime(viewerState.markerTime);
-        }
+      labelsPanel.valueAtMarker[rowId] = netlistData.getValueAtTime(viewerState.markerTime);
       this.events.dispatch(ActionType.RedrawVariable, rowId);
       netlistData.cacheValueFormat(false);
     });

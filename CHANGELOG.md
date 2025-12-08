@@ -2,15 +2,16 @@
 
 ## 1.4.4 - Upcoming Release
 
-- Removed Netlist View Checkboxes
 - Added double click handler to netlist view - double click adds variable to viewer
-- Added Signal Separators
+- Removed Netlist View Checkboxes
 - Allow for multiple instances of the same signal to be displayed in the viewer
 - Updated time ruler to show the marker time
+- Added Signal Separators
 - Updated control bar tooltips to match VScode style
 - Multi signal select now batch configures number format
 - Added WCP support @heyfey
 - Fixed Renderer glitch in Windows affecting binary and bit vector renderer
+- Upgraded to wellen 0.19.2
 
 ## 1.4.3 - 11/4/2025 - Latest Release
 

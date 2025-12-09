@@ -53,6 +53,7 @@ Vaporview allows you to connect to a remote machine and open up waveforms remote
 - **Shift + Scroll Wheel** - Scroll up and down on waveforms
 - **Up/Down Arrow** - Select signal above/below selected signal
 - **Alt + Up/Down Arrow** - Rearrange selected signal
+- **Ctrl/Cmd + A** - Select all signals
 - **Ctrl/Command + Left/Right Arrow** - Move marker to previous/next value transition of selected signal
 - **Alt + Click or Middle Click** - Set Alt-Marker
 - **Home** and **End** - Scroll to the beginning and end (respectively) of the waveform
@@ -212,6 +213,8 @@ This extension requires VScode 1.96.0 or later
 - Added Signal Separators
 - Updated control bar tooltips to match VScode style
 - Multi signal select now batch configures number format
+- Added check for saved config file and prompts user to reload saved settings
+- Added Ctrl/Cmd + A keybinding to select all signals
 - Added WCP support @heyfey
 - Fixed Renderer glitch in Windows affecting binary and bit vector renderer
 - Upgraded to wellen 0.19.2

@@ -9,6 +9,8 @@
 - Added Signal Separators
 - Updated control bar tooltips to match VScode style
 - Multi signal select now batch configures number format
+- Added check for saved config file and prompts user to reload saved settings
+- Added Ctrl/Cmd + A keybinding to select all signals
 - Added WCP support @heyfey
 - Fixed Renderer glitch in Windows affecting binary and bit vector renderer
 - Upgraded to wellen 0.19.2

@@ -256,7 +256,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'executeCommand':      {vscode.commands.executeCommand(e.commandName, e.args); break;}
         case 'updateConfiguration': {vscode.workspace.getConfiguration('vaporview').update(e.property, e.value, vscode.ConfigurationTarget.Global); break;}
         case 'ready':               {document.onWebviewReady(webviewPanel); break;}
-        case 'restoreState':        {this.applySettings(e.state, this.getDocumentFromUri(e.uri.toString())); break;}
+        case 'restoreState':        {this.restoreState(e.state, e.uri); break;}
         case 'contextUpdate':       {this.updateStatusBarItems(document, e); break;}
         case 'emitEvent':           {this.emitEvent(e); break;}
         case 'fetchDataFromFile':   {document.fetchData(e.requestList); break;}
@@ -523,6 +523,29 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
 
     //this.netlistTreeDataProvider.loadDocument(document);
+  }
+
+  public restoreState(state: any, uri: vscode.Uri) {
+    const document = this.getDocumentFromUri(uri.toString());
+    if (state) {
+      this.applySettings(state, document);
+    } else {
+      // chack the directory for a file with the same name as the document, but with the extension .vaporview.json
+      const filePath = uri.fsPath.match(/^(.*)\.[^.]+$/)?.[1] + '.json';
+      if (fs.existsSync(filePath)) {
+
+        // ask the user if they want to restore the state from the file
+        vscode.window.showInformationMessage(
+          'Restore state from file: ' + filePath + '?',
+          'Yes', 'No'
+        ).then((action) => {
+          if (action === 'Yes') {
+            const state = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            this.applySettings(state, document);
+          }
+        });
+      }
+    }
   }
 
   async reloadFile(e: any) {

@@ -106,7 +106,6 @@ export class EventHandler {
 
 export function restoreState() {
   const state = vscode.getState();
-  if (!state) {return;}
   vscode.postMessage({
     command: 'restoreState',
     state: state,

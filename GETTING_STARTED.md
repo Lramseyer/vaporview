@@ -8,7 +8,7 @@ To get started working on Vaporview, you will need the following installed and u
 
 - [VScode - latest](https://code.visualstudio.com/)
 - [Node - 20.18.0 or later](https://nodejs.org/en)
-- [Rust - 1.80.0 or later](https://www.rust-lang.org/)
+- [Rust - 1.90.0 or later](https://www.rust-lang.org/)
 
 ## Install libraries
 

@@ -544,6 +544,12 @@ class VaporviewWebview {
     else if (e.key === 'n') {controlBar.goToNextTransition(1, []);}
     else if (e.key === 'N') {controlBar.goToNextTransition(-1, []);}
 
+    else if (e.key === 'a' && (e.ctrlKey || e.metaKey) && !controlBar.searchInFocus && !labelsPanel.renameActive) {
+      e.preventDefault();
+      controlBar.defocusSearchBar();
+      this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignalsFlat, null);
+    }
+
     else if (e.key === 'Escape') {this.handleMouseUp(e, true);}
     else if (e.key === 'Delete' || e.key === 'Backspace') {
       viewerState.selectedSignal.forEach((rowId) => {

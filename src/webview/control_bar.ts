@@ -250,6 +250,12 @@ export class ControlBar {
     return result;
   }
 
+  defocusSearchBar() {
+    this.searchBar.selectionStart = 0;
+    this.searchBar.selectionEnd   = 0;
+    this.searchBar.blur();
+  }
+
   handleSearchButtonSelect(button: number) {
     this.handleSearchBarInFocus(true);
     this.searchState = button;

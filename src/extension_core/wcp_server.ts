@@ -235,6 +235,9 @@ export class WCPServer {
         case 'set_item_color':
           result = await this.handleSetItemColor(command.params);
           break;
+        case 'set_value_format':
+          result = await this.handleSetValueFormat(command.params);
+          break;
         case 'add_markers':
           this.viewerProvider.log.appendLine('WCP: add_markers command requested but not yet implemented');
           return {
@@ -505,6 +508,84 @@ export class WCPServer {
 
     // Set the color using setValueFormat
     this.viewerProvider.setValueFormat(netlistId, 0, undefined, { colorIndex: colorIndex });
+
+    // Return ack response with uri (WCP spec format)
+    return {
+      type: "response",
+      command: "ack",
+      uri: uri.toString()
+    };
+  }
+
+  private async handleSetValueFormat(params: any): Promise<any> {
+    const document = this.getDocumentFromParams(params);
+    if (!document) {
+      throw new Error('No active document');
+    }
+
+    if (params.id === undefined || params.id === null) {
+      throw new Error('id (netlist ID) parameter is required');
+    }
+
+    if (!params.format) {
+      throw new Error('format parameter is required');
+    }
+
+    // Validate id is a number (netlist ID)
+    if (typeof params.id !== 'number') {
+      throw new Error('id must be a number (netlist ID)');
+    }
+
+    const netlistId = params.id;
+    const uri = document.uri;
+
+    // Get the item from netlistIdTable
+    const item = document.netlistIdTable[netlistId];
+    if (!item) {
+      throw new Error(`Item not found: ${netlistId}`);
+    }
+
+    // Check if it's a signal (only signals can have formats)
+    if (item.contextValue === 'netlistScope') {
+      throw new Error('Cannot set format for scope items');
+    }
+
+    // Require that the signal is currently displayed
+    if (!document.isSignalDisplayed(netlistId)) {
+      throw new Error(`Signal is not displayed: ${netlistId}`);
+    }
+
+    // Valid format values (from valueFormatList)
+    const validFormats = [
+      'binary',
+      'hexadecimal',
+      'decimal',
+      'octal',
+      'signed',
+      'float8',
+      'float16',
+      'float32',
+      'float64',
+      'bfloat16',
+      'tensorfloat32',
+      'ascii',
+      'string'
+    ];
+
+    const format = params.format.toLowerCase();
+
+    // If format is invalid, do nothing (no error, just return ack)
+    if (!validFormats.includes(format)) {
+      // throw new Error(`Invalid format: ${params.format}. Valid formats: ${validFormats.join(', ')}`);
+      return {
+        type: "response",
+        command: "ack",
+        uri: uri.toString()
+      };
+    }
+
+    // Set the format using setValueFormat
+    this.viewerProvider.setValueFormat(netlistId, 0, undefined, { valueFormat: format });
 
     // Return ack response with uri (WCP spec format)
     return {
@@ -964,7 +1045,8 @@ export class WCPServer {
       zoom_ratio: state.zoomRatio,
       scroll_left: state.scrollLeft,
       displayed_signals: state.displayedSignals?.map((sig: any) => ({
-        name: sig.name
+        name: sig.name,
+        id: sig.netlistId
       })) || []
     };
   }
@@ -1119,6 +1201,7 @@ export class WCPServer {
       'set_viewport_range',
       'focus_item',
       'set_item_color',
+      'set_value_format',
       'remove_items',
       'shutdown',
       'add_variables', // Deprecated but still supported

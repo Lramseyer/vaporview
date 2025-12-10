@@ -314,6 +314,8 @@ export class WaveformDataManager {
       this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignal, groupId, 0);
     }
 
+    labelsPanel.showRenameInput(rowId);
+
     this.nextGroupId++;
     this.nextRowId++;
   }

@@ -553,8 +553,8 @@ class VaporviewWebview {
     else if (e.key === 'Delete' || e.key === 'Backspace') {
       viewerState.selectedSignal.forEach((rowId) => {
         const rowItem = dataManager.rowItems[rowId];
-        if (rowItem instanceof SignalGroup) {return;}
-        this.removeVariable(rowItem.netlistId, rowId, true);
+        if (rowItem instanceof SignalGroup && rowItem.children.length > 0) {return;}
+        this.removeVariable(undefined, rowId, true);
       });
     }
 
@@ -787,7 +787,6 @@ class VaporviewWebview {
 
     let removeList: RowId[] = [];
     if (rowId !== undefined) {
-      console.log('Removing variable rowId: ' + rowId);
       removeList = [rowId];
       if (viewerState.selectedSignal.includes(rowId) && removeAllSelected) {
         removeList = viewerState.selectedSignal;

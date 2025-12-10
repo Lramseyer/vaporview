@@ -236,6 +236,14 @@ export class WaveformDataManager {
       reorder = true;
     }
 
+    // If no location was specified, move the signal to below the selected signal
+    if (!reorder && viewerState.selectedSignal.length === 1) {
+      const selectedRowId = viewerState.selectedSignal[0];
+      groupId = getParentGroupId(selectedRowId) || 0;
+      moveIndex = (getIndexInGroup(selectedRowId, groupId) || 0) + 1;
+      reorder = true;
+    }
+
     if (reorder) {
       this.events.dispatch(ActionType.ReorderSignals, moveList, groupId, moveIndex);
     }

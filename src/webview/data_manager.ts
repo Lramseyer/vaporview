@@ -255,15 +255,19 @@ export class WaveformDataManager {
     let index = viewerState.displayedSignalsFlat.length;
     let parentGroup = this.getGroupByIdOrName(groupPath, inputParentGroupId);
     if (eventRowId !== undefined || moveSelected) {
+      // Command was sent via keybinding, or right clicking on an empty area
       let targetRowId = eventRowId;
       if (targetRowId === undefined) {
         targetRowId = viewerState.selectedSignal[0];
       }
       parentGroupId = getParentGroupId(targetRowId) || 0;
       const parentGroupChildren = getChildrenByGroupId(parentGroupId);
-      index = parentGroupChildren.indexOf(targetRowId);
+      if (targetRowId !== undefined) {
+        index = parentGroupChildren.indexOf(targetRowId);
+      }
       reorder = true;
     } else if (parentGroup !== null) {
+      // Command was sent to reload settings
       parentGroupId = parentGroup.groupId;
       index = parentGroup.children.length;
       reorder = true;
@@ -750,8 +754,6 @@ export class WaveformDataManager {
   }
 
   setDisplayFormat(message: any) {
-
-    console.log(message);
 
     let netlistId = message.netlistId;
     let rowId = message.rowId;

@@ -66,6 +66,8 @@ Signals may be added or removed through VaporView view container. Click on the V
 
 ### Adding Signals
 
+![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/add_signals.gif?raw=true)
+
 To Add a signal, click the "+" icon to the right of the netlist variable in the "Netlist" view or double click on the variable. It will also show in the "Displayed Signals" view.
 
 Signals can also be added by dragging and dropping them from the netlist view to the viewer. Make sure to hold **Shift** before dropping them into the viewer - note that this is a VScode requirement.
@@ -90,7 +92,7 @@ Scroll wheel scrolls sideways by default. To scroll up or down, either hold Shif
 
 ### Touchpad Scrolling
 
-![Sure, Verdi can open FSDB files, but can it do this?](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/touchpad_scroll.gif?raw=true)
+![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/touchpad_scroll.gif?raw=true)
 
 ## Zooming
 

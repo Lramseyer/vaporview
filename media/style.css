@@ -610,6 +610,13 @@ body {
   overflow: hidden;
 }
 
+#webgl-container {
+  position: fixed;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
 .waveform-container {
   display:     flex;
   position: relative;

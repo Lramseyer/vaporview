@@ -219,36 +219,14 @@ export class Viewport {
    * Call this to enable WebGL-based waveform rendering for better performance on Windows.
    */
   initWebGL() {
-    if (this.glManager) {
-      return; // Already initialized
-    }
+    if (this.glManager) {return;}
 
     try {
-      // Create a container for the WebGL canvases
-      const container = document.createElement('div');
-      container.id = 'webgl-container';
-      container.style.cssText = `
-        position: absolute;
-        top: 40px;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        pointer-events: none;
-        overflow: hidden;
-      `;
-      this.contentArea.appendChild(container);
+      const container = document.getElementById('webgl-container');
+      if (!container) {throw new Error('WebGL container element not found');}
 
-      this.glManager = WebGLContextManager.initialize(
-        container,
-        this.viewerWidth,
-        this.viewerHeight - 40 // Exclude ruler height
-      );
-
+      this.glManager = WebGLContextManager.initialize(container, this.viewerWidth, this.viewerHeight);
       this.useWebGL = true;
-      console.log('WebGL rendering enabled');
-
-      // Hide individual signal canvases when using WebGL
-      this.setSignalCanvasVisibility(false);
 
     } catch (e) {
       console.error('Failed to initialize WebGL:', e);
@@ -261,24 +239,18 @@ export class Viewport {
    * Disable WebGL and return to Canvas 2D rendering.
    */
   disableWebGL() {
-    if (!this.glManager) {
-      return;
-    }
+    if (!this.glManager) {return;}
 
     this.useWebGL = false;
     
-    // Remove WebGL container
+    // Clear the WebGL canvas from the container (but keep the container element)
     const container = document.getElementById('webgl-container');
     if (container) {
-      container.remove();
+      container.innerHTML = '';
     }
 
-    this.glManager = null;
-
-    // Show individual signal canvases again
-    this.setSignalCanvasVisibility(true);
-
     // Re-render with Canvas 2D
+    this.glManager = null;
     this.renderAllWaveforms(false);
   }
 
@@ -296,16 +268,6 @@ export class Viewport {
   }
 
   /**
-   * Show/hide individual signal canvases.
-   */
-  private setSignalCanvasVisibility(visible: boolean) {
-    const canvases = this.waveformArea.querySelectorAll('.waveform-canvas');
-    canvases.forEach((canvas) => {
-      (canvas as HTMLElement).style.visibility = visible ? 'visible' : 'hidden';
-    });
-  }
-
-  /**
    * Resize WebGL canvases when viewport changes.
    */
   resizeWebGL() {
@@ -319,9 +281,7 @@ export class Viewport {
    * Draws all visible waveforms to a single WebGL canvas.
    */
   renderAllWaveformsWebGL() {
-    if (!this.glManager) {
-      return;
-    }
+    if (!this.glManager) {return;}
 
     const viewerHeightMinusRuler = this.viewerHeight - 40;
     const scrollTop = this.scrollArea.scrollTop;
@@ -331,7 +291,7 @@ export class Viewport {
 
     // Render each visible signal
     // yOffset tracks position in document space, we subtract scrollTop when drawing
-    let yOffset = 4;
+    let yOffset = 4 + 40;
 
     viewerState.visibleSignalsFlat.forEach((rowId) => {
       const rowItem = dataManager.rowItems[rowId];

@@ -53,8 +53,6 @@ export class WebGLContextManager {
   
   public gl: WebGL2RenderingContext | WebGLRenderingContext;
   public canvas: HTMLCanvasElement;
-  public textCanvas: HTMLCanvasElement;
-  public textCtx: CanvasRenderingContext2D;
   public pixelRatio: number;
   
   private program: WebGLProgram;
@@ -81,27 +79,7 @@ export class WebGLContextManager {
     this.canvas.height = height * this.pixelRatio;
     this.canvas.style.width = width + 'px';
     this.canvas.style.height = height + 'px';
-    this.canvas.style.position = 'absolute';
-    this.canvas.style.left = '0';
-    this.canvas.style.top = '0';
-    this.canvas.style.pointerEvents = 'none';
     container.appendChild(this.canvas);
-    
-    // Create text overlay canvas (scaled for HiDPI)
-    this.textCanvas = document.createElement('canvas');
-    this.textCanvas.width = width * this.pixelRatio;
-    this.textCanvas.height = height * this.pixelRatio;
-    this.textCanvas.style.width = width + 'px';
-    this.textCanvas.style.height = height + 'px';
-    this.textCanvas.style.position = 'absolute';
-    this.textCanvas.style.left = '0';
-    this.textCanvas.style.top = '0';
-    this.textCanvas.style.pointerEvents = 'none';
-    container.appendChild(this.textCanvas);
-    
-    this.textCtx = this.textCanvas.getContext('2d', { alpha: true })!;
-    // Scale the 2D context to match pixel ratio
-    this.textCtx.scale(this.pixelRatio, this.pixelRatio);
     
     // Get WebGL context
     const gl = this.canvas.getContext('webgl2', {
@@ -198,23 +176,13 @@ export class WebGLContextManager {
     this.canvas.style.width = width + 'px';
     this.canvas.style.height = height + 'px';
     
-    this.textCanvas.width = width * this.pixelRatio;
-    this.textCanvas.height = height * this.pixelRatio;
-    this.textCanvas.style.width = width + 'px';
-    this.textCanvas.style.height = height + 'px';
-    
     this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-    
-    // Reset and scale text context (scale is reset when canvas size changes)
-    this.textCtx.scale(this.pixelRatio, this.pixelRatio);
   }
   
   clear() {
     const gl = this.gl;
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    // Clear using actual canvas dimensions
-    this.textCtx.clearRect(0, 0, this.cssWidth, this.cssHeight);
   }
   
   setTransform(translateX: number, translateY: number, scaleX: number, scaleY: number) {
@@ -251,12 +219,15 @@ export class WebGLContextManager {
         this.setColor(r, g, b, a * alpha);
       }
     } else {
-      // Fallback - create a temp canvas to parse the color
-      const ctx = this.textCtx;
-      ctx.fillStyle = cssColor;
-      const computed = ctx.fillStyle;
-      if (computed.startsWith('#')) {
-        this.setColorFromHex(computed, alpha);
+      // Fallback - use a temporary canvas to parse the color
+      const tempCanvas = document.createElement('canvas');
+      const ctx = tempCanvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = cssColor;
+        const computed = ctx.fillStyle;
+        if (computed.startsWith('#')) {
+          this.setColorFromHex(computed, alpha);
+        }
       }
     }
   }
@@ -657,9 +628,15 @@ export const webglMultiBitRenderer: WebGLWaveformRenderer = {
       glManager.drawTriangles(xzVertices);
     }
 
-    // Draw text on Canvas 2D overlay
-    const textCtx = glManager.textCtx;
-    const textY = yOffset + halfCanvasHeight + 1;
+    // Draw text on the signal's own canvas
+    const textCtx = netlistData.ctx;
+    if (!textCtx) return;
+    
+    // Clear the signal's canvas (WebGL draws geometry, this canvas is for text only)
+    textCtx.clearRect(0, 0, viewportSpecs.viewerWidth, canvasHeight);
+    
+    // Text Y position is local to the signal's canvas
+    const textY = halfCanvasHeight + 1;
     const fontWeight = fillShape ? 'bold ' : '';
     const textColor = fillShape ? viewportSpecs.backgroundColor : viewportSpecs.textColor;
     

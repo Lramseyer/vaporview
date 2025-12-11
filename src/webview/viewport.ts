@@ -731,7 +731,7 @@ export class Viewport {
     ctx.font = this.fontStyle;
     ctx.fillStyle = this.rulerTextColor;
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    ctx.textBaseline = 'bottom';
     ctx.clearRect(0, 0, this.viewerWidth, 40);
 
     // Draw the Ticks
@@ -777,7 +777,8 @@ export class Viewport {
         this.rulerLineX.push([numberX, 1]);
       }
 
-      ctx.fillText(valueString, numberX, 16);
+      // Y height is .time-marker-label top offset
+      ctx.fillText(valueString, numberX, 24);
       numberX += this.rulerNumberSpacing;
       number += this.rulerNumberIncrement;
       setIndex += 1;

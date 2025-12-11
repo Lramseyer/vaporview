@@ -948,6 +948,10 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     if (document !== this.activeDocument) {return;}
     document.renderSignals(netlistIdList, groupPath, index);
+    // shift focus to the document if any signals were added
+    if (netlistIdList.length > 0) {
+      document.reveal();
+    }
 
     // Emit an event for the unknown URIs so that other extensions can handle them if needed
     if (unknownUriList.length === 0) {return;}

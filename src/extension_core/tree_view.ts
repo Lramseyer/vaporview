@@ -261,8 +261,9 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
     let newUri: vscode.Uri | undefined = uri;
 
     if (deltaTime < 300 && uri === this.lastClickedTreeItem) {
+      const treeItemPath = uri.path || uri.authority; // fallback for different URI formats
       if (!this.document) {return;}
-      if (uri.path !== this.document.uri.fsPath) {return;}
+      if (treeItemPath !== this.document.uri.fsPath) {return;}
 
       this.document.renderSignals([netlistId], undefined, undefined);
       newUri = undefined;

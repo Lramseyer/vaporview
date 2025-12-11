@@ -215,7 +215,7 @@ This extension requires VScode 1.96.0 or later
 - Multi signal select now batch configures number format
 - Added check for saved config file and prompts user to reload saved settings
 - Added Ctrl/Cmd + A keybinding to select all signals
-- Variables added to the viewer default to showing up under the selected signal instyead of at the end
+- Variables added to the viewer default to showing up under the selected signal instead of at the end
 - Added WCP support @heyfey
 - Fixed Renderer glitch in Windows affecting binary and bit vector renderer
 - Upgraded to wellen 0.19.2

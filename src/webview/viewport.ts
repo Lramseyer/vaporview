@@ -331,7 +331,7 @@ export class Viewport {
 
     // Render each visible signal
     // yOffset tracks position in document space, we subtract scrollTop when drawing
-    let yOffset = 0;
+    let yOffset = 4;
 
     viewerState.visibleSignalsFlat.forEach((rowId) => {
       const rowItem = dataManager.rowItems[rowId];
@@ -510,7 +510,13 @@ export class Viewport {
       netlistData.createViewportElement(rowId);
       if (netlistData.viewportElement === null) {return;}
       this.waveformArea.appendChild(netlistData.viewportElement);
-      if (updateFlag) {netlistData.renderWaveform();}
+      if (updateFlag) {
+        if (this.useWebGL) {
+          this.renderAllWaveformsWebGL();
+        } else {
+          netlistData.renderWaveform();
+        }
+      }
     });
     this.updateBackgroundCanvas(true);
   }
@@ -1164,8 +1170,12 @@ export class Viewport {
     const signalItem = dataManager.rowItems[rowId];
     if (!signalItem) {return;}
     labelsPanel.valueAtMarker[rowId] = signalItem.getValueAtTime(viewerState.markerTime);
-    signalItem.renderWaveform();
     signalItem.viewportElement?.setAttribute('data-vscode-context', signalItem.vscodeContext);
+    if (this.useWebGL) {
+      this.renderAllWaveformsWebGL();
+    } else {
+      signalItem.renderWaveform();
+    }
   }
 
   updateViewportWidth() {

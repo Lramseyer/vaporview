@@ -492,7 +492,7 @@ export const webglMultiBitRenderer: WebGLWaveformRenderer = {
     
     // Slope width: horizontal distance for the angled edge to reach full height
     // This gives a fixed angle for the hexagon edges
-    const slopeWidth = halfCanvasHeight * 0.5;  // 2:1 aspect ratio for angled edges
+    const slopeWidth = halfCanvasHeight * 0.25;  // 2:1 aspect ratio for angled edges
 
     // Collect geometry
     const normalVertices: number[] = [];

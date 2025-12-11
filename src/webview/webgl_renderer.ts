@@ -261,16 +261,93 @@ export class WebGLContextManager {
     }
   }
   
-  drawLineStrip(points: number[]) {
-    const gl = this.gl;
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.DYNAMIC_DRAW);
-    gl.drawArrays(gl.LINE_STRIP, 0, points.length / 2);
+  /**
+   * Draw a line strip as quads (rectangles) for consistent line width on all GPUs.
+   * Each line segment becomes two triangles forming a rectangle.
+   * Width is in CSS pixels (canvas resolution handles HiDPI scaling).
+   */
+  drawLineStrip(points: number[], cssLineWidth: number = 1) {
+    if (points.length < 4) return; // Need at least 2 points
+    
+    const halfWidth = cssLineWidth / 2;
+    const quads: number[] = [];
+    
+    for (let i = 0; i < points.length - 2; i += 2) {
+      const x1 = points[i];
+      const y1 = points[i + 1];
+      const x2 = points[i + 2];
+      const y2 = points[i + 3];
+      
+      // Calculate perpendicular direction
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      
+      if (len === 0) continue;
+      
+      // Perpendicular unit vector, scaled by half width
+      const px = (-dy / len) * halfWidth;
+      const py = (dx / len) * halfWidth;
+      
+      // Create quad vertices (2 triangles)
+      quads.push(
+        x1 - px, y1 - py,
+        x1 + px, y1 + py,
+        x2 - px, y2 - py,
+        x2 - px, y2 - py,
+        x1 + px, y1 + py,
+        x2 + px, y2 + py,
+      );
+    }
+    
+    if (quads.length > 0) {
+      const gl = this.gl;
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(quads), gl.DYNAMIC_DRAW);
+      gl.drawArrays(gl.TRIANGLES, 0, quads.length / 2);
+    }
   }
   
-  drawLines(points: number[]) {
-    const gl = this.gl;
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.DYNAMIC_DRAW);
-    gl.drawArrays(gl.LINES, 0, points.length / 2);
+  /**
+   * Draw individual line segments as quads.
+   * Points array: [x1, y1, x2, y2, x3, y3, x4, y4, ...] draws lines 1-2, 3-4, etc.
+   * Width is in CSS pixels (canvas resolution handles HiDPI scaling).
+   */
+  drawLines(points: number[], cssLineWidth: number = 1) {
+    if (points.length < 4) return;
+    
+    const halfWidth = cssLineWidth / 2;
+    const quads: number[] = [];
+    
+    for (let i = 0; i < points.length - 2; i += 4) {
+      const x1 = points[i];
+      const y1 = points[i + 1];
+      const x2 = points[i + 2];
+      const y2 = points[i + 3];
+      
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      
+      if (len === 0) continue;
+      
+      const px = (-dy / len) * halfWidth;
+      const py = (dx / len) * halfWidth;
+      
+      quads.push(
+        x1 - px, y1 - py,
+        x1 + px, y1 + py,
+        x2 - px, y2 - py,
+        x2 - px, y2 - py,
+        x1 + px, y1 + py,
+        x2 + px, y2 + py,
+      );
+    }
+    
+    if (quads.length > 0) {
+      const gl = this.gl;
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(quads), gl.DYNAMIC_DRAW);
+      gl.drawArrays(gl.TRIANGLES, 0, quads.length / 2);
+    }
   }
   
   drawTriangles(vertices: number[]) {

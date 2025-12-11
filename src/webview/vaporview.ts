@@ -928,7 +928,7 @@ class VaporviewWebview {
     const message = e.data;
 
     switch (message.command) {
-      case 'initViewport':          {this.viewport.init(message.metadata, message.uri); break;}
+      case 'initViewport':          {this.viewport.init(message.metadata, message.uri); this.viewport.initWebGL(); break;}
       case 'unload':                {this.unload(); break;}
       case 'setConfigSettings':     {this.handleSetConfigSettings(message); break;}
       case 'getContext':            {sendWebviewContext(); break;}

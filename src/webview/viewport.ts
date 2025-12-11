@@ -4,6 +4,7 @@ import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } fr
 import { labelsPanel } from "./vaporview";
 import { VariableItem } from "./signal_item";
 import { bool } from "@vscode/wasm-component-model";
+import { WebGLContextManager, webglRenderers } from './webgl_renderer';
 
 const domParser = new DOMParser();
 
@@ -94,6 +95,10 @@ export class Viewport {
   fontStyle: string           = '12px Menlo';
   characterWidth: number      = 7.69;
   fillMultiBitValues: boolean = true;
+
+  // WebGL rendering
+  useWebGL: boolean = false;
+  glManager: WebGLContextManager | null = null;
 
   constructor(
     private events: EventHandler,
@@ -207,6 +212,201 @@ export class Viewport {
     restoreState();
     //this.updateRuler();
     //this.updatePending = false;
+  }
+
+  /**
+   * Initialize WebGL rendering.
+   * Call this to enable WebGL-based waveform rendering for better performance on Windows.
+   */
+  initWebGL() {
+    if (this.glManager) {
+      return; // Already initialized
+    }
+
+    try {
+      // Create a container for the WebGL canvases
+      const container = document.createElement('div');
+      container.id = 'webgl-container';
+      container.style.cssText = `
+        position: absolute;
+        top: 40px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        overflow: hidden;
+      `;
+      this.contentArea.appendChild(container);
+
+      this.glManager = WebGLContextManager.initialize(
+        container,
+        this.viewerWidth,
+        this.viewerHeight - 40 // Exclude ruler height
+      );
+
+      this.useWebGL = true;
+      console.log('WebGL rendering enabled');
+
+      // Hide individual signal canvases when using WebGL
+      this.setSignalCanvasVisibility(false);
+
+    } catch (e) {
+      console.error('Failed to initialize WebGL:', e);
+      this.useWebGL = false;
+      this.glManager = null;
+    }
+  }
+
+  /**
+   * Disable WebGL and return to Canvas 2D rendering.
+   */
+  disableWebGL() {
+    if (!this.glManager) {
+      return;
+    }
+
+    this.useWebGL = false;
+    
+    // Remove WebGL container
+    const container = document.getElementById('webgl-container');
+    if (container) {
+      container.remove();
+    }
+
+    this.glManager = null;
+
+    // Show individual signal canvases again
+    this.setSignalCanvasVisibility(true);
+
+    // Re-render with Canvas 2D
+    this.renderAllWaveforms(false);
+  }
+
+  /**
+   * Toggle WebGL rendering on/off.
+   */
+  toggleWebGL(): boolean {
+    if (this.useWebGL) {
+      this.disableWebGL();
+    } else {
+      this.initWebGL();
+      this.renderAllWaveforms(false);
+    }
+    return this.useWebGL;
+  }
+
+  /**
+   * Show/hide individual signal canvases.
+   */
+  private setSignalCanvasVisibility(visible: boolean) {
+    const canvases = this.waveformArea.querySelectorAll('.waveform-canvas');
+    canvases.forEach((canvas) => {
+      (canvas as HTMLElement).style.visibility = visible ? 'visible' : 'hidden';
+    });
+  }
+
+  /**
+   * Resize WebGL canvases when viewport changes.
+   */
+  resizeWebGL() {
+    if (this.glManager) {
+      this.glManager.resize(this.viewerWidth, this.viewerHeight - 40);
+    }
+  }
+
+  /**
+   * WebGL-based rendering of all waveforms.
+   * Draws all visible waveforms to a single WebGL canvas.
+   */
+  renderAllWaveformsWebGL() {
+    if (!this.glManager) {
+      return;
+    }
+
+    const viewerHeightMinusRuler = this.viewerHeight - 40;
+    const scrollTop = this.scrollArea.scrollTop;
+
+    // Clear the WebGL canvas
+    this.glManager.clear();
+
+    // Render each visible signal
+    // yOffset tracks position in document space, we subtract scrollTop when drawing
+    let yOffset = 0;
+
+    viewerState.visibleSignalsFlat.forEach((rowId) => {
+      const rowItem = dataManager.rowItems[rowId];
+      const rowHeight = rowItem.rowHeight * WAVE_HEIGHT;
+      const signalBottom = yOffset + rowHeight;
+      const signalTop = yOffset;
+
+      // Skip if not visible on screen
+      if (signalBottom < scrollTop - rowHeight || signalTop > scrollTop + viewerHeightMinusRuler + rowHeight) {
+        yOffset += rowHeight;
+        return;
+      }
+
+      // Only VariableItem instances have waveform data to render
+      if (!(rowItem instanceof VariableItem)) {
+        yOffset += rowHeight;
+        return;
+      }
+
+      const netlistData = rowItem;
+
+      // Get the appropriate WebGL renderer
+      const renderer = webglRenderers[netlistData.renderType.id];
+      if (!renderer) {
+        yOffset += rowHeight;
+        return;
+      }
+
+      // Build the valueChangeChunk (same logic as renderWaveform in signal_item.ts)
+      const signalId = netlistData.signalId;
+      const data = dataManager.valueChangeData[signalId];
+      if (!data) {
+        yOffset += rowHeight;
+        return;
+      }
+
+      const valueChanges = data.transitionData;
+      const startIndex = Math.max(dataManager.binarySearch(valueChanges, this.timeScrollLeft - (2 * this.pixelTime)), 1);
+      const endIndex = dataManager.binarySearch(valueChanges, this.timeScrollRight);
+      const initialState = valueChanges[startIndex - 1];
+      let postState = valueChanges[endIndex];
+
+      if (endIndex >= valueChanges.length) {
+        postState = [this.viewerWidth * this.pixelTime, ''];
+      }
+
+      const valueChangeChunk: any = {
+        valueChanges: valueChanges,
+        startIndex: startIndex,
+        endIndex: endIndex,
+        initialState: initialState,
+        postState: postState,
+        encoding: netlistData.encoding,
+        signalWidth: netlistData.signalWidth,
+        min: data.min,
+        max: data.max,
+      };
+
+      // Adjust min/max for signed/unsigned analog rendering
+      if (netlistData.encoding !== "Real") {
+        if (netlistData.renderType.id === 'steppedSigned' || netlistData.renderType.id === 'linearSigned') {
+          valueChangeChunk.min = Math.max(-Math.pow(2, netlistData.signalWidth - 1), -32768);
+          valueChangeChunk.max = Math.min(Math.pow(2, netlistData.signalWidth - 1) - 1, 32767);
+        } else if (netlistData.renderType.id === 'stepped' || netlistData.renderType.id === 'linear') {
+          valueChangeChunk.min = 0;
+          valueChangeChunk.max = Math.min(Math.pow(2, netlistData.signalWidth) - 1, 65535);
+        }
+      }
+
+      // Draw using WebGL renderer (convert yOffset from document space to screen space)
+      renderer.draw(valueChangeChunk, netlistData, this, this.glManager!, yOffset - scrollTop);
+
+      netlistData.wasRendered = true;
+      yOffset += rowHeight;
+    });
   }
 
   async getThemeColors() {
@@ -545,6 +745,13 @@ export class Viewport {
   }
 
   renderAllWaveforms(skipRendered: boolean) {
+    // Use WebGL rendering if enabled
+    if (this.useWebGL && this.glManager) {
+      this.renderAllWaveformsWebGL();
+      return;
+    }
+
+    // Canvas 2D rendering (original implementation)
     const viewerHeightMinusRuler = this.viewerHeight - 40;
     const scrollTop    = this.scrollArea.scrollTop;
     const windowHeight = scrollTop + viewerHeightMinusRuler;
@@ -979,6 +1186,9 @@ export class Viewport {
     this.resizeCanvas(this.scrollbarCanvasElement, this.scrollbarCanvas, this.viewerWidth, 10);
     this.resizeCanvas(this.rulerCanvasElement, this.rulerCanvas, this.viewerWidth, 40);
     this.resizeCanvas(this.backgroundCanvasElement, this.backgroundCanvas, this.viewerWidth, this.viewerHeight);
+
+    // Update WebGL canvas dimensions if using WebGL
+    this.resizeWebGL();
 
     // Update Waveform Canvas Dimensions
     dataManager.rowItems.forEach((netlistItem) => {

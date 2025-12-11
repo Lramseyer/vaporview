@@ -231,7 +231,7 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
   }
 
   // Method to set the tree data
-  public setTreeData(netlistItems: NetlistItem[]) {
+  private setTreeData(netlistItems: NetlistItem[]) {
     this.treeData = netlistItems;
     this._onDidChangeTreeData.fire(undefined); // Trigger a refresh of the Netlist view
   }
@@ -242,28 +242,28 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
   }
 
   public getTreeData(): NetlistItem[] {return this.treeData;}
-  getTreeItem(element:  NetlistItem): vscode.TreeItem {return element;}
-  getChildren(element?: NetlistItem): Thenable<NetlistItem[]> {
+  public getTreeItem(element:  NetlistItem): vscode.TreeItem {return element;}
+  public getChildren(element?: NetlistItem): Thenable<NetlistItem[]> {
     return this.document?.getChildrenExternal(element) ?? Promise.resolve([]);
   }
 
-  getParent(element: NetlistItem): vscode.ProviderResult<NetlistItem> {
+  public getParent(element: NetlistItem): vscode.ProviderResult<NetlistItem> {
     if (this.document && element.scopePath !== "") {
       return Promise.resolve(this.document.findTreeItem(element.scopePath, undefined, undefined));
     }
     return null;
   }
 
-  clickNetlistItem(uri: vscode.Uri, netlistId: number) {
+  public clickNetlistItem(uri: vscode.Uri, netlistId: number) {
     const currentTime    = Date.now();
     const deltaTime      = currentTime - this.lastClickedTime;
     this.lastClickedTime = currentTime;
     let newUri: vscode.Uri | undefined = uri;
 
     if (deltaTime < 300 && uri === this.lastClickedTreeItem) {
-      const treeItemPath = uri.path || uri.authority; // fallback for different URI formats
+      //const treeItemPath = uri.path || uri.authority; // fallback for different URI formats
       if (!this.document) {return;}
-      if (treeItemPath !== this.document.uri.fsPath) {return;}
+      //if (treeItemPath !== this.document.uri.fsPath) {return;}
 
       this.document.renderSignals([netlistId], undefined, undefined);
       newUri = undefined;

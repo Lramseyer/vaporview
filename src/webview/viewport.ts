@@ -262,8 +262,6 @@ export class Viewport {
       case 'Courier New':     this.characterWidth = 7.69; break;
       default:                this.characterWidth = 7.69; break;
     }
-
-    console.log(`Using font: ${usedFont} with character width: ${this.characterWidth}`);
   }
 
   async handleColorChange() {

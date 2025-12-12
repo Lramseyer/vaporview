@@ -93,6 +93,7 @@ export class Viewport {
   fontSize: string            = '12px';
   fontStyle: string           = '12px Menlo';
   characterWidth: number      = 7.69;
+  baselineOffset: number      = 0;
   fillMultiBitValues: boolean = true;
 
   constructor(
@@ -255,12 +256,14 @@ export class Viewport {
     switch (usedFont) {
       case 'Monaco':          this.characterWidth = 7.20; break;
       case 'Menlo':           this.characterWidth = 7.22; break;
-      case 'Consolas':        this.characterWidth = 7.69; break;
+      case 'Consolas':        this.characterWidth = 7.69; this.baselineOffset = 1; break;
       case 'Droid Sans Mono': this.characterWidth = 7.69; break;
       case 'Inconsolata':     this.characterWidth = 7.69; break;
       case 'Courier New':     this.characterWidth = 7.69; break;
       default:                this.characterWidth = 7.69; break;
     }
+
+    console.log(`Using font: ${usedFont} with character width: ${this.characterWidth}`);
   }
 
   async handleColorChange() {
@@ -722,6 +725,7 @@ export class Viewport {
     let setIndex = Math.round(number / this.rulerNumberIncrement);
     const alpha = Math.min((this.zoomOffset - Math.floor(this.zoomOffset)) * 4, 1);
     const twoPi = Math.PI * 2;
+    const textBaseline = 23 + this.baselineOffset;
 
     const ctx = this.rulerCanvas;
     ctx.imageSmoothingEnabled = false;
@@ -778,7 +782,7 @@ export class Viewport {
       }
 
       // Y height is .time-marker-label top offset
-      ctx.fillText(valueString, numberX, 24);
+      ctx.fillText(valueString, numberX, textBaseline);
       numberX += this.rulerNumberSpacing;
       number += this.rulerNumberIncrement;
       setIndex += 1;

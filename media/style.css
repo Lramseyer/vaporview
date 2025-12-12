@@ -636,7 +636,7 @@ body {
 
 .time-marker-label {
   position: absolute;
-  top: 24px;
+  top: 23px;
   z-index: 90;
   overflow: visible;
   width: max-content;

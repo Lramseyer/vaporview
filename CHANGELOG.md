@@ -1,6 +1,6 @@
 # Change Log
 
-## 1.4.4 - Upcoming Release
+## 1.4.4 - 12/11/2025 - Latest Release
 
 - Added double click handler to netlist view - double click adds variable to viewer
 - Removed Netlist View Checkboxes
@@ -16,7 +16,7 @@
 - Fixed Renderer glitch in Windows affecting binary and bit vector renderer
 - Upgraded to wellen 0.19.2
 
-## 1.4.3 - 11/4/2025 - Latest Release
+## 1.4.3 - 11/4/2025
 
 - Added
   - Support for Enums

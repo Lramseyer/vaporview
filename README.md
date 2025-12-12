@@ -206,7 +206,7 @@ This extension requires VScode 1.96.0 or later
 
 # Development Roadmap
 
-## 1.4.4 - Upcoming release
+## 1.4.4 - 12/11/2025 - Latest release
 
 - Added double click handler to netlist view - double click adds variable to viewer
 - Removed Netlist View Checkboxes
@@ -221,24 +221,6 @@ This extension requires VScode 1.96.0 or later
 - Added WCP support @heyfey
 - Fixed Renderer glitch in Windows affecting binary and bit vector renderer
 - Upgraded to wellen 0.19.2
-
-## 1.4.3 - 11/4/2025 - Latest Release
-
-- Added
-  - Support for Enums
-  - Sort netlist View to show Parameters at the top
-    - Alphabetical sorting is now a user option
-  - Show Parameter values in netlist view
-  - Multi signal select now batch configures row height and render type (on compatible signals)
-  - Custom names for variable items
-  - Settings button on the right side of the control bar
-- Escape key de-selects all signals
-- Fixed
-  - Group expanded state is preserved on reload
-  - Removed netlistId from save files and use instance paths only
-  - Improved signal selection ordering
-- API
-  - waveformViewer.addVariable will now add all variables in a scope if it is specified
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

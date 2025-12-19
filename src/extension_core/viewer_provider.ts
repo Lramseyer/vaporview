@@ -436,57 +436,47 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.applySettings(fileData, this.activeDocument);
   }
 
-  public async addSignalListToDocument(signalList: any, document: VaporviewDocument, groupPath: string[], netlistIdCount: number[]): Promise<string[]> {
-
+  public async convertSignalListToSettings(signalList: any, document: VaporviewDocument): Promise<any> {
     const missingSignals: string[] = [];
+    const settings: any = [];
     for (const signalInfo of signalList) {
       if (signalInfo.dataType && signalInfo.dataType === 'signal-group') {
-        const name = signalInfo.groupName;
-        this.newSignalGroup(name, groupPath, undefined, undefined, false);
-        groupPath.push(name);
-        const missing = await this.addSignalListToDocument(signalInfo.children, document, groupPath, netlistIdCount);
-        missingSignals.push(...missing);
-        // Collapse group 
-        const isExpanded = signalInfo.collapseState === 2;
-        this.editSignalGroup(undefined, groupPath, undefined, isExpanded);
-        groupPath.pop();
-        continue;
+        const childrenSettings = await this.convertSignalListToSettings(signalInfo.children, document);
+        const groupData = Object.assign({}, signalInfo, {children: childrenSettings.signalList});
+        settings.push(groupData);
+        missingSignals.push(...childrenSettings.missingSignals);
       } else if (signalInfo.dataType && signalInfo.dataType === 'signal-separator') {
-        const name = signalInfo.label;
-        this.newSeparator(name, groupPath, undefined, undefined);
-        continue;
-      }
-      const signal   = signalInfo.name;
-      const metadata = await document.findTreeItem(signal, signalInfo.msb, signalInfo.lsb);
-      if (metadata !== null) {
-        const netlistId = metadata.netlistId;
-        if (netlistIdCount[netlistId] === undefined) {
-          netlistIdCount[netlistId] = 0;
+        settings.push(signalInfo);
+      } else if (signalInfo.dataType && signalInfo.dataType === 'netlist-variable') {
+        const signal   = signalInfo.name;
+        const metadata = await document.findTreeItem(signal, signalInfo.msb, signalInfo.lsb);
+        if (metadata !== null) {
+          const signalData = Object.assign({
+            netlistId:  metadata.netlistId,
+            signalId:   metadata.signalId,
+            signalName: metadata.name,
+            scopePath:  metadata.scopePath,
+            signalWidth: metadata.width,
+            type:       metadata.type,
+            encoding:   metadata.encoding,
+            enumType:   metadata.enumType,
+            msb:        metadata.msb,
+            lsb:        metadata.lsb,
+          }, signalInfo);
+          settings.push(signalData);
+        } else {
+          missingSignals.push(signal);
         }
-        const index = netlistIdCount[netlistId]++;
-
-        document.renderSignals([metadata.netlistId], groupPath, undefined);
-        // We need to copy the netlistId from the existing waveform dump in case the circuit has changed
-        this.setValueFormat(metadata.netlistId, index, undefined, {
-          valueFormat:   signalInfo.numberFormat,
-          colorIndex:    signalInfo.colorIndex,
-          rowHeight:     signalInfo.rowHeight,
-          verticalScale: signalInfo.verticalScale,
-          nameType:      signalInfo.nameType,
-          customName:    signalInfo.customName,
-          renderType:    signalInfo.renderType,
-          command:       signalInfo.command,
-        });
-      } else {
-        missingSignals.push(signal);
       }
     }
 
-    return missingSignals;
+    return {
+      missingSignals: missingSignals,
+      signalList: settings,
+    };
   }
 
   public async applySettings(settings: any, document: VaporviewDocument | undefined = undefined) {
-    //console.log(settings);
 
     if (!settings.displayedSignals) {return;}
     if (!document) {
@@ -494,35 +484,26 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       document = this.activeDocument;
     }
 
-    const missingSignals = await this.addSignalListToDocument(settings.displayedSignals, document, [], []);
-    const foundSignals: any[] = [];
-    const metadataList: NetlistItem[] = [];
-
-    if (settings.markerTime || settings.markerTime === 0) {
-      this.setMarkerAtTime(settings.markerTime, 0);
-    }
-    if (settings.altMarkerTime || settings.altMarkerTime === 0) {
-      this.setMarkerAtTime(settings.altMarkerTime, 1);
-    }
-
-    if (missingSignals.length > 0) {
-      this.log.appendLine('Missing signals: '+ missingSignals.join(', '));
-    }
-
-    //console.log(settings.selectedSignal);
-    if (settings.selectedSignal) {
-      const s = settings.selectedSignal;
-      const metadata = await document.findTreeItem(s.name, s.msb, s.lsb);
-      if (metadata !== null) {
-        const netlistIdSelected = metadata.netlistId;
-        this.activeWebview?.webview.postMessage({
-          command: 'setSelectedSignal', 
-          netlistId: netlistIdSelected,
-        });
-      }
-    }
-
     //this.netlistTreeDataProvider.loadDocument(document);
+    const signalListSettings = await this.convertSignalListToSettings(settings.displayedSignals, document);
+    const documentSettings: any = {
+      displayedSignals: signalListSettings.signalList,
+      markerTime: settings.markerTime,
+      altMarkerTime: settings.altMarkerTime,
+      selectedSignal: settings.selectedSignal,
+      zoomRatio: settings.zoomRatio,
+      scrollLeft: settings.scrollLeft,
+      autoReload: settings.autoReload,
+    };
+
+    document.webviewPanel?.webview.postMessage({
+      command: 'apply-state',
+      settings: documentSettings,
+    });
+
+    if (signalListSettings.missingSignals.length > 0) {
+      this.log.appendLine('Missing signals: '+ signalListSettings.missingSignals.join(', '));
+    }
   }
 
   public restoreState(state: any, uri: vscode.Uri) {
@@ -1279,7 +1260,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       index: index,
       rowId: rowId,
       numberFormat: format,
-      color: properties.colorIndex,
+      colorIndex: properties.colorIndex,
       renderType: properties.renderType,
       customColors: [color1, color2, color3, color4],
       rowHeight: properties.rowHeight,

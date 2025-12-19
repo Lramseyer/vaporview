@@ -74,6 +74,14 @@ export class WaveformDataManager {
     this.requestStart        = 0;
   }
 
+  private flushRowCache(force: boolean) {
+    if (viewerState.displayedSignalsFlat.length === 0 || force) {return;}
+    this.rowItems     = [];
+    this.groupIdTable = [];
+    this.nextRowId    = 0;
+    this.nextGroupId  = 1;
+  }
+
   // This is a simple queue to handle the fetching of waveform data
   // It's overkill for everything except large FST waveform dumps with lots of
   // Value Change Blocks. Batch fetching is much faster than individual fetches,
@@ -117,7 +125,7 @@ export class WaveformDataManager {
     let groupId = 0;
     let groupIsValid = false;
 
-    if (parentGroupId !== undefined && this.groupIdTable[parentGroupId] !== undefined) {
+    if (parentGroupId !== undefined) {
       groupId = parentGroupId;
     } else if (groupPath !== undefined && groupPath.length > 0) {
       groupId = this.findGroupIdByNamePath(groupPath);
@@ -125,7 +133,7 @@ export class WaveformDataManager {
 
     if (groupId > 0) {
       const parentGroupRowId = this.groupIdTable[groupId];
-      if (parentGroupId !== undefined) {return null;}
+      if (parentGroupRowId === undefined) {return null;}
       const parentGroupItem = this.rowItems[parentGroupRowId];
 
       if (parentGroupItem instanceof SignalGroup) {
@@ -224,10 +232,16 @@ export class WaveformDataManager {
     let reorder = false;
     let groupId = 0;
     let moveIndex = 0;
+
+    // If a location was specified, use it
     let groupItem = this.getGroupByIdOrName(groupPath, parentGroupId);
     if (groupItem !== null) {
       groupId = groupItem.groupId;
       moveIndex = groupItem.children.length;
+      reorder = true;
+    } else if (parentGroupId === 0) {
+      moveIndex = viewerState.displayedSignalsFlat.length;
+      groupId = 0;
       reorder = true;
     }
 
@@ -250,9 +264,10 @@ export class WaveformDataManager {
 
     this.events.dispatch(ActionType.SignalSelect, rowIdList, lastRowId);
     sendWebviewContext();
+    return rowIdList;
   }
 
-  addSignalGroup(name: string | undefined, groupPath: string[] | undefined, inputParentGroupId: number | undefined, eventRowId: number | undefined, moveSelected: boolean) {
+  addSignalGroup(name: string | undefined, groupPath: string[] | undefined, inputParentGroupId: number | undefined, eventRowId: number | undefined, moveSelected: boolean): number | undefined {
     if (controlBar.searchInFocus || labelsPanel.renameActive) {return;}
 
     const groupId = this.nextGroupId;
@@ -326,6 +341,7 @@ export class WaveformDataManager {
 
     this.nextGroupId++;
     this.nextRowId++;
+    return rowId;
   }
 
   addSeparator(name: string | undefined, groupPath: string[] | undefined, parentGroupId: number | undefined, eventRowId: number | undefined, moveSelected: boolean) {
@@ -356,6 +372,71 @@ export class WaveformDataManager {
     if (reorder) {
       this.events.dispatch(ActionType.ReorderSignals, [rowId], parentGroupId, index);
     }
+
+    this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
+    sendWebviewContext();
+    return rowId;
+  }
+
+  addSignalList(signalList: any, parentGroupId: number | undefined) {
+    signalList.forEach((signal: any) => {
+      if (signal.dataType === 'signal-group') {
+        const groupRowId = this.addSignalGroup(signal.groupName, undefined, parentGroupId, undefined, false);
+        let groupId = parentGroupId;
+        if (groupRowId === undefined) {return;}
+        const groupItem = this.rowItems[groupRowId];
+        if (groupItem instanceof SignalGroup) {
+          groupId = groupItem.groupId;
+        }
+        labelsPanel.cancelRename();
+        this.addSignalList(signal.children, groupId);
+        if (signal.collapseState === CollapseState.Collapsed && groupItem instanceof SignalGroup) {
+          groupItem.collapse();
+        }
+      } else if (signal.dataType === 'signal-separator') {
+        this.addSeparator(signal.label, undefined, parentGroupId, undefined, false);
+      } else if (signal.dataType === 'netlist-variable') {
+        const rowIdList = this.addVariable([signal], undefined, parentGroupId, undefined);
+        const rowId     = rowIdList[0];
+        const displayFormat = Object.assign({rowId: rowId}, signal);
+        this.setDisplayFormat(displayFormat);
+      }
+    });
+  }
+
+  applyState(settings: any) {
+    //this.flushRowCache(true);
+    //console.log('applyState()', settings);
+
+    this.events.enterBatchMode();
+    try {
+      if (viewerState.displayedSignals.length > 0) {
+        this.handleRemoveVariable(viewerState.displayedSignalsFlat, true);
+      }
+      this.addSignalList(settings.displayedSignals, 0);
+    } catch (error) {console.error(error);}
+
+    this.events.exitBatchMode();
+
+    if (settings.markerTime !== undefined) {
+      this.events.dispatch(ActionType.MarkerSet, settings.markerTime, 0);
+    }
+    if (settings.altMarkerTime !== undefined) {
+      this.events.dispatch(ActionType.MarkerSet, settings.altMarkerTime, 1);
+    }
+    if (settings.selectedSignal) {
+      const rowIdList = this.getRowIdsFromNetlistId(settings.selectedSignal);
+      let lastSelectedSignal: RowId | null = rowIdList[0];
+      if (rowIdList.length === 0) {lastSelectedSignal = null;}
+      this.events.dispatch(ActionType.SignalSelect, rowIdList, lastSelectedSignal);
+    }
+    if (settings.zoomRatio !== undefined && settings.scrollLeft !== undefined) {
+      if (viewport.updatePending) {return;}
+      const endTime = settings.scrollLeft + (viewport.viewerWidth / settings.zoomRatio);
+      viewport.setViewportRange(settings.scrollLeft, endTime);
+    }
+
+    sendWebviewContext();
   }
 
   renameSignalGroup(rowId: RowId | undefined, name: string | undefined) {
@@ -436,6 +517,9 @@ export class WaveformDataManager {
     });
 
     updateDisplayedSignalsFlat();
+    if (viewerState.displayedSignalsFlat.length === 0) {
+      this.flushRowCache(false);
+    }
   }
 
   updateWaveformChunk(message: any) {
@@ -800,10 +884,16 @@ export class WaveformDataManager {
       if (data instanceof VariableItem === false) {return;}
 
       // Color - this is applied to all selected signals if the selected signal is being updated
-      if (message.color !== undefined) {
+      if (message.colorIndex !== undefined) {
         customColorKey = message.customColors;
-        data.colorIndex = message.color;
+        data.colorIndex = message.colorIndex;
         data.setColorFromColorIndex();
+        updateAllSelected = true;
+      }
+
+      // Rendering type
+      if (message.renderType !== undefined) {
+        this.setRenderType(data, message.renderType);
         updateAllSelected = true;
       }
 
@@ -824,12 +914,6 @@ export class WaveformDataManager {
           }
           updateAllSelected = true;
         }
-      }
-
-      // Rendering type
-      if (message.renderType !== undefined) {
-        this.setRenderType(data, message.renderType);
-        updateAllSelected = true;
       }
 
       // Number format

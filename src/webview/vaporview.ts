@@ -91,6 +91,15 @@ export const viewerState: ViewerState = {
 
 export class EventHandler {
   private subscribers: Map<ActionType, ((...args: any[]) => void)[]> = new Map();
+  private batchMode: boolean = false;
+  public get isBatchMode(): boolean {return this.batchMode;}
+  private signalSelectArgs: any[] = [];
+
+  enterBatchMode() {this.batchMode = true;}
+  exitBatchMode() {
+    this.batchMode = false;
+    this.dispatch(ActionType.SignalSelect, ...this.signalSelectArgs);
+  }
 
   subscribe(action: ActionType, callback: (...args: any[]) => void) {
     if (!this.subscribers.has(action)) {
@@ -100,6 +109,10 @@ export class EventHandler {
   }
 
   dispatch(action: ActionType, ...args: any[]) {
+    if (action === ActionType.SignalSelect) {
+      this.signalSelectArgs = args;
+      if (this.batchMode) {return;}
+    }
     this.subscribers.get(action)?.forEach((callback) => callback(...args));
   }
 }
@@ -276,7 +289,7 @@ function createWebviewContext() {
     selectedSignalCount: viewerState.selectedSignal.length,
     transitionCount: dataManager.getTransitionCount(),
     zoomRatio: vaporview.viewport.zoomRatio,
-    scrollLeft: vaporview.viewport.pseudoScrollLeft,
+    scrollLeft: Math.round(vaporview.viewport.timeScrollLeft),
     autoReload: viewerState.autoReload,
     displayedSignals: signalListForSaveFile(viewerState.displayedSignals),
   }
@@ -687,6 +700,7 @@ class VaporviewWebview {
     let lastSelectedRowId: RowId | null = viewerState.lastSelectedSignal;
     if (rowIdList.length === 1) {lastSelectedRowId = rowIdList[0];}
     //this.events.dispatch(ActionType.SignalSelect, [rowIdList], lastSelectedRowId);
+    sendWebviewContext();
   }
 
   handleResizeViewer() {
@@ -933,14 +947,15 @@ class VaporviewWebview {
       case 'setConfigSettings':     {this.handleSetConfigSettings(message); break;}
       case 'getContext':            {sendWebviewContext(); break;}
       case 'getSelectionContext':   {sendWebviewContext(); break;}
+      case 'apply-state':           {dataManager.applyState(message.settings); break;}
       case 'add-variable':          {dataManager.addVariable(message.signalList, message.groupPath, undefined, message.index); break;}
-      case 'setDisplayFormat':      {dataManager.setDisplayFormat(message); break;}
-      case 'remove-signal':         {this.removeVariable(message.netlistId, message.rowId, message.removeAllSelected); break;}
+      case 'add-separator':         {dataManager.addSeparator(message.name, message.groupPath, message.parentGroupId, message.eventRowId, message.moveSelected); break;}
       case 'newSignalGroup':        {dataManager.addSignalGroup(message.groupName, message.groupPath, message.parentGroupId, message.eventRowId, message.moveSelected); break;}
+      case 'setDisplayFormat':      {dataManager.setDisplayFormat(message); break;}
       case 'renameSignalGroup':     {dataManager.renameSignalGroup(message.rowId, message.groupName); break;}
       case 'editSignalGroup':       {dataManager.editSignalGroup(message); break;}
+      case 'remove-signal':         {this.removeVariable(message.netlistId, message.rowId, message.removeAllSelected); break;}
       case 'remove-group':          {this.removeSignalGroup(message.groupId, message.recursive); break;}
-      case 'add-separator':         {dataManager.addSeparator(message.name, message.groupPath, message.parentGroupId, message.eventRowId, message.moveSelected); break;}
       case 'remove-separator':      {this.removeVariable(undefined, message.rowId, message.removeAllSelected); break;}
       case 'update-waveform-chunk': {dataManager.updateWaveformChunk(message); break;}
       case 'update-waveform-chunk-compressed': {dataManager.updateWaveformChunkCompressed(message); break;}

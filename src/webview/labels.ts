@@ -98,6 +98,7 @@ export class LabelsPanels {
   }
 
   renderLabelsPanels() {
+    if (this.events.isBatchMode) {return;}
     this.labelsList  = [];
     const transitions: string[] = [];
     this.labelsList.push('<svg id="drag-divider" style="top: 0px; display:none; pointer-events: none;"><line x1="0" y1="0" x2="100%" y2="0"></line></svg>');
@@ -470,12 +471,11 @@ export class LabelsPanels {
 
   public showRenameInput(rowId: RowId) {
     this.dragEnd(null, true); // Abort any drag operation
-    const signalItem = dataManager.rowItems[rowId];
-    //if (!(signalItem instanceof SignalGroup)) {return;}
+    const signalItem    = dataManager.rowItems[rowId];
     const isSignalGroup = signalItem instanceof SignalGroup;
-    const labelElement = document.getElementById(`label-${rowId}`);
+    const labelElement  = document.getElementById(`label-${rowId}`);
     if (!labelElement) {return;}
-    const waveformRow = labelElement.querySelector('.waveform-row');
+    const waveformRow   = labelElement.querySelector('.waveform-row');
     if (!waveformRow) {return;}
     waveformRow.classList.remove('is-selected');
     
@@ -492,6 +492,8 @@ export class LabelsPanels {
     textarea.select();
 
     // Handle Enter key to submit rename
+    // we need this event handler becasue the global keydown handler will return early
+    // due to the renameActive flag
     textarea.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         const newNameInput = textarea.value.trim() || signalItem.getLabelText();
@@ -504,12 +506,17 @@ export class LabelsPanels {
       } else if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        this.finishRename(rowId, waveformRow, oldName, false);
+        this.cancelRename();
       }
     });
 
     // Handle blur to cancel rename
-    textarea.addEventListener('blur', () => {this.finishRename(rowId, waveformRow, oldName, false);});
+    textarea.addEventListener('blur', () => {this.cancelRename();});
+  }
+
+  public cancelRename() {
+    this.renameActive = false;
+    this.renderLabelsPanels();
   }
 
   private finishRename(rowId: RowId, waveformRow: Element, newName: string, renameValid: boolean) {

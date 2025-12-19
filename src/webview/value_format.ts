@@ -244,9 +244,8 @@ const formatDecimal: ValueFormat = {
     if (!is2State) {
       return formatBinaryString(inputString);
     }
-    const numericalData = inputString;
-    const stringArray = numericalData.replace(/\B(?=(\d{32})+(?!\d))/g, "_").split("_");
-    return stringArray.map((chunk) => {return parseInt(chunk, 2).toString(10);}).join('_');
+    // Use BigInt for arbitrary precision
+    return BigInt('0b' + inputString).toString(10);
   },
 
   checkValidSearch: (inputText: string) => {
@@ -255,12 +254,13 @@ const formatDecimal: ValueFormat = {
   },
 
   parseValueForSearch: (inputText: string) => {
-    const result = inputText.replace(/,/g, '');
-    return result.split('_').map((n) => {
-      if (n === '') {return '';}
-      if (n.match(/[xXzZ]/)) {return '.{32}';}
-      return parseInt(n, 10).toString(2).padStart(32, '0');
-    }).join('');
+    const result = inputText.replace(/[,_]/g, '');
+    if (result.match(/[xXzZ]/)) {
+      // For don't care values, match any pattern
+      return '.*';
+    }
+    // Use BigInt for arbitrary precision conversion from decimal to binary
+    return BigInt(result).toString(2);
   },
 
   is9State: valueIs9State,
@@ -278,7 +278,14 @@ const formatSignedInt: ValueFormat = {
     if (!is2State) {
       return formatBinaryString(inputString);
     }
-    return signedBinaryStringToInt(inputString).toString();
+    // Use BigInt for arbitrary precision two's complement signed conversion
+    const isNegative = inputString[0] === '1';
+    let result = BigInt('0b' + inputString);
+    if (isNegative) {
+      // Subtract 2^width to get the negative value
+      result -= (BigInt(1) << BigInt(inputString.length));
+    }
+    return result.toString(10);
   },
 
   checkValidSearch: (inputText: string) => {
@@ -288,16 +295,18 @@ const formatSignedInt: ValueFormat = {
 
   parseValueForSearch: (inputText: string) => {
     const result = inputText.replace(/[,_]/g, '');
-    if (inputText[0] === "-") {
-      // convert number to 2's complement with the minimum number of bits
-      const positive = parseInt(result, 10);
+    if (result.match(/[xXzZ]/)) {
+      return '.*';
+    }
+    if (result[0] === "-") {
+      // Convert negative number to 2's complement with the minimum number of bits
+      const positive = BigInt(result.slice(1));
       const positiveBinary = positive.toString(2);
-      const length = positiveBinary.length;
-      const negativeBinary = (positive + Math.pow(2, length)).toString(2);
-      if (negativeBinary.length > length) {return negativeBinary.slice(1);}
+      const length = positiveBinary.length + 1; // Need one more bit for sign
+      const negativeBinary = (BigInt(2) ** BigInt(length) - positive).toString(2);
       return negativeBinary;
     } else {
-      return parseInt(result, 10).toString(2);
+      return BigInt(result).toString(2);
     }
   },
 

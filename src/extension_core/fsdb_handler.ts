@@ -4,7 +4,7 @@ import * as path from 'path';
 
 import { SignalId, NetlistId, VaporviewDocumentDelegate } from './viewer_provider';
 import { NetlistItem, createScope, createVar } from './tree_view';
-import { IWaveformFormatHandler, IWaveformFormatHandlerDelegate, EnumQueueEntry } from './document';
+import { IWaveformFormatHandler, IWaveformFormatHandlerDelegate, EnumQueueEntry, WaveformTopMetadata } from './document';
 
 type FsdbWorkerMessage = {
   id: string;
@@ -20,19 +20,26 @@ type FsdbWaveformData = {
 export class FsdbFormatHandler implements IWaveformFormatHandler {
   private delegate: IWaveformFormatHandlerDelegate;
   private providerDelegate: VaporviewDocumentDelegate;
+  private uri: vscode.Uri;
   private fsdbWorker: ChildProcess | undefined = undefined;
   private fsdbTopModuleCount: number = 0;
   private fsdbCurrentScope: NetlistItem | undefined = undefined;
   // Need a reference to findTreeItem for getValuesAtTime
   private findTreeItemFn: (scopePath: string, msb: number | undefined, lsb: number | undefined) => Promise<NetlistItem | null>;
 
+  // Top level netlist items
+  private netlistTop: NetlistItem[] = [];
+  private parametersLoaded: boolean = false;
+
   constructor(
     delegate: IWaveformFormatHandlerDelegate,
     providerDelegate: VaporviewDocumentDelegate,
+    uri: vscode.Uri,
     findTreeItemFn: (scopePath: string, msb: number | undefined, lsb: number | undefined) => Promise<NetlistItem | null>,
   ) {
     this.delegate = delegate;
     this.providerDelegate = providerDelegate;
+    this.uri = uri;
     this.findTreeItemFn = findTreeItemFn;
   }
 
@@ -55,12 +62,12 @@ export class FsdbFormatHandler implements IWaveformFormatHandler {
 
     await this.callFsdbWorkerTask({
       command: 'openFsdb',
-      fsdbPath: this.delegate.uri.fsPath
+      fsdbPath: this.uri.fsPath
     });
 
     await vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification,
-      title: "Reading Scopes for " + this.delegate.uri.fsPath,
+      title: "Reading Scopes for " + this.uri.fsPath,
       cancellable: false
     }, async () => {
       await this.callFsdbWorkerTask({
@@ -70,7 +77,7 @@ export class FsdbFormatHandler implements IWaveformFormatHandler {
 
     await vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification,
-      title: "Reading Metadata for " + this.delegate.uri.fsPath,
+      title: "Reading Metadata for " + this.uri.fsPath,
       cancellable: false
     }, async () => {
       await this.callFsdbWorkerTask({
@@ -177,7 +184,7 @@ export class FsdbFormatHandler implements IWaveformFormatHandler {
   }
 
   async getChildren(element: NetlistItem | undefined): Promise<NetlistItem[]> {
-    if (!element) { return this.delegate.treeData; }
+    if (!element) { return this.netlistTop; }
     if (element.fsdbVarLoaded) { return element.children; }
     await this.fsdbReadVars(element);
     element.fsdbVarLoaded = true;
@@ -278,6 +285,8 @@ export class FsdbFormatHandler implements IWaveformFormatHandler {
     }
     this.fsdbTopModuleCount = 0;
     this.fsdbCurrentScope = undefined;
+    this.parametersLoaded = false;
+    this.netlistTop = [];
   }
 
   dispose(): void {
@@ -286,29 +295,29 @@ export class FsdbFormatHandler implements IWaveformFormatHandler {
 
   // FSDB callback methods
   private fsdbScopeCallback(name: string, type: string, path: string, netlistId: number, scopeOffsetIdx: number) {
-    this.delegate.treeData.push(createScope(name, type, path, netlistId, scopeOffsetIdx, this.delegate.uri));
+    this.netlistTop.push(createScope(name, type, path, netlistId, scopeOffsetIdx, this.uri));
   }
 
   private fsdbUpscopeCallback() {
-    const scope = this.delegate.treeData.pop()!;
-    if (this.delegate.treeData.length === this.fsdbTopModuleCount) {
-      this.delegate.treeData.push(scope);
+    const scope = this.netlistTop.pop()!;
+    if (this.netlistTop.length === this.fsdbTopModuleCount) {
+      this.netlistTop.push(scope);
       this.fsdbTopModuleCount++;
     } else {
-      this.delegate.treeData[this.delegate.treeData.length - 1].children.push(scope);
+      this.netlistTop[this.netlistTop.length - 1].children.push(scope);
     }
   }
 
   private fsdbVarCallback(name: string, type: string, encoding: string, path: string, netlistId: NetlistId, signalId: SignalId, width: number, msb: number, lsb: number) {
     const enumType = "";
     const paramValue = "";
-    const varItem = createVar(name, paramValue, type, encoding, path, netlistId, signalId, width, msb, lsb, enumType, true /*isFsdb*/, this.delegate.uri);
+    const varItem = createVar(name, paramValue, type, encoding, path, netlistId, signalId, width, msb, lsb, enumType, true /*isFsdb*/, this.uri);
     this.fsdbCurrentScope!.children.push(varItem);
     this.delegate.netlistIdTable[varItem.netlistId] = varItem;
   }
 
   private fsdbArrayBeginCallback(name: string, path: string, netlistId: number) {
-    this.fsdbCurrentScope!.children.push(createScope(name, "vhdlarray", path, netlistId, -1, this.delegate.uri));
+    this.fsdbCurrentScope!.children.push(createScope(name, "vhdlarray", path, netlistId, -1, this.uri));
   }
 
   private fsdbArrayEndCallback(size: number) {

@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { Worker } from 'worker_threads';
 import * as fs from 'fs';
 import { getTokenColorsForTheme } from './extension';
-import { VaporviewDocument } from './document';
+import { VaporviewDocument, IWaveformFormatHandler } from './document';
 import { WasmFormatHandler } from './wasm_handler';
 import { FsdbFormatHandler } from './fsdb_handler';
 import { SurferFormatHandler } from './surfer_handler';
@@ -196,8 +196,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       }
     };
 
-    // Create the document (concrete class with composition)
-    document = new VaporviewDocument(uri, delegate);
+    // Create the handler first, then create the document with it
+    let handler: IWaveformFormatHandler;
     
     if (uri.scheme === 'vaporview-remote') {
       let connectionInfo = this.remoteConnections.get(uri.toString());
@@ -226,26 +226,52 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       // Create Surfer handler
       const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
       const wasmWorker = new Worker(workerFile);
-      const handler = await SurferFormatHandler.create(document, delegate, connectionInfo.serverUrl, wasmWorker, this.wasmModule, connectionInfo.bearerToken);
-      document.setHandler(handler);
+      // We need to create a temporary document delegate for handler creation
+      const tempDocDelegate = {
+        netlistIdTable: [] as NetlistItem[],
+        setMetadata: () => {},
+        setChunkSize: () => {},
+        postMessageToWebview: () => {}
+      };
+      handler = await SurferFormatHandler.create(tempDocDelegate, delegate, uri, connectionInfo.serverUrl, wasmWorker, this.wasmModule, connectionInfo.bearerToken);
     } else {
       // Handle regular file URIs
       const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
+      // We need to create a temporary document delegate for handler creation
+      const tempDocDelegate = {
+        netlistIdTable: [] as NetlistItem[],
+        setMetadata: () => {},
+        setChunkSize: () => {},
+        postMessageToWebview: () => {}
+      };
       if (fileType === 'fsdb') {
-        // Create FSDB handler
-        const handler = new FsdbFormatHandler(document, delegate, document.findTreeItem.bind(document));
-        document.setHandler(handler);
+        // Create FSDB handler - we'll need to pass findTreeItem later
+        handler = new FsdbFormatHandler(tempDocDelegate, delegate, uri, async () => null);
       } else {
         // Create WASM handler for VCD, FST, GHW files
         const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
         const wasmWorker = new Worker(workerFile);
-        const handler = await WasmFormatHandler.create(document, delegate, wasmWorker, this.wasmModule);
-        document.setHandler(handler);
+        handler = await WasmFormatHandler.create(tempDocDelegate, delegate, uri, fileType, wasmWorker, this.wasmModule);
+      }
+    }
+
+    // Create the document with the handler
+    document = new VaporviewDocument(uri, delegate, handler);
+    
+    // Now update the handler's delegate to point to the real document
+    // This is a bit hacky but necessary due to circular dependency
+    (handler as any).delegate = document;
+    
+    // For FSDB handler, also update the findTreeItem function
+    if (uri.scheme !== 'vaporview-remote') {
+      const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
+      if (fileType === 'fsdb') {
+        (handler as any).findTreeItemFn = document.findTreeItem.bind(document);
       }
     }
 
     // Load the document using its handler
-    await document.loadWithHandler();
+    await document.load();
 
     this.netlistTreeDataProvider.loadDocument(document);
 

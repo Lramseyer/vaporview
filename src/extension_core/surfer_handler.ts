@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { Worker } from 'worker_threads';
 
-import { SignalId } from './viewer_provider';
+import { SignalId, VaporviewDocumentDelegate } from './viewer_provider';
 import { filehandler } from './filehandler';
 import { NetlistItem, createScope, createVar } from './tree_view';
 import { IWaveformFormatHandler, IWaveformFormatHandlerDelegate, EnumQueueEntry } from './document';
@@ -9,6 +9,7 @@ import { loadRemoteHierarchy, loadRemoteTimeTable, loadRemoteSignals } from './s
 
 export class SurferFormatHandler implements IWaveformFormatHandler {
   private delegate: IWaveformFormatHandlerDelegate;
+  private providerDelegate: VaporviewDocumentDelegate;
   private serverUrl: string;
   private bearerToken?: string;
   private wasmWorker: Worker;
@@ -17,12 +18,14 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
 
   constructor(
     delegate: IWaveformFormatHandlerDelegate,
+    providerDelegate: VaporviewDocumentDelegate,
     serverUrl: string,
     wasmWorker: Worker,
     wasmModule: WebAssembly.Module,
     bearerToken?: string,
   ) {
     this.delegate = delegate;
+    this.providerDelegate = providerDelegate;
     this.serverUrl = serverUrl;
     this.wasmWorker = wasmWorker;
     this.wasmModule = wasmModule;
@@ -31,12 +34,13 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
 
   static async create(
     delegate: IWaveformFormatHandlerDelegate,
+    providerDelegate: VaporviewDocumentDelegate,
     serverUrl: string,
     wasmWorker: Worker,
     wasmModule: WebAssembly.Module,
     bearerToken?: string,
   ): Promise<SurferFormatHandler> {
-    const handler = new SurferFormatHandler(delegate, serverUrl, wasmWorker, wasmModule, bearerToken);
+    const handler = new SurferFormatHandler(delegate, providerDelegate, serverUrl, wasmWorker, wasmModule, bearerToken);
     await handler.initWasmApi();
     return handler;
   }
@@ -48,7 +52,7 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
   // WASM service callbacks
   private readonly service: filehandler.Imports.Promisified = {
     log: (msg: string) => { console.log(msg); },
-    outputlog: (msg: string) => { this.delegate.logOutputChannel(msg); },
+    outputlog: (msg: string) => { this.providerDelegate.logOutputChannel(msg); },
     fsread: (fd: number, offset: bigint, length: number): Uint8Array => {
       // Remote server doesn't use direct file reads, return empty buffer
       return new Uint8Array(Math.max(0, length));
@@ -109,7 +113,7 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
   };
 
   async load(): Promise<void> {
-    this.delegate.logOutputChannel("Connecting to remote server: " + this.serverUrl);
+    this.providerDelegate.logOutputChannel("Connecting to remote server: " + this.serverUrl);
 
     await vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification,
@@ -120,12 +124,11 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
         await loadRemoteHierarchy(this.serverUrl, this.wasmApi, this.bearerToken);
         await loadRemoteTimeTable(this.serverUrl, this.wasmApi, this.bearerToken);
       } catch (error) {
-        this.delegate.logOutputChannel("Failed to connect to remote server: " + error);
+        this.providerDelegate.logOutputChannel("Failed to connect to remote server: " + error);
         throw error;
       }
     });
 
-    this.delegate.updateViews();
     this.loadTopLevelParameters();
   }
 
@@ -155,7 +158,6 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
         param.setParamAndTooltip(paramValue[1]);
       }
     });
-    this.delegate.updateViews();
   }
 
   async getChildren(element: NetlistItem | undefined): Promise<NetlistItem[]> {
@@ -225,15 +227,14 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
       }
     }
 
-    element.children = this.delegate.sortNetlistScopeChildren(result);
-    return element.children;
+    return result;
   }
 
   async getSignalData(signalIdList: SignalId[]): Promise<void> {
     try {
       await loadRemoteSignals(this.serverUrl, this.wasmApi, this.bearerToken, signalIdList);
     } catch (error) {
-      this.delegate.logOutputChannel("Failed to get signal data from remote server: " + error);
+      this.providerDelegate.logOutputChannel("Failed to get signal data from remote server: " + error);
       // Send empty signal data for failed signals
       signalIdList.forEach(signalId => {
         this.delegate.postMessageToWebview({
@@ -254,15 +255,13 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
     return;
   }
 
-  async getValuesAtTime(time: number | null, instancePaths: string[]): Promise<any> {
+  async getValuesAtTime(time: number, instancePaths: string[]): Promise<any> {
     if (!this.wasmApi) { return []; }
-    const effectiveTime = time ?? this.delegate.getMarkerTime();
-    if (effectiveTime === null) { return []; }
     try {
-      const result = await this.wasmApi.getvaluesattime(BigInt(effectiveTime), instancePaths.join(" "));
+      const result = await this.wasmApi.getvaluesattime(BigInt(time), instancePaths.join(" "));
       return JSON.parse(result);
     } catch (error) {
-      this.delegate.logOutputChannel("Failed to get values at time from remote server: " + error);
+      this.providerDelegate.logOutputChannel("Failed to get values at time from remote server: " + error);
       return [];
     }
   }

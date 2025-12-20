@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { ChildProcess, fork } from 'child_process';
 import * as path from 'path';
 
-import { SignalId, NetlistId } from './viewer_provider';
+import { SignalId, NetlistId, VaporviewDocumentDelegate } from './viewer_provider';
 import { NetlistItem, createScope, createVar } from './tree_view';
 import { IWaveformFormatHandler, IWaveformFormatHandlerDelegate, EnumQueueEntry } from './document';
 
@@ -19,6 +19,7 @@ type FsdbWaveformData = {
 
 export class FsdbFormatHandler implements IWaveformFormatHandler {
   private delegate: IWaveformFormatHandlerDelegate;
+  private providerDelegate: VaporviewDocumentDelegate;
   private fsdbWorker: ChildProcess | undefined = undefined;
   private fsdbTopModuleCount: number = 0;
   private fsdbCurrentScope: NetlistItem | undefined = undefined;
@@ -27,9 +28,11 @@ export class FsdbFormatHandler implements IWaveformFormatHandler {
 
   constructor(
     delegate: IWaveformFormatHandlerDelegate,
+    providerDelegate: VaporviewDocumentDelegate,
     findTreeItemFn: (scopePath: string, msb: number | undefined, lsb: number | undefined) => Promise<NetlistItem | null>,
   ) {
     this.delegate = delegate;
+    this.providerDelegate = providerDelegate;
     this.findTreeItemFn = findTreeItemFn;
   }
 
@@ -74,8 +77,6 @@ export class FsdbFormatHandler implements IWaveformFormatHandler {
         command: 'readMetadata'
       });
     });
-
-    this.delegate.updateViews();
   }
 
   private setupFsdbWorkerListeners(): void {
@@ -224,14 +225,7 @@ export class FsdbFormatHandler implements IWaveformFormatHandler {
     return;
   }
 
-  async getValuesAtTime(time: number | null, instancePaths: string[]): Promise<any> {
-    const effectiveTime = time ?? this.delegate.getMarkerTime();
-
-    // No time provided nor marker time set, return empty array
-    if (effectiveTime === undefined || effectiveTime === null) {
-      return [];
-    }
-
+  async getValuesAtTime(time: number, instancePaths: string[]): Promise<any> {
     const instancePath2signalId: Map<string, number> = new Map();
     const signalId2values: Map<number, any> = new Map();
     for (const instancePath of instancePaths) {
@@ -256,7 +250,7 @@ export class FsdbFormatHandler implements IWaveformFormatHandler {
       const result = await this.callFsdbWorkerTask({
         command: 'getValuesAtTime',
         signalId: signalId,
-        time: effectiveTime
+        time: time
       });
       const message = result as FsdbWorkerMessage;
       signalId2values.set(signalId, message.result);

@@ -1,10 +1,8 @@
 import * as vscode from 'vscode';
 import { NetlistLinkProvider } from './terminal_links';
 import * as path from 'path';
-
 import { SignalId, NetlistId, VaporviewDocumentDelegate, logScaleFromUnits } from './viewer_provider';
 import { NetlistItem, getInstancePath } from './tree_view';
-
 
 type WaveformTopMetadata = {
   timeTableLoaded: boolean;
@@ -30,8 +28,7 @@ export type EnumQueueEntry = {
   netlistId: NetlistId;
 };
 
-export type QueueEntry = SignalQueueEntry | EnumQueueEntry;
-
+export type QueueEntry     = SignalQueueEntry | EnumQueueEntry;
 export type NetlistIdTable = NetlistItem[];
 
 /**
@@ -50,10 +47,6 @@ export interface IWaveformFormatHandlerDelegate {
   setMetadata(scopecount: number, varcount: number, timescale: number, timeunit: string): void;
   setChunkSize(chunksize: bigint, timeend: bigint, timetablelength: bigint): void;
   postMessageToWebview(message: any): void;
-  logOutputChannel(message: string): void;
-  sortNetlistScopeChildren(netlistItems: NetlistItem[]): NetlistItem[];
-  updateViews(): void;
-  getMarkerTime(): number | null;
 }
 
 export interface IWaveformFormatHandler {
@@ -64,7 +57,7 @@ export interface IWaveformFormatHandler {
   getChildren(element: NetlistItem | undefined): Promise<NetlistItem[]>;
   getSignalData(signalIdList: SignalId[]): Promise<void>;
   getEnumData(enumList: EnumQueueEntry[]): Promise<void>;
-  getValuesAtTime(time: number | null, instancePaths: string[]): Promise<any>;
+  getValuesAtTime(time: number, instancePaths: string[]): Promise<any>;
 }
 
 
@@ -127,6 +120,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public get fileUpdated(): boolean { return this._fileUpdated; }
   public get reloadPending(): boolean { return this._reloadPending; }
   public get handler(): IWaveformFormatHandler | undefined { return this._handler; }
+  public get providerDelegate(): VaporviewDocumentDelegate { return this._providerDelegate; }
 
   // #region IWaveformFormatHandlerDelegate implementation
   // These methods are called by the format handlers
@@ -153,18 +147,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this.webviewPanel?.webview.postMessage(message);
   }
 
-  public logOutputChannel(message: string): void {
-    this._providerDelegate.logOutputChannel(message);
-  }
-
-  public updateViews(): void {
-    this._providerDelegate.updateViews(this._uri);
-  }
-
-  public getMarkerTime(): number | null {
-    return this.webviewContext.markerTime;
-  }
-
   // #region Handler management
   
   public setHandler(handler: IWaveformFormatHandler) {
@@ -177,6 +159,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     }
     await this._handler.load();
     this.setTerminalLinkProvider();
+    this._providerDelegate.updateViews(this._uri);
   }
 
   // #region Webview lifecycle
@@ -449,7 +432,10 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
 
   public async getChildrenExternal(element: NetlistItem | undefined): Promise<NetlistItem[]> {
     if (!this._handler) { return []; }
-    return this._handler.getChildren(element);
+    const children       = await this._handler.getChildren(element);
+    const sortedChildren = this.sortNetlistScopeChildren(children);
+    if (element !== undefined) { element.children = sortedChildren; }
+    return sortedChildren;
   }
 
   public async getSignalData(signalIdList: SignalId[]): Promise<void> {
@@ -464,7 +450,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
 
   public async getValuesAtTime(e: any): Promise<any> {
     if (!this._handler) { return []; }
-    return this._handler.getValuesAtTime(e.time, e.instancePaths);
+    const time = e.time ?? this.webviewContext.markerTime;
+    return this._handler.getValuesAtTime(time, e.instancePaths);
   }
 
   public async unload(): Promise<void> {

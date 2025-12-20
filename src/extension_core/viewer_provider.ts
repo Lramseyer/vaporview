@@ -226,20 +226,20 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       // Create Surfer handler
       const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
       const wasmWorker = new Worker(workerFile);
-      const handler = await SurferFormatHandler.create(document, connectionInfo.serverUrl, wasmWorker, this.wasmModule, connectionInfo.bearerToken);
+      const handler = await SurferFormatHandler.create(document, delegate, connectionInfo.serverUrl, wasmWorker, this.wasmModule, connectionInfo.bearerToken);
       document.setHandler(handler);
     } else {
       // Handle regular file URIs
       const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
       if (fileType === 'fsdb') {
         // Create FSDB handler
-        const handler = new FsdbFormatHandler(document, document.findTreeItem.bind(document));
+        const handler = new FsdbFormatHandler(document, delegate, document.findTreeItem.bind(document));
         document.setHandler(handler);
       } else {
         // Create WASM handler for VCD, FST, GHW files
         const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
         const wasmWorker = new Worker(workerFile);
-        const handler = await WasmFormatHandler.create(document, wasmWorker, this.wasmModule);
+        const handler = await WasmFormatHandler.create(document, delegate, wasmWorker, this.wasmModule);
         document.setHandler(handler);
       }
     }

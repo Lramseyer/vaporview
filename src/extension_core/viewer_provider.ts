@@ -2,11 +2,12 @@ import * as vscode from 'vscode';
 import { Worker } from 'worker_threads';
 import * as fs from 'fs';
 import { getTokenColorsForTheme } from './extension';
-import { VaporviewDocument, VaporviewDocumentFsdb, VaporviewDocumentWasm } from './document';
-import { SurferDocument } from './surfer_document';
+import { VaporviewDocument } from './document';
+import { WasmFormatHandler } from './wasm_handler';
+import { FsdbFormatHandler } from './fsdb_handler';
+import { SurferFormatHandler } from './surfer_handler';
 import { NetlistTreeDataProvider, NetlistItem, WebviewCollection, netlistItemDragAndDropController } from './tree_view';
 import { getInstancePath } from './tree_view';
-import { bool } from '@vscode/wasm-component-model';
 
 export type NetlistId = number;
 export type SignalId  = number;
@@ -157,16 +158,19 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     _token: vscode.CancellationToken,
   ): Promise<VaporviewDocument> {
 
-    const delegate = {
+    // Declare document first so delegate closures can reference it
+    let document: VaporviewDocument;
+
+    const delegate: VaporviewDocumentDelegate = {
       addSignalByNameToDocument: this.addSignalByNameToDocument.bind(this),
       logOutputChannel: (message: string) => {this.log.appendLine(message);},
-      getViewerContext: async () => {
-        const webviewsForDocument = Array.from(this.webviews.get(document.uri));
+      getViewerContext: async (): Promise<Uint8Array> => {
+        const webviewsForDocument: vscode.WebviewPanel[] = Array.from(this.webviews.get(document.uri));
         if (!webviewsForDocument.length) {
           throw new Error('Could not find webview to save for');
         }
-        const panel    = webviewsForDocument[0];
-        const response = await this.postMessageWithResponse<number[]>(panel, 'getContext', {});
+        const panel: vscode.WebviewPanel = webviewsForDocument[0];
+        const response: number[] = await this.postMessageWithResponse<number[]>(panel, 'getContext', {});
         return new Uint8Array(response);
       },
       updateViews: (uri: vscode.Uri) => {
@@ -174,9 +178,9 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         this.netlistTreeDataProvider.loadDocument(document);
       },
       emitEvent: (e: any) => {this.emitEvent(e);},
-      removeFromCollection: (uri: vscode.Uri, document: VaporviewDocument) => {
+      removeFromCollection: (uri: vscode.Uri, doc: VaporviewDocument) => {
         for (const entry of this.documentCollection) {
-          if (entry.resource === uri.toString() && entry.document === document) {
+          if (entry.resource === uri.toString() && entry.document === doc) {
             this.documentCollection.delete(entry);
             this._numDocuments--;
             
@@ -192,7 +196,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       }
     };
 
-    let document: VaporviewDocument;
+    // Create the document (concrete class with composition)
+    document = new VaporviewDocument(uri, delegate);
     
     if (uri.scheme === 'vaporview-remote') {
       let connectionInfo = this.remoteConnections.get(uri.toString());
@@ -218,22 +223,29 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         }
       }
       
-      // Load the Wasm worker
+      // Create Surfer handler
       const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
       const wasmWorker = new Worker(workerFile);
-      document = await SurferDocument.create(uri, connectionInfo.serverUrl, wasmWorker, this.wasmModule, delegate, connectionInfo.bearerToken);
+      const handler = await SurferFormatHandler.create(document, connectionInfo.serverUrl, wasmWorker, this.wasmModule, connectionInfo.bearerToken);
+      document.setHandler(handler);
     } else {
       // Handle regular file URIs
       const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
       if (fileType === 'fsdb') {
-        document = await VaporviewDocumentFsdb.create(uri, openContext.backupId, delegate);
+        // Create FSDB handler
+        const handler = new FsdbFormatHandler(document, document.findTreeItem.bind(document));
+        document.setHandler(handler);
       } else {
-        // Load the Wasm worker
+        // Create WASM handler for VCD, FST, GHW files
         const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
         const wasmWorker = new Worker(workerFile);
-        document = await VaporviewDocumentWasm.create(uri, openContext.backupId, wasmWorker, this.wasmModule, delegate);
+        const handler = await WasmFormatHandler.create(document, wasmWorker, this.wasmModule);
+        document.setHandler(handler);
       }
     }
+
+    // Load the document using its handler
+    await document.loadWithHandler();
 
     this.netlistTreeDataProvider.loadDocument(document);
 

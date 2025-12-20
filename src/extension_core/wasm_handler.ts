@@ -6,7 +6,7 @@ import * as fs from 'fs';
 import { SignalId, VaporviewDocumentDelegate } from './viewer_provider';
 import { filehandler } from './filehandler';
 import { NetlistItem, createScope, createVar } from './tree_view';
-import { IWaveformFormatHandler, IWaveformFormatHandlerDelegate, EnumQueueEntry } from './document';
+import { IWaveformFormatHandler, IWaveformFormatHandlerDelegate, EnumQueueEntry, WaveformTopMetadata } from './document';
 
 // #region fsWrapper
 interface fsWrapper {
@@ -82,21 +82,32 @@ export const getFsWrapper = async (uri: vscode.Uri): Promise<fsWrapper> => {
 export class WasmFormatHandler implements IWaveformFormatHandler {
   private delegate: IWaveformFormatHandlerDelegate;
   private providerDelegate: VaporviewDocumentDelegate;
+  private uri: vscode.Uri;
+  private fileType: string;
   private fileReader: fsWrapper;
   private wasmWorker: Worker;
   private wasmModule: WebAssembly.Module;
   private wasmApi: any;
   private fileBuffer: Uint8Array = new Uint8Array(65536);
 
+  private parametersLoaded: boolean = false;
+
+  // Top level netlist items
+  private netlistTop: NetlistItem[] = [];
+
   constructor(
     delegate: IWaveformFormatHandlerDelegate,
     providerDelegate: VaporviewDocumentDelegate,
+    uri: vscode.Uri,
+    fileType: string,
     fileReader: fsWrapper,
     wasmWorker: Worker,
     wasmModule: WebAssembly.Module,
   ) {
     this.delegate = delegate;
     this.providerDelegate = providerDelegate;
+    this.uri = uri;
+    this.fileType = fileType;
     this.fileReader = fileReader;
     this.wasmWorker = wasmWorker;
     this.wasmModule = wasmModule;
@@ -105,11 +116,13 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
   static async create(
     delegate: IWaveformFormatHandlerDelegate,
     providerDelegate: VaporviewDocumentDelegate,
+    uri: vscode.Uri,
+    fileType: string,
     wasmWorker: Worker,
     wasmModule: WebAssembly.Module,
   ): Promise<WasmFormatHandler> {
-    const fsWrapper = await getFsWrapper(delegate.uri);
-    const handler = new WasmFormatHandler(delegate, providerDelegate, fsWrapper, wasmWorker, wasmModule);
+    const fsWrapper = await getFsWrapper(uri);
+    const handler = new WasmFormatHandler(delegate, providerDelegate, uri, fileType, fsWrapper, wasmWorker, wasmModule);
     await handler.initWasmApi();
     return handler;
   }
@@ -130,13 +143,13 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
       return BigInt(this.fileReader.fileSize);
     },
     setscopetop: (name: string, id: number, tpe: string) => {
-      const scope = createScope(name, tpe, "", id, -1, this.delegate.uri);
-      this.delegate.treeData.push(scope);
+      const scope = createScope(name, tpe, "", id, -1, this.uri);
+      this.netlistTop.push(scope);
       this.delegate.netlistIdTable[id] = scope;
     },
     setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number, enumtype: string) => {
-      const varItem = createVar(name, "", tpe, encoding, "", id, signalid, width, msb, lsb, enumtype, false /*isFsdb*/, this.delegate.uri);
-      this.delegate.treeData.push(varItem);
+      const varItem = createVar(name, "", tpe, encoding, "", id, signalid, width, msb, lsb, enumtype, false /*isFsdb*/, this.uri);
+      this.netlistTop.push(varItem);
       this.delegate.netlistIdTable[id] = varItem;
     },
     setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
@@ -181,21 +194,20 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
   };
 
   async load(): Promise<void> {
-    const fileType = this.delegate.fileType;
-    this.providerDelegate.logOutputChannel("Using " + this.fileReader.type + " - Loading " + fileType + " file: " + this.delegate.uri.fsPath);
+    this.providerDelegate.logOutputChannel("Using " + this.fileReader.type + " - Loading " + this.fileType + " file: " + this.uri.fsPath);
     const loadTime = Date.now();
-    await this.fileReader.loadFile(this.delegate.uri, fileType);
+    await this.fileReader.loadFile(this.uri, this.fileType);
 
-    if (fileType === 'fst' && this.fileReader.loadStatic === false) {
+    if (this.fileType === 'fst' && this.fileReader.loadStatic === false) {
       const fstMaxStaticLoadSize = vscode.workspace.getConfiguration('vaporview').get('fstMaxStaticLoadSize');
       this.providerDelegate.logOutputChannel(
-        this.delegate.uri.fsPath + ' is larger than the max static load size of ' + fstMaxStaticLoadSize +
+        this.uri.fsPath + ' is larger than the max static load size of ' + fstMaxStaticLoadSize +
         ' MB. File will be loaded dynamically. Configure max load size in the settings menu');
     }
 
     await vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification,
-      title: "Parsing Netlist for " + this.delegate.uri.fsPath,
+      title: "Parsing Netlist for " + this.uri.fsPath,
       cancellable: false
     }, async () => {
       await this.wasmApi.loadfile(BigInt(this.fileReader.fileSize), this.fileReader.fd, this.fileReader.loadStatic, this.fileReader.bufferSize);
@@ -203,17 +215,17 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
 
     const netlistFinishTime = Date.now();
     const netlistTime = (netlistFinishTime - loadTime) / 1000;
-    this.providerDelegate.logOutputChannel("Finished parsing netlist for " + this.delegate.uri.fsPath);
+    this.providerDelegate.logOutputChannel("Finished parsing netlist for " + this.uri.fsPath);
     this.providerDelegate.logOutputChannel(
       "Scope count: " + this.delegate.netlistIdTable.length + 
       ", Time: " + netlistTime + " seconds");
 
-    await this.readBody(fileType);
+    await this.readBody(this.fileType);
 
-    this.providerDelegate.logOutputChannel("Finished parsing waveforms for " + this.delegate.uri.fsPath);
+    this.providerDelegate.logOutputChannel("Finished parsing waveforms for " + this.uri.fsPath);
     this.providerDelegate.logOutputChannel("Time: " + (Date.now() - netlistFinishTime) / 1000 + " seconds");
 
-    if (fileType !== 'fst') {
+    if (this.fileType !== 'fst') {
       this.loadTopLevelParameters();
     }
   }
@@ -222,7 +234,7 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
     if (fileType === 'vcd') {
       vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
-        title: "Parsing Waveforms for " + this.delegate.uri.fsPath,
+        title: "Parsing Waveforms for " + this.uri.fsPath,
         cancellable: false
       }, async () => {
         await this.wasmApi.readbody();
@@ -247,8 +259,9 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
 
   private async loadTopLevelParameters() {
     if (!this.wasmApi) { return; }
+    if (this.parametersLoaded) { return; }
 
-    const parameterItems = this.getParametersInTreeData(this.delegate.treeData);
+    const parameterItems = this.getParametersInTreeData(this.netlistTop);
     const signalIdList = parameterItems.map((param) => param.signalId);
     const params = await this.wasmApi.getparametervalues(signalIdList);
     const parameterValues = JSON.parse(params);
@@ -258,11 +271,12 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
         param.setParamAndTooltip(paramValue[1]);
       }
     });
-    this.providerDelegate.updateViews(this.delegate.uri);
+    this.providerDelegate.updateViews(this.uri);
+    this.parametersLoaded = true;
   }
 
   async getChildren(element: NetlistItem | undefined): Promise<NetlistItem[]> {
-    if (!element) { return this.delegate.treeData; }
+    if (!element) { return this.netlistTop; }
     if (!this.wasmApi) { return []; }
     if (element.children.length > 0) { return element.children; }
 
@@ -282,10 +296,10 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
       startIndex += childItems.totalReturned;
 
       const scopes: NetlistItem[] = childItems.scopes?.map((child: any) => {
-        return createScope(child.name, child.type, scopePath, child.id, -1, this.delegate.uri);
+        return createScope(child.name, child.type, scopePath, child.id, -1, this.uri);
       }) || [];
       const vars: NetlistItem[] = childItems.vars?.map((child: any) => {
-        return createVar(child.name, child.paramValue, child.type, child.encoding.split('(')[0], scopePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, child.enumType, false /*isFsdb*/, this.delegate.uri);
+        return createVar(child.name, child.paramValue, child.type, child.encoding.split('(')[0], scopePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, child.enumType, false /*isFsdb*/, this.uri);
       }) || [];
 
       result.push(...scopes);
@@ -355,6 +369,8 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
     if (this.wasmApi) {
       await this.wasmApi.unload();
     }
+    this.parametersLoaded = false;
+    this.netlistTop = [];
   }
 
   dispose(): void {

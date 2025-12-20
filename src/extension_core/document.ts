@@ -4,7 +4,7 @@ import * as path from 'path';
 import { SignalId, NetlistId, VaporviewDocumentDelegate, logScaleFromUnits } from './viewer_provider';
 import { NetlistItem, getInstancePath } from './tree_view';
 
-type WaveformTopMetadata = {
+export type WaveformTopMetadata = {
   timeTableLoaded: boolean;
   moduleCount: number;
   netlistIdCount: number;
@@ -36,16 +36,14 @@ export type NetlistIdTable = NetlistItem[];
  * This provides handlers access to shared state and functionality.
  */
 export interface IWaveformFormatHandlerDelegate {
-  // File information
-  readonly uri: vscode.Uri;
-  readonly fileType: string;
-
   // Tree data access (handlers populate these)
-  treeData: NetlistItem[];
   netlistIdTable: NetlistIdTable;
 
+  // These will probably get removed in favor of getter methods in the IWaveformFormatHandler interface
   setMetadata(scopecount: number, varcount: number, timescale: number, timeunit: string): void;
   setChunkSize(chunksize: bigint, timeend: bigint, timetablelength: bigint): void;
+  
+  // This will probably get replaced by passing the webview object directly to the handler
   postMessageToWebview(message: any): void;
 }
 
@@ -75,10 +73,9 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public treeData: NetlistItem[] = [];
   private _netlistIdTable: NetlistIdTable = [];
   private sortNetlist: boolean = vscode.workspace.getConfiguration('vaporview').get('sortNetlist') || false;
-  public parametersLoaded: boolean = false;
   private readonly _providerDelegate: VaporviewDocumentDelegate;
-  // Format handler (composition)
-  private _handler: IWaveformFormatHandler | undefined = undefined;
+  // Format handler (composition) - always defined
+  private readonly _handler: IWaveformFormatHandler;
   // Webview
   public webviewPanel: vscode.WebviewPanel | undefined = undefined;
   private _webviewInitialized: boolean = false;
@@ -104,11 +101,12 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     autoReload: false,
   };
 
-  constructor(uri: vscode.Uri, providerDelegate: VaporviewDocumentDelegate) {
+  constructor(uri: vscode.Uri, providerDelegate: VaporviewDocumentDelegate, handler: IWaveformFormatHandler) {
     super(() => this.dispose());
     this._uri = uri;
     this._fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
     this._providerDelegate = providerDelegate;
+    this._handler = handler;
     this.setupFileWatcher();
   }
 
@@ -119,7 +117,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public get webviewInitialized(): boolean { return this._webviewInitialized; }
   public get fileUpdated(): boolean { return this._fileUpdated; }
   public get reloadPending(): boolean { return this._reloadPending; }
-  public get handler(): IWaveformFormatHandler | undefined { return this._handler; }
+  public get handler(): IWaveformFormatHandler { return this._handler; }
   public get providerDelegate(): VaporviewDocumentDelegate { return this._providerDelegate; }
 
   // #region IWaveformFormatHandlerDelegate implementation
@@ -149,15 +147,9 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
 
   // #region Handler management
   
-  public setHandler(handler: IWaveformFormatHandler) {
-    this._handler = handler;
-  }
-
-  public async loadWithHandler(): Promise<void> {
-    if (!this._handler) {
-      throw new Error("No handler set for document");
-    }
+  public async load(): Promise<void> {
     await this._handler.load();
+    this.treeData = await this._handler.getChildren(undefined);
     this.setTerminalLinkProvider();
     this._providerDelegate.updateViews(this._uri);
   }
@@ -421,9 +413,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
 
   public async reload() {
     this.sortNetlist = vscode.workspace.getConfiguration('vaporview').get('sortNetlist') || false;
-    this.parametersLoaded = false;
     await this.unload();
-    await this.loadWithHandler();
+    await this.load();
     this._fileUpdated = false;
     this._reloadPending = false;
   }
@@ -431,7 +422,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   // #region Handler delegated methods
 
   public async getChildrenExternal(element: NetlistItem | undefined): Promise<NetlistItem[]> {
-    if (!this._handler) { return []; }
     const children       = await this._handler.getChildren(element);
     const sortedChildren = this.sortNetlistScopeChildren(children);
     if (element !== undefined) { element.children = sortedChildren; }
@@ -439,17 +429,14 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   public async getSignalData(signalIdList: SignalId[]): Promise<void> {
-    if (!this._handler) { return; }
     return this._handler.getSignalData(signalIdList);
   }
 
   public async getEnumData(enumNameList: EnumQueueEntry[]): Promise<void> {
-    if (!this._handler) { return; }
     return this._handler.getEnumData(enumNameList);
   }
 
   public async getValuesAtTime(e: any): Promise<any> {
-    if (!this._handler) { return []; }
     const time = e.time ?? this.webviewContext.markerTime;
     return this._handler.getValuesAtTime(time, e.instancePaths);
   }
@@ -457,16 +444,12 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public async unload(): Promise<void> {
     this.unloadWebview();
     this.unloadTreeData();
-    if (this._handler) {
-      await this._handler.unload();
-    }
+    await this._handler.unload();
     this.metadata.timeTableLoaded = false;
   }
 
   public dispose(): void {
-    if (this._handler) {
-      this._handler.dispose();
-    }
+    this._handler.dispose();
     this._providerDelegate.updateViews(this.uri);
     this._providerDelegate.removeFromCollection(this.uri, this);
     this.disposables.forEach((disposable) => { disposable.dispose(); });

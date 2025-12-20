@@ -10,15 +10,21 @@ import { loadRemoteHierarchy, loadRemoteTimeTable, loadRemoteSignals } from './s
 export class SurferFormatHandler implements IWaveformFormatHandler {
   private delegate: IWaveformFormatHandlerDelegate;
   private providerDelegate: VaporviewDocumentDelegate;
+  private uri: vscode.Uri;
   private serverUrl: string;
   private bearerToken?: string;
   private wasmWorker: Worker;
   private wasmModule: WebAssembly.Module;
   private wasmApi: any;
 
+  // Top level netlist items
+  private netlistTop: NetlistItem[] = [];
+  private parametersLoaded: boolean = false;
+
   constructor(
     delegate: IWaveformFormatHandlerDelegate,
     providerDelegate: VaporviewDocumentDelegate,
+    uri: vscode.Uri,
     serverUrl: string,
     wasmWorker: Worker,
     wasmModule: WebAssembly.Module,
@@ -26,6 +32,7 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
   ) {
     this.delegate = delegate;
     this.providerDelegate = providerDelegate;
+    this.uri = uri;
     this.serverUrl = serverUrl;
     this.wasmWorker = wasmWorker;
     this.wasmModule = wasmModule;
@@ -35,12 +42,13 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
   static async create(
     delegate: IWaveformFormatHandlerDelegate,
     providerDelegate: VaporviewDocumentDelegate,
+    uri: vscode.Uri,
     serverUrl: string,
     wasmWorker: Worker,
     wasmModule: WebAssembly.Module,
     bearerToken?: string,
   ): Promise<SurferFormatHandler> {
-    const handler = new SurferFormatHandler(delegate, providerDelegate, serverUrl, wasmWorker, wasmModule, bearerToken);
+    const handler = new SurferFormatHandler(delegate, providerDelegate, uri, serverUrl, wasmWorker, wasmModule, bearerToken);
     await handler.initWasmApi();
     return handler;
   }
@@ -62,13 +70,13 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
       return BigInt(0);
     },
     setscopetop: (name: string, id: number, tpe: string) => {
-      const scope = createScope(name, tpe, "", id, -1, this.delegate.uri);
-      this.delegate.treeData.push(scope);
+      const scope = createScope(name, tpe, "", id, -1, this.uri);
+      this.netlistTop.push(scope);
       this.delegate.netlistIdTable[id] = scope;
     },
     setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number, enumtype: string) => {
-      const varItem = createVar(name, "", tpe, encoding, "", id, signalid, width, msb, lsb, enumtype, false /*isFsdb*/, this.delegate.uri);
-      this.delegate.treeData.push(varItem);
+      const varItem = createVar(name, "", tpe, encoding, "", id, signalid, width, msb, lsb, enumtype, false /*isFsdb*/, this.uri);
+      this.netlistTop.push(varItem);
       this.delegate.netlistIdTable[id] = varItem;
     },
     setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
@@ -147,8 +155,9 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
 
   private async loadTopLevelParameters() {
     if (!this.wasmApi) { return; }
+    if (this.parametersLoaded) { return; }
 
-    const parameterItems = this.getParametersInTreeData(this.delegate.treeData);
+    const parameterItems = this.getParametersInTreeData(this.netlistTop);
     const signalIdList = parameterItems.map((param) => param.signalId);
     const params = await this.wasmApi.getparametervalues(signalIdList);
     const parameterValues = JSON.parse(params);
@@ -158,10 +167,11 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
         param.setParamAndTooltip(paramValue[1]);
       }
     });
+    this.parametersLoaded = true;
   }
 
   async getChildren(element: NetlistItem | undefined): Promise<NetlistItem[]> {
-    if (!element) { return this.delegate.treeData; }
+    if (!element) { return this.netlistTop; }
     if (!this.wasmApi) { return []; }
     if (element.children.length > 0) { return element.children; }
 
@@ -181,11 +191,11 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
       startIndex += childItems.totalReturned;
 
       childItems.scopes.forEach((child: any) => {
-        result.push(createScope(child.name, child.type, scopePath, child.id, -1, this.delegate.uri));
+        result.push(createScope(child.name, child.type, scopePath, child.id, -1, this.uri));
       });
       childItems.vars.forEach((child: any) => {
         const encoding = child.encoding.split('(')[0];
-        const varItem = createVar(child.name, child.paramValue, child.type, encoding, scopePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, child.enumType, false /*isFsdb*/, this.delegate.uri);
+        const varItem = createVar(child.name, child.paramValue, child.type, encoding, scopePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, child.enumType, false /*isFsdb*/, this.uri);
         if (varTable[child.name] === undefined) {
           varTable[child.name] = [varItem];
         } else {
@@ -270,6 +280,8 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
     if (this.wasmApi) {
       await this.wasmApi.unload();
     }
+    this.parametersLoaded = false;
+    this.netlistTop = [];
   }
 
   dispose(): void {

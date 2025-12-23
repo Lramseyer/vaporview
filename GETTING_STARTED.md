@@ -18,6 +18,8 @@ Once those are installed, make sure you install the necessary packages:
 - `cargo update`
 - `cargo install wasm-tools`
 
+Note that npm install may show errors if you do not have the build set up for building the FSDB component. You can ignore these errors, an still successfully build the extension without the FSDB component.
+
 ## building and running
 
 To build and run, you should be able to use the **Run and Debug** utility in VScode. It will do the following steps automatically, but in case you need to do them individually (which does happen)

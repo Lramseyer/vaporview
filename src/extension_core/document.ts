@@ -32,20 +32,15 @@ export type EnumQueueEntry = {
 export type QueueEntry     = SignalQueueEntry | EnumQueueEntry;
 export type NetlistIdTable = NetlistItem[];
 
-/**
- * Delegate interface for format handlers to communicate back to the document.
- * This provides handlers access to shared state and functionality.
- */
-export interface IWaveformFormatHandlerDelegate {
+/* 
+Interface for waveform file parsers
+*/
+export interface WaveformFileParser {
 
-  netlistIdTable: NetlistIdTable;
-  postMessageToWebview(message: any): void;
-}
-
-export interface IWaveformFormatHandler {
-
+  // Properties
   metadata: WaveformTopMetadata;
 
+  // Methods
   load(): Promise<void>;
   unload(): Promise<void>;
   dispose(): void;
@@ -53,11 +48,13 @@ export interface IWaveformFormatHandler {
   getSignalData(signalIdList: SignalId[]): Promise<void>;
   getEnumData(enumList: EnumQueueEntry[]): Promise<void>;
   getValuesAtTime(time: number, instancePaths: string[]): Promise<any>;
+
+  // Callbacks
+  postMessageToWebview(message: any): void;
 }
 
-
 // #region VaporviewDocument
-export class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocument, IWaveformFormatHandlerDelegate {
+export class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocument {
 
   protected disposables: vscode.Disposable[] = [];
   public readonly uri: vscode.Uri;
@@ -72,7 +69,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   private sortNetlist: boolean = vscode.workspace.getConfiguration('vaporview').get('sortNetlist') || false;
   private readonly _providerDelegate: VaporviewDocumentDelegate;
   // Format handler (composition) - always defined
-  private readonly _handler: IWaveformFormatHandler;
+  private readonly _handler: WaveformFileParser;
   // Webview
   public webviewPanel: vscode.WebviewPanel | undefined = undefined;
   private _webviewInitialized: boolean = false;
@@ -88,7 +85,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     autoReload: false,
   };
 
-  constructor(uri: vscode.Uri, providerDelegate: VaporviewDocumentDelegate, handler: IWaveformFormatHandler) {
+  constructor(uri: vscode.Uri, providerDelegate: VaporviewDocumentDelegate, handler: WaveformFileParser) {
     super(() => this.dispose());
     this.uri = uri;
     this.fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
@@ -103,10 +100,10 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public get webviewInitialized(): boolean { return this._webviewInitialized; }
   public get fileUpdated(): boolean { return this._fileUpdated; }
   public get reloadPending(): boolean { return this._reloadPending; }
-  //public get handler(): IWaveformFormatHandler { return this._handler; }
+  //public get handler(): WaveformFileParser { return this._handler; }
   public get providerDelegate(): VaporviewDocumentDelegate { return this._providerDelegate; }
 
-  // #region IWaveformFormatHandlerDelegate implementation
+  // #region WaveformFileParserDelegate implementation
   // These methods are called by the format handlers
   public setChunkSize() {
     const chunkSize = this.metadata.chunkSize;
@@ -135,6 +132,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   
   public onWebviewReady(webviewPanel: vscode.WebviewPanel) {
     this.webviewPanel = webviewPanel;
+    this._handler.postMessageToWebview = webviewPanel.webview.postMessage.bind(webviewPanel.webview);
     if (this._webviewInitialized) { return; }
     if (!this.metadata.timeTableLoaded) { return; }
     webviewPanel.webview.postMessage({
@@ -402,6 +400,9 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     const children       = await this._handler.getChildren(element);
     const sortedChildren = this.sortNetlistScopeChildren(children);
     if (element !== undefined) { element.children = sortedChildren; }
+    children.forEach((child) => {
+      this._netlistIdTable[child.netlistId] = child;
+    });
     return sortedChildren;
   }
 

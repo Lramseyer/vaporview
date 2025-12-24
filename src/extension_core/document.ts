@@ -95,6 +95,16 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this.setupFileWatcher();
   }
 
+  static async create(uri: vscode.Uri, providerDelegate: VaporviewDocumentDelegate): Promise<VaporviewDocument> {
+    const handler  = await providerDelegate.createFileParser(uri);
+    const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
+    const document = new VaporviewDocument(uri, providerDelegate, handler);
+    if (fileType === 'fsdb') {
+      (document._handler as any).findTreeItemFn = document.findTreeItem.bind(document);
+    }
+    return document;
+  }
+
   // #region Public getters
   public get netlistIdTable(): NetlistIdTable { return this._netlistIdTable; }
   public get webviewInitialized(): boolean { return this._webviewInitialized; }

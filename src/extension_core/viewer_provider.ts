@@ -18,6 +18,7 @@ export interface VaporviewDocumentDelegate {
   updateViews(uri: vscode.Uri): void;
   emitEvent(e: any): void;
   removeFromCollection(uri: vscode.Uri, document: VaporviewDocument): void;
+  createFileParser(uri: vscode.Uri): Promise<WaveformFileParser>;
 }
 
 export function scaleFromUnits(unit: string | undefined) {
@@ -86,6 +87,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     readonly document: VaporviewDocument;
   }>();
 
+  private wasmWorkerFile: string;
   // Store remote server connection info for vaporview-remote:// URIs
   private readonly remoteConnections = new Map<string, {
     serverUrl: string;
@@ -150,6 +152,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.netlistView.onDidExpandElement(this.handleNetlistExpandElement);
     this.netlistView.onDidCollapseElement(this.handleNetlistCollapseElement);
     this.netlistView.onDidChangeSelection(this.handleNetlistViewSelectionChanged, this, this._context.subscriptions);
+
+    this.wasmWorkerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
   }
 
   async openCustomDocument(
@@ -193,74 +197,30 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
             return;
           }
         }
+      },
+      createFileParser: async (uri: vscode.Uri) => {
+        // Create the handler first, then create the document with it
+        let handler: WaveformFileParser;
+
+        if (uri.scheme === 'vaporview-remote') {
+          const connectionInfo = await this.getRemoteConnectionInfo(uri);
+          // Create Surfer handler
+          handler = await SurferFormatHandler.create(delegate, uri, connectionInfo.serverUrl, this.wasmWorkerFile, this.wasmModule, connectionInfo.bearerToken);
+        } else {
+          const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
+          if (fileType === 'fsdb') {
+            handler = new FsdbFormatHandler(delegate, uri, async () => null);
+          } else {
+            handler = await WasmFormatHandler.create(delegate, uri, fileType, this.wasmWorkerFile, this.wasmModule);
+          }
+        }
+        return handler;
       }
     };
 
-    // Create the handler first, then create the document with it
-    let handler: WaveformFileParser;
-    
-    if (uri.scheme === 'vaporview-remote') {
-      let connectionInfo = this.remoteConnections.get(uri.toString());
-      
-      if (!connectionInfo) {
-        // Try to restore connection info from extension state
-        const persistedConnection = this._context.globalState.get<{serverUrl: string, bearerToken?: string}>(`remote-connection-${uri.toString()}`);
-        if (persistedConnection) {
-          connectionInfo = persistedConnection;
-          this.remoteConnections.set(uri.toString(), connectionInfo);
-        } else {
-          // Prompt user to reconnect
-          const action = await vscode.window.showErrorMessage(
-            `Remote connection lost for ${uri.path}. Please reconnect.`,
-            'Reconnect', 'Close Tab'
-          );
-          if (action === 'Reconnect') {
-            // Close the current tab and show reconnection dialog
-            await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-            await vscode.commands.executeCommand('vaporview.openRemoteViewer');
-          }
-          throw new Error(`Remote connection lost and user chose not to reconnect`);
-        }
-      }
-      
-      // Create Surfer handler
-      const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
-      const wasmWorker = new Worker(workerFile);
-      handler = await SurferFormatHandler.create(delegate, uri, connectionInfo.serverUrl, wasmWorker, this.wasmModule, connectionInfo.bearerToken);
-    } else {
-      // Handle regular file URIs
-      const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
-      if (fileType === 'fsdb') {
-        // Create FSDB handler - we'll need to pass findTreeItem later
-        handler = new FsdbFormatHandler(delegate, uri, async () => null);
-      } else {
-        // Create WASM handler for VCD, FST, GHW files
-        const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
-        const wasmWorker = new Worker(workerFile);
-        handler = await WasmFormatHandler.create(delegate, uri, fileType, wasmWorker, this.wasmModule);
-      }
-    }
-
-    // Create the document with the handler
-    document = new VaporviewDocument(uri, delegate, handler);
-    
-    // Now update the handler's delegate to point to the real document
-    // This is a bit hacky but necessary due to circular dependency
-    (handler as any).delegate = document;
-    
-    // For FSDB handler, also update the findTreeItem function
-    if (uri.scheme !== 'vaporview-remote') {
-      const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
-      if (fileType === 'fsdb') {
-        (handler as any).findTreeItemFn = document.findTreeItem.bind(document);
-      }
-    }
-
-    // Load the document using its handler
+    // Create the document and load it using its handler
+    document = await VaporviewDocument.create(uri, delegate);
     await document.load();
-
-    this.netlistTreeDataProvider.loadDocument(document);
-
     return document;
   }
 
@@ -362,6 +322,32 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     const document = this.getDocumentFromOptionalUri(uri);
     if (!document) {return;}
     return document.getSettings();
+  }
+
+  public async getRemoteConnectionInfo(uri: vscode.Uri) {
+
+    let connectionInfo = this.remoteConnections.get(uri.toString());
+    if (connectionInfo) {return connectionInfo;}
+
+    // Try to restore connection info from extension state
+    const persistedConnection = this._context.globalState.get<{serverUrl: string, bearerToken?: string}>(`remote-connection-${uri.toString()}`);
+    if (persistedConnection) {
+      connectionInfo = persistedConnection;
+      this.remoteConnections.set(uri.toString(), connectionInfo);
+    } else {
+      // Prompt user to reconnect
+      const action = await vscode.window.showErrorMessage(
+        `Remote connection lost for ${uri.path}. Please reconnect.`,
+        'Reconnect', 'Close Tab'
+      );
+      if (action === 'Reconnect') {
+        // Close the current tab and show reconnection dialog
+        await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+        await vscode.commands.executeCommand('vaporview.openRemoteViewer');
+      }
+      throw new Error(`Remote connection lost and user chose not to reconnect`);
+    }
+    return connectionInfo;
   }
 
   public async openRemoteViewer(serverUrl: string, bearerToken?: string) {

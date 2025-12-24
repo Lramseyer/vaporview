@@ -128,10 +128,11 @@ export class WasmFormatHandler implements WaveformFileParser {
     providerDelegate: VaporviewDocumentDelegate,
     uri: vscode.Uri,
     fileType: string,
-    wasmWorker: Worker,
+    wasmWorkerFile: string,
     wasmModule: WebAssembly.Module,
   ): Promise<WasmFormatHandler> {
     const fsWrapper = await getFsWrapper(uri);
+    const wasmWorker = new Worker(wasmWorkerFile);
     const handler = new WasmFormatHandler(providerDelegate, uri, fileType, fsWrapper, wasmWorker, wasmModule);
     await handler.initWasmApi();
     return handler;
@@ -155,15 +156,12 @@ export class WasmFormatHandler implements WaveformFileParser {
     setscopetop: (name: string, id: number, tpe: string) => {
       const scope = createScope(name, tpe, "", id, -1, this.uri);
       this.netlistTop.push(scope);
-      //this.delegate.netlistIdTable[id] = scope;
     },
     setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number, enumtype: string) => {
       const varItem = createVar(name, "", tpe, encoding, "", id, signalid, width, msb, lsb, enumtype, false /*isFsdb*/, this.uri);
       this.netlistTop.push(varItem);
-      //this.delegate.netlistIdTable[id] = varItem;
     },
     setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
-      //this.delegate.setMetadata(scopecount, varcount, timescale, timeunit);
       this.metadata.moduleCount = scopecount;
       this.metadata.netlistIdCount = varcount;
       this.metadata.timeScale = timescale;
@@ -327,7 +325,6 @@ export class WasmFormatHandler implements WaveformFileParser {
         } else {
           varTable[varItem.name].push(varItem);
         }
-        //this.delegate.netlistIdTable[varItem.netlistId] = varItem;
       });
 
       callLimit--;

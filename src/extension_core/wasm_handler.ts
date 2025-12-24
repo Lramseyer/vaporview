@@ -95,6 +95,19 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
   // Top level netlist items
   private netlistTop: NetlistItem[] = [];
 
+  public metadata: WaveformTopMetadata = {
+    timeTableLoaded: false,
+    moduleCount: 0,
+    netlistIdCount: 0,
+    signalIdCount: 0,
+    timeTableCount: 0,
+    timeEnd: 0,
+    defaultZoom: 1,
+    timeScale: 1,
+    timeUnit: "ns",
+    chunkSize: 1
+  };
+
   constructor(
     delegate: IWaveformFormatHandlerDelegate,
     providerDelegate: VaporviewDocumentDelegate,
@@ -153,10 +166,17 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
       this.delegate.netlistIdTable[id] = varItem;
     },
     setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
-      this.delegate.setMetadata(scopecount, varcount, timescale, timeunit);
+      //this.delegate.setMetadata(scopecount, varcount, timescale, timeunit);
+      this.metadata.moduleCount = scopecount;
+      this.metadata.netlistIdCount = varcount;
+      this.metadata.timeScale = timescale;
+      this.metadata.timeUnit = timeunit;
     },
     setchunksize: (chunksize: bigint, timeend: bigint, timetablelength: bigint) => {
-      this.delegate.setChunkSize(chunksize, timeend, timetablelength);
+      this.metadata.timeEnd = Number(timeend);
+      this.metadata.timeTableCount = Number(timetablelength);
+      this.metadata.timeTableLoaded = true;
+      this.metadata.chunkSize = Number(chunksize);
     },
     sendtransitiondatachunk: (signalid: number, totalchunks: number, chunknum: number, min: number, max: number, transitionData: string) => {
       this.delegate.postMessageToWebview({

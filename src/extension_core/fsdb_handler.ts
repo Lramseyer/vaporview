@@ -31,6 +31,19 @@ export class FsdbFormatHandler implements IWaveformFormatHandler {
   private netlistTop: NetlistItem[] = [];
   private parametersLoaded: boolean = false;
 
+  public metadata: WaveformTopMetadata = {
+    timeTableLoaded: false,
+    moduleCount: 0,
+    netlistIdCount: 0,
+    signalIdCount: 0,
+    timeTableCount: 0,
+    timeEnd: 0,
+    defaultZoom: 1,
+    timeScale: 1,
+    timeUnit: "ns",
+    chunkSize: 1
+  };
+
   constructor(
     delegate: IWaveformFormatHandlerDelegate,
     providerDelegate: VaporviewDocumentDelegate,
@@ -123,11 +136,18 @@ export class FsdbFormatHandler implements IWaveformFormatHandler {
         break;
       }
       case 'setMetadata': {
-        this.delegate.setMetadata(message.scopecount, message.varcount, message.timescale, message.timeunit);
+        //this.delegate.setMetadata(message.scopecount, message.varcount, message.timescale, message.timeunit);
+        this.metadata.moduleCount = message.scopecount;
+        this.metadata.netlistIdCount = message.varcount;
+        this.metadata.timeScale = message.timescale;
+        this.metadata.timeUnit = message.timeunit;
         break;
       }
       case 'setChunkSize': {
-        this.delegate.setChunkSize(message.chunksize, message.timeend, BigInt(0));
+        this.metadata.timeEnd = Number(message.timeend);
+        this.metadata.timeTableCount = Number(message.timetablelength);
+        this.metadata.timeTableLoaded = true;
+        this.metadata.chunkSize = Number(message.chunksize);
         break;
       }
       case 'fsdb-var-callback': {

@@ -198,6 +198,10 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     // Create the handler first, then create the document with it
     let handler: IWaveformFormatHandler;
+    const tempDocDelegate = {
+      netlistIdTable: [] as NetlistItem[],
+      postMessageToWebview: () => {}
+    };
     
     if (uri.scheme === 'vaporview-remote') {
       let connectionInfo = this.remoteConnections.get(uri.toString());
@@ -226,24 +230,10 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       // Create Surfer handler
       const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
       const wasmWorker = new Worker(workerFile);
-      // We need to create a temporary document delegate for handler creation
-      const tempDocDelegate = {
-        netlistIdTable: [] as NetlistItem[],
-        setMetadata: () => {},
-        setChunkSize: () => {},
-        postMessageToWebview: () => {}
-      };
       handler = await SurferFormatHandler.create(tempDocDelegate, delegate, uri, connectionInfo.serverUrl, wasmWorker, this.wasmModule, connectionInfo.bearerToken);
     } else {
       // Handle regular file URIs
       const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
-      // We need to create a temporary document delegate for handler creation
-      const tempDocDelegate = {
-        netlistIdTable: [] as NetlistItem[],
-        setMetadata: () => {},
-        setChunkSize: () => {},
-        postMessageToWebview: () => {}
-      };
       if (fileType === 'fsdb') {
         // Create FSDB handler - we'll need to pass findTreeItem later
         handler = new FsdbFormatHandler(tempDocDelegate, delegate, uri, async () => null);
@@ -357,14 +347,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (!uri) {return this.activeDocument;}
     else {return this.getDocumentFromUri(uri);}
   }
-
-  //public getActiveDocument(): VaporviewDocument | undefined {
-  //  return this.activeDocument;
-  //}
-
-  //public getLastActiveDocument(): VaporviewDocument | undefined {
-  //  return this.lastActiveDocument;
-  //}
 
   public getAllDocuments() {
     const result: any = {

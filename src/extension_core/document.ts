@@ -14,6 +14,7 @@ export type WaveformTopMetadata = {
   defaultZoom: number;
   timeScale: number;
   timeUnit: string;
+  chunkSize: number;
 };
 
 // Re-export queue entry types for handlers
@@ -36,18 +37,14 @@ export type NetlistIdTable = NetlistItem[];
  * This provides handlers access to shared state and functionality.
  */
 export interface IWaveformFormatHandlerDelegate {
-  // Tree data access (handlers populate these)
-  netlistIdTable: NetlistIdTable;
 
-  // These will probably get removed in favor of getter methods in the IWaveformFormatHandler interface
-  setMetadata(scopecount: number, varcount: number, timescale: number, timeunit: string): void;
-  setChunkSize(chunksize: bigint, timeend: bigint, timetablelength: bigint): void;
-  
-  // This will probably get replaced by passing the webview object directly to the handler
+  netlistIdTable: NetlistIdTable;
   postMessageToWebview(message: any): void;
 }
 
 export interface IWaveformFormatHandler {
+
+  metadata: WaveformTopMetadata;
 
   load(): Promise<void>;
   unload(): Promise<void>;
@@ -63,8 +60,8 @@ export interface IWaveformFormatHandler {
 export class VaporviewDocument extends vscode.Disposable implements vscode.CustomDocument, IWaveformFormatHandlerDelegate {
 
   protected disposables: vscode.Disposable[] = [];
-  private readonly _uri: vscode.Uri;
-  private readonly _fileType: string = 'unknown';
+  public readonly uri: vscode.Uri;
+  public readonly fileType: string = 'unknown';
   private fileWatcher: vscode.FileSystemWatcher | undefined = undefined;
   private reloadDebounce: NodeJS.Timeout | undefined = undefined;
   private _fileUpdated: boolean = false;
@@ -79,17 +76,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   // Webview
   public webviewPanel: vscode.WebviewPanel | undefined = undefined;
   private _webviewInitialized: boolean = false;
-  public metadata: WaveformTopMetadata = {
-    timeTableLoaded: false,
-    moduleCount: 0,
-    netlistIdCount: 0,
-    signalIdCount: 0,
-    timeTableCount: 0,
-    timeEnd: 0,
-    defaultZoom: 1,
-    timeScale: 1,
-    timeUnit: "ns",
-  };
+  public metadata: WaveformTopMetadata;
   public webviewContext = {
     markerTime: null as number | null,
     altMarkerTime: null as number | null,
@@ -103,41 +90,30 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
 
   constructor(uri: vscode.Uri, providerDelegate: VaporviewDocumentDelegate, handler: IWaveformFormatHandler) {
     super(() => this.dispose());
-    this._uri = uri;
-    this._fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
+    this.uri = uri;
+    this.fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
     this._providerDelegate = providerDelegate;
     this._handler = handler;
+    this.metadata = this._handler.metadata;
     this.setupFileWatcher();
   }
 
   // #region Public getters
-  public get uri() { return this._uri; }
-  public get fileType() { return this._fileType; }
   public get netlistIdTable(): NetlistIdTable { return this._netlistIdTable; }
   public get webviewInitialized(): boolean { return this._webviewInitialized; }
   public get fileUpdated(): boolean { return this._fileUpdated; }
   public get reloadPending(): boolean { return this._reloadPending; }
-  public get handler(): IWaveformFormatHandler { return this._handler; }
+  //public get handler(): IWaveformFormatHandler { return this._handler; }
   public get providerDelegate(): VaporviewDocumentDelegate { return this._providerDelegate; }
 
   // #region IWaveformFormatHandlerDelegate implementation
   // These methods are called by the format handlers
-  
-  public setMetadata(scopecount: number, varcount: number, timescale: number, timeunit: string) {
-    this.metadata.moduleCount = scopecount;
-    this.metadata.netlistIdCount = varcount;
-    this.metadata.timeScale = timescale;
-    this.metadata.timeUnit = timeunit;
-    this._netlistIdTable = new Array(varcount);
-  }
-
-  public setChunkSize(chunksize: bigint, timeend: bigint, timetablelength: bigint) {
-    const newMinTimeStemp = 10 ** (Math.round(Math.log10(Number(chunksize) / 128)) | 0);
+  public setChunkSize() {
+    const chunkSize = this.metadata.chunkSize;
+    const newMinTimeStemp = 10 ** (Math.round(Math.log10(Number(chunkSize) / 128)) | 0);
     this.metadata.defaultZoom = 4 / newMinTimeStemp;
-    this.metadata.timeEnd = Number(timeend);
-    this.metadata.timeTableLoaded = true;
-    this.metadata.timeTableCount = Number(timetablelength);
-    this._providerDelegate.logOutputChannel("Total Value Change Events: " + this.toStringWithCommas(Number(timetablelength)));
+    this._providerDelegate.logOutputChannel("Total Value Change Events: " + 
+      this.toStringWithCommas(Number(this.metadata.timeTableCount)));
     this.onDoneParsingWaveforms();
   }
 
@@ -151,7 +127,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     await this._handler.load();
     this.treeData = await this._handler.getChildren(undefined);
     this.setTerminalLinkProvider();
-    this._providerDelegate.updateViews(this._uri);
+    this._providerDelegate.updateViews(this.uri);
+    this.setChunkSize();
   }
 
   // #region Webview lifecycle
@@ -190,9 +167,9 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   // #region File watching
 
   private setupFileWatcher() {
-    if (this._uri.scheme !== 'file') { return; }
+    if (this.uri.scheme !== 'file') { return; }
 
-    const pattern = new vscode.RelativePattern(path.dirname(this._uri.fsPath), path.basename(this._uri.fsPath));
+    const pattern = new vscode.RelativePattern(path.dirname(this.uri.fsPath), path.basename(this.uri.fsPath));
     const watcher = vscode.workspace.createFileSystemWatcher(pattern);
     const scheduleReload = () => {
       if (this.reloadDebounce) { clearTimeout(this.reloadDebounce); }
@@ -206,11 +183,11 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   private handleUpdateFile() {
-    this._providerDelegate.logOutputChannel("File changed: " + this._uri.fsPath);
+    this._providerDelegate.logOutputChannel("File changed: " + this.uri.fsPath);
     if (this.webviewContext.autoReload && this._fileUpdated) {
       this._reloadPending = true;
       if (this.webviewPanel?.active) {
-        vscode.commands.executeCommand('vaporview.reloadFile', this._uri);
+        vscode.commands.executeCommand('vaporview.reloadFile', this.uri);
       }
     }
   }

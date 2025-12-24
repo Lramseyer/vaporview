@@ -4,7 +4,7 @@ import * as path from 'path';
 
 import { SignalId, NetlistId, VaporviewDocumentDelegate } from './viewer_provider';
 import { NetlistItem, createScope, createVar } from './tree_view';
-import { IWaveformFormatHandler, IWaveformFormatHandlerDelegate, EnumQueueEntry, WaveformTopMetadata } from './document';
+import { WaveformFileParser, EnumQueueEntry, WaveformTopMetadata } from './document';
 
 type FsdbWorkerMessage = {
   id: string;
@@ -17,8 +17,7 @@ type FsdbWaveformData = {
   max: number;
 };
 
-export class FsdbFormatHandler implements IWaveformFormatHandler {
-  private delegate: IWaveformFormatHandlerDelegate;
+export class FsdbFormatHandler implements WaveformFileParser {
   private providerDelegate: VaporviewDocumentDelegate;
   private uri: vscode.Uri;
   private fsdbWorker: ChildProcess | undefined = undefined;
@@ -31,6 +30,7 @@ export class FsdbFormatHandler implements IWaveformFormatHandler {
   private netlistTop: NetlistItem[] = [];
   private parametersLoaded: boolean = false;
 
+  public postMessageToWebview = (message: any) => {};
   public metadata: WaveformTopMetadata = {
     timeTableLoaded: false,
     moduleCount: 0,
@@ -45,12 +45,10 @@ export class FsdbFormatHandler implements IWaveformFormatHandler {
   };
 
   constructor(
-    delegate: IWaveformFormatHandlerDelegate,
     providerDelegate: VaporviewDocumentDelegate,
     uri: vscode.Uri,
     findTreeItemFn: (scopePath: string, msb: number | undefined, lsb: number | undefined) => Promise<NetlistItem | null>,
   ) {
-    this.delegate = delegate;
     this.providerDelegate = providerDelegate;
     this.uri = uri;
     this.findTreeItemFn = findTreeItemFn;
@@ -232,7 +230,7 @@ export class FsdbFormatHandler implements IWaveformFormatHandler {
       const message = result as FsdbWorkerMessage;
       const data = message.result as FsdbWaveformData;
 
-      this.delegate.postMessageToWebview({
+      this.postMessageToWebview({
         command: 'update-waveform-chunk',
         signalId: signalId,
         transitionDataChunk: data.valueChanges,
@@ -333,7 +331,7 @@ export class FsdbFormatHandler implements IWaveformFormatHandler {
     const paramValue = "";
     const varItem = createVar(name, paramValue, type, encoding, path, netlistId, signalId, width, msb, lsb, enumType, true /*isFsdb*/, this.uri);
     this.fsdbCurrentScope!.children.push(varItem);
-    this.delegate.netlistIdTable[varItem.netlistId] = varItem;
+    //this.delegate.netlistIdTable[varItem.netlistId] = varItem;
   }
 
   private fsdbArrayBeginCallback(name: string, path: string, netlistId: number) {

@@ -4,11 +4,10 @@ import { Worker } from 'worker_threads';
 import { SignalId, VaporviewDocumentDelegate } from './viewer_provider';
 import { filehandler } from './filehandler';
 import { NetlistItem, createScope, createVar } from './tree_view';
-import { IWaveformFormatHandler, IWaveformFormatHandlerDelegate, EnumQueueEntry, WaveformTopMetadata } from './document';
+import { WaveformFileParser, EnumQueueEntry, WaveformTopMetadata } from './document';
 
 
-export class SurferFormatHandler implements IWaveformFormatHandler {
-  private delegate: IWaveformFormatHandlerDelegate;
+export class SurferFormatHandler implements WaveformFileParser {
   private providerDelegate: VaporviewDocumentDelegate;
   private uri: vscode.Uri;
   private serverUrl: string;
@@ -21,6 +20,7 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
   private netlistTop: NetlistItem[] = [];
   private parametersLoaded: boolean = false;
 
+  public postMessageToWebview = (message: any) => {};
   public metadata: WaveformTopMetadata = {
     timeTableLoaded: false,
     moduleCount: 0,
@@ -35,7 +35,6 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
   };
 
   constructor(
-    delegate: IWaveformFormatHandlerDelegate,
     providerDelegate: VaporviewDocumentDelegate,
     uri: vscode.Uri,
     serverUrl: string,
@@ -43,7 +42,6 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
     wasmModule: WebAssembly.Module,
     bearerToken?: string,
   ) {
-    this.delegate = delegate;
     this.providerDelegate = providerDelegate;
     this.uri = uri;
     this.serverUrl = serverUrl;
@@ -53,7 +51,6 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
   }
 
   static async create(
-    delegate: IWaveformFormatHandlerDelegate,
     providerDelegate: VaporviewDocumentDelegate,
     uri: vscode.Uri,
     serverUrl: string,
@@ -61,7 +58,7 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
     wasmModule: WebAssembly.Module,
     bearerToken?: string,
   ): Promise<SurferFormatHandler> {
-    const handler = new SurferFormatHandler(delegate, providerDelegate, uri, serverUrl, wasmWorker, wasmModule, bearerToken);
+    const handler = new SurferFormatHandler(providerDelegate, uri, serverUrl, wasmWorker, wasmModule, bearerToken);
     await handler.initWasmApi();
     return handler;
   }
@@ -85,12 +82,12 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
     setscopetop: (name: string, id: number, tpe: string) => {
       const scope = createScope(name, tpe, "", id, -1, this.uri);
       this.netlistTop.push(scope);
-      this.delegate.netlistIdTable[id] = scope;
+      //this.delegate.netlistIdTable[id] = scope;
     },
     setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number, enumtype: string) => {
       const varItem = createVar(name, "", tpe, encoding, "", id, signalid, width, msb, lsb, enumtype, false /*isFsdb*/, this.uri);
       this.netlistTop.push(varItem);
-      this.delegate.netlistIdTable[id] = varItem;
+      //this.delegate.netlistIdTable[id] = varItem;
     },
     setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
       this.metadata.moduleCount = scopecount;
@@ -105,7 +102,7 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
       this.metadata.chunkSize = Number(chunksize);
     },
     sendtransitiondatachunk: (signalid: number, totalchunks: number, chunknum: number, min: number, max: number, transitionData: string) => {
-      this.delegate.postMessageToWebview({
+      this.postMessageToWebview({
         command: 'update-waveform-chunk',
         signalId: signalid,
         transitionDataChunk: transitionData,
@@ -116,7 +113,7 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
       });
     },
     sendenumdata: (name: string, totalchunks: number, chunknum: number, data: string) => {
-      this.delegate.postMessageToWebview({
+      this.postMessageToWebview({
         command: 'update-enum-chunk',
         enumName: name,
         enumDataChunk: data,
@@ -125,7 +122,7 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
       });
     },
     sendcompressedtransitiondata: (signalid: number, signalwidth: number, totalchunks: number, chunknum: number, min: number, max: number, compresseddata: Uint8Array, originalsize: number) => {
-      this.delegate.postMessageToWebview({
+      this.postMessageToWebview({
         command: 'update-waveform-chunk-compressed',
         signalId: signalid,
         signalWidth: signalwidth,
@@ -220,7 +217,7 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
         } else {
           varTable[child.name].push(varItem);
         }
-        this.delegate.netlistIdTable[child.netlistId] = varItem;
+        //this.delegate.netlistIdTable[child.netlistId] = varItem;
       });
 
       callLimit--;
@@ -266,7 +263,7 @@ export class SurferFormatHandler implements IWaveformFormatHandler {
       this.providerDelegate.logOutputChannel("Failed to get signal data from remote server: " + error);
       // Send empty signal data for failed signals
       signalIdList.forEach(signalId => {
-        this.delegate.postMessageToWebview({
+        this.postMessageToWebview({
           command: 'update-waveform-chunk',
           signalId: signalId,
           transitionDataChunk: '[]',

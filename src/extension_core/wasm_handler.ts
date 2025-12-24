@@ -6,7 +6,7 @@ import * as fs from 'fs';
 import { SignalId, VaporviewDocumentDelegate } from './viewer_provider';
 import { filehandler } from './filehandler';
 import { NetlistItem, createScope, createVar } from './tree_view';
-import { IWaveformFormatHandler, IWaveformFormatHandlerDelegate, EnumQueueEntry, WaveformTopMetadata } from './document';
+import { WaveformFileParser, EnumQueueEntry, WaveformTopMetadata } from './document';
 
 // #region fsWrapper
 interface fsWrapper {
@@ -79,8 +79,7 @@ export const getFsWrapper = async (uri: vscode.Uri): Promise<fsWrapper> => {
 };
 
 // #region WasmFormatHandler
-export class WasmFormatHandler implements IWaveformFormatHandler {
-  private delegate: IWaveformFormatHandlerDelegate;
+export class WasmFormatHandler implements WaveformFileParser {
   private providerDelegate: VaporviewDocumentDelegate;
   private uri: vscode.Uri;
   private fileType: string;
@@ -95,6 +94,7 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
   // Top level netlist items
   private netlistTop: NetlistItem[] = [];
 
+  public postMessageToWebview = (message: any) => {};
   public metadata: WaveformTopMetadata = {
     timeTableLoaded: false,
     moduleCount: 0,
@@ -109,7 +109,6 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
   };
 
   constructor(
-    delegate: IWaveformFormatHandlerDelegate,
     providerDelegate: VaporviewDocumentDelegate,
     uri: vscode.Uri,
     fileType: string,
@@ -117,7 +116,6 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
     wasmWorker: Worker,
     wasmModule: WebAssembly.Module,
   ) {
-    this.delegate = delegate;
     this.providerDelegate = providerDelegate;
     this.uri = uri;
     this.fileType = fileType;
@@ -127,7 +125,6 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
   }
 
   static async create(
-    delegate: IWaveformFormatHandlerDelegate,
     providerDelegate: VaporviewDocumentDelegate,
     uri: vscode.Uri,
     fileType: string,
@@ -135,7 +132,7 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
     wasmModule: WebAssembly.Module,
   ): Promise<WasmFormatHandler> {
     const fsWrapper = await getFsWrapper(uri);
-    const handler = new WasmFormatHandler(delegate, providerDelegate, uri, fileType, fsWrapper, wasmWorker, wasmModule);
+    const handler = new WasmFormatHandler(providerDelegate, uri, fileType, fsWrapper, wasmWorker, wasmModule);
     await handler.initWasmApi();
     return handler;
   }
@@ -158,12 +155,12 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
     setscopetop: (name: string, id: number, tpe: string) => {
       const scope = createScope(name, tpe, "", id, -1, this.uri);
       this.netlistTop.push(scope);
-      this.delegate.netlistIdTable[id] = scope;
+      //this.delegate.netlistIdTable[id] = scope;
     },
     setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number, enumtype: string) => {
       const varItem = createVar(name, "", tpe, encoding, "", id, signalid, width, msb, lsb, enumtype, false /*isFsdb*/, this.uri);
       this.netlistTop.push(varItem);
-      this.delegate.netlistIdTable[id] = varItem;
+      //this.delegate.netlistIdTable[id] = varItem;
     },
     setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
       //this.delegate.setMetadata(scopecount, varcount, timescale, timeunit);
@@ -179,7 +176,7 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
       this.metadata.chunkSize = Number(chunksize);
     },
     sendtransitiondatachunk: (signalid: number, totalchunks: number, chunknum: number, min: number, max: number, transitionData: string) => {
-      this.delegate.postMessageToWebview({
+      this.postMessageToWebview({
         command: 'update-waveform-chunk',
         signalId: signalid,
         transitionDataChunk: transitionData,
@@ -190,7 +187,7 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
       });
     },
     sendenumdata: (name: string, totalchunks: number, chunknum: number, data: string) => {
-      this.delegate.postMessageToWebview({
+      this.postMessageToWebview({
         command: 'update-enum-chunk',
         enumName: name,
         enumDataChunk: data,
@@ -199,7 +196,7 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
       });
     },
     sendcompressedtransitiondata: (signalid: number, signalwidth: number, totalchunks: number, chunknum: number, min: number, max: number, compresseddata: Uint8Array, originalsize: number) => {
-      this.delegate.postMessageToWebview({
+      this.postMessageToWebview({
         command: 'update-waveform-chunk-compressed',
         signalId: signalid,
         signalWidth: signalwidth,
@@ -237,7 +234,7 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
     const netlistTime = (netlistFinishTime - loadTime) / 1000;
     this.providerDelegate.logOutputChannel("Finished parsing netlist for " + this.uri.fsPath);
     this.providerDelegate.logOutputChannel(
-      "Scope count: " + this.delegate.netlistIdTable.length + 
+      "Scope count: " + 0 + 
       ", Time: " + netlistTime + " seconds");
 
     await this.readBody(this.fileType);
@@ -330,7 +327,7 @@ export class WasmFormatHandler implements IWaveformFormatHandler {
         } else {
           varTable[varItem.name].push(varItem);
         }
-        this.delegate.netlistIdTable[varItem.netlistId] = varItem;
+        //this.delegate.netlistIdTable[varItem.netlistId] = varItem;
       });
 
       callLimit--;

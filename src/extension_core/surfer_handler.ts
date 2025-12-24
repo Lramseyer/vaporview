@@ -54,10 +54,11 @@ export class SurferFormatHandler implements WaveformFileParser {
     providerDelegate: VaporviewDocumentDelegate,
     uri: vscode.Uri,
     serverUrl: string,
-    wasmWorker: Worker,
+    wasmWorkerFile: string,
     wasmModule: WebAssembly.Module,
     bearerToken?: string,
   ): Promise<SurferFormatHandler> {
+    const wasmWorker = new Worker(wasmWorkerFile);
     const handler = new SurferFormatHandler(providerDelegate, uri, serverUrl, wasmWorker, wasmModule, bearerToken);
     await handler.initWasmApi();
     return handler;
@@ -82,12 +83,10 @@ export class SurferFormatHandler implements WaveformFileParser {
     setscopetop: (name: string, id: number, tpe: string) => {
       const scope = createScope(name, tpe, "", id, -1, this.uri);
       this.netlistTop.push(scope);
-      //this.delegate.netlistIdTable[id] = scope;
     },
     setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number, enumtype: string) => {
       const varItem = createVar(name, "", tpe, encoding, "", id, signalid, width, msb, lsb, enumtype, false /*isFsdb*/, this.uri);
       this.netlistTop.push(varItem);
-      //this.delegate.netlistIdTable[id] = varItem;
     },
     setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
       this.metadata.moduleCount = scopecount;
@@ -217,7 +216,6 @@ export class SurferFormatHandler implements WaveformFileParser {
         } else {
           varTable[child.name].push(varItem);
         }
-        //this.delegate.netlistIdTable[child.netlistId] = varItem;
       });
 
       callLimit--;

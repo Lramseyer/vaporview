@@ -33,7 +33,7 @@ export class FsdbFormatHandler implements WaveformFileParser {
   public postMessageToWebview = (message: any) => {};
   public metadata: WaveformTopMetadata = {
     timeTableLoaded: false,
-    moduleCount: 0,
+    scopeCount: 0,
     netlistIdCount: 0,
     signalIdCount: 0,
     timeTableCount: 0,
@@ -54,7 +54,7 @@ export class FsdbFormatHandler implements WaveformFileParser {
     this.findTreeItemFn = findTreeItemFn;
   }
 
-  async load(): Promise<void> {
+  async loadNetlist(): Promise<void> {
     if (process.platform !== 'linux') {
       vscode.window.showErrorMessage("FSDB support is currently available on Linux only.");
       return;
@@ -97,6 +97,11 @@ export class FsdbFormatHandler implements WaveformFileParser {
     });
   }
 
+  async loadBody(): Promise<void> {
+    // Implement loading the body of the FSDB file here
+    return;
+  }
+
   private setupFsdbWorkerListeners(): void {
     if (!this.fsdbWorker) return;
 
@@ -135,7 +140,7 @@ export class FsdbFormatHandler implements WaveformFileParser {
       }
       case 'setMetadata': {
         //this.delegate.setMetadata(message.scopecount, message.varcount, message.timescale, message.timeunit);
-        this.metadata.moduleCount = message.scopecount;
+        this.metadata.scopeCount = message.scopecount;
         this.metadata.netlistIdCount = message.varcount;
         this.metadata.timeScale = message.timescale;
         this.metadata.timeUnit = message.timeunit;

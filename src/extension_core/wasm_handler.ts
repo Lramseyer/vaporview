@@ -97,7 +97,7 @@ export class WasmFormatHandler implements WaveformFileParser {
   public postMessageToWebview = (message: any) => {};
   public metadata: WaveformTopMetadata = {
     timeTableLoaded: false,
-    moduleCount: 0,
+    scopeCount: 0,
     netlistIdCount: 0,
     signalIdCount: 0,
     timeTableCount: 0,
@@ -162,7 +162,7 @@ export class WasmFormatHandler implements WaveformFileParser {
       this.netlistTop.push(varItem);
     },
     setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
-      this.metadata.moduleCount = scopecount;
+      this.metadata.scopeCount = scopecount;
       this.metadata.netlistIdCount = varcount;
       this.metadata.timeScale = timescale;
       this.metadata.timeUnit = timeunit;
@@ -208,9 +208,8 @@ export class WasmFormatHandler implements WaveformFileParser {
     }
   };
 
-  async load(): Promise<void> {
+  async loadNetlist(): Promise<void> {
     this.providerDelegate.logOutputChannel("Using " + this.fileReader.type + " - Loading " + this.fileType + " file: " + this.uri.fsPath);
-    const loadTime = Date.now();
     await this.fileReader.loadFile(this.uri, this.fileType);
 
     if (this.fileType === 'fst' && this.fileReader.loadStatic === false) {
@@ -227,26 +226,10 @@ export class WasmFormatHandler implements WaveformFileParser {
     }, async () => {
       await this.wasmApi.loadfile(BigInt(this.fileReader.fileSize), this.fileReader.fd, this.fileReader.loadStatic, this.fileReader.bufferSize);
     });
-
-    const netlistFinishTime = Date.now();
-    const netlistTime = (netlistFinishTime - loadTime) / 1000;
-    this.providerDelegate.logOutputChannel("Finished parsing netlist for " + this.uri.fsPath);
-    this.providerDelegate.logOutputChannel(
-      "Scope count: " + 0 + 
-      ", Time: " + netlistTime + " seconds");
-
-    await this.readBody(this.fileType);
-
-    this.providerDelegate.logOutputChannel("Finished parsing waveforms for " + this.uri.fsPath);
-    this.providerDelegate.logOutputChannel("Time: " + (Date.now() - netlistFinishTime) / 1000 + " seconds");
-
-    if (this.fileType !== 'fst') {
-      this.loadTopLevelParameters();
-    }
   }
 
-  private async readBody(fileType: string) {
-    if (fileType === 'vcd') {
+  async loadBody() {
+    if (this.fileType === 'vcd') {
       vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
         title: "Parsing Waveforms for " + this.uri.fsPath,
@@ -256,6 +239,10 @@ export class WasmFormatHandler implements WaveformFileParser {
       });
     } else {
       await this.wasmApi.readbody();
+    }
+
+    if (this.fileType !== 'fst') {
+      this.loadTopLevelParameters();
     }
   }
 

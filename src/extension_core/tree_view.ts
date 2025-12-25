@@ -244,7 +244,7 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
   public getTreeData(): NetlistItem[] {return this.treeData;}
   public getTreeItem(element:  NetlistItem): vscode.TreeItem {return element;}
   public getChildren(element?: NetlistItem): Thenable<NetlistItem[]> {
-    return this.document?.getChildrenExternal(element) ?? Promise.resolve([]);
+    return this.document?.getScopeChildren(element) ?? Promise.resolve([]);
   }
 
   public getParent(element: NetlistItem): vscode.ProviderResult<NetlistItem> {
@@ -363,7 +363,7 @@ export class NetlistItem extends vscode.TreeItem {
     const currentModule = subModules.shift();
     if (this.children.length === 0 ||
       (document.fileType === 'fsdb' && this.fsdbVarLoaded === false)) { // For fsdb, variables are loaded on demand
-      await document.getChildrenExternal(this);
+      await document.getScopeChildren(this);
     }
 
     const childItem = this.children.find((child) => child.name === currentModule);

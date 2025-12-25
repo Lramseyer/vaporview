@@ -23,7 +23,7 @@ export class SurferFormatHandler implements WaveformFileParser {
   public postMessageToWebview = (message: any) => {};
   public metadata: WaveformTopMetadata = {
     timeTableLoaded: false,
-    moduleCount: 0,
+    scopeCount: 0,
     netlistIdCount: 0,
     signalIdCount: 0,
     timeTableCount: 0,
@@ -89,7 +89,7 @@ export class SurferFormatHandler implements WaveformFileParser {
       this.netlistTop.push(varItem);
     },
     setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
-      this.metadata.moduleCount = scopecount;
+      this.metadata.scopeCount = scopecount;
       this.metadata.netlistIdCount = varcount;
       this.metadata.timeScale = timescale;
       this.metadata.timeUnit = timeunit;
@@ -135,7 +135,7 @@ export class SurferFormatHandler implements WaveformFileParser {
     }
   };
 
-  async load(): Promise<void> {
+  async _load(): Promise<void> {
     this.providerDelegate.logOutputChannel("Connecting to remote server: " + this.serverUrl);
 
     await vscode.window.withProgress({
@@ -151,6 +151,35 @@ export class SurferFormatHandler implements WaveformFileParser {
         throw error;
       }
     });
+
+    this.loadTopLevelParameters();
+  }
+
+  async loadNetlist(): Promise<void> {
+    this.providerDelegate.logOutputChannel("Connecting to remote server: " + this.serverUrl);
+
+    await vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: "Connecting to remote server " + this.serverUrl,
+      cancellable: false
+    }, async () => {
+      try {
+        await loadRemoteHierarchy(this.serverUrl, this.wasmApi, this.bearerToken);
+      } catch (error) {
+        this.providerDelegate.logOutputChannel("Failed to connect to remote server: " + error);
+        throw error;
+      }
+    });
+  }
+
+  async loadBody(): Promise<void> {
+
+    try {
+      await loadRemoteTimeTable(this.serverUrl, this.wasmApi, this.bearerToken);
+    } catch (error) {
+      this.providerDelegate.logOutputChannel("Failed to connect to remote server: " + error);
+      throw error;
+    }
 
     this.loadTopLevelParameters();
   }

@@ -1078,7 +1078,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     while (netlistScopes.length > 0 && netlistVariables.length < maxChildren) {
 
       const parentScope = netlistScopes.shift();
-      const children = await document.getChildrenExternal(parentScope);
+      const children = await document.getScopeChildren(parentScope);
       children.forEach((element) => {
         if (element.contextValue === 'netlistVar') {
           netlistVariables.push(element);

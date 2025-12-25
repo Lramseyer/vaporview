@@ -6,7 +6,7 @@ import { NetlistItem, getInstancePath } from './tree_view';
 
 export type WaveformTopMetadata = {
   timeTableLoaded: boolean;
-  moduleCount: number;
+  scopeCount: number;
   netlistIdCount: number;
   signalIdCount: number;
   timeTableCount: number;
@@ -41,7 +41,8 @@ export interface WaveformFileParser {
   metadata: WaveformTopMetadata;
 
   // Methods
-  load(): Promise<void>;
+  loadNetlist(): Promise<void>;
+  loadBody(): Promise<void>;
   unload(): Promise<void>;
   dispose(): void;
   getChildren(element: NetlistItem | undefined): Promise<NetlistItem[]>;
@@ -119,8 +120,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     const chunkSize = this.metadata.chunkSize;
     const newMinTimeStemp = 10 ** (Math.round(Math.log10(Number(chunkSize) / 128)) | 0);
     this.metadata.defaultZoom = 4 / newMinTimeStemp;
-    this._providerDelegate.logOutputChannel("Total Value Change Events: " + 
-      this.toStringWithCommas(Number(this.metadata.timeTableCount)));
     this.onDoneParsingWaveforms();
   }
 
@@ -131,11 +130,29 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   // #region Handler management
   
   public async load(): Promise<void> {
-    await this._handler.load();
-    this.treeData = await this._handler.getChildren(undefined);
+
+    // Load netlist first
+    const loadTime    = Date.now();
+    await this._handler.loadNetlist();
+    const netlistTime = (Date.now() - loadTime) / 1000;
+    this.treeData     = await this._handler.getChildren(undefined);
     this.setTerminalLinkProvider();
     this._providerDelegate.updateViews(this.uri);
+
+    const scopeCount     = this.toStringWithCommas(this._handler.metadata.scopeCount);
+    const netlistIdCount = this.toStringWithCommas(this._handler.metadata.netlistIdCount);
+    this.providerDelegate.logOutputChannel("Finished parsing netlist for " + this.uri.fsPath);
+    this.providerDelegate.logOutputChannel("Scope count: " + scopeCount + ", Variable count: " + netlistIdCount + ", Time: " + netlistTime + " seconds");
+
+    // Then load body
+    const bodyLoadTime = Date.now();
+    await this._handler.loadBody();
+    const bodyTime     = (Date.now() - bodyLoadTime) / 1000;
     this.setChunkSize();
+
+    const timeTableCount = this.toStringWithCommas(Number(this.metadata.timeTableCount));
+    this.providerDelegate.logOutputChannel("Finished parsing body for " + this.uri.fsPath);
+    this._providerDelegate.logOutputChannel("Total Value Change Events: " + timeTableCount + ", Time: " + bodyTime + " seconds");
   }
 
   // #region Webview lifecycle
@@ -406,7 +423,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
 
   // #region Handler delegated methods
 
-  public async getChildrenExternal(element: NetlistItem | undefined): Promise<NetlistItem[]> {
+  public async getScopeChildren(element: NetlistItem | undefined): Promise<NetlistItem[]> {
     const children       = await this._handler.getChildren(element);
     const sortedChildren = this.sortNetlistScopeChildren(children);
     if (element !== undefined) { element.children = sortedChildren; }

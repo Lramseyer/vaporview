@@ -1,5 +1,10 @@
 # Change Log
 
+## Next Release
+
+- Fixed file loading errors with group placement
+- Updated to wellen 0.20.1
+
 ## 1.4.4 - 12/11/2025 - Latest Release
 
 - Added double click handler to netlist view - double click adds variable to viewer

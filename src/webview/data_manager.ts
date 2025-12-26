@@ -335,6 +335,8 @@ export class WaveformDataManager {
 
     if (moveSelected && viewerState.selectedSignal.length > 0) {
       this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignal, groupId, 0);
+    } else {
+      this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
     }
 
     labelsPanel.showRenameInput(rowId);

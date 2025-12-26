@@ -267,7 +267,7 @@
       {
         "command": "vaporview.newGroupFromSelection",
         "key": "g",
-        "when": "activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus && !textInputFocus"
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus && !textInputFocus && vaporview.waveformViewerFocused"
       }
     ],
     "submenus": [

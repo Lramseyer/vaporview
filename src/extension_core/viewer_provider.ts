@@ -733,6 +733,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.lastActiveWebview  = webviewPanel;
     this.lastActiveDocument = document;
     this.netlistTreeDataProvider.loadDocument(document);
+    vscode.commands.executeCommand('setContext', 'vaporview.waveformViewerFocused', true);
   }
 
   onDidChangeViewStateInactive() {
@@ -742,6 +743,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.deltaTimeStatusBarItem.hide();
     this.markerTimeStatusBarItem.hide();
     this.selectedSignalStatusBarItem.hide();
+    vscode.commands.executeCommand('setContext', 'vaporview.waveformViewerFocused', false);
   }
 
   async showInNetlistViewByName(signalName: string) {

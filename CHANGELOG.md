@@ -2,7 +2,11 @@
 
 ## Next Release
 
+- Fix G hotkey in cursor chat bug where it erroneously creates a new group
+- G hotkey will no longer add only one signal to a group if it's selected
 - Fixed file loading errors with group placement
+- Fixed scroll de-sync when adding new groups
+- Fixed Decimal number formats to work beyond 32 bit numbers
 - Updated to wellen 0.20.1
 
 ## 1.4.4 - 12/11/2025 - Latest Release

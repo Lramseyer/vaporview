@@ -333,7 +333,7 @@ export class WaveformDataManager {
       this.events.dispatch(ActionType.ReorderSignals, [rowId], parentGroupId, index);
     }
 
-    if (moveSelected && viewerState.selectedSignal.length > 0) {
+    if (moveSelected && viewerState.selectedSignal.length > 1) {
       this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignal, groupId, 0);
     } else {
       this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);

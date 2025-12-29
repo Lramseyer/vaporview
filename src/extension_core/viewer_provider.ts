@@ -253,7 +253,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         case 'logOutput':           {this.log.appendLine(e.message); break;}
         case 'showMessage':         {this.handleWebviewMessage(e); break;}
         case 'copyToClipboard':     {vscode.env.clipboard.writeText(e.text); break;}
-        case 'executeCommand':      {vscode.commands.executeCommand(e.commandName, e.args); break;}
+        case 'executeCommand':      {vscode.commands.executeCommand(e.commandName, ...(e.args || [])); break;}
         case 'updateConfiguration': {vscode.workspace.getConfiguration('vaporview').update(e.property, e.value, vscode.ConfigurationTarget.Global); break;}
         case 'ready':               {document.onWebviewReady(webviewPanel); break;}
         case 'restoreState':        {this.restoreState(e.state, e.uri); break;}
@@ -733,7 +733,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.lastActiveWebview  = webviewPanel;
     this.lastActiveDocument = document;
     this.netlistTreeDataProvider.loadDocument(document);
-    vscode.commands.executeCommand('setContext', 'vaporview.waveformViewerFocused', true);
   }
 
   onDidChangeViewStateInactive() {
@@ -743,7 +742,6 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this.deltaTimeStatusBarItem.hide();
     this.markerTimeStatusBarItem.hide();
     this.selectedSignalStatusBarItem.hide();
-    vscode.commands.executeCommand('setContext', 'vaporview.waveformViewerFocused', false);
   }
 
   async showInNetlistViewByName(signalName: string) {

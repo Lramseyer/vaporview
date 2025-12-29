@@ -545,7 +545,7 @@ export class VariableItem extends SignalItem implements RowItem {
       time: timeValue,
     }
 
-    vscode.postMessage({ command: 'executeCommand', commandName: command, args: event });
+    vscode.postMessage({ command: 'executeCommand', commandName: command, args: [event] });
     return true;
   }
 

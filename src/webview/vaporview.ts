@@ -401,6 +401,8 @@ class VaporviewWebview {
     window.addEventListener('keyup',   (e) => {this.keyUpHandler(e);});
     window.addEventListener('mouseup', (e) => {this.handleMouseUp(e, false);});
     window.addEventListener('resize',  ()  => {this.handleResizeViewer();}, false);
+    window.addEventListener('blur',    ()  => {this.handleFocusBlur(false);});
+    window.addEventListener('focus',   ()  => {this.handleFocusBlur(true);});
     this.scrollArea.addEventListener(  'wheel', (e) => {this.scrollHandler(e);});
     this.scrollArea.addEventListener(  'scroll', () => {this.handleViewportScroll();});
     this.labelsScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, labelsScroll.scrollTop);});
@@ -657,6 +659,14 @@ class VaporviewWebview {
 
   keyUpHandler(e: any) {
     if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(false);}
+  }
+
+  handleFocusBlur(state: boolean) {
+    vscode.postMessage({
+      command: 'executeCommand',
+      commandName: 'setContext', 
+      args: ['vaporview.waveformViewerFocused', state]
+    });
   }
 
   handleMouseUp(event: MouseEvent | KeyboardEvent, abort: boolean) {

@@ -753,9 +753,20 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
   }
 
-  showInNetlistView(netlistId: NetlistId) {
-    if (!this.activeDocument) {return;}
-    const netlistItem = this.activeDocument.netlistIdTable[netlistId];
+  showInNetlistView(e: any) {
+
+    if (!this.lastActiveDocument) {return;}
+    const document = this.lastActiveDocument;
+    let netlistId: NetlistId | undefined | null = undefined;
+
+    if (e) {
+      netlistId = e.netlistId
+    } else {
+      netlistId = document.webviewContext.selectedSignal;
+    }
+
+    if (netlistId === null || netlistId === undefined) {return;}
+    const netlistItem = document.netlistIdTable[netlistId];
     if (netlistItem) {
       this.netlistView.reveal(netlistItem, {select: true, focus: false, expand: 3});
     }

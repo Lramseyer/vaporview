@@ -3,6 +3,7 @@
 ## Next Release
 
 - Added Ctrl/Cmd+R hotkey for "Show in Netlist View"
+- Changed marker placement behavior - Ctrl/Alt is no longer required to move to next value change
 - Fix G hotkey in cursor chat bug where it erroneously creates a new group
 - G hotkey will no longer add only one signal to a group if it's selected
 - Fixed file loading errors with group placement

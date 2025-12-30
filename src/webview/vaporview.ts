@@ -529,11 +529,11 @@ class VaporviewWebview {
     if ((e.key === 'ArrowRight') && (viewerState.markerTime !== null)) {
       if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, this.viewport.timeStop, 0);}
       else if (e.altKey || e.ctrlKey) {/* Do nothing */}
-      else           {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime + 1, 0);}
+      else           {controlBar.goToNextTransition(1, []);}
     } else if ((e.key === 'ArrowLeft') && (viewerState.markerTime !== null)) {
       if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, 0, 0);}
       else if (e.altKey || e.ctrlKey) {/* Do nothing */}
-      else           {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime - 1, 0);}
+      else           {controlBar.goToNextTransition(-1, []);}
 
 
     // up and down arrow keys move the selected signal

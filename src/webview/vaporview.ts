@@ -34,13 +34,6 @@ export enum DataType {
   Group,
 }
 
-export type WaveformData = {
-  transitionData: any[];
-  signalWidth: number;
-  min: number;
-  max: number;
-};
-
 export enum ActionType {
   MarkerSet,
   SignalSelect,

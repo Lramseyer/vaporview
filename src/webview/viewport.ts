@@ -1,4 +1,4 @@
-import { vscode, WaveformData, arrayMove, sendWebviewContext, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId, updateDisplayedSignalsFlat, WAVE_HEIGHT, handleClickSelection, controlBar } from "./vaporview";
+import { vscode, arrayMove, sendWebviewContext, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId, updateDisplayedSignalsFlat, WAVE_HEIGHT, handleClickSelection, controlBar } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { labelsPanel } from "./vaporview";

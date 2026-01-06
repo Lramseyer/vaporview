@@ -44,6 +44,7 @@ export enum ActionType {
   RedrawVariable,
   Resize,
   UpdateColorTheme,
+  ExitBatchMode,
 }
 
 let resizeDebounce: any = 0;
@@ -88,10 +89,16 @@ export class EventHandler {
   public get isBatchMode(): boolean {return this.batchMode;}
   private signalSelectArgs: any[] = [];
 
-  enterBatchMode() {this.batchMode = true;}
+  enterBatchMode() {
+    console.log("entering batch mode");
+    this.batchMode = true;
+  }
+
   exitBatchMode() {
+    console.log("exiting batch mode");
     this.batchMode = false;
     this.dispatch(ActionType.SignalSelect, ...this.signalSelectArgs);
+    this.dispatch(ActionType.ExitBatchMode);
   }
 
   subscribe(action: ActionType, callback: (...args: any[]) => void) {
@@ -104,6 +111,8 @@ export class EventHandler {
   dispatch(action: ActionType, ...args: any[]) {
     if (action === ActionType.SignalSelect) {
       this.signalSelectArgs = args;
+      if (this.batchMode) {return;}
+    } else if (action == ActionType.RedrawVariable) {
       if (this.batchMode) {return;}
     }
     this.subscribers.get(action)?.forEach((callback) => callback(...args));
@@ -327,6 +336,7 @@ function signalListForSaveFile(rowIdList: RowId[]): any[] {
 }
 
 export function sendWebviewContext() {
+  if (events.isBatchMode) {return;}
   let context: any = createWebviewContext();
   vscode.setState(context);
   context.command = 'contextUpdate';

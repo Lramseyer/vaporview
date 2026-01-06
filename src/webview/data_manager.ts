@@ -217,7 +217,9 @@ export class WaveformDataManager {
       // Check for value change data
       if (this.valueChangeData[signalId] !== undefined) {
         //selectedSignal = [rowId];
-        updateFlag     = true;
+        if (!this.events.isBatchMode) {
+          updateFlag     = true;
+        }
         //varItem.cacheValueFormat(false);
         this.setValueFormat(varItem.signalId, varItem.valueFormat, false);
         labelsPanel.valueAtMarker[rowId] = varItem.getValueAtTime(viewerState.markerTime);
@@ -432,8 +434,6 @@ export class WaveformDataManager {
       this.garbageCollectValueFormats();
     } catch (error) {console.error(error);}
 
-    this.events.exitBatchMode();
-
     if (settings.markerTime !== undefined) {
       this.events.dispatch(ActionType.MarkerSet, settings.markerTime, 0);
     }
@@ -452,6 +452,7 @@ export class WaveformDataManager {
       viewport.setViewportRange(settings.scrollLeft, endTime);
     }
 
+    this.events.exitBatchMode();
     sendWebviewContext();
   }
 

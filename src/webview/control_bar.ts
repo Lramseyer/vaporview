@@ -344,15 +344,15 @@ export class ControlBar {
       if (this.parsedSearchValue.length > signalWidth) {trimmedSearchValue = this.parsedSearchValue.slice(-1 * signalWidth);}
       const searchRegex = new RegExp(trimmedSearchValue, 'ig');
       const data      = dataManager.valueChangeData[signalId];
-      const timeIndex = data.transitionData.findIndex(([t, v]) => {return t >= startTime;});
+      const timeIndex = data.valueChangeData.findIndex(([t, v]) => {return t >= startTime;});
       let indexOffset = 0;
   
       if (direction === -1) {indexOffset = -1;}
-      else if (viewerState.markerTime === data.transitionData[timeIndex][0]) {indexOffset = 1;}
+      else if (viewerState.markerTime === data.valueChangeData[timeIndex][0]) {indexOffset = 1;}
   
       for (let i = timeIndex + indexOffset; i >= 0; i+=direction) {
-        if (data.transitionData[i][1].match(searchRegex)) {
-          this.events.dispatch(ActionType.MarkerSet, data.transitionData[i][0], 0);
+        if (data.valueChangeData[i][1].match(searchRegex)) {
+          this.events.dispatch(ActionType.MarkerSet, data.valueChangeData[i][0], 0);
           break;
         }
       }

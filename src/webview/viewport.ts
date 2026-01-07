@@ -181,6 +181,7 @@ export class Viewport {
   }
 
   handleExitBatchMode() {
+    this.updateSignalOrder();
     this.updateBackgroundCanvas(true);
     this.redrawViewport();
   }
@@ -596,6 +597,7 @@ export class Viewport {
   }
 
   handleReorderSignals(rowIdList: number[], newGroupId: number, newIndex: number) {
+    if (this.events.isBatchMode) {return;}
     this.updateSignalOrder();
   }
 

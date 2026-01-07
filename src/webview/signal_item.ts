@@ -634,7 +634,7 @@ export class SignalGroup extends SignalItem implements RowItem {
       this.children.forEach((rowId) => {
         if (rowId === ignoreRowId) {return;} // Skip the ignored rowId
         const signalItem = dataManager.rowItems[rowId];
-        result = result.concat(signalItem.getFlattenedRowIdList(ignoreCollapsed, ignoreRowId));
+        result.push(...signalItem.getFlattenedRowIdList(ignoreCollapsed, ignoreRowId));
       });
     }
     return result;

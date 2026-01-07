@@ -5,9 +5,6 @@ import { SignalGroup, VariableItem, RowItem, NameType, SignalSeparator } from '.
 // @ts-ignore
 import * as LZ4 from 'lz4js';
 
-// This will be populated when a custom color is set
-export let customColorKey = [];
-
 type SignalQueueEntry = {
   type: 'signal',
   id: SignalId
@@ -33,6 +30,7 @@ export class WaveformDataManager {
   enumTableTemp: any              = {}
   rowItems: RowItem[]             = []; // rowId is the key/index, RowItem is the value
   groupIdTable: RowId[]           = []; // group ID is the key/index, rowId is the value
+  customColorKey: string[]        = ['#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC'];
   private nextRowId: number       = 0;
   private nextGroupId: number     = 1;
 
@@ -887,7 +885,9 @@ export class WaveformDataManager {
 
       // Color - this is applied to all selected signals if the selected signal is being updated
       if (message.colorIndex !== undefined) {
-        customColorKey = message.customColors;
+        if (message.customColors) {
+          this.customColorKey = message.customColors;
+        }
         data.colorIndex = message.colorIndex;
         data.setColorFromColorIndex();
         updateAllSelected = true;

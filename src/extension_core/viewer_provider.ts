@@ -496,9 +496,15 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       autoReload: settings.autoReload,
     };
 
+    const color1 = vscode.workspace.getConfiguration('vaporview').get('customColor1');
+    const color2 = vscode.workspace.getConfiguration('vaporview').get('customColor2');
+    const color3 = vscode.workspace.getConfiguration('vaporview').get('customColor3');
+    const color4 = vscode.workspace.getConfiguration('vaporview').get('customColor4');
+
     document.webviewPanel?.webview.postMessage({
       command: 'apply-state',
       settings: documentSettings,
+      customColors: [color1, color2, color3, color4],
     });
 
     if (signalListSettings.missingSignals.length > 0) {

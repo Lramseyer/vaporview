@@ -1,7 +1,7 @@
 import { dataManager, viewport, CollapseState, NetlistId, RowId, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, WAVE_HEIGHT, sendWebviewContext } from "./vaporview";
 import { EnumValueFormat, formatBinary, formatHex, formatString, ValueFormat } from "./value_format";
 import { WaveformRenderer } from "./renderer";
-import { customColorKey } from "./data_manager";
+import { } from "./data_manager";
 import { vscode, labelsPanel } from "./vaporview";
 import { LabelsPanels } from "./labels";
 import { group } from "console";
@@ -385,7 +385,7 @@ export class VariableItem extends SignalItem implements RowItem {
     if (colorIndex < 4) {
       this.color = viewport.colorKey[colorIndex];
     } else {
-      this.color = customColorKey[colorIndex - 4];
+      this.color = dataManager.customColorKey[colorIndex - 4];
     }
   }
 

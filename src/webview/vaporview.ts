@@ -902,6 +902,9 @@ class VaporviewWebview {
       this.viewport.renderAllWaveforms(true);
       this.viewport.setRulerVscodeContext();
     }
+    if (settings.customColors !== undefined) {
+      dataManager.customColorKey = settings.customColors;
+    }
   }
 
   handleSetSelectedSignal(netlistId: NetlistId | undefined) {

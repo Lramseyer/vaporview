@@ -8,6 +8,7 @@ import { FsdbFormatHandler } from './fsdb_handler';
 import { SurferFormatHandler } from './surfer_handler';
 import { NetlistTreeDataProvider, NetlistItem, WebviewCollection, netlistItemDragAndDropController } from './tree_view';
 import { getInstancePath } from './tree_view';
+import { resolve } from 'path/win32';
 
 export type NetlistId = number;
 export type SignalId  = number;
@@ -19,6 +20,7 @@ export interface VaporviewDocumentDelegate {
   emitEvent(e: any): void;
   removeFromCollection(uri: vscode.Uri, document: VaporviewDocument): void;
   createFileParser(uri: vscode.Uri): Promise<WaveformFileParser>;
+  applySettings(settings: any, document: VaporviewDocument): void;
 }
 
 export function scaleFromUnits(unit: string | undefined) {
@@ -73,9 +75,17 @@ export interface viewerDropEvent {
   index: number;
 }
 
-// #region WaveformViewerProvider
-export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<VaporviewDocument> {
+class VaporviewDocumentBackup implements vscode.CustomDocumentBackup {
+  constructor(public readonly id: string) {}
+  delete(): void {return;}
+}
 
+// #region WaveformViewerProvider
+export class WaveformViewerProvider implements vscode.CustomEditorProvider<VaporviewDocument> {
+
+  private readonly _onDidChangeCustomDocument = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<VaporviewDocument>>();
+  public readonly onDidChangeCustomDocument = this._onDidChangeCustomDocument.event;
+  
   private static newViewerId = 1;
   private static readonly viewType = 'vaporview.waveformViewer';
   private readonly webviews = new WebviewCollection();
@@ -215,7 +225,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
           }
         }
         return handler;
-      }
+      },
+      applySettings: this.applySettings.bind(this),
     };
 
     // Create the document and load it using its handler
@@ -289,6 +300,24 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     this._numDocuments++;
 
     this.onDidChangeViewStateActive(document, webviewPanel);
+  }
+
+  backupCustomDocument(document: VaporviewDocument, context: vscode.CustomDocumentBackupContext, cancellation: vscode.CancellationToken): Thenable<vscode.CustomDocumentBackup> {
+    return Promise.resolve(new VaporviewDocumentBackup(document.uri.toString()));
+  }
+
+  revertCustomDocument(document: VaporviewDocument, cancellation: vscode.CancellationToken): Thenable<void> {
+    return Promise.resolve();
+  }
+
+  saveCustomDocument(document: VaporviewDocument, cancellation: vscode.CancellationToken): Thenable<void> {
+    this.saveSettingsToFile(document, document.saveFileUri);
+    return Promise.resolve();
+  }
+
+  saveCustomDocumentAs(document: VaporviewDocument, destination: vscode.Uri, cancellation: vscode.CancellationToken): Thenable<void> {
+    this.saveSettingsToFile(document, destination);
+    return Promise.resolve();
   }
 
   public getDocumentFromUri(uri: string): VaporviewDocument | undefined {
@@ -377,24 +406,32 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     }
   }
 
-  public saveSettingsToFile() {
-    if (!this.activeDocument) {
+  public async saveSettingsToFile(specifiedDocument: VaporviewDocument | undefined, saveFileUri: vscode.Uri | undefined) {
+    let document: VaporviewDocument | undefined = specifiedDocument;
+    if (!document) {
+      document = this.activeDocument;
+    }
+
+    if (!document) {
       vscode.window.showErrorMessage('No viewer is active. Please select the viewer you wish to save settings.');
       return;
     }
 
-    const document       = this.activeDocument;
     const saveData       = document.getSettings();
     const saveDataString = JSON.stringify(saveData, null, 2);
 
-    vscode.window.showSaveDialog({
-      saveLabel: 'Save settings',
-      filters: {JSON: ['json']}
-    }).then((uri) => {
-      if (uri) {
-        vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(saveDataString));
-      }
-    });
+    let uri = saveFileUri;
+    if (!saveFileUri) {
+      uri = await vscode.window.showSaveDialog({
+        saveLabel: 'Save settings',
+        filters: {JSON: ['json']}
+      })
+    }
+
+    if (uri) {
+      vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(saveDataString));
+      document.saveFileUri = uri;
+    }
   }
 
   public async loadSettingsFromFile() {
@@ -406,7 +443,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
 
     //let version  = vscode.extensions.getExtension('Lramseyer.vaporview')?.packageJSON.version;
     // show open file dialog
-    const fileData = await new Promise<any>((resolve, reject) => {
+    const uri = await new Promise<any>((resolve, reject) => {
       vscode.window.showOpenDialog({
         canSelectFiles: true,
         canSelectFolders: false,
@@ -415,12 +452,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
         filters: { JSON: ['json'] }
       }).then((uri) => {
         if (uri) {
-          vscode.workspace.fs.readFile(uri[0]).then((data) => {
-            const fileData = JSON.parse(new TextDecoder().decode(data));
-            resolve(fileData);
-          }, (error: any) => {
-            reject(error); // Reject if readFile fails
-          });
+          resolve(uri[0]);
         } else {
           reject("No file selected"); // Reject if no file is selected
         }
@@ -429,12 +461,19 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
       });
     });
 
+    if (!uri) {return;}
+
+    const fileData = await vscode.workspace.fs.readFile(uri).then((data) => {
+      return JSON.parse(new TextDecoder().decode(data));
+    })
+
     if (!fileData) {return;}
     if (fileData.fileName && fileData.fileName !== this.activeDocument.uri.fsPath) {
       vscode.window.showWarningMessage('The settings file may not match the active viewer');
     }
 
     this.log.appendLine('Loading settings from file: ' + fileData.fileName);
+    this.activeDocument.saveFileUri = uri;
     this.applySettings(fileData, this.activeDocument);
   }
 
@@ -513,7 +552,7 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     if (state) {
       this.applySettings(state, document);
     } else {
-      // chack the directory for a file with the same name as the document, but with the extension .vaporview.json
+      // check the directory for a file with the same name as the document, but with the extension .vaporview.json
       const filePath = uri.fsPath.match(/^(.*)\.[^.]+$/)?.[1] + '.json';
       if (fs.existsSync(filePath)) {
 
@@ -650,6 +689,8 @@ export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvid
     //this.deltaTimeStatusBarItem.hide();
     //this.markerTimeStatusBarItem.hide();
     //this.selectedSignalStatusBarItem.hide();
+
+    this._onDidChangeCustomDocument.fire({ document, undo: () => {}, redo: () => {} });
 
     if (!document) {return;}
     const w = document.webviewContext;

@@ -85,6 +85,16 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     numberFormat: "hexadecimal",
     autoReload: false,
   };
+  // State management
+  public saveFileUri: vscode.Uri | undefined = undefined;
+  public undoStack: any[] = [];
+  public redoStack: any[] = [];
+  public vaporviewEditEvent: vscode.CustomDocumentEditEvent<VaporviewDocument> = {
+    label: 'Edit Vaporview Document',
+    document: this,
+    undo: async () => {this._providerDelegate.applySettings(this.undoStack.pop(), this);},
+    redo: async () => {this._providerDelegate.applySettings(this.redoStack.pop(), this);}
+  };
 
   constructor(uri: vscode.Uri, providerDelegate: VaporviewDocumentDelegate, handler: WaveformFileParser) {
     super(() => this.dispose());

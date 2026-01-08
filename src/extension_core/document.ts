@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { NetlistLinkProvider } from './terminal_links';
 import * as path from 'path';
-import { SignalId, NetlistId, VaporviewDocumentDelegate, logScaleFromUnits } from './viewer_provider';
+import { SignalId, NetlistId, VaporviewDocumentDelegate, logScaleFromUnits, StateChangeType } from './viewer_provider';
 import { NetlistItem, getInstancePath } from './tree_view';
 
 export type WaveformTopMetadata = {
@@ -89,12 +89,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public saveFileUri: vscode.Uri | undefined = undefined;
   public undoStack: any[] = [];
   public redoStack: any[] = [];
-  public vaporviewEditEvent: vscode.CustomDocumentEditEvent<VaporviewDocument> = {
-    label: 'Edit Vaporview Document',
-    document: this,
-    undo: async () => {this._providerDelegate.applySettings(this.undoStack.pop(), this);},
-    redo: async () => {this._providerDelegate.applySettings(this.redoStack.pop(), this);}
-  };
 
   constructor(uri: vscode.Uri, providerDelegate: VaporviewDocumentDelegate, handler: WaveformFileParser) {
     super(() => this.dispose());
@@ -197,6 +191,58 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     if (this.webviewPanel) {
       this.onWebviewReady(this.webviewPanel);
     }
+  }
+
+  public captureWebviewState(event: any): boolean {
+
+    let isDirty = false;
+    console.log(event.stateChangeType);
+    if (event.stateChangeType === StateChangeType.User || event.stateChangeType === StateChangeType.File) {
+      this.captureStateForUndo();
+      this.redoStack = [];
+    }
+
+    if (event.stateChangeType === StateChangeType.User) {
+      isDirty = true;
+    }
+
+    if (event.markerTime || event.markerTime === 0) {
+      this.webviewContext.markerTime = event.markerTime;
+    }
+    if (event.altMarkerTime || event.altMarkerTime === 0) {
+      this.webviewContext.altMarkerTime = event.altMarkerTime;
+    }
+
+    this.webviewContext.selectedSignal   = event.selectedSignal;
+    this.webviewContext.displayedSignals = event.displayedSignals || this.webviewContext.displayedSignals;
+    this.webviewContext.zoomRatio        = event.zoomRatio        || this.webviewContext.zoomRatio;
+    this.webviewContext.scrollLeft       = event.scrollLeft       || this.webviewContext.scrollLeft;
+    this.webviewContext.numberFormat     = event.numberFormat     || this.webviewContext.numberFormat;
+    this.webviewContext.autoReload       = event.autoReload       || this.webviewContext.autoReload;
+
+    return isDirty;
+  }
+
+  captureStateForUndo() {
+    this.undoStack.push(JSON.stringify(this.webviewContext));
+    if (this.undoStack.length > 50) {
+      this.undoStack.shift();
+    }
+    this.redoStack = [];
+  }
+
+  undo() {
+    if (this.undoStack.length === 0) {return;}
+    const lastState = this.undoStack.pop();
+    this.redoStack.push(JSON.stringify(this.webviewContext));
+    this._providerDelegate.applySettings(JSON.parse(lastState), this, StateChangeType.Undo);
+  }
+  
+  redo() {
+    if (this.redoStack.length === 0) {return;}
+    const lastState = this.redoStack.pop();
+    this.undoStack.push(JSON.stringify(this.webviewContext));
+    this._providerDelegate.applySettings(JSON.parse(lastState), this, StateChangeType.Redo);
   }
 
   // #region File watching

@@ -20,7 +20,7 @@ export interface VaporviewDocumentDelegate {
   emitEvent(e: any): void;
   removeFromCollection(uri: vscode.Uri, document: VaporviewDocument): void;
   createFileParser(uri: vscode.Uri): Promise<WaveformFileParser>;
-  applySettings(settings: any, document: VaporviewDocument): void;
+  applySettings(settings: any, document: VaporviewDocument, stateChangeType: StateChangeType): void;
 }
 
 export function scaleFromUnits(unit: string | undefined) {
@@ -78,6 +78,15 @@ export interface viewerDropEvent {
 class VaporviewDocumentBackup implements vscode.CustomDocumentBackup {
   constructor(public readonly id: string) {}
   delete(): void {return;}
+}
+
+export enum StateChangeType {
+  None    = 0,
+  Restore = 1,
+  File    = 2,
+  Undo    = 3,
+  Redo    = 4,
+  User    = 5,
 }
 
 // #region WaveformViewerProvider
@@ -252,7 +261,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         case 'updateConfiguration': {vscode.workspace.getConfiguration('vaporview').update(e.property, e.value, vscode.ConfigurationTarget.Global); break;}
         case 'ready':               {document.onWebviewReady(webviewPanel); break;}
         case 'restoreState':        {this.restoreState(e.state, e.uri); break;}
-        case 'contextUpdate':       {this.updateStatusBarItems(document, e); break;}
+        case 'contextUpdate':       {this.handleUpdateWebviewContext(document, e); break;}
         case 'emitEvent':           {this.emitEvent(e); break;}
         case 'fetchDataFromFile':   {document.fetchData(e.requestList); break;}
         case 'close-webview':       {webviewPanel.dispose(); break;}
@@ -474,7 +483,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     this.log.appendLine('Loading settings from file: ' + fileData.fileName);
     this.activeDocument.saveFileUri = uri;
-    this.applySettings(fileData, this.activeDocument);
+    this.applySettings(fileData, this.activeDocument, StateChangeType.File);
   }
 
   public async convertSignalListToSettings(signalList: any, document: VaporviewDocument): Promise<any> {
@@ -517,7 +526,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     };
   }
 
-  public async applySettings(settings: any, document: VaporviewDocument | undefined = undefined) {
+  public async applySettings(settings: any, document: VaporviewDocument | undefined, stateChangeType: StateChangeType) {
 
     if (!settings.displayedSignals) {return;}
     if (!document) {
@@ -537,9 +546,11 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       autoReload: settings.autoReload,
     };
 
+    console.log(stateChangeType);
     document.webviewPanel?.webview.postMessage({
       command: 'apply-state',
       settings: documentSettings,
+      stateChangeType: stateChangeType,
     });
 
     if (signalListSettings.missingSignals.length > 0) {
@@ -550,7 +561,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   public restoreState(state: any, uri: vscode.Uri) {
     const document = this.getDocumentFromUri(uri.toString());
     if (state) {
-      this.applySettings(state, document);
+      this.applySettings(state, document, StateChangeType.Restore);
     } else {
       // check the directory for a file with the same name as the document, but with the extension .vaporview.json
       const filePath = uri.fsPath.match(/^(.*)\.[^.]+$/)?.[1] + '.json';
@@ -563,7 +574,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         ).then((action) => {
           if (action === 'Yes') {
             const state = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            this.applySettings(state, document);
+            this.applySettings(state, document, StateChangeType.File);
           }
         });
       }
@@ -685,30 +696,32 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     this.lastActiveWebview.webview.postMessage({command: 'setTimeUnits', units: units});
   }
 
+  handleUpdateWebviewContext(document: VaporviewDocument, event: any) {
+    if (!document) {return;}
+    const isDirty = document.captureWebviewState(event);
+
+    if (isDirty) {
+      this._onDidChangeCustomDocument.fire({
+        document,
+        undo: () => {document.undo();},
+        redo: () => {document.redo();}
+      });
+    }
+
+    if (event.autoReload && document.fileUpdated && document.reloadPending) {
+      vscode.commands.executeCommand('vaporview.reloadFile', document.uri);
+    } else {
+      this.updateStatusBarItems(document, event);
+    }
+  }
+
   updateStatusBarItems(document: VaporviewDocument, event: any) {
     //this.deltaTimeStatusBarItem.hide();
     //this.markerTimeStatusBarItem.hide();
     //this.selectedSignalStatusBarItem.hide();
 
-    this._onDidChangeCustomDocument.fire({ document, undo: () => {}, redo: () => {} });
-
     if (!document) {return;}
     const w = document.webviewContext;
-    //w.markerTime       = event.markerTime       || w.markerTime;
-    //w.altMarkerTime    = event.altMarkerTime    || w.altMarkerTime;
-    //w.selectedSignal   = event.selectedSignal   || w.selectedSignal;
-    if (event.markerTime || event.markerTime === 0) {w.markerTime = event.markerTime;}
-    if (event.altMarkerTime || event.altMarkerTime === 0) {w.altMarkerTime = event.altMarkerTime;}
-    w.selectedSignal   = event.selectedSignal;
-    w.displayedSignals = event.displayedSignals || w.displayedSignals;
-    w.zoomRatio        = event.zoomRatio        || w.zoomRatio;
-    w.scrollLeft       = event.scrollLeft       || w.scrollLeft;
-    w.numberFormat     = event.numberFormat     || w.numberFormat;
-    w.autoReload       = event.autoReload       || w.autoReload;
-
-    if (event.autoReload && document.fileUpdated && document.reloadPending) {
-      vscode.commands.executeCommand('vaporview.reloadFile', document.uri);
-    }
 
     //console.log(event);
 

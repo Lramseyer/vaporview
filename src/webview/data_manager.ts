@@ -280,7 +280,9 @@ export class WaveformDataManager {
     }
 
     this.events.dispatch(ActionType.SignalSelect, rowIdList, lastRowId);
-    sendWebviewContext();
+
+    console.log('addVariable');
+    sendWebviewContext(5);
     return rowIdList;
   }
 
@@ -355,6 +357,8 @@ export class WaveformDataManager {
     }
 
     labelsPanel.showRenameInput(rowId);
+    console.log('addSignalGroup');
+    sendWebviewContext(5);
 
     this.nextGroupId++;
     this.nextRowId++;
@@ -391,7 +395,8 @@ export class WaveformDataManager {
     }
 
     this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
-    sendWebviewContext();
+    console.log('addSeparator');
+    sendWebviewContext(5);
     return rowId;
   }
 
@@ -421,7 +426,7 @@ export class WaveformDataManager {
     });
   }
 
-  applyState(settings: any) {
+  applyState(settings: any, stateChangeType: number) {
     //this.flushRowCache(true);
     //console.log('applyState()', settings);
 
@@ -453,7 +458,8 @@ export class WaveformDataManager {
     }
 
     this.events.exitBatchMode();
-    sendWebviewContext();
+    console.log('applyState', stateChangeType);
+    sendWebviewContext(stateChangeType);
   }
 
   renameSignalGroup(rowId: RowId | undefined, name: string | undefined) {
@@ -1065,7 +1071,8 @@ export class WaveformDataManager {
       viewport.updateBackgroundCanvas(false);
     }
 
-    sendWebviewContext();
+    console.log('setDisplayFormat');
+    sendWebviewContext(5);
     netlistData.setSignalContextAttribute();
 
     if (updateAllSelected && updateSelected) {redrawList = viewerState.selectedSignal;}

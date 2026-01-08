@@ -694,7 +694,6 @@ export class SignalGroup extends SignalItem implements RowItem {
     this.collapseState = CollapseState.Expanded;
     labelsPanel.renderLabelsPanels();
     this.showHideViewportRows();
-    sendWebviewContext();
   }
 
   public collapse() {
@@ -710,7 +709,6 @@ export class SignalGroup extends SignalItem implements RowItem {
     }
     labelsPanel.renderLabelsPanels();
     this.showHideViewportRows();
-    sendWebviewContext();
   }
 
   public toggleCollapse() {

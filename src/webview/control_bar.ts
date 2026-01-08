@@ -149,6 +149,8 @@ export class ControlBar {
     });
 
     this.events.dispatch(ActionType.MarkerSet, nearestTime, 0);
+    console.log('goToNextTransition');
+    sendWebviewContext(5);
   }
 
   handleScrollModeClick(mode: string) {
@@ -329,6 +331,7 @@ export class ControlBar {
     if (viewerState.selectedSignal.length !== 1) {return;}
     if (this.parsedSearchValue === null) {return;}
     let startTime = viewerState.markerTime;
+    let updateState = false;
     if (startTime === null) {startTime = 0;}
   
     const rowId  = viewerState.selectedSignal[0];
@@ -338,6 +341,7 @@ export class ControlBar {
   
     if (this.searchState === SearchState.Time && direction === 1) {
       this.events.dispatch(ActionType.MarkerSet, parseInt(this.parsedSearchValue), 0);
+      updateState = true;
     } else {
       const signalWidth      = dataManager.valueChangeData[signalId].signalWidth;
       let trimmedSearchValue = this.parsedSearchValue;
@@ -353,15 +357,20 @@ export class ControlBar {
       for (let i = timeIndex + indexOffset; i >= 0; i+=direction) {
         if (data.valueChangeData[i][1].match(searchRegex)) {
           this.events.dispatch(ActionType.MarkerSet, data.valueChangeData[i][0], 0);
+          updateState = true;
           break;
         }
       }
+    }
+    if (updateState) {
+      console.log('handleSearchGoTo');
+      sendWebviewContext(5);
     }
   }
 
   handleAutoReloadCheckbox(event: any) {
     viewerState.autoReload = event.target.checked;
-    sendWebviewContext();
+    sendWebviewContext(0);
   }
 
   handleSearchBarInFocus(isFocused: boolean) {

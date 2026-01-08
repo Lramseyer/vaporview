@@ -133,6 +133,7 @@ export class LabelsPanels {
         event.target.classList.contains('codicon-chevron-right')) {
         if (dataManager.rowItems[rowId] instanceof SignalGroup) {
           dataManager.rowItems[rowId].toggleCollapse();
+          sendWebviewContext(5);
         }
     } else {
       //this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
@@ -464,6 +465,8 @@ export class LabelsPanels {
 
     if (!abort) {
       this.events.dispatch(ActionType.ReorderSignals, rowIdList, newGroupId, newIndex);
+      console.log('dragEnd');
+      sendWebviewContext(5);
     } else {
       this.renderLabelsPanels();
     }
@@ -530,7 +533,8 @@ export class LabelsPanels {
     if (viewerState.selectedSignal.includes(rowId)) {
       waveformRow.classList.add('is-selected');
     }
-    sendWebviewContext();
+    console.log('finishRename');
+    sendWebviewContext(5);
   }
 
   getRowIdFromElement(element: HTMLElement | null): RowId | null {

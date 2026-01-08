@@ -722,7 +722,8 @@ export class Viewport {
     }
     this.updateRuler();
     if (updateContext) {
-      sendWebviewContext();
+      console.log('updateUnits');
+      sendWebviewContext(5);
     }
   }
 

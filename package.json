@@ -211,12 +211,6 @@
     },
     "keybindings": [
       {
-        "command": "vaporview.saveViewerSettings",
-        "key": "ctrl+s",
-        "mac": "cmd+s",
-        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
-      },
-      {
         "command": "vaporview.previousEdge",
         "key": "ctrl+Left",
         "mac": "alt+Left",

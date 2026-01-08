@@ -316,11 +316,18 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   }
 
   revertCustomDocument(document: VaporviewDocument, cancellation: vscode.CancellationToken): Thenable<void> {
+    if (document.saveFileUri) {
+      this.loadSettingsFromFileUri(document, document.saveFileUri);
+    }
     return Promise.resolve();
   }
 
   saveCustomDocument(document: VaporviewDocument, cancellation: vscode.CancellationToken): Thenable<void> {
-    this.saveSettingsToFile(document, document.saveFileUri);
+    if (document.clearDirtyStatus) {
+      document.clearDirtyStatus = false;
+    } else {
+      this.saveSettingsToFile(document, document.saveFileUri);
+    }
     return Promise.resolve();
   }
 
@@ -472,18 +479,31 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     if (!uri) {return;}
 
-    const fileData = await vscode.workspace.fs.readFile(uri).then((data) => {
+    this.activeDocument.clearDirtyStatus = true;
+    const readSuccess = await this.loadSettingsFromFileUri(this.activeDocument, uri);
+
+    // We have to trick VScode in to thinking that the file was saved so that it clears the dirty status
+    if (readSuccess) {
+      await vscode.commands.executeCommand('workbench.action.files.save');
+    } else {
+      this.activeDocument.clearDirtyStatus = false;
+    }
+  }
+
+  public async loadSettingsFromFileUri(document: VaporviewDocument, saveFileUri: vscode.Uri): Promise<boolean> {
+    const fileData = await vscode.workspace.fs.readFile(saveFileUri).then((data) => {
       return JSON.parse(new TextDecoder().decode(data));
     })
 
-    if (!fileData) {return;}
-    if (fileData.fileName && fileData.fileName !== this.activeDocument.uri.fsPath) {
+    if (!fileData) {return false;}
+    if (fileData.fileName && fileData.fileName !== document.uri.fsPath) {
       vscode.window.showWarningMessage('The settings file may not match the active viewer');
     }
 
     this.log.appendLine('Loading settings from file: ' + fileData.fileName);
-    this.activeDocument.saveFileUri = uri;
-    this.applySettings(fileData, this.activeDocument, StateChangeType.File);
+    document.saveFileUri = saveFileUri;
+    this.applySettings(fileData, document, StateChangeType.File);
+    return true;
   }
 
   public async convertSignalListToSettings(signalList: any, document: VaporviewDocument): Promise<any> {

@@ -86,6 +86,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     autoReload: false,
   };
   // State management
+  public clearDirtyStatus: boolean = false;
   public saveFileUri: vscode.Uri | undefined = undefined;
   public undoStack: any[] = [];
   public redoStack: any[] = [];

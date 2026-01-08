@@ -322,18 +322,17 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     return Promise.resolve();
   }
 
-  saveCustomDocument(document: VaporviewDocument, cancellation: vscode.CancellationToken): Thenable<void> {
+  async saveCustomDocument(document: VaporviewDocument, cancellation: vscode.CancellationToken): Promise<void> {
+    // When a user loads a document, the document may be dirty, so it sets this flag and calls a dummy save
     if (document.clearDirtyStatus) {
       document.clearDirtyStatus = false;
     } else {
-      this.saveSettingsToFile(document, document.saveFileUri);
+      await this.saveSettingsToFile(document, document.saveFileUri, cancellation);
     }
-    return Promise.resolve();
   }
 
-  saveCustomDocumentAs(document: VaporviewDocument, destination: vscode.Uri, cancellation: vscode.CancellationToken): Thenable<void> {
-    this.saveSettingsToFile(document, destination);
-    return Promise.resolve();
+  async saveCustomDocumentAs(document: VaporviewDocument, destination: vscode.Uri, cancellation: vscode.CancellationToken): Promise<void> {
+    await this.saveSettingsToFile(document, destination, cancellation);
   }
 
   public getDocumentFromUri(uri: string): VaporviewDocument | undefined {
@@ -422,7 +421,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     }
   }
 
-  public async saveSettingsToFile(specifiedDocument: VaporviewDocument | undefined, saveFileUri: vscode.Uri | undefined) {
+  public async saveSettingsToFile(specifiedDocument: VaporviewDocument | undefined, saveFileUri: vscode.Uri | undefined, cancellation?: vscode.CancellationToken) {
     let document: VaporviewDocument | undefined = specifiedDocument;
     if (!document) {
       document = this.activeDocument;
@@ -430,7 +429,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     if (!document) {
       vscode.window.showErrorMessage('No viewer is active. Please select the viewer you wish to save settings.');
-      return;
+      throw new Error('No active document to save');
     }
 
     const saveData       = document.getSettings();
@@ -441,13 +440,16 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       uri = await vscode.window.showSaveDialog({
         saveLabel: 'Save settings',
         filters: {JSON: ['json']}
-      })
+      });
     }
 
-    if (uri) {
-      vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(saveDataString));
-      document.saveFileUri = uri;
+    // User cancelled the save dialog
+    if (!uri || cancellation?.isCancellationRequested) {
+      throw new Error('Save cancelled, or location was not provided');
     }
+
+    await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(saveDataString));
+    document.saveFileUri = uri;
   }
 
   public async loadSettingsFromFile() {

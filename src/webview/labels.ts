@@ -133,6 +133,7 @@ export class LabelsPanels {
         event.target.classList.contains('codicon-chevron-right')) {
         if (dataManager.rowItems[rowId] instanceof SignalGroup) {
           dataManager.rowItems[rowId].toggleCollapse();
+          sendWebviewContext(5);
         }
     } else {
       //this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);

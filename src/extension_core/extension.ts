@@ -349,6 +349,28 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.setValueFormat(e.netlistId, undefined, e.rowId,  {valueFormat: "enum"});
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsFixedPoint', (e) => {
+    // Show input box for offset
+    vscode.window.showInputBox({prompt: 'Enter the fixed point offset',
+      value: '0'
+    }).then((offset) => {
+      if (!offset) {return;}
+      console.log("setting value format");
+      viewerProvider.setValueFormat(e.netlistId, undefined, e.rowId, {valueFormat: "fixedpoint_u_" + offset.toString()});
+    });
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsFixedPointSigned', (e) => {
+    // Show input box for offset
+    vscode.window.showInputBox({prompt: 'Enter the fixed point offset',
+      value: '0'
+    }).then((offset) => {
+      if (!offset) {return;}
+      console.log("setting value format");
+      viewerProvider.setValueFormat(e.netlistId, undefined, e.rowId, {valueFormat: "fixedpoint_s_" + offset.toString()});
+    });
+  }));
+
   // #region Annotate Edges
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.annotatePosedge', (e) => {
     viewerProvider.setValueFormat(e.netlistId, undefined, e.rowId, {annotateValue: ["1"]});

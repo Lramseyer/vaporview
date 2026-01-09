@@ -523,7 +523,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         const signal   = signalInfo.name;
         const metadata = await document.findTreeItem(signal, signalInfo.msb, signalInfo.lsb);
         if (metadata !== null) {
-          const signalData = Object.assign({
+          const signalData = Object.assign(signalInfo, {
             netlistId:  metadata.netlistId,
             signalId:   metadata.signalId,
             signalName: metadata.name,
@@ -534,7 +534,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
             enumType:   metadata.enumType,
             msb:        metadata.msb,
             lsb:        metadata.lsb,
-          }, signalInfo);
+          });
           settings.push(signalData);
         } else {
           missingSignals.push(signal);

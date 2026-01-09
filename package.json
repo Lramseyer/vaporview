@@ -211,6 +211,12 @@
     },
     "keybindings": [
       {
+        "command": "vaporview.saveViewerSettings",
+        "key": "ctrl+s",
+        "mac": "cmd+s",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
         "command": "vaporview.showInNetlistView",
         "key": "ctrl+r",
         "mac": "cmd+r",

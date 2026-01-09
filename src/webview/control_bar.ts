@@ -153,8 +153,6 @@ export class ControlBar {
     });
 
     this.events.dispatch(ActionType.MarkerSet, nearestTime, 0);
-    console.log('goToNextTransition');
-    sendWebviewContext(5);
   }
 
   handleScrollModeClick(mode: string) {
@@ -301,7 +299,7 @@ export class ControlBar {
       if (dataManager.rowItems[rowId] instanceof VariableItem) {
         const format = dataManager.rowItems[rowId].valueFormat;
         const checkValidSearch = format.checkValidSearch;
-        const parseValue = format.parseSearchValue;
+        const parseValue = format.parseValueForSearch;
 
         // check to see that the input is valid
         if (this.searchState === SearchState.Time) {
@@ -335,52 +333,39 @@ export class ControlBar {
     if (viewerState.selectedSignal.length !== 1) {return;}
     if (this.parsedSearchValue === null) {return;}
     let startTime = viewerState.markerTime;
-    let updateState = false;
     if (startTime === null) {startTime = 0;}
   
     const rowId  = viewerState.selectedSignal[0];
     const rowItem = dataManager.rowItems[rowId];
     if (rowItem === undefined || rowItem instanceof VariableItem === false) {return;}
     const signalId = rowItem.signalId;
-    const format   = rowItem.valueFormat;
-    const checkSearchValue = format.checkSearchValue;
   
     if (this.searchState === SearchState.Time && direction === 1) {
       this.events.dispatch(ActionType.MarkerSet, parseInt(this.parsedSearchValue), 0);
-      updateState = true;
     } else {
-      const signalWidth     = dataManager.valueChangeData[signalId].signalWidth;
-      //if (this.parsedSearchValue.length > signalWidth) {trimmedSearchValue = this.parsedSearchValue.slice(-1 * signalWidth);}
-      const data            = dataManager.valueChangeData[signalId];
-      const valueChangeData = data.valueChangeData;
-      const formattedData   = data.formattedValues;
-      if (!formattedData[format.id]) {return;}
-      if (!formattedData[format.id].formatCached) {return;}
-      if (!formattedData[format.id].values) {return;}
-      const formattedValues = formattedData[format.id].values;
-      const timeIndex = data.valueChangeData.findIndex(([t, v]) => {return t >= startTime;});
+      const signalWidth      = dataManager.valueChangeData[signalId].signalWidth;
+      let trimmedSearchValue = this.parsedSearchValue;
+      if (this.parsedSearchValue.length > signalWidth) {trimmedSearchValue = this.parsedSearchValue.slice(-1 * signalWidth);}
+      const searchRegex = new RegExp(trimmedSearchValue, 'ig');
+      const data      = dataManager.valueChangeData[signalId];
+      const timeIndex = data.transitionData.findIndex(([t, v]) => {return t >= startTime;});
       let indexOffset = 0;
   
       if (direction === -1) {indexOffset = -1;}
-      else if (viewerState.markerTime === valueChangeData[timeIndex][0]) {indexOffset = 1;}
+      else if (viewerState.markerTime === data.transitionData[timeIndex][0]) {indexOffset = 1;}
   
       for (let i = timeIndex + indexOffset; i >= 0; i+=direction) {
-        if (checkSearchValue(this.parsedSearchValue, valueChangeData[i][1], formattedValues[i])) {
-          this.events.dispatch(ActionType.MarkerSet, valueChangeData[i][0], 0);
-          updateState = true;
+        if (data.transitionData[i][1].match(searchRegex)) {
+          this.events.dispatch(ActionType.MarkerSet, data.transitionData[i][0], 0);
           break;
         }
       }
-    }
-    if (updateState) {
-      console.log('handleSearchGoTo');
-      sendWebviewContext(5);
     }
   }
 
   handleAutoReloadCheckbox(event: any) {
     viewerState.autoReload = event.target.checked;
-    sendWebviewContext(0);
+    sendWebviewContext();
   }
 
   handleSearchBarInFocus(isFocused: boolean) {
@@ -391,7 +376,6 @@ export class ControlBar {
       }
       if (this.searchContainer.classList.contains('is-focused')) {return;}
       this.searchContainer.classList.add('is-focused');
-      this.handleSearchBarEntry({key: 'none'});
     } else {
       this.searchContainer.classList.remove('is-focused');
     }

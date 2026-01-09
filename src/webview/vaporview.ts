@@ -541,7 +541,6 @@ class VaporviewWebview {
     } else if ((e.key === 'ArrowLeft') && (viewerState.markerTime !== null)) {
       if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, 0, 0); updateState = true;}
       else if (e.altKey || e.ctrlKey) {/* Do nothing */}
-      else           {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime - 1, 0); updateState = true;}
       else           {controlBar.goToNextTransition(-1, []);}
 
 

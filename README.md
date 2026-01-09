@@ -217,6 +217,11 @@ This extension requires VScode 1.96.0 or later
 - Fixed Decimal number formats to work beyond 32 bit numbers
 - Updated to wellen 0.20.1
 
+# Upcoming Release
+
+- VScode now tracks save files and will prompt user before closing with unsaved changes
+- Added Undo/Redo Support
+
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 
 # About This Extension

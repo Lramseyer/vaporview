@@ -1,5 +1,10 @@
 # Change Log
 
+# Upcoming Release
+
+- VScode now tracks save files, and will prompt you before closing with unsaved changes
+- Added Undo/Redo Support
+
 ## 1.4.5 - 1/8/2026 - Latest Release
 
 - Added Ctrl/Cmd+R hotkey for "Show in Netlist View"

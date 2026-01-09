@@ -134,8 +134,12 @@ export class ControlBar {
 
   goToNextTransition(direction: number, edge: string[]) {
     //console.log("Go to next transition: " + direction + ' ' + edge);
-    if (viewerState.selectedSignal.length === 0) {return;}
     if (viewerState.markerTime === null) {return;}
+
+    if (viewerState.selectedSignal.length === 0) {
+      this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime + direction, 0);
+      return;
+    }
 
     let nearestTime: number = viewport.timeStop;
     if (direction === -1) {nearestTime = 0;}

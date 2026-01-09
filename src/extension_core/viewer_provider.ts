@@ -257,7 +257,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         case 'logOutput':           {this.log.appendLine(e.message); break;}
         case 'showMessage':         {this.handleWebviewMessage(e); break;}
         case 'copyToClipboard':     {vscode.env.clipboard.writeText(e.text); break;}
-        case 'executeCommand':      {vscode.commands.executeCommand(e.commandName, e.args); break;}
+        case 'executeCommand':      {vscode.commands.executeCommand(e.commandName, ...(e.args || [])); break;}
         case 'updateConfiguration': {vscode.workspace.getConfiguration('vaporview').update(e.property, e.value, vscode.ConfigurationTarget.Global); break;}
         case 'ready':               {document.onWebviewReady(webviewPanel); break;}
         case 'restoreState':        {this.restoreState(e.state, e.uri); break;}
@@ -569,9 +569,16 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     };
 
     console.log(stateChangeType);
+      
+    const color1 = vscode.workspace.getConfiguration('vaporview').get('customColor1');
+    const color2 = vscode.workspace.getConfiguration('vaporview').get('customColor2');
+    const color3 = vscode.workspace.getConfiguration('vaporview').get('customColor3');
+    const color4 = vscode.workspace.getConfiguration('vaporview').get('customColor4');
+
     document.webviewPanel?.webview.postMessage({
       command: 'apply-state',
       settings: documentSettings,
+      customColors: [color1, color2, color3, color4],
       stateChangeType: stateChangeType,
     });
 
@@ -831,9 +838,20 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     }
   }
 
-  showInNetlistView(netlistId: NetlistId) {
-    if (!this.activeDocument) {return;}
-    const netlistItem = this.activeDocument.netlistIdTable[netlistId];
+  showInNetlistView(e: any) {
+
+    if (!this.lastActiveDocument) {return;}
+    const document = this.lastActiveDocument;
+    let netlistId: NetlistId | undefined | null = undefined;
+
+    if (e) {
+      netlistId = e.netlistId
+    } else {
+      netlistId = document.webviewContext.selectedSignal;
+    }
+
+    if (netlistId === null || netlistId === undefined) {return;}
+    const netlistItem = document.netlistIdTable[netlistId];
     if (netlistItem) {
       this.netlistView.reveal(netlistItem, {select: true, focus: false, expand: 3});
     }

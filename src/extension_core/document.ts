@@ -180,11 +180,18 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     const scrollingMode = vscode.workspace.getConfiguration('vaporview').get('scrollingMode');
     const rulerLines = vscode.workspace.getConfiguration('vaporview').get('showRulerLines');
     const fillMultiBitValues = vscode.workspace.getConfiguration('vaporview').get('fillMultiBitValues');
+
+    const color1 = vscode.workspace.getConfiguration('vaporview').get('customColor1');
+    const color2 = vscode.workspace.getConfiguration('vaporview').get('customColor2');
+    const color3 = vscode.workspace.getConfiguration('vaporview').get('customColor3');
+    const color4 = vscode.workspace.getConfiguration('vaporview').get('customColor4');
+
     this.webviewPanel?.webview.postMessage({
       command: 'setConfigSettings',
       scrollingMode: scrollingMode,
       rulerLines: rulerLines,
-      fillMultiBitValues: fillMultiBitValues
+      fillMultiBitValues: fillMultiBitValues,
+      customColors: [color1, color2, color3, color4],
     });
   }
 

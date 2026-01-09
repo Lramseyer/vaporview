@@ -54,7 +54,7 @@ Vaporview allows you to connect to a remote machine and open up waveforms remote
 - **Up/Down Arrow** - Select signal above/below selected signal
 - **Alt + Up/Down Arrow** - Rearrange selected signal
 - **Ctrl/Cmd + A** - Select all signals
-- **Ctrl/Command + Left/Right Arrow** - Move marker to previous/next value transition of selected signal
+- **Left/Right Arrow** - Move marker to previous/next value change of selected signal
 - **Alt + Click or Middle Click** - Set Alt-Marker
 - **Home** and **End** - Scroll to the beginning and end (respectively) of the waveform
 - **Delete** or **Backspace** - Remove Selected Signal
@@ -122,7 +122,7 @@ It should also be noted that signals can be selected by clicking on them, You ca
 
 ### Next/Previous Edge
 
-To move the marker to the nearest edge _**of the selected signal**_, you can either click the control bar buttons, or use **Ctrl + Left/Right** Arrow (similar to how in the text editor, you can move the marker to a word boundary) Alternatively, VaporView also supports the Verdi bindings of using **"N"** and **"Shift + N"** to go to the next and previous edge respectively.
+To move the marker to the nearest edge _**of the selected signal**_, you can either click the control bar buttons, or use the **Left/Right** Arrow Keys. Alternatively, VaporView also supports the Verdi bindings of using **"N"** and **"Shift + N"** to go to the next and previous edge respectively. If no signals are selected, the marker will step forward or backward 1 time unit.
 
 To move to the next positive edge or negative edge, you will have to use the control bar buttons. This only applies to single bit waveforms.
 
@@ -206,21 +206,16 @@ This extension requires VScode 1.96.0 or later
 
 # Development Roadmap
 
-## 1.4.4 - 12/11/2025 - Latest release
+## 1.4.5 - 1/8/2026 - Latest Release
 
-- Added double click handler to netlist view - double click adds variable to viewer
-- Removed Netlist View Checkboxes
-- Allow for multiple instances of the same signal to be displayed in the viewer
-- Updated time ruler to show the marker time
-- Added Signal Separators
-- Updated control bar tooltips to match VScode style
-- Multi signal select now batch configures number format
-- Added check for saved config file and prompts user to reload saved settings
-- Added Ctrl/Cmd + A keybinding to select all signals
-- Variables added to the viewer default to showing up under the selected signal instead of at the end
-- Added WCP support @heyfey
-- Fixed Renderer glitch in Windows affecting binary and bit vector renderer
-- Upgraded to wellen 0.19.2
+- Added Ctrl/Cmd+R hotkey for "Show in Netlist View"
+- Changed marker placement behavior - Ctrl/Alt is no longer required to move to next value change
+- Fix G hotkey in cursor chat bug where it erroneously creates a new group
+- G hotkey will no longer add only one signal to a group if it's selected
+- Fixed file loading errors with group placement
+- Fixed scroll de-sync when adding new groups
+- Fixed Decimal number formats to work beyond 32 bit numbers
+- Updated to wellen 0.20.1
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

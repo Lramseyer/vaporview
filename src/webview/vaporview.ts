@@ -407,6 +407,8 @@ class VaporviewWebview {
     window.addEventListener('keyup',   (e) => {this.keyUpHandler(e);});
     window.addEventListener('mouseup', (e) => {this.handleMouseUp(e, false);});
     window.addEventListener('resize',  ()  => {this.handleResizeViewer();}, false);
+    window.addEventListener('blur',    ()  => {this.handleFocusBlur(false);});
+    window.addEventListener('focus',   ()  => {this.handleFocusBlur(true);});
     this.scrollArea.addEventListener(  'wheel', (e) => {this.scrollHandler(e);});
     this.scrollArea.addEventListener(  'scroll', () => {this.handleViewportScroll();});
     this.labelsScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, labelsScroll.scrollTop);});
@@ -535,11 +537,12 @@ class VaporviewWebview {
     if ((e.key === 'ArrowRight') && (viewerState.markerTime !== null)) {
       if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, this.viewport.timeStop, 0); updateState = true;}
       else if (e.altKey || e.ctrlKey) {/* Do nothing */}
-      else           {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime + 1, 0); updateState = true;}
+      else           {controlBar.goToNextTransition(1, []);}
     } else if ((e.key === 'ArrowLeft') && (viewerState.markerTime !== null)) {
       if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, 0, 0); updateState = true;}
       else if (e.altKey || e.ctrlKey) {/* Do nothing */}
       else           {this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime - 1, 0); updateState = true;}
+      else           {controlBar.goToNextTransition(-1, []);}
 
 
     // up and down arrow keys move the selected signal
@@ -673,6 +676,14 @@ class VaporviewWebview {
 
   keyUpHandler(e: any) {
     if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(false);}
+  }
+
+  handleFocusBlur(state: boolean) {
+    vscode.postMessage({
+      command: 'executeCommand',
+      commandName: 'setContext', 
+      args: ['vaporview.waveformViewerFocused', state]
+    });
   }
 
   handleMouseUp(event: MouseEvent | KeyboardEvent, abort: boolean) {
@@ -911,6 +922,9 @@ class VaporviewWebview {
       this.viewport.fillMultiBitValues = settings.fillMultiBitValues;
       this.viewport.renderAllWaveforms(true);
       this.viewport.setRulerVscodeContext();
+    }
+    if (settings.customColors !== undefined) {
+      dataManager.customColorKey = settings.customColors;
     }
   }
 

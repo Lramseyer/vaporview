@@ -8,7 +8,7 @@
     "color": "#202020",
     "theme": "dark"
   },
-  "version": "1.4.4",
+  "version": "1.4.5",
   "repository": "https://github.com/lramseyer/vaporview",
   "categories": [
     "Debuggers",
@@ -211,6 +211,12 @@
     },
     "keybindings": [
       {
+        "command": "vaporview.showInNetlistView",
+        "key": "ctrl+r",
+        "mac": "cmd+r",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer' && vaporview.waveformViewerFocused"
+      },
+      {
         "command": "vaporview.previousEdge",
         "key": "ctrl+Left",
         "mac": "alt+Left",
@@ -261,7 +267,7 @@
       {
         "command": "vaporview.newGroupFromSelection",
         "key": "g",
-        "when": "activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus && !textInputFocus"
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus && !textInputFocus && vaporview.waveformViewerFocused"
       }
     ],
     "submenus": [

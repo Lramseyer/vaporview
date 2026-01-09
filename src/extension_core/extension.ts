@@ -192,9 +192,7 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.showInNetlistView', (e) => {
-    if (e.netlistId !== undefined) {
-      viewerProvider.showInNetlistView(e.netlistId);
-    }
+      viewerProvider.showInNetlistView(e);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.showInViewer', (e) => {

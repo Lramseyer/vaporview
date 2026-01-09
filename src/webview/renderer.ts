@@ -80,6 +80,8 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     if (!ctx) {return;}
 
     const transitionData = valueChangeChunk.valueChanges;
+    const formattedValues = valueChangeChunk.formattedValues;
+    const formatCached   = valueChangeChunk.formatCached;
     const initialState   = valueChangeChunk.initialState;
     const postState      = valueChangeChunk.postState;
     const startIndex     = valueChangeChunk.startIndex;
@@ -89,7 +91,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     const parseValue     = netlistData.valueFormat.formatString;
     const valueIs9State  = netlistData.valueFormat.is9State;
     const rightJustify   = netlistData.valueFormat.rightJustify;
-    const justifydirection = rightJustify ? "right" : "left";
+    const justifyDirection = rightJustify ? "right" : "left";
     const rowHeight      = netlistData.rowHeight * WAVE_HEIGHT;
     const canvasHeight   = rowHeight - 8;
     const halfCanvasHeight = canvasHeight / 2;
@@ -153,8 +155,8 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
         // We group the empty text elements that are too small to render together to
         // reduce the number of DOM operations
         if (elementWidth > minTextWidth) {
-          if (netlistData.formatCached) {
-            parsedValue = netlistData.formattedValues[i - 1];
+          if (formatCached) {
+            parsedValue = formattedValues[i - 1];
           } else {
             parsedValue = parseValue(value, signalWidth, !is4State);
           }
@@ -201,8 +203,8 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     }
 
     if (elementWidth > minTextWidth) {
-      if (netlistData.formatCached) {
-        parsedValue = netlistData.formattedValues[endIndex - 1];
+      if (formatCached) {
+        parsedValue = formattedValues[endIndex - 1];
       } else {
         parsedValue = parseValue(value, signalWidth, !is4State);
       }
@@ -294,7 +296,7 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
         if (i === netlistData.valueLinkIndex) {ctx.fillText("_".repeat(text.length), xValue, textY);}
       };
     });
-    ctx.textAlign = justifydirection;
+    ctx.textAlign = justifyDirection;
     textElements.forEach(([text, xValue, center], i) => {
       if (!center) {
         ctx.fillText(text, xValue, textY);
@@ -305,8 +307,8 @@ export const multiBitWaveformRenderer: WaveformRenderer = {
     // Render Signal Link Underline
     netlistData.valueLinkBounds = [];
     if (netlistData.valueLinkCommand !== "") {
-      const leftOffset = justifydirection === "left" ? 0 : 1;
-      const rightOffset = justifydirection === "left" ? -1 : 0;
+      const leftOffset = justifyDirection === "left" ? 0 : 1;
+      const rightOffset = justifyDirection === "left" ? -1 : 0;
       textElements.forEach(([text, xValue, center]) => {
         const x = (xValue * viewportSpecs.zoomRatio) - viewportSpecs.pseudoScrollLeft;
         const textWidth = text.length * viewportSpecs.characterWidth;

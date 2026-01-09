@@ -85,10 +85,6 @@ function parseFloatForSearch(inputText: string, exponentBits: number, mantissaBi
   return sign + exponent.toString(2).padStart(exponentBits, '0') + mantissa.toString(2).slice(2).padEnd(mantissaBits, '0');
 }
 
-function regexMatch(inputString: string, binaryString: string, formattedString: string): boolean {
-  return binaryString.match(new RegExp(inputString, 'ig')) !== null;
-}
-
 // #region Value Format Interface
 // The interface is defined by the ValueFormat interface:
 export interface ValueFormat {
@@ -103,16 +99,13 @@ export interface ValueFormat {
 
   // Function to format the string for display. The input format is an ASCII string of binary values
   // and the output format is a string that will be displayed in the viewer.
-  formatString: (binaryString: string, width: number, is2State: boolean) => string;
+  formatString: (value: string, width: number, is2State: boolean) => string;
 
   // Function to check if the string is valid in the search bar
-  checkValidSearch: (searchString: string) => boolean;
+  checkValidSearch: (value: string) => boolean;
 
-  // Function to parse the search value
-  parseSearchValue: (searchString: string) => string;
-
-  // Function that's iteratively called during a search to compare values to match search
-  checkSearchValue: (parsedSearchValue: string, binaryString: string, formattedValue: string) => boolean;
+  // Function to parse the value back to a binary string for searching
+  parseValueForSearch: (value: string) => string;
 
   // Function to check if the value is a 9-state value
   is9State: (value: string) => boolean;
@@ -151,21 +144,19 @@ export const formatHex: ValueFormat = {
     }
   },
 
-  checkValidSearch: (searchString: string) => {
-    if (searchString.match(/^(0x)?[0-9a-fA-FxzXZ_]+$/)) {return true;}
+  checkValidSearch: (inputText: string) => {
+    if (inputText.match(/^(0x)?[0-9a-fA-FxzXZ_]+$/)) {return true;}
     else {return false;}
   },
 
-  parseSearchValue: (searchString: string) =>{
-    let result = searchString.replace(/_/g, '').replace(/^0x/i, '');
+  parseValueForSearch: (inputText: string) =>{
+    let result = inputText.replace(/_/g, '').replace(/^0x/i, '');
     result = result.split('').map((c) => {
       if (c.match(/[xXzZ]/)) {return '....';}
       return parseInt(c, 16).toString(2).padStart(4, '0');
     }).join('');
     return result;
   },
-
-  checkSearchValue: regexMatch,
 
   is9State: valueIs9State,
 
@@ -178,10 +169,10 @@ export const formatOctal: ValueFormat = {
   rightJustify: true,
   symbolText: "oct",
 
-  formatString: (binaryString: string, width: number, is2State: boolean) => {
+  formatString: (inputString: string, width: number, is2State: boolean) => {
   // If number format is hexadecimal
     if (!is2State) {
-      const stringArray = binaryString.replace(/\B(?=(.{3})+(?!.))/g, "_").split("_");
+      const stringArray = inputString.replace(/\B(?=(.{3})+(?!.))/g, "_").split("_");
       return stringArray.map((chunk) => {
 
         if (chunk.match(/[z]/)) {return "z";}
@@ -194,7 +185,7 @@ export const formatOctal: ValueFormat = {
         return parseInt(chunk, 2).toString(16);
       }).join('');
     } else {
-      const stringArray = binaryString.replace(/\B(?=(\d{3})+(?!\d))/g, "_").split("_");
+      const stringArray = inputString.replace(/\B(?=(\d{3})+(?!\d))/g, "_").split("_");
       return stringArray.map((chunk) => {
         const digits = Math.ceil(chunk.length / 3);
         return parseInt(chunk, 2).toString(8).padStart(digits, '0');
@@ -202,21 +193,19 @@ export const formatOctal: ValueFormat = {
     }
   },
 
-  checkValidSearch: (searchString: string) => {
-    if (searchString.match(/^[0-7xzXZ_]+$/)) {return true;}
+  checkValidSearch: (inputText: string) => {
+    if (inputText.match(/^[0-7xzXZ_]+$/)) {return true;}
     else {return false;}
   },
 
-  parseSearchValue: (searchString: string) =>{
-    let result = searchString.replace(/_/g, '');
+  parseValueForSearch: (inputText: string) =>{
+    let result = inputText.replace(/_/g, '');
     result = result.split('').map((c) => {
       if (c.match(/[xXzZ]/)) {return '....';}
       return parseInt(c, 8).toString(2).padStart(3, '0');
     }).join('');
     return result;
   },
-
-  checkSearchValue: regexMatch,
 
   is9State: valueIs9State,
 
@@ -231,16 +220,14 @@ export const formatBinary: ValueFormat = {
 
   formatString: formatBinaryString,
 
-  checkValidSearch: (searchString: string) => {
-    if (searchString.match(/^b?[01xzXZdD_]+$/)) {return true;}
+  checkValidSearch: (inputText: string) => {
+    if (inputText.match(/^b?[01xzXZdD_]+$/)) {return true;}
     else {return false;}
   },
 
-  parseSearchValue:(searchString: string) => {
-    return searchString.replace(/_/g, '').replace(/[dD]/g, '.');
+  parseValueForSearch:(inputText: string) => {
+    return inputText.replace(/_/g, '').replace(/[dD]/g, '.');
   },
-
-  checkSearchValue: regexMatch,
 
   is9State: valueIs9State,
 
@@ -253,21 +240,21 @@ const formatDecimal: ValueFormat = {
   rightJustify: false,
   symbolText: "dec",
 
-  formatString: (binaryString: string, width: number, is2State: boolean) => {
+  formatString: (inputString: string, width: number, is2State: boolean) => {
     if (!is2State) {
-      return formatBinaryString(binaryString);
+      return formatBinaryString(inputString);
     }
     // Use BigInt for arbitrary precision
-    return BigInt('0b' + binaryString).toString(10);
+    return BigInt('0b' + inputString).toString(10);
   },
 
-  checkValidSearch: (searchString: string) => {
-    if (searchString.match(/^[0-9xzXZ_,]+$/)) {return true;}
+  checkValidSearch: (inputText: string) => {
+    if (inputText.match(/^[0-9xzXZ_,]+$/)) {return true;}
     else {return false;}
   },
 
-  parseSearchValue: (searchString: string) => {
-    const result = searchString.replace(/[,_]/g, '');
+  parseValueForSearch: (inputText: string) => {
+    const result = inputText.replace(/[,_]/g, '');
     if (result.match(/[xXzZ]/)) {
       // For don't care values, match any pattern
       return '.*';
@@ -275,8 +262,6 @@ const formatDecimal: ValueFormat = {
     // Use BigInt for arbitrary precision conversion from decimal to binary
     return BigInt(result).toString(2);
   },
-
-  checkSearchValue: regexMatch,
 
   is9State: valueIs9State,
 
@@ -289,27 +274,27 @@ const formatSignedInt: ValueFormat = {
   rightJustify: false,
   symbolText: "int",
 
-  formatString: (binaryString: string, width: number, is2State: boolean) => {
+  formatString: (inputString: string, width: number, is2State: boolean) => {
     if (!is2State) {
-      return formatBinaryString(binaryString);
+      return formatBinaryString(inputString);
     }
     // Use BigInt for arbitrary precision two's complement signed conversion
-    const isNegative = binaryString[0] === '1';
-    let result = BigInt('0b' + binaryString);
+    const isNegative = inputString[0] === '1';
+    let result = BigInt('0b' + inputString);
     if (isNegative) {
       // Subtract 2^width to get the negative value
-      result -= (BigInt(1) << BigInt(binaryString.length));
+      result -= (BigInt(1) << BigInt(inputString.length));
     }
     return result.toString(10);
   },
 
-  checkValidSearch: (searchString: string) => {
-    if (searchString.match(/^-?[0-9xzXZ_,]+$/)) {return true;}
+  checkValidSearch: (inputText: string) => {
+    if (inputText.match(/^-?[0-9xzXZ_,]+$/)) {return true;}
     else {return false;}
   },
 
-  parseSearchValue: (searchString: string) => {
-    const result = searchString.replace(/[,_]/g, '');
+  parseValueForSearch: (inputText: string) => {
+    const result = inputText.replace(/[,_]/g, '');
     if (result.match(/[xXzZ]/)) {
       return '.*';
     }
@@ -325,8 +310,6 @@ const formatSignedInt: ValueFormat = {
     }
   },
 
-  checkSearchValue: regexMatch,
-
   is9State: valueIs9State,
 
   checkWidth: (width: number) => {return width > 1;},
@@ -339,8 +322,7 @@ export const formatFloat8: ValueFormat = {
   symbolText: "f8",
   formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 4, 3, is2State);},
   checkValidSearch: checkValidFloat,
-  parseSearchValue: (searchString: string) => {return parseFloatForSearch(searchString, 4, 3);},
-  checkSearchValue: regexMatch,
+  parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 4, 3);},
   is9State: valueIs9State,
   checkWidth: (width: number) => {return width === 8;},
 };
@@ -352,8 +334,7 @@ export const formatFloat16: ValueFormat = {
   symbolText: "f16",
   formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 5, 10, is2State);},
   checkValidSearch: checkValidFloat,
-  parseSearchValue: (searchString: string) => {return parseFloatForSearch(searchString, 5, 10);},
-  checkSearchValue: regexMatch,
+  parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 5, 10);},
   is9State: valueIs9State,
   checkWidth: (width: number) => {return width === 16;},
 };
@@ -365,8 +346,7 @@ export const formatBFloat16: ValueFormat = {
   symbolText: "b16",
   formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 8, 7, is2State);},
   checkValidSearch: checkValidFloat,
-  parseSearchValue: (searchString: string) => {return parseFloatForSearch(searchString, 8, 7);},
-  checkSearchValue: regexMatch,
+  parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 8, 7);},
   is9State: valueIs9State,
   checkWidth: (width: number) => {return width === 16;},
 };
@@ -378,8 +358,7 @@ export const formatTensorFloat32: ValueFormat = {
   symbolText: "t19",
   formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 8, 10, is2State);},
   checkValidSearch: checkValidFloat,
-  parseSearchValue: (searchString: string) => {return parseFloatForSearch(searchString, 8, 10);},
-  checkSearchValue: regexMatch,
+  parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 8, 10);},
   is9State: valueIs9State,
   checkWidth: (width: number) => {return width === 19;},
 };
@@ -391,8 +370,7 @@ export const formatFloat32: ValueFormat = {
   symbolText: "f32",
   formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 8, 23, is2State);},
   checkValidSearch: checkValidFloat,
-  parseSearchValue: (searchString: string) => {return parseFloatForSearch(searchString, 8, 23);},
-  checkSearchValue: regexMatch,
+  parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 8, 23);},
   is9State: valueIs9State,
   checkWidth: (width: number) => {return width === 32;},
 };
@@ -404,8 +382,7 @@ export const formatFloat64: ValueFormat = {
   symbolText: "f64",
   formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 11, 52, is2State);},
   checkValidSearch: checkValidFloat,
-  parseSearchValue: (searchString: string) => {return parseFloatForSearch(searchString, 11, 52);},
-  checkSearchValue: regexMatch,
+  parseValueForSearch: (inputText: string) => {return parseFloatForSearch(inputText, 11, 52);},
   is9State: valueIs9State,
   checkWidth: (width: number) => {return width === 64;},
 };
@@ -415,13 +392,13 @@ export const formatAscii: ValueFormat = {
   id: "ascii",
   rightJustify: false,
   symbolText: "txt",
-  formatString: (binaryString: string, width: number, is2State: boolean) => {
+  formatString: (inputString: string, width: number, is2State: boolean) => {
     if (!is2State) {
-      return formatBinaryString(binaryString);
+      return formatBinaryString(inputString);
     }
     let result = '';
-    for (let i = 0; i < binaryString.length; i += 8) {
-      const byte = binaryString.slice(i, i + 8);
+    for (let i = 0; i < inputString.length; i += 8) {
+      const byte = inputString.slice(i, i + 8);
       const charCode = parseInt(byte, 2);
       if (charCode < 32) {
         //result += '&#' + charCode.toString() + ';';
@@ -433,19 +410,17 @@ export const formatAscii: ValueFormat = {
     return result.trim();
   },
 
-  checkValidSearch: (searchString: string) => {
-    if (searchString.match(/^[\x20-\xFF]*$/)) {return true;}
+  checkValidSearch: (inputText: string) => {
+    if (inputText.match(/^[\x20-\xFF]*$/)) {return true;}
     else {return false;}
   },
 
-  parseSearchValue: (searchString: string) => {
-    return searchString.split('').map((c) => {
+  parseValueForSearch: (inputText: string) => {
+    return inputText.split('').map((c) => {
       const charCode = c.charCodeAt(0);
       return charCode.toString(2).padStart(8, '0');
     }).join('');
   },
-
-  checkSearchValue: regexMatch,
 
   is9State: valueIs9State,
 
@@ -470,9 +445,8 @@ export class EnumValueFormat implements ValueFormat {
     return htmlSafe(inputString);
   }
 
-  public checkValidSearch = (searchString: string) => {return dataManager.enumTable[this.enumType].find((entry) => {return entry[0] === searchString;}) !== undefined;}
-  public parseSearchValue = (searchString: string) => {return searchString;}
-  public checkSearchValue = regexMatch;
+  public checkValidSearch = (inputText: string) => {return dataManager.enumTable[this.enumType].find((entry) => {return entry[0] === inputText;}) !== undefined;}
+  public parseValueForSearch = (inputText: string) => {return inputText;}
   public is9State = () => {return false;}
   public checkWidth = (width: number) => {return true;}
 }
@@ -483,11 +457,20 @@ export const formatString: ValueFormat = {
   rightJustify: false,
   symbolText: "str",
 
-  formatString: (inputString: string, width: number, is2State: boolean) => {return inputString;},
-  checkValidSearch: (searchString: string) => {return true;},
-  parseSearchValue: (searchString: string) => {return searchString;},
-  checkSearchValue: regexMatch,
+  formatString: (inputString: string, width: number, is2State: boolean) => {
+    return inputString;
+  },
+
+  checkValidSearch: (inputText: string) => {
+    return true;
+  },
+
+  parseValueForSearch: (inputText: string) => {
+    return inputText;
+  },
+
   is9State: () => {return false;},
+
   checkWidth: (width: number) => {return true;},
 };
 

@@ -2,13 +2,11 @@ import * as vscode from 'vscode';
 import { Worker } from 'worker_threads';
 import * as fs from 'fs';
 import { getTokenColorsForTheme } from './extension';
-import { VaporviewDocument, WaveformFileParser } from './document';
-import { WasmFormatHandler } from './wasm_handler';
-import { FsdbFormatHandler } from './fsdb_handler';
-import { SurferFormatHandler } from './surfer_handler';
+import { VaporviewDocument, VaporviewDocumentFsdb, VaporviewDocumentWasm } from './document';
+import { SurferDocument } from './surfer_document';
 import { NetlistTreeDataProvider, NetlistItem, WebviewCollection, netlistItemDragAndDropController } from './tree_view';
 import { getInstancePath } from './tree_view';
-import { resolve } from 'path/win32';
+import { bool } from '@vscode/wasm-component-model';
 
 export type NetlistId = number;
 export type SignalId  = number;
@@ -19,8 +17,6 @@ export interface VaporviewDocumentDelegate {
   updateViews(uri: vscode.Uri): void;
   emitEvent(e: any): void;
   removeFromCollection(uri: vscode.Uri, document: VaporviewDocument): void;
-  createFileParser(uri: vscode.Uri): Promise<WaveformFileParser>;
-  applySettings(settings: any, document: VaporviewDocument, stateChangeType: StateChangeType): void;
 }
 
 export function scaleFromUnits(unit: string | undefined) {
@@ -75,26 +71,9 @@ export interface viewerDropEvent {
   index: number;
 }
 
-class VaporviewDocumentBackup implements vscode.CustomDocumentBackup {
-  constructor(public readonly id: string) {}
-  delete(): void {return;}
-}
-
-export enum StateChangeType {
-  None    = 0,
-  Restore = 1,
-  File    = 2,
-  Undo    = 3,
-  Redo    = 4,
-  User    = 5,
-}
-
 // #region WaveformViewerProvider
-export class WaveformViewerProvider implements vscode.CustomEditorProvider<VaporviewDocument> {
+export class WaveformViewerProvider implements vscode.CustomReadonlyEditorProvider<VaporviewDocument> {
 
-  private readonly _onDidChangeCustomDocument = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<VaporviewDocument>>();
-  public readonly onDidChangeCustomDocument = this._onDidChangeCustomDocument.event;
-  
   private static newViewerId = 1;
   private static readonly viewType = 'vaporview.waveformViewer';
   private readonly webviews = new WebviewCollection();
@@ -106,7 +85,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     readonly document: VaporviewDocument;
   }>();
 
-  private wasmWorkerFile: string;
   // Store remote server connection info for vaporview-remote:// URIs
   private readonly remoteConnections = new Map<string, {
     serverUrl: string;
@@ -171,8 +149,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     this.netlistView.onDidExpandElement(this.handleNetlistExpandElement);
     this.netlistView.onDidCollapseElement(this.handleNetlistCollapseElement);
     this.netlistView.onDidChangeSelection(this.handleNetlistViewSelectionChanged, this, this._context.subscriptions);
-
-    this.wasmWorkerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
   }
 
   async openCustomDocument(
@@ -181,19 +157,16 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     _token: vscode.CancellationToken,
   ): Promise<VaporviewDocument> {
 
-    // Declare document first so delegate closures can reference it
-    let document: VaporviewDocument;
-
-    const delegate: VaporviewDocumentDelegate = {
+    const delegate = {
       addSignalByNameToDocument: this.addSignalByNameToDocument.bind(this),
       logOutputChannel: (message: string) => {this.log.appendLine(message);},
-      getViewerContext: async (): Promise<Uint8Array> => {
-        const webviewsForDocument: vscode.WebviewPanel[] = Array.from(this.webviews.get(document.uri));
+      getViewerContext: async () => {
+        const webviewsForDocument = Array.from(this.webviews.get(document.uri));
         if (!webviewsForDocument.length) {
           throw new Error('Could not find webview to save for');
         }
-        const panel: vscode.WebviewPanel = webviewsForDocument[0];
-        const response: number[] = await this.postMessageWithResponse<number[]>(panel, 'getContext', {});
+        const panel    = webviewsForDocument[0];
+        const response = await this.postMessageWithResponse<number[]>(panel, 'getContext', {});
         return new Uint8Array(response);
       },
       updateViews: (uri: vscode.Uri) => {
@@ -201,9 +174,9 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         this.netlistTreeDataProvider.loadDocument(document);
       },
       emitEvent: (e: any) => {this.emitEvent(e);},
-      removeFromCollection: (uri: vscode.Uri, doc: VaporviewDocument) => {
+      removeFromCollection: (uri: vscode.Uri, document: VaporviewDocument) => {
         for (const entry of this.documentCollection) {
-          if (entry.resource === uri.toString() && entry.document === doc) {
+          if (entry.resource === uri.toString() && entry.document === document) {
             this.documentCollection.delete(entry);
             this._numDocuments--;
             
@@ -216,31 +189,54 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
             return;
           }
         }
-      },
-      createFileParser: async (uri: vscode.Uri) => {
-        // Create the handler first, then create the document with it
-        let handler: WaveformFileParser;
-
-        if (uri.scheme === 'vaporview-remote') {
-          const connectionInfo = await this.getRemoteConnectionInfo(uri);
-          // Create Surfer handler
-          handler = await SurferFormatHandler.create(delegate, uri, connectionInfo.serverUrl, this.wasmWorkerFile, this.wasmModule, connectionInfo.bearerToken);
-        } else {
-          const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
-          if (fileType === 'fsdb') {
-            handler = new FsdbFormatHandler(delegate, uri, async () => null);
-          } else {
-            handler = await WasmFormatHandler.create(delegate, uri, fileType, this.wasmWorkerFile, this.wasmModule);
-          }
-        }
-        return handler;
-      },
-      applySettings: this.applySettings.bind(this),
+      }
     };
 
-    // Create the document and load it using its handler
-    document = await VaporviewDocument.create(uri, delegate);
-    await document.load();
+    let document: VaporviewDocument;
+    
+    if (uri.scheme === 'vaporview-remote') {
+      let connectionInfo = this.remoteConnections.get(uri.toString());
+      
+      if (!connectionInfo) {
+        // Try to restore connection info from extension state
+        const persistedConnection = this._context.globalState.get<{serverUrl: string, bearerToken?: string}>(`remote-connection-${uri.toString()}`);
+        if (persistedConnection) {
+          connectionInfo = persistedConnection;
+          this.remoteConnections.set(uri.toString(), connectionInfo);
+        } else {
+          // Prompt user to reconnect
+          const action = await vscode.window.showErrorMessage(
+            `Remote connection lost for ${uri.path}. Please reconnect.`,
+            'Reconnect', 'Close Tab'
+          );
+          if (action === 'Reconnect') {
+            // Close the current tab and show reconnection dialog
+            await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+            await vscode.commands.executeCommand('vaporview.openRemoteViewer');
+          }
+          throw new Error(`Remote connection lost and user chose not to reconnect`);
+        }
+      }
+      
+      // Load the Wasm worker
+      const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
+      const wasmWorker = new Worker(workerFile);
+      document = await SurferDocument.create(uri, connectionInfo.serverUrl, wasmWorker, this.wasmModule, delegate, connectionInfo.bearerToken);
+    } else {
+      // Handle regular file URIs
+      const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
+      if (fileType === 'fsdb') {
+        document = await VaporviewDocumentFsdb.create(uri, openContext.backupId, delegate);
+      } else {
+        // Load the Wasm worker
+        const workerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
+        const wasmWorker = new Worker(workerFile);
+        document = await VaporviewDocumentWasm.create(uri, openContext.backupId, wasmWorker, this.wasmModule, delegate);
+      }
+    }
+
+    this.netlistTreeDataProvider.loadDocument(document);
+
     return document;
   }
 
@@ -261,7 +257,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         case 'updateConfiguration': {vscode.workspace.getConfiguration('vaporview').update(e.property, e.value, vscode.ConfigurationTarget.Global); break;}
         case 'ready':               {document.onWebviewReady(webviewPanel); break;}
         case 'restoreState':        {this.restoreState(e.state, e.uri); break;}
-        case 'contextUpdate':       {this.handleUpdateWebviewContext(document, e); break;}
+        case 'contextUpdate':       {this.updateStatusBarItems(document, e); break;}
         case 'emitEvent':           {this.emitEvent(e); break;}
         case 'fetchDataFromFile':   {document.fetchData(e.requestList); break;}
         case 'close-webview':       {webviewPanel.dispose(); break;}
@@ -311,30 +307,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     this.onDidChangeViewStateActive(document, webviewPanel);
   }
 
-  backupCustomDocument(document: VaporviewDocument, context: vscode.CustomDocumentBackupContext, cancellation: vscode.CancellationToken): Thenable<vscode.CustomDocumentBackup> {
-    return Promise.resolve(new VaporviewDocumentBackup(document.uri.toString()));
-  }
-
-  revertCustomDocument(document: VaporviewDocument, cancellation: vscode.CancellationToken): Thenable<void> {
-    if (document.saveFileUri) {
-      this.loadSettingsFromFileUri(document, document.saveFileUri);
-    }
-    return Promise.resolve();
-  }
-
-  async saveCustomDocument(document: VaporviewDocument, cancellation: vscode.CancellationToken): Promise<void> {
-    // When a user loads a document, the document may be dirty, so it sets this flag and calls a dummy save
-    if (document.clearDirtyStatus) {
-      document.clearDirtyStatus = false;
-    } else {
-      await this.saveSettingsToFile(document, document.saveFileUri, cancellation);
-    }
-  }
-
-  async saveCustomDocumentAs(document: VaporviewDocument, destination: vscode.Uri, cancellation: vscode.CancellationToken): Promise<void> {
-    await this.saveSettingsToFile(document, destination, cancellation);
-  }
-
   public getDocumentFromUri(uri: string): VaporviewDocument | undefined {
     const key = uri
     for (const entry of this.documentCollection) {
@@ -347,6 +319,14 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     if (!uri) {return this.activeDocument;}
     else {return this.getDocumentFromUri(uri);}
   }
+
+  //public getActiveDocument(): VaporviewDocument | undefined {
+  //  return this.activeDocument;
+  //}
+
+  //public getLastActiveDocument(): VaporviewDocument | undefined {
+  //  return this.lastActiveDocument;
+  //}
 
   public getAllDocuments() {
     const result: any = {
@@ -366,32 +346,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     const document = this.getDocumentFromOptionalUri(uri);
     if (!document) {return;}
     return document.getSettings();
-  }
-
-  public async getRemoteConnectionInfo(uri: vscode.Uri) {
-
-    let connectionInfo = this.remoteConnections.get(uri.toString());
-    if (connectionInfo) {return connectionInfo;}
-
-    // Try to restore connection info from extension state
-    const persistedConnection = this._context.globalState.get<{serverUrl: string, bearerToken?: string}>(`remote-connection-${uri.toString()}`);
-    if (persistedConnection) {
-      connectionInfo = persistedConnection;
-      this.remoteConnections.set(uri.toString(), connectionInfo);
-    } else {
-      // Prompt user to reconnect
-      const action = await vscode.window.showErrorMessage(
-        `Remote connection lost for ${uri.path}. Please reconnect.`,
-        'Reconnect', 'Close Tab'
-      );
-      if (action === 'Reconnect') {
-        // Close the current tab and show reconnection dialog
-        await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-        await vscode.commands.executeCommand('vaporview.openRemoteViewer');
-      }
-      throw new Error(`Remote connection lost and user chose not to reconnect`);
-    }
-    return connectionInfo;
   }
 
   public async openRemoteViewer(serverUrl: string, bearerToken?: string) {
@@ -421,35 +375,24 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     }
   }
 
-  public async saveSettingsToFile(specifiedDocument: VaporviewDocument | undefined, saveFileUri: vscode.Uri | undefined, cancellation?: vscode.CancellationToken) {
-    let document: VaporviewDocument | undefined = specifiedDocument;
-    if (!document) {
-      document = this.activeDocument;
-    }
-
-    if (!document) {
+  public saveSettingsToFile() {
+    if (!this.activeDocument) {
       vscode.window.showErrorMessage('No viewer is active. Please select the viewer you wish to save settings.');
-      throw new Error('No active document to save');
+      return;
     }
 
+    const document       = this.activeDocument;
     const saveData       = document.getSettings();
     const saveDataString = JSON.stringify(saveData, null, 2);
 
-    let uri = saveFileUri;
-    if (!saveFileUri) {
-      uri = await vscode.window.showSaveDialog({
-        saveLabel: 'Save settings',
-        filters: {JSON: ['json']}
-      });
-    }
-
-    // User cancelled the save dialog
-    if (!uri || cancellation?.isCancellationRequested) {
-      throw new Error('Save cancelled, or location was not provided');
-    }
-
-    await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(saveDataString));
-    document.saveFileUri = uri;
+    vscode.window.showSaveDialog({
+      saveLabel: 'Save settings',
+      filters: {JSON: ['json']}
+    }).then((uri) => {
+      if (uri) {
+        vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(saveDataString));
+      }
+    });
   }
 
   public async loadSettingsFromFile() {
@@ -461,7 +404,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     //let version  = vscode.extensions.getExtension('Lramseyer.vaporview')?.packageJSON.version;
     // show open file dialog
-    const uri = await new Promise<any>((resolve, reject) => {
+    const fileData = await new Promise<any>((resolve, reject) => {
       vscode.window.showOpenDialog({
         canSelectFiles: true,
         canSelectFolders: false,
@@ -470,7 +413,12 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         filters: { JSON: ['json'] }
       }).then((uri) => {
         if (uri) {
-          resolve(uri[0]);
+          vscode.workspace.fs.readFile(uri[0]).then((data) => {
+            const fileData = JSON.parse(new TextDecoder().decode(data));
+            resolve(fileData);
+          }, (error: any) => {
+            reject(error); // Reject if readFile fails
+          });
         } else {
           reject("No file selected"); // Reject if no file is selected
         }
@@ -479,33 +427,13 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       });
     });
 
-    if (!uri) {return;}
-
-    this.activeDocument.clearDirtyStatus = true;
-    const readSuccess = await this.loadSettingsFromFileUri(this.activeDocument, uri);
-
-    // We have to trick VScode in to thinking that the file was saved so that it clears the dirty status
-    if (readSuccess) {
-      await vscode.commands.executeCommand('workbench.action.files.save');
-    } else {
-      this.activeDocument.clearDirtyStatus = false;
-    }
-  }
-
-  public async loadSettingsFromFileUri(document: VaporviewDocument, saveFileUri: vscode.Uri): Promise<boolean> {
-    const fileData = await vscode.workspace.fs.readFile(saveFileUri).then((data) => {
-      return JSON.parse(new TextDecoder().decode(data));
-    })
-
-    if (!fileData) {return false;}
-    if (fileData.fileName && fileData.fileName !== document.uri.fsPath) {
+    if (!fileData) {return;}
+    if (fileData.fileName && fileData.fileName !== this.activeDocument.uri.fsPath) {
       vscode.window.showWarningMessage('The settings file may not match the active viewer');
     }
 
     this.log.appendLine('Loading settings from file: ' + fileData.fileName);
-    document.saveFileUri = saveFileUri;
-    this.applySettings(fileData, document, StateChangeType.File);
-    return true;
+    this.applySettings(fileData, this.activeDocument);
   }
 
   public async convertSignalListToSettings(signalList: any, document: VaporviewDocument): Promise<any> {
@@ -548,7 +476,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     };
   }
 
-  public async applySettings(settings: any, document: VaporviewDocument | undefined, stateChangeType: StateChangeType) {
+  public async applySettings(settings: any, document: VaporviewDocument | undefined = undefined) {
 
     if (!settings.displayedSignals) {return;}
     if (!document) {
@@ -568,8 +496,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       autoReload: settings.autoReload,
     };
 
-    console.log(stateChangeType);
-      
     const color1 = vscode.workspace.getConfiguration('vaporview').get('customColor1');
     const color2 = vscode.workspace.getConfiguration('vaporview').get('customColor2');
     const color3 = vscode.workspace.getConfiguration('vaporview').get('customColor3');
@@ -579,7 +505,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       command: 'apply-state',
       settings: documentSettings,
       customColors: [color1, color2, color3, color4],
-      stateChangeType: stateChangeType,
     });
 
     if (signalListSettings.missingSignals.length > 0) {
@@ -590,9 +515,9 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   public restoreState(state: any, uri: vscode.Uri) {
     const document = this.getDocumentFromUri(uri.toString());
     if (state) {
-      this.applySettings(state, document, StateChangeType.Restore);
+      this.applySettings(state, document);
     } else {
-      // check the directory for a file with the same name as the document, but with the extension .vaporview.json
+      // chack the directory for a file with the same name as the document, but with the extension .vaporview.json
       const filePath = uri.fsPath.match(/^(.*)\.[^.]+$/)?.[1] + '.json';
       if (fs.existsSync(filePath)) {
 
@@ -603,7 +528,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         ).then((action) => {
           if (action === 'Yes') {
             const state = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            this.applySettings(state, document, StateChangeType.File);
+            this.applySettings(state, document);
           }
         });
       }
@@ -725,25 +650,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     this.lastActiveWebview.webview.postMessage({command: 'setTimeUnits', units: units});
   }
 
-  handleUpdateWebviewContext(document: VaporviewDocument, event: any) {
-    if (!document) {return;}
-    const isDirty = document.captureWebviewState(event);
-
-    if (isDirty) {
-      this._onDidChangeCustomDocument.fire({
-        document,
-        undo: () => {document.undo();},
-        redo: () => {document.redo();}
-      });
-    }
-
-    if (event.autoReload && document.fileUpdated && document.reloadPending) {
-      vscode.commands.executeCommand('vaporview.reloadFile', document.uri);
-    } else {
-      this.updateStatusBarItems(document, event);
-    }
-  }
-
   updateStatusBarItems(document: VaporviewDocument, event: any) {
     //this.deltaTimeStatusBarItem.hide();
     //this.markerTimeStatusBarItem.hide();
@@ -751,6 +657,21 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     if (!document) {return;}
     const w = document.webviewContext;
+    //w.markerTime       = event.markerTime       || w.markerTime;
+    //w.altMarkerTime    = event.altMarkerTime    || w.altMarkerTime;
+    //w.selectedSignal   = event.selectedSignal   || w.selectedSignal;
+    if (event.markerTime || event.markerTime === 0) {w.markerTime = event.markerTime;}
+    if (event.altMarkerTime || event.altMarkerTime === 0) {w.altMarkerTime = event.altMarkerTime;}
+    w.selectedSignal   = event.selectedSignal;
+    w.displayedSignals = event.displayedSignals || w.displayedSignals;
+    w.zoomRatio        = event.zoomRatio        || w.zoomRatio;
+    w.scrollLeft       = event.scrollLeft       || w.scrollLeft;
+    w.numberFormat     = event.numberFormat     || w.numberFormat;
+    w.autoReload       = event.autoReload       || w.autoReload;
+
+    if (event.autoReload && document.fileUpdated && document.reloadPending) {
+      vscode.commands.executeCommand('vaporview.reloadFile', document.uri);
+    }
 
     //console.log(event);
 
@@ -1172,7 +1093,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     while (netlistScopes.length > 0 && netlistVariables.length < maxChildren) {
 
       const parentScope = netlistScopes.shift();
-      const children = await document.getScopeChildren(parentScope);
+      const children = await document.getChildrenExternal(parentScope);
       children.forEach((element) => {
         if (element.contextValue === 'netlistVar') {
           netlistVariables.push(element);

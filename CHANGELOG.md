@@ -1,6 +1,6 @@
 # Change Log
 
-## Next Release
+## 1.4.5 - 1/8/2026 - Latest Release
 
 - Added Ctrl/Cmd+R hotkey for "Show in Netlist View"
 - Changed marker placement behavior - Ctrl/Alt is no longer required to move to next value change
@@ -11,7 +11,7 @@
 - Fixed Decimal number formats to work beyond 32 bit numbers
 - Updated to wellen 0.20.1
 
-## 1.4.4 - 12/11/2025 - Latest Release
+## 1.4.4 - 12/11/2025
 
 - Added double click handler to netlist view - double click adds variable to viewer
 - Removed Netlist View Checkboxes

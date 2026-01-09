@@ -206,21 +206,16 @@ This extension requires VScode 1.96.0 or later
 
 # Development Roadmap
 
-## 1.4.4 - 12/11/2025 - Latest release
+## 1.4.5 - 1/8/2026 - Latest Release
 
-- Added double click handler to netlist view - double click adds variable to viewer
-- Removed Netlist View Checkboxes
-- Allow for multiple instances of the same signal to be displayed in the viewer
-- Updated time ruler to show the marker time
-- Added Signal Separators
-- Updated control bar tooltips to match VScode style
-- Multi signal select now batch configures number format
-- Added check for saved config file and prompts user to reload saved settings
-- Added Ctrl/Cmd + A keybinding to select all signals
-- Variables added to the viewer default to showing up under the selected signal instead of at the end
-- Added WCP support @heyfey
-- Fixed Renderer glitch in Windows affecting binary and bit vector renderer
-- Upgraded to wellen 0.19.2
+- Added Ctrl/Cmd+R hotkey for "Show in Netlist View"
+- Changed marker placement behavior - Ctrl/Alt is no longer required to move to next value change
+- Fix G hotkey in cursor chat bug where it erroneously creates a new group
+- G hotkey will no longer add only one signal to a group if it's selected
+- Fixed file loading errors with group placement
+- Fixed scroll de-sync when adding new groups
+- Fixed Decimal number formats to work beyond 32 bit numbers
+- Updated to wellen 0.20.1
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

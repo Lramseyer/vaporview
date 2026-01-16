@@ -1,4 +1,4 @@
-import { vscode, WaveformData, arrayMove, sendWebviewContext, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId, updateDisplayedSignalsFlat, WAVE_HEIGHT, handleClickSelection, controlBar } from "./vaporview";
+import { vscode, arrayMove, sendWebviewContext, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId, updateDisplayedSignalsFlat, WAVE_HEIGHT, handleClickSelection, controlBar } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { labelsPanel } from "./vaporview";
@@ -166,6 +166,7 @@ export class Viewport {
     this.handleAddVariable = this.handleAddVariable.bind(this);
     this.handleRedrawSignal = this.handleRedrawSignal.bind(this);
     this.handleColorChange = this.handleColorChange.bind(this);
+    this.handleExitBatchMode = this.handleExitBatchMode.bind(this);
 
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
@@ -176,6 +177,13 @@ export class Viewport {
     this.events.subscribe(ActionType.RedrawVariable, this.handleRedrawSignal);
     this.events.subscribe(ActionType.Resize, this.updateViewportWidth);
     this.events.subscribe(ActionType.UpdateColorTheme, this.handleColorChange);
+    this.events.subscribe(ActionType.ExitBatchMode, this.handleExitBatchMode);
+  }
+
+  handleExitBatchMode() {
+    this.updateSignalOrder();
+    this.updateBackgroundCanvas(true);
+    this.redrawViewport();
   }
 
   init(metadata: any, uri: string) {
@@ -546,6 +554,7 @@ export class Viewport {
   }
 
   renderAllWaveforms(skipRendered: boolean) {
+    if (this.events.isBatchMode) {return;}
     const viewerHeightMinusRuler = this.viewerHeight - 40;
     const scrollTop    = this.scrollArea.scrollTop;
     const windowHeight = scrollTop + viewerHeightMinusRuler;
@@ -588,6 +597,7 @@ export class Viewport {
   }
 
   handleReorderSignals(rowIdList: number[], newGroupId: number, newIndex: number) {
+    if (this.events.isBatchMode) {return;}
     this.updateSignalOrder();
   }
 
@@ -616,7 +626,9 @@ export class Viewport {
 
     if (markerType === 0) {
       viewerState.markerTime = time;
-      this.moveViewToTime(time);
+      if (!this.events.isBatchMode) {
+        this.moveViewToTime(time);
+      }
     } else {
       viewerState.altMarkerTime = time;
     }
@@ -710,7 +722,8 @@ export class Viewport {
     }
     this.updateRuler();
     if (updateContext) {
-      sendWebviewContext();
+      console.log('updateUnits');
+      sendWebviewContext(5);
     }
   }
 
@@ -791,6 +804,8 @@ export class Viewport {
 
   updateBackgroundCanvas(updateViewportHeight: boolean) {
 
+    if (this.events.isBatchMode) {return;}
+
     if (updateViewportHeight) {
       this.waveformsHeight = this.contentArea.getBoundingClientRect().height;
     }
@@ -810,6 +825,8 @@ export class Viewport {
         ctx.stroke();
       });
     }
+
+    if (this.annotateTime.length === 0) {return;}
 
     // Annotation lines
     const startIndex = dataManager.binarySearchTime(this.annotateTime, this.timeScrollLeft);

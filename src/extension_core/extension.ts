@@ -212,7 +212,7 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.saveViewerSettings', (e) => {
-    viewerProvider.saveSettingsToFile();
+    viewerProvider.saveSettingsToFile(undefined, undefined);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.loadViewerSettings', (e) => {

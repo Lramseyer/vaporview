@@ -1,5 +1,5 @@
-import { SignalId, NetlistId, WaveformData, ValueChange, EnumEntry, EnumData, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove, labelsPanel, outputLog, getIndexInGroup, CollapseState, controlBar } from './vaporview';
-import { getNumberFormatById } from './value_format';
+import { SignalId, NetlistId, ValueChange, EnumEntry, EnumData, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove, labelsPanel, outputLog, getIndexInGroup, CollapseState, controlBar } from './vaporview';
+import { getNumberFormatById, ValueFormat } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer, signedLinearWaveformRenderer, signedSteppedrWaveformRenderer } from './renderer';
 import { SignalGroup, VariableItem, RowItem, NameType, SignalSeparator } from './signal_item';
 // @ts-ignore
@@ -17,6 +17,20 @@ type EnumQueueEntry = {
 }
 
 type QueueEntry = SignalQueueEntry | EnumQueueEntry;
+
+export type FormattedValueData = {
+  users: number;
+  formatCached: boolean;
+  values: string[];
+};
+
+export type WaveformData = {
+  valueChangeData: any[];
+  formattedValues: Record<string, FormattedValueData>;
+  signalWidth: number;
+  min: number;
+  max: number;
+};
 
 export class WaveformDataManager {
   requested: QueueEntry[] = [];
@@ -201,8 +215,11 @@ export class WaveformDataManager {
       // Check for value change data
       if (this.valueChangeData[signalId] !== undefined) {
         //selectedSignal = [rowId];
-        updateFlag     = true;
-        varItem.cacheValueFormat(false);
+        if (!this.events.isBatchMode) {
+          updateFlag     = true;
+        }
+        //varItem.cacheValueFormat(false);
+        this.setValueFormat(varItem.signalId, varItem.valueFormat, false);
         labelsPanel.valueAtMarker[rowId] = varItem.getValueAtTime(viewerState.markerTime);
       } else if (this.valueChangeDataTemp[signalId] !== undefined) {
         this.valueChangeDataTemp[signalId].rowIdList.push(rowId);
@@ -261,7 +278,9 @@ export class WaveformDataManager {
     }
 
     this.events.dispatch(ActionType.SignalSelect, rowIdList, lastRowId);
-    sendWebviewContext();
+
+    console.log('addVariable');
+    sendWebviewContext(5);
     return rowIdList;
   }
 
@@ -338,6 +357,8 @@ export class WaveformDataManager {
     }
 
     labelsPanel.showRenameInput(rowId);
+    console.log('addSignalGroup');
+    sendWebviewContext(5);
 
     this.nextGroupId++;
     this.nextRowId++;
@@ -374,7 +395,8 @@ export class WaveformDataManager {
     }
 
     this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
-    sendWebviewContext();
+    console.log('addSeparator');
+    sendWebviewContext(5);
     return rowId;
   }
 
@@ -404,7 +426,7 @@ export class WaveformDataManager {
     });
   }
 
-  applyState(settings: any) {
+  applyState(settings: any, stateChangeType: number) {
     //this.flushRowCache(true);
     //console.log('applyState()', settings);
 
@@ -414,9 +436,8 @@ export class WaveformDataManager {
         this.handleRemoveVariable(viewerState.displayedSignalsFlat, true);
       }
       this.addSignalList(settings.displayedSignals, 0);
+      this.garbageCollectValueFormats();
     } catch (error) {console.error(error);}
-
-    this.events.exitBatchMode();
 
     if (settings.markerTime !== undefined) {
       this.events.dispatch(ActionType.MarkerSet, settings.markerTime, 0);
@@ -436,7 +457,9 @@ export class WaveformDataManager {
       viewport.setViewportRange(settings.scrollLeft, endTime);
     }
 
-    sendWebviewContext();
+    this.events.exitBatchMode();
+    console.log('applyState', stateChangeType);
+    sendWebviewContext(stateChangeType);
   }
 
   renameSignalGroup(rowId: RowId | undefined, name: string | undefined) {
@@ -512,6 +535,10 @@ export class WaveformDataManager {
     });
 
     disposedRowIdList.forEach((id: RowId) => {
+      const rowItem = this.rowItems[id];
+      if (rowItem instanceof VariableItem) {
+        this.unsetValueFormat(rowItem.signalId, rowItem.valueFormat);
+      }
       this.rowItems[id].dispose();
       delete this.rowItems[id];
     });
@@ -657,21 +684,22 @@ export class WaveformDataManager {
     }
   }
 
-  updateWaveform(signalId: SignalId, transitionData: any[], min: number, max: number) {
+  updateWaveform(signalId: SignalId, valueChangeData: any[], min: number, max: number) {
     const rowIdList    = this.valueChangeDataTemp[signalId].rowIdList;
     if (rowIdList ===  undefined) {console.log('rowId not found for signalId ' + signalId); return;}
     const netlistData  = this.rowItems[rowIdList[0]];
     if (netlistData === undefined || netlistData instanceof VariableItem === false) {return;}
     const signalWidth  = netlistData.signalWidth;
     const nullValue = "x".repeat(signalWidth);
-    if (transitionData[0][0] !== 0) {
-      transitionData.unshift([0, nullValue]);
+    if (valueChangeData[0][0] !== 0) {
+      valueChangeData.unshift([0, nullValue]);
     }
-    if (transitionData[transitionData.length - 1][0] !== viewport.timeStop) {
-      transitionData.push([viewport.timeStop, nullValue]);
+    if (valueChangeData[valueChangeData.length - 1][0] !== viewport.timeStop) {
+      valueChangeData.push([viewport.timeStop, nullValue]);
     }
     this.valueChangeData[signalId] = {
-      transitionData: transitionData,
+      valueChangeData: valueChangeData,
+      formattedValues: {},
       signalWidth:    signalWidth,
       min:            min,
       max:            max,
@@ -684,7 +712,8 @@ export class WaveformDataManager {
       if (netlistData === undefined || netlistData instanceof VariableItem === false) {return;}
       labelsPanel.valueAtMarker[rowId] = netlistData.getValueAtTime(viewerState.markerTime);
       this.events.dispatch(ActionType.RedrawVariable, rowId);
-      netlistData.cacheValueFormat(false);
+      //netlistData.cacheValueFormat(false);
+      this.setValueFormat(netlistData.signalId, netlistData.valueFormat, false);
     });
   }
 
@@ -696,8 +725,97 @@ export class WaveformDataManager {
       const netlistData = this.rowItems[rowId];
       if (netlistData instanceof VariableItem === false) {return;}
       if (netlistData.enumType !== enumName) {return;}
-      netlistData.cacheValueFormat(true);
+      //netlistData.cacheValueFormat(true);
+      this.setValueFormat(netlistData.signalId, netlistData.valueFormat, true);
       this.events.dispatch(ActionType.RedrawVariable, rowId);
+    });
+  }
+
+  public setValueFormat(signalId: number, valueFormat: ValueFormat, force: boolean) {
+    const data = this.valueChangeData[signalId];
+    if (data === undefined) {return;}
+    if (data.signalWidth <= 1) {return;}
+
+    if (data.formattedValues[valueFormat.id] === undefined) {
+      data.formattedValues[valueFormat.id] = {
+        formatCached: false,
+        values: [] as string[],
+        users: 0,
+      }
+      this.updateValueFormatCache(signalId, valueFormat, force);
+    }
+    console.log(data.formattedValues[valueFormat.id]);
+
+    data.formattedValues[valueFormat.id].users++;
+  }
+
+  unsetValueFormat(signalId: number, valueFormat: ValueFormat) {
+    const data = this.valueChangeData[signalId];
+    if (data === undefined) {return;}
+    const formatData = data.formattedValues[valueFormat.id];
+    if (formatData === undefined) {return;}
+
+    formatData.users--;
+    if (formatData.users <= 0 && !this.events.isBatchMode) {
+      delete data.formattedValues[valueFormat.id];
+    }
+  }
+
+  public async updateValueFormatCache(signalId: number, valueFormat: ValueFormat, force: boolean) {
+    const data = this.valueChangeData[signalId];
+    if (data === undefined) {return;}
+
+    const formatData = data.formattedValues[valueFormat.id];
+
+    if (force) {
+      formatData.formatCached = false;
+      formatData.values       = [];
+    }
+
+    return new Promise<void>((resolve) => {
+      const valueChangeData = data.valueChangeData;
+      if (valueChangeData === undefined) {resolve(); return;}
+      if (formatData.formatCached)       {resolve(); return;}
+      //if (this.renderType.id !== "multiBit") {resolve(); return;}
+
+      formatData.values = valueChangeData.map(([, value]) => {
+        const is9State = valueFormat.is9State(value);
+        return valueFormat.formatString(value, data.signalWidth, !is9State);
+      });
+      formatData.formatCached = true;
+      resolve();
+      return;
+    });
+  }
+
+  public garbageCollectValueFormats() {
+    // zero out all users
+    this.valueChangeData.forEach((data) => {
+      Object.values(data.formattedValues).forEach((formatData) => {
+        formatData.users = 0;
+      });
+    });
+
+    // count users again
+    viewerState.displayedSignalsFlat.forEach((rowId) => {
+      const netlistData = this.rowItems[rowId];
+      if (netlistData instanceof VariableItem === false) {return;}
+      const signalId = netlistData.signalId;
+      const valueFormat = netlistData.valueFormat;
+      const data = this.valueChangeData[signalId];
+      if (data === undefined) {return;}
+      const formatData = data.formattedValues[valueFormat.id];
+      if (formatData === undefined) {return;}
+      formatData.users++;
+    });
+
+    // delete unused formats
+    this.valueChangeData.forEach((data) => {
+      Object.entries(data.formattedValues).forEach(([key, formatData]) => {
+        if (formatData.users <= 0) {
+          delete data.formattedValues[Number(key)];
+        }
+      });
     });
   }
 
@@ -763,7 +881,7 @@ export class WaveformDataManager {
     if (netlistData instanceof VariableItem === false) {return result;}
     const signalId = netlistData.signalId;
     if (this.valueChangeData[signalId] === undefined) {return result;}
-    const vcData = this.valueChangeData[signalId].transitionData;
+    const vcData = this.valueChangeData[signalId].valueChangeData;
     if (vcData === undefined || vcData.length === 0) {return result;}
 
     const startTime = Math.min(viewerState.markerTime, viewerState.altMarkerTime);
@@ -922,8 +1040,11 @@ export class WaveformDataManager {
       if (message.numberFormat !== undefined) {
         const valueFormat = getNumberFormatById(data, message.numberFormat);
         if (valueFormat.checkWidth(data.signalWidth)) {
+
+          const forceUpdateValueFormat = !this.events.isBatchMode;
+          this.unsetValueFormat(data.signalId, data.valueFormat);
           data.valueFormat = valueFormat;
-          data.cacheValueFormat(true);
+          this.setValueFormat(data.signalId, valueFormat, forceUpdateValueFormat);
           updateAllSelected = true;
         }
       }
@@ -952,7 +1073,8 @@ export class WaveformDataManager {
       viewport.updateBackgroundCanvas(false);
     }
 
-    sendWebviewContext();
+    console.log('setDisplayFormat');
+    sendWebviewContext(5);
     netlistData.setSignalContextAttribute();
 
     if (updateAllSelected && updateSelected) {redrawList = viewerState.selectedSignal;}
@@ -977,7 +1099,8 @@ export class WaveformDataManager {
     }
 
     if (netlistData.renderType.id === "multiBit") {
-      netlistData.cacheValueFormat(false);
+      //netlistData.cacheValueFormat(false);
+      this.setValueFormat(netlistData.signalId, netlistData.valueFormat, false);
     }
     netlistData.setSignalContextAttribute();
   }
@@ -986,7 +1109,7 @@ export class WaveformDataManager {
 
     if (time === null) {return -1;}
   
-    const data            = this.valueChangeData[signalId].transitionData;
+    const data            = this.valueChangeData[signalId].valueChangeData;
     const transitionIndex = this.binarySearch(data, time);
   
     if (transitionIndex >= data.length) {

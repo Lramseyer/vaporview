@@ -139,8 +139,6 @@ export class VariableItem extends SignalItem implements RowItem {
   public colorIndex: number = 0;
   public color: string = "";
   public rowHeight: number = 1;
-  public formattedValues: string[] = [];
-  public formatCached: boolean = false;
   public wasRendered: boolean = false;
   public canvas: HTMLCanvasElement | null = null
   public ctx: CanvasRenderingContext2D | null = null
@@ -296,7 +294,7 @@ export class VariableItem extends SignalItem implements RowItem {
     if (!this.ctx) {return;}
 
     // find the closest timestamp to timeScrollLeft
-    const valueChanges = data.transitionData;
+    const valueChanges = data.valueChangeData;
     const startIndex   = Math.max(dataManager.binarySearch(valueChanges, viewport.timeScrollLeft - (2 * viewport.pixelTime)), 1);
     const endIndex     = dataManager.binarySearch(valueChanges, viewport.timeScrollRight);
     const initialState = valueChanges[startIndex - 1];
@@ -308,6 +306,8 @@ export class VariableItem extends SignalItem implements RowItem {
 
     const valueChangeChunk = {
       valueChanges: valueChanges,
+      formattedValues: [] as string[],
+      formatCached: false,
       startIndex: startIndex,
       endIndex: endIndex,
       initialState: initialState,
@@ -329,6 +329,16 @@ export class VariableItem extends SignalItem implements RowItem {
       }
     }
 
+    if (data.formattedValues[this.valueFormat.id] !== undefined) {
+      const formatInfo = data.formattedValues[this.valueFormat.id];
+      if (formatInfo.formatCached) {
+        valueChangeChunk.formattedValues = formatInfo.values;
+        valueChangeChunk.formatCached = true;
+      }
+    } else if (data.signalWidth > 1) {
+      console.log(`No cached format found for signalId ${signalId} with format ${this.valueFormat.id}`);
+    }
+
     this.renderType.draw(valueChangeChunk, this, viewport);
     this.wasRendered = true;
   }
@@ -341,16 +351,16 @@ export class VariableItem extends SignalItem implements RowItem {
     if (time === null) {return result;}
     if (!data) {return result;}
 
-    const transitionData  = data.transitionData;
+    const valueChangeData  = data.valueChangeData;
     const transitionIndex = dataManager.getNearestTransitionIndex(this.signalId, time);
 
     if (transitionIndex === -1) {return result;}
     if (transitionIndex > 0) {
-      result.push(transitionData[transitionIndex - 1][1]);
+      result.push(valueChangeData[transitionIndex - 1][1]);
     }
   
-    if (transitionData[transitionIndex][0] === time) {
-      result.push(transitionData[transitionIndex][1]);
+    if (valueChangeData[transitionIndex][0] === time) {
+      result.push(valueChangeData[transitionIndex][1]);
     }
   
     return result;
@@ -362,7 +372,7 @@ export class VariableItem extends SignalItem implements RowItem {
     const result = null;
     if (time === null) {return result;}
 
-    const data  = dataManager.valueChangeData[signalId].transitionData;
+    const data  = dataManager.valueChangeData[signalId].valueChangeData;
     const index = dataManager.getNearestTransitionIndex(signalId, time);
     
     if (index === -1) {return result;}
@@ -389,32 +399,11 @@ export class VariableItem extends SignalItem implements RowItem {
     }
   }
 
-  public async cacheValueFormat(force: boolean) {
-    if (force) {
-      this.formatCached = false;
-      this.formattedValues = [];
-    }
-    return new Promise<void>((resolve) => {
-      const valueChangeData = dataManager.valueChangeData[this.signalId];
-      if (valueChangeData === undefined)     {resolve(); return;}
-      if (this.renderType.id !== "multiBit") {resolve(); return;}
-      if (this.formatCached)                 {resolve(); return;}
-
-      this.formattedValues = valueChangeData.transitionData.map(([, value]) => {
-        const is9State = this.valueFormat.is9State(value);
-        return this.valueFormat.formatString(value, this.signalWidth, !is9State);
-      });
-      this.formatCached = true;
-      resolve();
-      return;
-    });
-  }
-
   public getAllEdges(valueList: string[]): number[] {
     const signalId         = this.signalId;
     const data             = dataManager.valueChangeData[signalId];
     if (!data) {return [];}
-    const valueChangeData  = data.transitionData;
+    const valueChangeData  = data.valueChangeData;
     const result: number[] = [];
 
     if (valueList.length > 0) {
@@ -437,7 +426,7 @@ export class VariableItem extends SignalItem implements RowItem {
     const signalId         = this.signalId;
     const data             = dataManager.valueChangeData[signalId];
     if (!data) {return null;}
-    const valueChangeData  = data.transitionData;
+    const valueChangeData  = data.valueChangeData;
     const valueChangeIndex = dataManager.getNearestTransitionIndex(signalId, time);
     let nextEdge           = null;
 
@@ -527,10 +516,10 @@ export class VariableItem extends SignalItem implements RowItem {
     const command        = this.valueLinkCommand;
     const signalId       = this.signalId;
     const index          = dataManager.getNearestTransitionIndex(signalId, time) - 1;
-    const valueChange    = dataManager.valueChangeData[signalId].transitionData[index];
+    const valueChange    = dataManager.valueChangeData[signalId].valueChangeData[index];
     const timeValue      = valueChange[0];
     const value          = valueChange[1];
-    const formattedValue = this.formattedValues[index];
+    const formattedValue = this.valueFormat.formatString(value, this.signalWidth, !this.valueFormat.is9State(value));
 
     const event = {
       netlistId: this.netlistId,
@@ -645,7 +634,7 @@ export class SignalGroup extends SignalItem implements RowItem {
       this.children.forEach((rowId) => {
         if (rowId === ignoreRowId) {return;} // Skip the ignored rowId
         const signalItem = dataManager.rowItems[rowId];
-        result = result.concat(signalItem.getFlattenedRowIdList(ignoreCollapsed, ignoreRowId));
+        result.push(...signalItem.getFlattenedRowIdList(ignoreCollapsed, ignoreRowId));
       });
     }
     return result;
@@ -705,7 +694,6 @@ export class SignalGroup extends SignalItem implements RowItem {
     this.collapseState = CollapseState.Expanded;
     labelsPanel.renderLabelsPanels();
     this.showHideViewportRows();
-    sendWebviewContext();
   }
 
   public collapse() {
@@ -721,7 +709,6 @@ export class SignalGroup extends SignalItem implements RowItem {
     }
     labelsPanel.renderLabelsPanels();
     this.showHideViewportRows();
-    sendWebviewContext();
   }
 
   public toggleCollapse() {

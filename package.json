@@ -597,8 +597,18 @@
           "when": "webviewSection == 'signal' && width == '19'"
         },
         {
-          "command": "vaporview.displayAsAscii",
+          "command": "vaporview.displayAsFixedPoint",
           "group": "0_default@10",
+          "when": "webviewSection == 'signal' && width > '1'"
+        },
+        {
+          "command": "vaporview.displayAsFixedPointSigned",
+          "group": "0_default@11",
+          "when": "webviewSection == 'signal' && width > '1'"
+        },
+        {
+          "command": "vaporview.displayAsAscii",
+          "group": "0_default@12",
           "when": "webviewSection == 'signal' && width > '1'"
         }
       ],
@@ -955,6 +965,14 @@
       {
         "command": "vaporview.displayAsEnum",
         "title": "Enum"
+      },
+      {
+        "command": "vaporview.displayAsFixedPoint",
+        "title": "Fixed Point..."
+      },
+      {
+        "command": "vaporview.displayAsFixedPointSigned",
+        "title": "Signed Fixed Point..."
       },
       {
         "command": "vaporview.renderMultiBit",

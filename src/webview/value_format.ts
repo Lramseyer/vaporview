@@ -10,7 +10,8 @@
 // 3. Register the new command in the extension.ts (which has examples)
 
 import { htmlSafe, VariableItem } from "./signal_item";
-import { dataManager } from "./vaporview";
+import { dataManager, outputLog } from "./vaporview";
+import { vscode } from "./vaporview";
 
 export function  valueIs9State(value: string): boolean {
   if (value.match(/[uxzwlh-]/)) {return true;}
@@ -85,8 +86,12 @@ function parseFloatForSearch(inputText: string, exponentBits: number, mantissaBi
   return sign + exponent.toString(2).padStart(exponentBits, '0') + mantissa.toString(2).slice(2).padEnd(mantissaBits, '0');
 }
 
-function regexMatch(inputString: string, binaryString: string, formattedString: string): boolean {
+function regexMatchBinary(inputString: string, binaryString: string, formattedString: string): boolean {
   return binaryString.match(new RegExp(inputString, 'ig')) !== null;
+}
+
+function regexMatchString(inputString: string, binaryString: string, formattedString: string): boolean {
+  return formattedString.match(new RegExp(inputString, 'ig')) !== null;
 }
 
 // #region Value Format Interface
@@ -165,7 +170,7 @@ export const formatHex: ValueFormat = {
     return result;
   },
 
-  checkSearchValue: regexMatch,
+  checkSearchValue: regexMatchBinary,
 
   is9State: valueIs9State,
 
@@ -216,7 +221,7 @@ export const formatOctal: ValueFormat = {
     return result;
   },
 
-  checkSearchValue: regexMatch,
+  checkSearchValue: regexMatchBinary,
 
   is9State: valueIs9State,
 
@@ -240,7 +245,7 @@ export const formatBinary: ValueFormat = {
     return searchString.replace(/_/g, '').replace(/[dD]/g, '.');
   },
 
-  checkSearchValue: regexMatch,
+  checkSearchValue: regexMatchBinary,
 
   is9State: valueIs9State,
 
@@ -276,7 +281,7 @@ const formatDecimal: ValueFormat = {
     return BigInt(result).toString(2);
   },
 
-  checkSearchValue: regexMatch,
+  checkSearchValue: regexMatchBinary,
 
   is9State: valueIs9State,
 
@@ -325,7 +330,7 @@ const formatSignedInt: ValueFormat = {
     }
   },
 
-  checkSearchValue: regexMatch,
+  checkSearchValue: regexMatchBinary,
 
   is9State: valueIs9State,
 
@@ -340,7 +345,7 @@ export const formatFloat8: ValueFormat = {
   formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 4, 3, is2State);},
   checkValidSearch: checkValidFloat,
   parseSearchValue: (searchString: string) => {return parseFloatForSearch(searchString, 4, 3);},
-  checkSearchValue: regexMatch,
+  checkSearchValue: regexMatchBinary,
   is9State: valueIs9State,
   checkWidth: (width: number) => {return width === 8;},
 };
@@ -353,7 +358,7 @@ export const formatFloat16: ValueFormat = {
   formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 5, 10, is2State);},
   checkValidSearch: checkValidFloat,
   parseSearchValue: (searchString: string) => {return parseFloatForSearch(searchString, 5, 10);},
-  checkSearchValue: regexMatch,
+  checkSearchValue: regexMatchBinary,
   is9State: valueIs9State,
   checkWidth: (width: number) => {return width === 16;},
 };
@@ -366,7 +371,7 @@ export const formatBFloat16: ValueFormat = {
   formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 8, 7, is2State);},
   checkValidSearch: checkValidFloat,
   parseSearchValue: (searchString: string) => {return parseFloatForSearch(searchString, 8, 7);},
-  checkSearchValue: regexMatch,
+  checkSearchValue: regexMatchBinary,
   is9State: valueIs9State,
   checkWidth: (width: number) => {return width === 16;},
 };
@@ -379,7 +384,7 @@ export const formatTensorFloat32: ValueFormat = {
   formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 8, 10, is2State);},
   checkValidSearch: checkValidFloat,
   parseSearchValue: (searchString: string) => {return parseFloatForSearch(searchString, 8, 10);},
-  checkSearchValue: regexMatch,
+  checkSearchValue: regexMatchBinary,
   is9State: valueIs9State,
   checkWidth: (width: number) => {return width === 19;},
 };
@@ -392,7 +397,7 @@ export const formatFloat32: ValueFormat = {
   formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 8, 23, is2State);},
   checkValidSearch: checkValidFloat,
   parseSearchValue: (searchString: string) => {return parseFloatForSearch(searchString, 8, 23);},
-  checkSearchValue: regexMatch,
+  checkSearchValue: regexMatchBinary,
   is9State: valueIs9State,
   checkWidth: (width: number) => {return width === 32;},
 };
@@ -405,7 +410,7 @@ export const formatFloat64: ValueFormat = {
   formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 11, 52, is2State);},
   checkValidSearch: checkValidFloat,
   parseSearchValue: (searchString: string) => {return parseFloatForSearch(searchString, 11, 52);},
-  checkSearchValue: regexMatch,
+  checkSearchValue: regexMatchBinary,
   is9State: valueIs9State,
   checkWidth: (width: number) => {return width === 64;},
 };
@@ -445,11 +450,25 @@ export const formatAscii: ValueFormat = {
     }).join('');
   },
 
-  checkSearchValue: regexMatch,
+  checkSearchValue: regexMatchBinary,
 
   is9State: valueIs9State,
 
   checkWidth: (width: number) => {return width > 1;},
+};
+
+// #region Format String
+export const formatString: ValueFormat = {
+  id: "string",
+  rightJustify: false,
+  symbolText: "str",
+
+  formatString: (inputString: string, width: number, is2State: boolean) => {return inputString;},
+  checkValidSearch: (searchString: string) => {return true;},
+  parseSearchValue: (searchString: string) => {return searchString;},
+  checkSearchValue: regexMatchBinary,
+  is9State: () => {return false;},
+  checkWidth: (width: number) => {return true;},
 };
 
 // #region Format Enum
@@ -472,24 +491,57 @@ export class EnumValueFormat implements ValueFormat {
 
   public checkValidSearch = (searchString: string) => {return dataManager.enumTable[this.enumType].find((entry) => {return entry[0] === searchString;}) !== undefined;}
   public parseSearchValue = (searchString: string) => {return searchString;}
-  public checkSearchValue = regexMatch;
+  public checkSearchValue = regexMatchBinary;
   public is9State = () => {return false;}
   public checkWidth = (width: number) => {return true;}
 }
 
-// #region Format String
-export const formatString: ValueFormat = {
-  id: "string",
-  rightJustify: false,
-  symbolText: "str",
+// #region Format Fixed Point
+// Fixed point is a special case format that takes in an offset and sign
+export class FixedPointValueFormat implements ValueFormat {
+  public id: string;
+  public rightJustify: boolean = false;
+  public symbolText: string = "dec";
+  private padStart: string = "";
+  private padEnd: string = "";
+  private intBits: number = 0;
+  private multiplier: number = 1;
 
-  formatString: (inputString: string, width: number, is2State: boolean) => {return inputString;},
-  checkValidSearch: (searchString: string) => {return true;},
-  parseSearchValue: (searchString: string) => {return searchString;},
-  checkSearchValue: regexMatch,
-  is9State: () => {return false;},
-  checkWidth: (width: number) => {return true;},
-};
+  constructor(
+    public offset: number,
+    public signed: boolean,
+    width: number
+  ) {
+    this.offset = offset;
+    this.signed = signed;
+    this.id = "fixedpoint_" + (signed ? "s" : "u") + "_" + offset.toString();
+    this.intBits = Math.max(0, width - this.offset);
+    this.multiplier = Math.pow(2, -this.offset);
+  }
+
+  public formatString = (binaryString: string, width: number, is2State: boolean) => {
+    if (!is2State) {
+      return formatBinaryString(binaryString);
+    }
+
+    let value = parseInt(binaryString, 2);
+    if (this.signed && binaryString[0] === '1') {
+      value -= (1 << width);
+    }
+
+    return (value * this.multiplier).toString();
+  }
+
+  public checkValidSearch(searchString: string) {
+    if (searchString.match(/^-?[0-9xzXZ_,]+(\.\d+)?$/)) {return true;}
+    else {return false;}
+  }
+
+  public parseSearchValue(searchString: string) {return searchString.replace(/[,_]/g, '');}
+  public checkSearchValue = regexMatchString;
+  public is9State = valueIs9State;
+  public checkWidth = (width: number) => {return width > 1;}
+}
 
 export const valueFormatList: ValueFormat[] = [
   formatBinary,
@@ -516,7 +568,21 @@ export function getNumberFormatById(netlistData: VariableItem, numberFormatId: s
       return new EnumValueFormat(enumType);
     }
   }
+  if (numberFormatId.startsWith("fixedpoint_")) {
+    const args = numberFormatId.split("_");
+    if (args.length !== 3) {return formatDecimal;}
+    const signed = args[1] === "s";
+    const offset = parseInt(args[2]);
+    return new FixedPointValueFormat(offset, signed, netlistData.signalWidth);
+  }
 
+  vscode.postMessage({
+    command: "showMessage",
+    messageType: "warning",
+    message: "Unknown number format: " + numberFormatId,
+  });
+
+  outputLog("Unknown number format: " + numberFormatId);
   return formatBinary;
 }
 

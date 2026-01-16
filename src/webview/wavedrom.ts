@@ -25,7 +25,7 @@ export function copyWaveDrom() {
     const netlistId       = netlistItem.netlistId;
     const signalName      = netlistItem.scopePath + "." + netlistItem.signalName;
     const signalId        = netlistItem.signalId;
-    const transitionData  = dataManager.valueChangeData[signalId].transitionData;
+    const transitionData  = dataManager.valueChangeData[signalId].valueChangeData;
     const lowerBound      = dataManager.binarySearch(transitionData, timeWindow[0]) - 1;
     const upperBound      = dataManager.binarySearch(transitionData, timeWindow[1]) + 2;
     const signalDataChunk = transitionData.slice(lowerBound, upperBound);

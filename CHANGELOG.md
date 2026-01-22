@@ -4,6 +4,7 @@
 
 - VScode now tracks save files, and will prompt you before closing with unsaved changes
 - Added Undo/Redo Support
+- Added Fixed Point number formats
 
 ## 1.4.5 - 1/8/2026 - Latest Release
 

@@ -1,6 +1,6 @@
 import { SignalId, NetlistId, ValueChange, EnumEntry, EnumData, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove, labelsPanel, outputLog, getIndexInGroup, CollapseState, controlBar } from './vaporview';
 import { getNumberFormatById, ValueFormat } from './value_format';
-import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedrWaveformRenderer, signedLinearWaveformRenderer, signedSteppedrWaveformRenderer } from './renderer';
+import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedWaveformRenderer, signedLinearWaveformRenderer, signedSteppedWaveformRenderer } from './renderer';
 import { SignalGroup, VariableItem, RowItem, NameType, SignalSeparator } from './signal_item';
 // @ts-ignore
 import * as LZ4 from 'lz4js';
@@ -398,6 +398,15 @@ export class WaveformDataManager {
     console.log('addSeparator');
     sendWebviewContext(5);
     return rowId;
+  }
+
+  addBitSlice(name: string | undefined, groupPath: string[] | undefined, parentGroupId: number | undefined, eventRowId: number | undefined, netlistId: NetlistId | undefined, msb: number, lsb: number) {
+    if (controlBar.searchInFocus || labelsPanel.renameActive) {return;}
+    const rowId = this.nextRowId;
+    this.nextRowId++;
+
+    
+
   }
 
   addSignalList(signalList: any, parentGroupId: number | undefined) {
@@ -1089,9 +1098,9 @@ export class WaveformDataManager {
       switch (renderType) {
         case "multiBit":      netlistData.renderType = multiBitWaveformRenderer; break;
         case "linear":        netlistData.renderType = linearWaveformRenderer; break;
-        case "stepped":       netlistData.renderType = steppedrWaveformRenderer; break;
+        case "stepped":       netlistData.renderType = steppedWaveformRenderer; break;
         case "linearSigned":  netlistData.renderType = signedLinearWaveformRenderer; break;
-        case "steppedSigned": netlistData.renderType = signedSteppedrWaveformRenderer; break;
+        case "steppedSigned": netlistData.renderType = signedSteppedWaveformRenderer; break;
         default:              netlistData.renderType = multiBitWaveformRenderer; break;
       }
     } else if (netlistData.signalWidth === 1 && renderType === "binary") {

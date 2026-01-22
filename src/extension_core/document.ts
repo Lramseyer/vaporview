@@ -123,8 +123,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   // These methods are called by the format handlers
   public setChunkSize() {
     const chunkSize = this.metadata.chunkSize;
-    const newMinTimeStemp = 10 ** (Math.round(Math.log10(Number(chunkSize) / 128)) | 0);
-    this.metadata.defaultZoom = 4 / newMinTimeStemp;
+    const newMinTimeStep = 10 ** (Math.round(Math.log10(Number(chunkSize) / 128)) | 0);
+    this.metadata.defaultZoom = 4 / newMinTimeStep;
     this.onDoneParsingWaveforms();
   }
 

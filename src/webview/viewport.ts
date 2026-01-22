@@ -1,4 +1,4 @@
-import { vscode, arrayMove, sendWebviewContext, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId, updateDisplayedSignalsFlat, WAVE_HEIGHT, handleClickSelection, controlBar } from "./vaporview";
+import { vscode, arrayMove, sendWebviewContext, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId, updateDisplayedSignalsFlat, WAVE_HEIGHT, handleClickSelection, controlBar, RULER_HEIGHT } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { labelsPanel } from "./vaporview";
@@ -39,7 +39,7 @@ export class Viewport {
   pseudoScrollLeft: number    = 0;
   viewerWidth: number         = 0;
   viewerHeight: number        = 0;
-  waveformsHeight: number     = 40;
+  waveformsHeight: number     = RULER_HEIGHT;
   halfViewerWidth: number     = 0;
   maxScrollLeft: number       = 0;
   maxScrollbarPosition: number = 0;
@@ -223,7 +223,7 @@ export class Viewport {
     // Token colors
     this.colorKey[0] = style.getPropertyValue('--vscode-debugTokenExpression-number');
     this.colorKey[1] = style.getPropertyValue('--vscode-debugTokenExpression-string');
-    this.colorKey[2] = style.getPropertyValue('--vscode-debugView-valueChangedHighlight');
+    this.colorKey[2] = style.getPropertyValue('--vscode-debugTokenExpression-type');
     this.colorKey[3] = style.getPropertyValue('--vscode-debugTokenExpression-name');
 
     // Non-2-State Signal Color
@@ -555,7 +555,7 @@ export class Viewport {
 
   renderAllWaveforms(skipRendered: boolean) {
     if (this.events.isBatchMode) {return;}
-    const viewerHeightMinusRuler = this.viewerHeight - 40;
+    const viewerHeightMinusRuler = this.viewerHeight - RULER_HEIGHT;
     const scrollTop    = this.scrollArea.scrollTop;
     const windowHeight = scrollTop + viewerHeightMinusRuler;
     let topBounds      = 0;
@@ -747,7 +747,7 @@ export class Viewport {
     ctx.fillStyle = this.rulerTextColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.clearRect(0, 0, this.viewerWidth, 40);
+    ctx.clearRect(0, 0, this.viewerWidth, RULER_HEIGHT);
 
     // Draw the Ticks
     ctx.beginPath();
@@ -997,7 +997,7 @@ export class Viewport {
 
     // Update Ruler Canvas, Background Canvas, and Scrollbar Canvas Dimensions
     this.resizeCanvas(this.scrollbarCanvasElement, this.scrollbarCanvas, this.viewerWidth, 10);
-    this.resizeCanvas(this.rulerCanvasElement, this.rulerCanvas, this.viewerWidth, 40);
+    this.resizeCanvas(this.rulerCanvasElement, this.rulerCanvas, this.viewerWidth, RULER_HEIGHT);
     this.resizeCanvas(this.backgroundCanvasElement, this.backgroundCanvas, this.viewerWidth, this.viewerHeight);
 
     // Update Waveform Canvas Dimensions

@@ -111,7 +111,7 @@ export class ControlBar {
     this.previousButton.addEventListener('click', (e: any) => {this.handleSearchGoTo(-1);});
     this.nextButton.addEventListener(    'click', (e: any) => {this.handleSearchGoTo(1);});
   
-    // Scroll Type settngs
+    // Scroll Type settings
     this.autoScroll.addEventListener(    'click', (e: any) => {this.handleScrollModeClick("Auto");});
     this.touchScroll.addEventListener(   'click', (e: any) => {this.handleScrollModeClick("Touchpad");});
     this.mouseScroll.addEventListener(   'click', (e: any) => {this.handleScrollModeClick("Mouse");});

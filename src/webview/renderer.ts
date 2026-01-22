@@ -10,23 +10,23 @@ export interface WaveformRenderer {
 
 // This function actually creates the individual bus elements, and has can
 // potentially called thousands of times during a render
-function busValue(time: number, deltaTime: number, displayValue: string, viewportSpecs: any, justifydirection: boolean) {
+function busValue(time: number, deltaTime: number, displayValue: string, viewportSpecs: any, justifyDirection: boolean) {
   const textTime            = displayValue.length * viewportSpecs.characterWidth * viewportSpecs.pixelTime;
   const padding             = 4 * viewportSpecs.pixelTime;
   const adjustedTime        = Math.max(time, viewportSpecs.timeScrollLeft);
-  const adjestedDeltaTime   = Math.min(time + deltaTime, viewportSpecs.timeScrollRight) - adjustedTime;
-  const characterWidthLimit = adjestedDeltaTime - (2 * padding);
+  const adjustedDeltaTime   = Math.min(time + deltaTime, viewportSpecs.timeScrollRight) - adjustedTime;
+  const characterWidthLimit = adjustedDeltaTime - (2 * padding);
   const centerText          = (textTime <= characterWidthLimit);
   let text                  = displayValue;
   let xValue;
 
   if (centerText) {
-    xValue = adjustedTime + (adjestedDeltaTime / 2);
+    xValue = adjustedTime + (adjustedDeltaTime / 2);
   } else {
     const charCount = Math.floor(characterWidthLimit / (viewportSpecs.characterWidth * viewportSpecs.pixelTime)) - 1;
     if (charCount < 0) {return ["", -100];}
-    if (justifydirection) {
-      xValue = adjustedTime + adjestedDeltaTime - padding;
+    if (justifyDirection) {
+      xValue = adjustedTime + adjustedDeltaTime - padding;
       text = '…' + displayValue.slice(displayValue.length - charCount);
     } else {
       xValue = adjustedTime + padding;
@@ -365,7 +365,7 @@ export const binaryWaveformRenderer: WaveformRenderer = {
     let noDrawFlag      = false;
     let noDrawPath: any[] = [];
     let lastDrawValue   = initialValue2state;
-    let lastnoDrawValue: any = null;
+    let lastNoDrawValue: any = null;
 
     for (let i = startIndex; i < endIndex; i++) {
       const time  = transitionData[i][0];
@@ -374,7 +374,7 @@ export const binaryWaveformRenderer: WaveformRenderer = {
       if (time - initialTime < minDrawWidth) {
         noDrawFlag     = true;
         lastNoDrawTime = time;
-        lastnoDrawValue = value;
+        lastNoDrawValue = value;
       } else {
 
         if (noDrawFlag) {
@@ -550,7 +550,7 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
   let noDrawFlag     = false;
   let noDrawPath: any[]     = [];
   let lastDrawValue  = initialValue2state;
-  let lastnoDrawValue: any = null;
+  let lastNoDrawValue: any = null;
 
   for (let i = startIndex; i < endIndex; i++) {
     const time  = transitionData[i][0];
@@ -559,7 +559,7 @@ function createSvgWaveform(valueChangeChunk: any, netlistData: VariableItem, vie
     if (time - initialTime < minDrawWidth) {
       noDrawFlag     = true;
       lastNoDrawTime = time;
-      lastnoDrawValue = value;
+      lastNoDrawValue = value;
     } else {
 
       if (noDrawFlag) {
@@ -735,7 +735,7 @@ export const signedLinearWaveformRenderer: WaveformRenderer = {
   }
 };
 
-export const steppedrWaveformRenderer: WaveformRenderer = {
+export const steppedWaveformRenderer: WaveformRenderer = {
   id: "stepped",
 
   draw(valueChangeChunk: any, netlistData: VariableItem, viewportSpecs: any) {
@@ -744,7 +744,7 @@ export const steppedrWaveformRenderer: WaveformRenderer = {
   }
 };
 
-export const signedSteppedrWaveformRenderer: WaveformRenderer = {
+export const signedSteppedWaveformRenderer: WaveformRenderer = {
   id: "steppedSigned",
 
   draw(valueChangeChunk: any, netlistData: VariableItem, viewportSpecs: any) {

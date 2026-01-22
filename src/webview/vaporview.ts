@@ -220,8 +220,8 @@ export function revealSignal(rowId: RowId) {
   const windowBounds = labelsPanel.getBoundingClientRect();
   let newScrollTop   = labelsPanel.scrollTop;
 
-  if (labelBounds.top < windowBounds.top + 40) {
-    newScrollTop = Math.max(0, labelsPanel.scrollTop + (labelBounds.top - (windowBounds.top + 40)));
+  if (labelBounds.top < windowBounds.top + RULER_HEIGHT) {
+    newScrollTop = Math.max(0, labelsPanel.scrollTop + (labelBounds.top - (windowBounds.top + RULER_HEIGHT)));
   } else if (labelBounds.bottom > windowBounds.bottom) {
     newScrollTop = Math.min(labelsPanel.scrollHeight - labelsPanel.clientHeight, labelsPanel.scrollTop + (labelBounds.bottom - windowBounds.bottom) + WAVE_HEIGHT);
   }
@@ -256,6 +256,7 @@ export function handleClickSelection(event: MouseEvent, rowId: RowId) {
 }
 
 export const WAVE_HEIGHT = parseInt(window.getComputedStyle(document.body).getPropertyValue('--waveform-height'));
+export const RULER_HEIGHT = parseInt(window.getComputedStyle(document.body).getPropertyValue('--ruler-height'));
 
 export function getRowHeightCssClass(height: number) {
   switch (height) {
@@ -985,6 +986,7 @@ class VaporviewWebview {
       case 'apply-state':           {dataManager.applyState(message.settings, message.stateChangeType); break;}
       case 'add-variable':          {dataManager.addVariable(message.signalList, message.groupPath, undefined, message.index); break;}
       case 'add-separator':         {dataManager.addSeparator(message.name, message.groupPath, message.parentGroupId, message.eventRowId, message.moveSelected); break;}
+      case 'add-bit-slice':         {dataManager.addBitSlice(message.name, message.groupPath, message.parentGroupId, message.eventRowId, undefined, message.msb, message.lsb); break;}
       case 'newSignalGroup':        {dataManager.addSignalGroup(message.groupName, message.groupPath, message.parentGroupId, message.eventRowId, message.moveSelected); break;}
       case 'setDisplayFormat':      {dataManager.setDisplayFormat(message); break;}
       case 'renameSignalGroup':     {dataManager.renameSignalGroup(message.rowId, message.groupName); break;}

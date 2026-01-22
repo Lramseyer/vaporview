@@ -1,7 +1,7 @@
 :root {
   --waveform-height: 28px;
-  --ruler-height:    40px;
-  --svg-height:      20px;
+  --waveform-margin: 4px;
+  --ruler-height:    36px;
 }
 
 .height1x {
@@ -601,7 +601,7 @@ body {
 }
 
 #ruler {
-  height: 40px;
+  height: var(--ruler-height);
   z-index: 30;
   position: sticky;
   top: 0;

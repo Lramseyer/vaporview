@@ -65,7 +65,7 @@ export interface signalEvent {
   uri: string;
   instancePath: string;
   netlistId: number;
-  source: string; // "viewer" or "treeview"
+  source: string; // "viewer" or "treeView"
 }
 
 export interface viewerDropEvent {
@@ -1236,7 +1236,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}
 
-    const panel      = this.activeWebview;
+    const panel = this.activeWebview;
     panel.webview.postMessage({
       command: 'newSignalGroup',
       groupName: name,
@@ -1257,7 +1257,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}
 
-    const panel      = this.activeWebview;
+    const panel = this.activeWebview;
     panel.webview.postMessage({
       command: 'add-separator',
       name: name,
@@ -1265,6 +1265,41 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       parentGroupId: parentGroupId,
       eventRowId: eventRowId
     });
+  }
+
+  public newBitSlice(
+    name: string | undefined,
+    groupPath: string[] | undefined,
+    parentGroupId: number | undefined,
+    eventRowId: number | undefined,
+    bitRangeString: string | undefined,
+  ) {
+    if (!this.activeWebview) {return;}
+    if (!this.activeDocument) {return;}
+    if (!this.activeWebview.visible) {return;}
+
+    // check that bitRangeString is valid
+    const bitRangeRegex = /^(\d+)(:(\d+))?$/;
+    if (bitRangeString === undefined || !bitRangeRegex.test(bitRangeString)) {
+      vscode.window.showWarningMessage('Invalid bit range string: ' + bitRangeString);
+      return;
+    } else {
+      const msb = parseInt(bitRangeString.split(':')[0]);
+      let lsb = msb;
+      if (bitRangeString.includes(':')) {
+        lsb = parseInt(bitRangeString.split(':')[1]);
+      }
+      const panel = this.activeWebview;
+      panel.webview.postMessage({
+        command: 'add-bit-slice',
+        name: name,
+        groupPath: groupPath,
+        parentGroupId: parentGroupId,
+        eventRowId: eventRowId,
+        msb: msb,
+        lsb: lsb,
+      });
+    }
   }
 
   public renameSignalGroup(e: any | undefined) {

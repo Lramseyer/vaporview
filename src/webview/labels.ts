@@ -495,15 +495,15 @@ export class LabelsPanels {
     textarea.select();
 
     // Handle Enter key to submit rename
-    // we need this event handler becasue the global keydown handler will return early
+    // we need this event handler because the global keydown handler will return early
     // due to the renameActive flag
     textarea.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         const newNameInput = textarea.value.trim() || signalItem.getLabelText();
         const parentGroupId = getParentGroupId(rowId) || 0;
         const isTaken = dataManager.groupNameExists(newNameInput, parentGroupId) && isSignalGroup;
-        const isempty = newNameInput.trim().length === 0;
-        const isValid = !isempty && !isTaken;
+        const isEmpty = newNameInput.trim().length === 0;
+        const isValid = !isEmpty && !isTaken;
         e.preventDefault();
         this.finishRename(rowId, waveformRow, newNameInput, isValid);
       } else if (e.key === 'Escape') {

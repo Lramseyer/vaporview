@@ -535,6 +535,11 @@
           "group": "3_groups@7"
         },
         {
+          "command": "vaporview.newBitSlice",
+          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus && width > 1 && false",
+          "group": "3_groups@6"
+        },
+        {
           "command": "vaporview.saveViewerSettings",
           "group": "4_saveLoad@1",
           "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
@@ -859,7 +864,7 @@
       },
       {
         "command": "vaporview.addVariableByInstancePath",
-        "title": "Add Variable by Name"
+        "title": "Add Variable by Name..."
       },
       {
         "command": "vaporview.addAllInScopeShallow",
@@ -925,6 +930,10 @@
       {
         "command": "vaporview.removeSeparator",
         "title": "Remove Separator"
+      },
+      {
+        "command": "vaporview.newBitSlice",
+        "title": "New Bit Slice"
       },
       {
         "command": "vaporview.displayAsBinary",

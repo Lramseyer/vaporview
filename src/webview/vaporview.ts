@@ -3,7 +3,6 @@ import { Viewport } from './viewport';
 import { LabelsPanels } from './labels';
 import { ControlBar } from './control_bar';
 import { WaveformDataManager } from './data_manager';
-import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
 import { VariableItem, SignalGroup, SignalSeparator, RowItem, NameType } from './signal_item';
 import { copyWaveDrom } from './wavedrom';
 

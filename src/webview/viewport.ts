@@ -1,9 +1,8 @@
 import { vscode, arrayMove, sendWebviewContext, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId, updateDisplayedSignalsFlat, WAVE_HEIGHT, handleClickSelection, controlBar, RULER_HEIGHT } from "./vaporview";
 import { ValueFormat } from './value_format';
-import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer } from './renderer';
+import { WaveformRenderer } from './renderer';
 import { labelsPanel } from "./vaporview";
 import { VariableItem } from "./signal_item";
-import { bool } from "@vscode/wasm-component-model";
 
 const domParser = new DOMParser();
 
@@ -432,7 +431,9 @@ export class Viewport {
         const linkClicked = signalItem.handleValueLink(time, snapToTime);
         if (linkClicked) {return;}
       }
-      this.events.dispatch(ActionType.MarkerSet, snapToTime, button);
+      if (!(event.ctrlKey || event.shiftKey || event.metaKey)) {
+        this.events.dispatch(ActionType.MarkerSet, snapToTime, button);
+      }
     }
 
     if (button === 0) {

@@ -1,10 +1,9 @@
 import { dataManager, viewport, CollapseState, NetlistId, RowId, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, WAVE_HEIGHT, sendWebviewContext } from "./vaporview";
 import { EnumValueFormat, formatBinary, formatHex, formatString, ValueFormat } from "./value_format";
-import { WaveformRenderer } from "./renderer";
-import { } from "./data_manager";
+import { WaveformRenderer, setRenderBounds } from "./renderer";
+import { WaveformData } from "./data_manager";
 import { vscode, labelsPanel } from "./vaporview";
 import { LabelsPanels } from "./labels";
-import { group } from "console";
 
 export enum NameType {
   fullPath = 'fullPath',
@@ -18,6 +17,52 @@ export function htmlSafe(string: string) {
 
 export function htmlAttributeSafe(string: string) {
   return string.replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+
+function getColorFromColorIndex(colorIndex: number) {
+  if (colorIndex < 4) {
+    return viewport.colorKey[colorIndex];
+  } else {
+    return dataManager.customColorKey[colorIndex - 4];
+  }
+}
+
+function mouseOverHandler(event: MouseEvent, signalItem: VariableItem, checkBounds: boolean) {
+  if (!event.target) {return;}
+
+  let redraw        = false;
+  let valueIndex    = -1;
+
+  if (checkBounds) {
+    const elementX    = event.pageX - viewport.scrollAreaBounds.left;
+    signalItem.valueLinkBounds.forEach(([min, max], i) => {
+      if (elementX >= min && elementX <= max) {
+        valueIndex = i;
+      }
+    })
+  }
+
+  // store a pointer to the netlistData object for a keydown event handler
+  if (valueIndex >= 0) {
+    viewport.valueLinkObject = signalItem;
+  } else {
+    viewport.valueLinkObject = null;
+  }
+
+  // Check to change cursor to a pointer
+  if (valueIndex >= 0 && (event.ctrlKey || event.metaKey)) {
+    signalItem.canvas?.classList.add('waveform-link');
+  } else {
+    signalItem.canvas?.classList.remove('waveform-link');
+  }
+
+  if (valueIndex !== signalItem.valueLinkIndex) {redraw = true;}
+  signalItem.valueLinkIndex = valueIndex;
+
+  if (redraw) {
+    signalItem.wasRendered = false;
+    signalItem.renderWaveform();
+  }
 }
 
 export abstract class SignalItem {
@@ -64,16 +109,20 @@ export interface RowItem {
   createWaveformRowContent(): string;
   getLabelText(): string;
   setLabelText(newLabel: string): void;
-  getValueAtTime(time: number | null): string[];
+
   getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[];
   rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number
   findParentGroupId(rowId: RowId): number | null;
+
+  getValueAtTime(time: number | null): string[];
   getAllEdges(valueList: string[]): number[];
   getNextEdge(time: number, direction: number, valueList: string[]): number | null;
-  getNearestTransition(time: number): [number, string] | null;
+  getNearestTransition(time: number | null): [number, string] | null;
+
   renderWaveform(): void;
   handleValueLink(time: number, snapToTime: number): void;
   resize(): void;
+
   dispose(): void;
 }
 
@@ -145,6 +194,8 @@ export class VariableItem extends SignalItem implements RowItem {
   public verticalScale: number = 1;
   public nameType: NameType = NameType.fullPath;
   public customName: string = "";
+  public min: number = 0;
+  public max: number = 0;
 
   constructor(
     public readonly rowId: RowId,
@@ -287,171 +338,34 @@ export class VariableItem extends SignalItem implements RowItem {
 
   public renderWaveform() {
 
-    const signalId = this.signalId;
-    const data     = dataManager.valueChangeData[signalId];
+    const data = dataManager.valueChangeData[this.signalId];
 
     if (!data) {return;}
     if (!this.ctx) {return;}
 
-    // find the closest timestamp to timeScrollLeft
-    const valueChanges = data.valueChangeData;
-    const startIndex   = Math.max(dataManager.binarySearch(valueChanges, viewport.timeScrollLeft - (2 * viewport.pixelTime)), 1);
-    const endIndex     = dataManager.binarySearch(valueChanges, viewport.timeScrollRight);
-    const initialState = valueChanges[startIndex - 1];
-    let   postState    = valueChanges[endIndex];
-
-    if (endIndex >= valueChanges.length) {
-      postState = [viewport.viewerWidth * viewport.pixelTime, ''];
-    }
-
-    const valueChangeChunk = {
-      valueChanges: valueChanges,
-      formattedValues: [] as string[],
-      formatCached: false,
-      startIndex: startIndex,
-      endIndex: endIndex,
-      initialState: initialState,
-      postState: postState,
-      encoding: this.encoding,
-      signalWidth: this.signalWidth,
-      min: data.min,
-      max: data.max,
-    };
-  
-    // I should probably move this functionally into the data manager
-    if (this.encoding !== "Real") {
-      if (this.renderType.id === 'steppedSigned' || this.renderType.id === 'linearSigned') {
-        valueChangeChunk.min = Math.max(-Math.pow(2, this.signalWidth - 1), -32768);
-        valueChangeChunk.max = Math.min(Math.pow(2, this.signalWidth - 1) - 1, 32767);
-      } else {
-        valueChangeChunk.min = 0;
-        valueChangeChunk.max = Math.min(Math.pow(2, this.signalWidth) - 1, 65535);
-      }
-    }
-
-    if (data.formattedValues[this.valueFormat.id] !== undefined) {
-      const formatInfo = data.formattedValues[this.valueFormat.id];
-      if (formatInfo.formatCached) {
-        valueChangeChunk.formattedValues = formatInfo.values;
-        valueChangeChunk.formatCached = true;
-      }
-    } else if (data.signalWidth > 1) {
-      console.log(`No cached format found for signalId ${signalId} with format ${this.valueFormat.id}`);
-    }
-
+    const valueChangeChunk = setRenderBounds(this, data);
     this.renderType.draw(valueChangeChunk, this, viewport);
     this.wasRendered = true;
   }
 
   public getValueAtTime(time: number | null) {
-
-    const result: string[] = [];
-    const data = dataManager.valueChangeData[this.signalId];
-
-    if (time === null) {return result;}
-    if (!data) {return result;}
-
-    const valueChangeData  = data.valueChangeData;
-    const transitionIndex = dataManager.getNearestTransitionIndex(this.signalId, time);
-
-    if (transitionIndex === -1) {return result;}
-    if (transitionIndex > 0) {
-      result.push(valueChangeData[transitionIndex - 1][1]);
-    }
-  
-    if (valueChangeData[transitionIndex][0] === time) {
-      result.push(valueChangeData[transitionIndex][1]);
-    }
-  
-    return result;
+    return dataManager.getValueAtTime(this.signalId, time);
   }
 
-  public getNearestTransition(time: number) {
-
-    const signalId = this.signalId;
-    const result = null;
-    if (time === null) {return result;}
-
-    const data  = dataManager.valueChangeData[signalId].valueChangeData;
-    const index = dataManager.getNearestTransitionIndex(signalId, time);
-    
-    if (index === -1) {return result;}
-    if (data[index][0] === time) {
-      return data[index];
-    }
-  
-    const timeBefore = time - data[index - 1][0];
-    const timeAfter  = data[index][0] - time;
-  
-    if (timeBefore < timeAfter) {
-      return data[index - 1];
-    } else {
-      return data[index];
-    }
+  public getNearestTransition(time: number | null) {
+    return dataManager.getNearestTransition(this.signalId, time);
   }
 
   public setColorFromColorIndex() {
-    const colorIndex = this.colorIndex;
-    if (colorIndex < 4) {
-      this.color = viewport.colorKey[colorIndex];
-    } else {
-      this.color = dataManager.customColorKey[colorIndex - 4];
-    }
+    this.color = getColorFromColorIndex(this.colorIndex);
   }
 
   public getAllEdges(valueList: string[]): number[] {
-    const signalId         = this.signalId;
-    const data             = dataManager.valueChangeData[signalId];
-    if (!data) {return [];}
-    const valueChangeData  = data.valueChangeData;
-    const result: number[] = [];
-
-    if (valueList.length > 0) {
-      if (this.signalWidth === 1) {
-        valueChangeData.forEach((valueChange) => {
-          valueList.forEach((value) => {
-            if (valueChange[1] === value) {
-              result.push(valueChange[0]);
-            }
-          });
-        });
-      } else {
-        valueChangeData.forEach(([time, _value]) => {result.push(time);});
-      }
-    }
-    return result;
+    return dataManager.getAllEdges(valueList, this.signalId, this.signalWidth);
   }
 
   public getNextEdge(time: number, direction: number, valueList: string[]): number | null {
-    const signalId         = this.signalId;
-    const data             = dataManager.valueChangeData[signalId];
-    if (!data) {return null;}
-    const valueChangeData  = data.valueChangeData;
-    const valueChangeIndex = dataManager.getNearestTransitionIndex(signalId, time);
-    let nextEdge           = null;
-
-    if (valueChangeIndex === -1) {return null;}
-
-    const anyEdge = valueList.length === 0;
-    if (direction === 1) {
-      for (let i = valueChangeIndex; i < valueChangeData.length; i++) {
-        const valueMatch = anyEdge || valueList.includes(valueChangeData[i][1]);
-        if (valueMatch && valueChangeData[i][0] > time) {
-          nextEdge = valueChangeData[i][0];
-          break;
-        }
-      }
-    } else {
-      for (let i = valueChangeIndex; i >= 0; i--) {
-        const valueMatch = anyEdge || valueList.includes(valueChangeData[i][1]);
-        if (valueMatch && valueChangeData[i][0] < time) {
-          nextEdge = valueChangeData[i][0];
-          break;
-        }
-      }
-    }
-
-    return nextEdge;
+    return dataManager.getNextEdge(this.signalId, time, direction, valueList);
   }
 
   public resize() {
@@ -461,49 +375,11 @@ export class VariableItem extends SignalItem implements RowItem {
   }
 
   handleValueLinkMouseOver(event: MouseEvent) {
-    this.mouseOverHandler(event, true);
+    mouseOverHandler(event, this, true);
   }
 
   handleValueLinkMouseExit(event: MouseEvent) {
-    this.mouseOverHandler(event, false);
-  }
-
-  mouseOverHandler(event: MouseEvent, checkBounds: boolean) {
-    if (!event.target) {return;}
-
-    let redraw        = false;
-    let valueIndex    = -1;
-
-    if (checkBounds) {
-      const elementX    = event.pageX - viewport.scrollAreaBounds.left;
-      this.valueLinkBounds.forEach(([min, max], i) => {
-        if (elementX >= min && elementX <= max) {
-          valueIndex = i;
-        }
-      })
-    }
-
-    // store a pointer to the netlistData object for a keydown event handler
-    if (valueIndex >= 0) {
-      viewport.valueLinkObject = this;
-    } else {
-      viewport.valueLinkObject = null;
-    }
-
-    // Check to change cursor to a pointer
-    if (valueIndex >= 0 && (event.ctrlKey || event.metaKey)) {
-      this.canvas?.classList.add('waveform-link');
-    } else {
-      this.canvas?.classList.remove('waveform-link');
-    }
-
-    if (valueIndex !== this.valueLinkIndex) {redraw = true;}
-    this.valueLinkIndex = valueIndex;
-
-    if (redraw) {
-      this.wasRendered = false;
-      this.renderWaveform();
-    }
+    mouseOverHandler(event, this, false);
   }
 
   handleValueLink(time: number, snapToTime: number): boolean {

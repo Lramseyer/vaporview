@@ -1,6 +1,6 @@
 import { SignalId, NetlistId, ValueChange, EnumEntry, EnumData, EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, RowId, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, arrayMove, labelsPanel, outputLog, getIndexInGroup, CollapseState, controlBar } from './vaporview';
 import { getNumberFormatById, ValueFormat } from './value_format';
-import { WaveformRenderer, multiBitWaveformRenderer, binaryWaveformRenderer, linearWaveformRenderer, steppedWaveformRenderer, signedLinearWaveformRenderer, signedSteppedWaveformRenderer } from './renderer';
+import { WaveformRenderer, MultiBitWaveformRenderer, BinaryWaveformRenderer, LinearWaveformRenderer } from './renderer';
 import { SignalGroup, VariableItem, RowItem, NameType, SignalSeparator } from './signal_item';
 // @ts-ignore
 import * as LZ4 from 'lz4js';
@@ -205,7 +205,7 @@ export class WaveformDataManager {
         signal.signalWidth,
         signal.type,
         signal.encoding,
-        signal.signalWidth === 1 ? binaryWaveformRenderer : multiBitWaveformRenderer,
+        signal.signalWidth === 1 ? new BinaryWaveformRenderer() : new MultiBitWaveformRenderer(),
         enumType
       );
 
@@ -723,6 +723,10 @@ export class WaveformDataManager {
       this.events.dispatch(ActionType.RedrawVariable, rowId);
       //netlistData.cacheValueFormat(false);
       this.setValueFormat(netlistData.signalId, netlistData.valueFormat, false);
+      if (netlistData.encoding === "Real") {
+        netlistData.min = min;
+        netlistData.max = max;
+      }
     });
   }
 
@@ -1096,15 +1100,25 @@ export class WaveformDataManager {
     if (netlistData instanceof VariableItem === false) {return;}
     if (netlistData.signalWidth !== 1) {
       switch (renderType) {
-        case "multiBit":      netlistData.renderType = multiBitWaveformRenderer; break;
-        case "linear":        netlistData.renderType = linearWaveformRenderer; break;
-        case "stepped":       netlistData.renderType = steppedWaveformRenderer; break;
-        case "linearSigned":  netlistData.renderType = signedLinearWaveformRenderer; break;
-        case "steppedSigned": netlistData.renderType = signedSteppedWaveformRenderer; break;
-        default:              netlistData.renderType = multiBitWaveformRenderer; break;
+        case "multiBit":      netlistData.renderType = new MultiBitWaveformRenderer(); break;
+        case "linear":        netlistData.renderType = new LinearWaveformRenderer("linear",        netlistData.encoding, netlistData.signalWidth, false, false); break;
+        case "stepped":       netlistData.renderType = new LinearWaveformRenderer("stepped",       netlistData.encoding, netlistData.signalWidth, false, true); break;
+        case "linearSigned":  netlistData.renderType = new LinearWaveformRenderer("linearSigned",  netlistData.encoding, netlistData.signalWidth, true, false); break;
+        case "steppedSigned": netlistData.renderType = new LinearWaveformRenderer("steppedSigned", netlistData.encoding, netlistData.signalWidth, true, true); break;
+        default:              netlistData.renderType = new MultiBitWaveformRenderer(); break;
       }
     } else if (netlistData.signalWidth === 1 && renderType === "binary") {
-      netlistData.renderType = binaryWaveformRenderer;
+      netlistData.renderType = new BinaryWaveformRenderer();
+    }
+
+    if (netlistData.encoding !== "Real") {
+      if (renderType === 'steppedSigned' || renderType === 'linearSigned') {
+        netlistData.min = Math.max(-Math.pow(2, netlistData.signalWidth - 1), -32768);
+        netlistData.max = Math.min(Math.pow(2, netlistData.signalWidth - 1) - 1, 32767);
+      } else {
+        netlistData.min = 0;
+        netlistData.max = Math.min(Math.pow(2, netlistData.signalWidth) - 1, 65535);
+      }
     }
 
     if (netlistData.renderType.id === "multiBit") {
@@ -1112,6 +1126,104 @@ export class WaveformDataManager {
       this.setValueFormat(netlistData.signalId, netlistData.valueFormat, false);
     }
     netlistData.setSignalContextAttribute();
+  }
+
+  public getValueAtTime(signalId: SignalId, time: number | null) {
+    const result: string[] = [];
+    const data = this.valueChangeData[signalId];
+
+    if (time === null) {return result;}
+    if (!data) {return result;}
+
+    const valueChangeData  = data.valueChangeData;
+    const transitionIndex = this.getNearestTransitionIndex(signalId, time);
+
+    if (transitionIndex === -1) {return result;}
+    if (transitionIndex > 0) {
+      result.push(valueChangeData[transitionIndex - 1][1]);
+    }
+  
+    if (valueChangeData[transitionIndex][0] === time) {
+      result.push(valueChangeData[transitionIndex][1]);
+    }
+  
+    return result;
+  }
+
+  public getNextEdge(signalId: SignalId, time: number, direction: number, valueList: string[]): number | null {
+    const data             = this.valueChangeData[signalId];
+    if (!data) {return null;}
+    const valueChangeData  = data.valueChangeData;
+    const valueChangeIndex = this.getNearestTransitionIndex(signalId, time);
+    let nextEdge           = null;
+
+    if (valueChangeIndex === -1) {return null;}
+
+    const anyEdge = valueList.length === 0;
+    if (direction === 1) {
+      for (let i = valueChangeIndex; i < valueChangeData.length; i++) {
+        const valueMatch = anyEdge || valueList.includes(valueChangeData[i][1]);
+        if (valueMatch && valueChangeData[i][0] > time) {
+          nextEdge = valueChangeData[i][0];
+          break;
+        }
+      }
+    } else {
+      for (let i = valueChangeIndex; i >= 0; i--) {
+        const valueMatch = anyEdge || valueList.includes(valueChangeData[i][1]);
+        if (valueMatch && valueChangeData[i][0] < time) {
+          nextEdge = valueChangeData[i][0];
+          break;
+        }
+      }
+    }
+
+    return nextEdge;
+  }
+
+  public getAllEdges(valueList: string[], signalId: SignalId, signalWidth: number): number[] {
+    const data             = this.valueChangeData[signalId];
+    if (!data) {return [];}
+    const valueChangeData  = data.valueChangeData;
+    const result: number[] = [];
+
+    if (valueList.length > 0) {
+      if (signalWidth === 1) {
+        valueChangeData.forEach((valueChange) => {
+          valueList.forEach((value) => {
+            if (valueChange[1] === value) {
+              result.push(valueChange[0]);
+            }
+          });
+        });
+      } else {
+        valueChangeData.forEach(([time, _value]) => {result.push(time);});
+      }
+    }
+    return result;
+  }
+
+  public getNearestTransition(signalId: SignalId, time: number | null) {
+
+    const result = null;
+    if (time === null) {return result;}
+
+    const data  = this.valueChangeData[signalId].valueChangeData;
+    const index = this.getNearestTransitionIndex(signalId, time);
+    
+    if (index === -1) {return result;}
+    if (data[index][0] === time) {
+      return data[index];
+    }
+  
+    const timeBefore = time - data[index - 1][0];
+    const timeAfter  = data[index][0] - time;
+  
+    if (timeBefore < timeAfter) {
+      return data[index - 1];
+    } else {
+      return data[index];
+    }
   }
 
   getNearestTransitionIndex(signalId: SignalId, time: number) {

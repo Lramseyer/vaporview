@@ -56,7 +56,7 @@ export interface ViewerState {
   lastSelectedSignal: RowId | null;
   displayedSignals: number[];
   displayedSignalsFlat: number[];
-  visibleSignalsFlat: number[]
+  visibleSignalsFlat: RowId[]
   zoomRatio: number;
   scrollLeft: number;
   touchpadScrolling: boolean;

@@ -350,6 +350,23 @@ export class Viewport {
     return Math.round((pixelLeft + this.pseudoScrollLeft) * this.pixelTime);
   }
 
+  getRowIdFromMouseEvent(event: MouseEvent): RowId | null {
+    const eventTop   = Math.round(event.pageY - this.scrollAreaBounds.top);
+    const pageY      = eventTop + this.scrollArea.scrollTop - RULER_HEIGHT;
+    let topBounds    = 0;
+    let bottomBounds = 0;
+    for (const rowId of viewerState.visibleSignalsFlat) {
+      const netlistData = dataManager.rowItems[rowId];
+      const rowHeight   = netlistData.rowHeight * WAVE_HEIGHT;
+      topBounds    = bottomBounds;
+      bottomBounds += rowHeight;
+      if (pageY >= topBounds && pageY < bottomBounds) {
+        return rowId;
+      }
+    }
+    return null;
+  }
+
   getViewportLeft(time: number, clamp: number) {
     const x = (time * this.zoomRatio) - this.pseudoScrollLeft;
     return Math.max(Math.min(x, this.viewerWidth + clamp), -clamp);
@@ -410,9 +427,8 @@ export class Viewport {
     let snapToTime = time;
 
     // Get the signal id of the click
-    let rowId: any    = null;
-    const containerId = event.target?.closest('.waveform-container');
-    if (containerId) {rowId = parseInt(containerId.id.split('-').slice(1));}
+    const rowId      = this.getRowIdFromMouseEvent(event);
+    if (rowId === null) {return;}
     const signalItem = dataManager.rowItems[rowId];
     if (!signalItem) {return;}
 

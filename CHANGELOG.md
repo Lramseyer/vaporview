@@ -6,7 +6,9 @@
 - Added Undo/Redo Support
 - Added Fixed Point number formats
 - Updated to wellen 0.20.2
-- Selecting multiple signals no longer moves the time marker
+- Fixed
+  - Selecting multiple signals no longer moves the time marker
+  - Right clicking on marker no longer brings up the wrong menu
 
 ## 1.4.5 - 1/8/2026 - Latest Release
 

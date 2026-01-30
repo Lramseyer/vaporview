@@ -561,6 +561,7 @@ export class SignalGroup extends SignalItem implements RowItem {
         signalItem.wasRendered = false; // Reset rendering state for child signals
       }
       viewport.updateBackgroundCanvas(true);
+      viewport.updateOverlayCanvas();
     });
     updateDisplayedSignalsFlat();
     viewport.renderAllWaveforms(false);

@@ -390,7 +390,15 @@ body {
   position: fixed;
   width: 100%;
   height: 100%;
-  background-color: var(--vscode-editor-background);
+  /*background-color: var(--vscode-editor-background);*/
+  z-index: 1;
+}
+
+#viewport-overlay {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
 }
 
 #scrollbarContainer {
@@ -398,6 +406,7 @@ body {
   grid-column-start: 3;
   grid-row-start: 3;
   margin-left: 1px;
+  z-index: 100;
 }
 
 #scrollbarAreaCanvas {
@@ -618,6 +627,10 @@ body {
   box-sizing: border-box;
 }
 
+.waveform-canvas {
+  z-index: 2;
+}
+
 .waveform-link {
   cursor: pointer;
 }
@@ -661,23 +674,4 @@ body {
 
 #main-marker-label:hover {
   z-index: 89 !important;
-}
-
-.time-marker {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  z-index: 20;
-  overflow: visible;
-  stroke-width: 1px;
-  width: 1px;
-  stroke: var(--vscode-editorLineNumber-activeForeground);
-}
-
-#main-marker {
-  stroke-dasharray: 2 2;
-}
-
-#alt-marker {
-  stroke-dasharray: 6 2 2 2;
 }

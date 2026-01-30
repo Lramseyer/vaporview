@@ -1084,6 +1084,7 @@ export class WaveformDataManager {
     if (message.annotateValue !== undefined) {
       viewport.annotateWaveform(rowId, message.annotateValue);
       viewport.updateBackgroundCanvas(false);
+      viewport.updateOverlayCanvas();
     }
 
     console.log('setDisplayFormat');

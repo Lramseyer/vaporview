@@ -21,10 +21,10 @@ export class Viewport {
   rulerCanvas: CanvasRenderingContext2D;
   backgroundCanvasElement: HTMLElement;
   backgroundCanvas: CanvasRenderingContext2D;
+  overlayCanvasElement: HTMLElement;
+  overlayCanvas: CanvasRenderingContext2D;
   markerLabelElement: HTMLElement;
   altMarkerLabelElement: HTMLElement;
-  markerElement: HTMLElement;
-  altMarkerElement: HTMLElement;
   netlistLinkElement: HTMLElement | null = null;
   valueLinkObject: VariableItem | null = null;
 
@@ -87,6 +87,7 @@ export class Viewport {
   rulerGuideColor: string     = 'grey';
   edgeGuideColor: string      = 'orange';
   markerAnnotation: string    = '';
+  markerColor: string         = 'white';
   backgroundColor: string     = 'black';
   fontFamily: string          = 'Menlo';
   fontSize: string            = '12px';
@@ -108,23 +109,24 @@ export class Viewport {
     const rulerCanvas        = document.getElementById('rulerCanvas');
     const markerLabelElement = document.getElementById('main-marker-label');
     const altMarkerLabelElement = document.getElementById('alt-marker-label');
-    const markerElement      = document.getElementById('main-marker');
-    const altMarkerElement   = document.getElementById('alt-marker');
     const backgroundCanvas   = document.getElementById('viewport-background');
+    const overlayCanvas      = document.getElementById('viewport-overlay');
 
     if (scrollArea === null || contentArea === null || scrollbar === null || 
       scrollbarContainer === null || scrollbarCanvas === null || 
       waveformArea === null || rulerElement === null || rulerCanvas === null ||
       markerLabelElement === null || altMarkerLabelElement === null ||
-      markerElement === null || altMarkerElement === null || backgroundCanvas === null) {
+      backgroundCanvas === null || overlayCanvas === null) {
       throw new Error('Viewport elements not found');
     }
 
     const canvasContext = (scrollbarCanvas as HTMLCanvasElement).getContext('2d');
     const rulerCanvasCtx = (rulerCanvas as HTMLCanvasElement).getContext('2d');
     const backgroundCanvasCtx = (backgroundCanvas as HTMLCanvasElement).getContext('2d');
+    const overlayCanvasCtx = (overlayCanvas as HTMLCanvasElement).getContext('2d');
 
-    if (canvasContext === null || rulerCanvasCtx === null || backgroundCanvasCtx === null) {
+    if (canvasContext === null || rulerCanvasCtx === null || 
+      backgroundCanvasCtx === null || overlayCanvasCtx === null) {
       throw new Error('Canvas context not found');
     }
 
@@ -134,8 +136,6 @@ export class Viewport {
     this.scrollbar              = scrollbar;
     this.markerLabelElement     = markerLabelElement;
     this.altMarkerLabelElement  = altMarkerLabelElement;
-    this.markerElement          = markerElement;
-    this.altMarkerElement       = altMarkerElement;
     this.scrollbarContainer     = scrollbarContainer;
     this.scrollbarCanvasElement = scrollbarCanvas;
     this.scrollbarCanvas        = canvasContext;
@@ -144,16 +144,20 @@ export class Viewport {
     this.rulerCanvas            = rulerCanvasCtx;
     this.backgroundCanvasElement = backgroundCanvas;
     this.backgroundCanvas       = backgroundCanvasCtx;
+    this.overlayCanvasElement   = overlayCanvas;
+    this.overlayCanvas          = overlayCanvasCtx;
     this.scrollAreaBounds       = this.scrollArea.getBoundingClientRect();
 
 
     // click handler to handle clicking inside the waveform viewer
     // gets the absolute x position of the click relative to the scrollable content
-    contentArea.addEventListener('mousedown',        (e) => {this.handleScrollAreaMouseDown(e);});
+    overlayCanvas.addEventListener('mousedown',      (e) => {this.handleScrollAreaMouseDown(e);});
     scrollbar.addEventListener('mousedown',          (e) => {this.handleScrollbarDrag(e);});
     scrollbarContainer.addEventListener('mousedown', (e) => {this.handleScrollbarContainerClick(e);});
+    overlayCanvas.addEventListener('contextmenu',    (e) => {this.handleOverlayContext(e);});
 
     this.handleScrollbarMove = this.handleScrollbarMove.bind(this);
+    this.handleOverlayContext = this.handleOverlayContext.bind(this);
     this.updateViewportWidth = this.updateViewportWidth.bind(this);
     this.handleZoom = this.handleZoom.bind(this);
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
@@ -236,6 +240,9 @@ export class Viewport {
     this.rulerGuideColor = style.getPropertyValue('--vscode-editorIndentGuide-background');
     //this.edgeGuideColor = style.getPropertyValue('--vscode-terminal-findMatchBackground');
     this.edgeGuideColor = style.getPropertyValue('--vscode-terminalOverviewRuler-findMatchForeground');
+
+    // Marker Color
+    this.markerColor = style.getPropertyValue('--vscode-editorLineNumber-activeForeground');
 
     // I calculated this as 174, 176, 173 @ 10% opacity in the default theme, but there was no CSS color that matched
     this.markerAnnotation = document.documentElement.style.getPropertyValue('--vscode-editorOverviewRuler-selectionHighlightForeground');
@@ -321,6 +328,7 @@ export class Viewport {
       if (updateFlag) {netlistData.renderWaveform();}
     });
     this.updateBackgroundCanvas(true);
+    this.updateOverlayCanvas();
   }
 
   addNetlistLink() {
@@ -398,6 +406,20 @@ export class Viewport {
     }
   }
 
+  handleOverlayContext(event: MouseEvent) {
+    const rowId = this.getRowIdFromMouseEvent(event);
+    if (rowId === null) {
+      this.overlayCanvasElement.setAttribute('data-vscode-context', "");
+      return;
+    }
+    const signalItem = dataManager.rowItems[rowId];
+    if (!signalItem) {
+      this.overlayCanvasElement.setAttribute('data-vscode-context', "");
+      return;
+    }
+    this.overlayCanvasElement.setAttribute('data-vscode-context', signalItem.vscodeContext);
+  }
+
   handleScrollAreaMouseDown(event: MouseEvent) {
     if (event.button === 1) {
       this.handleScrollAreaClick(event, 1);
@@ -406,6 +428,8 @@ export class Viewport {
       viewerState.mouseupEventType    = 'markerSet';
 
       if (!this.highlightListenerSet) {
+        const rowId = this.getRowIdFromMouseEvent(event);
+        if (rowId === null) {return;}
         this.scrollArea.addEventListener('mousemove', this.drawHighlightZoom, false);
         this.highlightListenerSet = true;
       }
@@ -477,8 +501,6 @@ export class Viewport {
   handleScrollbarContainerClick(e: MouseEvent) {
     e.preventDefault();
     if (this.scrollbarHidden) {return;}
-    //const scrollbarBounds = this.scrollbarContainer.getBoundingClientRect();
-    //const scrollbarX      = e.clientX - scrollbarBounds.left;
     const scrollbarX      = e.clientX - this.scrollAreaBounds.left;
     const newPosition     = Math.min(Math.max(0, scrollbarX - (this.scrollbarWidth / 2)), this.maxScrollbarPosition);
     const newScrollLeft   = Math.round((newPosition / this.maxScrollbarPosition) * this.maxScrollLeft);
@@ -521,7 +543,6 @@ export class Viewport {
     this.highlightEndEvent = event;
     const width       = Math.abs(this.highlightEndEvent.pageX - this.highlightStartEvent.pageX);
     const left        = Math.min(this.highlightStartEvent.pageX, this.highlightEndEvent.pageX);
-    //const elementLeft = left - this.scrollArea.getBoundingClientRect().left;
     const elementLeft = left - this.scrollAreaBounds.left;
     const style       = `left: ${elementLeft}px; width: ${width}px; height: ${this.contentArea.clientHeight};`;
   
@@ -556,18 +577,15 @@ export class Viewport {
 
   updateMarker() {
     const clamp = 100;
-    if (this.markerElement && viewerState.markerTime !== null) {
+    if (viewerState.markerTime !== null) {
       const screenX = this.getViewportLeft(viewerState.markerTime, clamp);
-      this.markerElement.style.left = screenX + 'px';
       this.markerLabelElement.style.left = screenX + 'px';
-      
     }
-    if (this.altMarkerElement && viewerState.altMarkerTime !== null) {
+    if (viewerState.altMarkerTime !== null) {
       const screenX = this.getViewportLeft(viewerState.altMarkerTime, clamp);
-      this.altMarkerElement.style.left = screenX + 'px';
       this.altMarkerLabelElement.style.left = screenX + 'px';
-
     }
+    this.updateOverlayCanvas();
   }
 
   renderAllWaveforms(skipRendered: boolean) {
@@ -623,6 +641,7 @@ export class Viewport {
     //updateDisplayedSignalsFlat();
     this.updateSignalOrder();
     this.updateBackgroundCanvas(true);
+    this.updateOverlayCanvas();
 
     if (this.waveformArea.children.length === 0) {
       this.addNetlistLink();
@@ -632,11 +651,9 @@ export class Viewport {
   handleMarkerSet(time: number, markerType: number) {
     if (time > this.timeStop || time < 0) {return;}
 
-    let element = markerType === 0 ? this.markerElement : this.altMarkerElement;
     let labelElement = markerType === 0 ? this.markerLabelElement : this.altMarkerLabelElement;
 
     if (time === null) {
-      element.style.display = 'none';
       labelElement.style.display = 'none';
       return;
     }
@@ -652,7 +669,6 @@ export class Viewport {
 
     this.updateMarker();
     this.updateScrollContainer();
-    element.style.display = 'block';
     labelElement.style.display = 'block';
     labelElement.innerText = this.scaleTime(time) + ' ' + this.displayTimeUnit;
   }
@@ -898,6 +914,33 @@ export class Viewport {
     ctx.stroke();
   }
 
+  updateOverlayCanvas() {
+    const ctx = this.overlayCanvas;
+    ctx.clearRect(0, 0, this.viewerWidth, this.viewerHeight);
+    ctx.strokeStyle = this.markerColor;
+    ctx.lineWidth = 1;
+
+    // set stroke dash array to 2 2
+    ctx.setLineDash([2, 2]);
+
+    if (viewerState.markerTime !== null) {
+      const markerX = this.getViewportLeft(viewerState.markerTime, 100);
+      ctx.beginPath();
+      ctx.moveTo(markerX, RULER_HEIGHT);
+      ctx.lineTo(markerX, this.waveformsHeight);
+      ctx.stroke();
+    }
+
+    ctx.setLineDash([6, 2, 2, 2]);
+    if (viewerState.altMarkerTime !== null) {
+    const altMarkerX = this.getViewportLeft(viewerState.altMarkerTime, 100);
+      ctx.beginPath();
+      ctx.moveTo(altMarkerX, RULER_HEIGHT);
+      ctx.lineTo(altMarkerX, this.waveformsHeight);
+      ctx.stroke();
+    }
+  }
+
   setViewportRange(startTime: number, endTime: number) {
     if (this.updatePending) {return;}
     if (startTime < 0 || endTime <= startTime || endTime > this.timeStop) {
@@ -988,6 +1031,7 @@ export class Viewport {
     }
     this.updateBackgroundCanvas(true);
     this.renderAllWaveforms(false);
+    this.updateOverlayCanvas();
   }
 
   handleRedrawSignal(rowId: RowId) {
@@ -1016,6 +1060,7 @@ export class Viewport {
     this.resizeCanvas(this.scrollbarCanvasElement, this.scrollbarCanvas, this.viewerWidth, 10);
     this.resizeCanvas(this.rulerCanvasElement, this.rulerCanvas, this.viewerWidth, RULER_HEIGHT);
     this.resizeCanvas(this.backgroundCanvasElement, this.backgroundCanvas, this.viewerWidth, this.viewerHeight);
+    this.resizeCanvas(this.overlayCanvasElement, this.overlayCanvas, this.viewerWidth, this.viewerHeight);
 
     // Update Waveform Canvas Dimensions
     dataManager.rowItems.forEach((netlistItem) => {

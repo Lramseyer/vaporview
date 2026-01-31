@@ -19,7 +19,7 @@ export function setRenderBounds(netlistData: VariableItem, waveformData: Wavefor
   let   postState    = valueChanges[endIndex];
 
   if (endIndex >= valueChanges.length) {
-    postState = [viewport.viewerWidth * viewport.pixelTime, ''];
+    postState = [viewport.timeStop, ''];
   }
 
   const renderBounds = {
@@ -549,9 +549,8 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
 
 function createAnalogWaveform(valueChangeChunk: any, netlistData: VariableItem, viewportSpecs: any, stepped: boolean, evalCoordinates: (v: string) => number) {
 
-  const ctx            = netlistData.ctx;
+  const ctx              = netlistData.ctx;
   if (!ctx) {return;}
-
   const transitionData   = valueChangeChunk.valueChanges;
   const initialState     = valueChangeChunk.initialState;
   const postState        = valueChangeChunk.postState;
@@ -582,11 +581,11 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: VariableItem, 
 
   let value2state    = "0";
   // No Draw Code
-  let lastDrawTime   = 0;
+  let lastDrawTime        = 0;
   let lastNoDrawTime: any = null;
-  let noDrawFlag     = false;
-  let noDrawPath: any[]     = [];
-  let lastDrawValue  = initialValue2state;
+  let noDrawFlag          = false;
+  let noDrawPath: any[]   = [];
+  let lastDrawValue       = initialValue2state;
   let lastNoDrawValue: any = null;
 
   for (let i = startIndex; i < endIndex; i++) {
@@ -666,6 +665,8 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: VariableItem, 
   }
 
   accumulatedPath.push([postState[0], 0]);
+
+  console.log(accumulatedPath);
 
   const drawColor  = netlistData.color;
   const xzColor    = viewportSpecs.xzColor;

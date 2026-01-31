@@ -405,8 +405,6 @@ export class WaveformDataManager {
     const rowId = this.nextRowId;
     this.nextRowId++;
 
-    
-
   }
 
   addSignalList(signalList: any, parentGroupId: number | undefined) {

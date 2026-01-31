@@ -437,6 +437,7 @@ body {
   font-family: var(--vscode-font-family);
   font-size: var(--vscode-font-size);
   padding: 0px 8px 0px 8px;
+  z-index: 50;
 }
 
 #netlist-link-text {

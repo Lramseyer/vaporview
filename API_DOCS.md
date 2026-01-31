@@ -156,6 +156,7 @@ Add a variable to the viewer. If a scope is specified, it will add all of the sc
 - **msb** - (Optional) - Most Significant Bit
 - **lsb** - (Optional) - Least Significant Bit
 - **recursive** - (optional) - If a path to a scope is specified, it will recursively add all of the children if set to true
+- **reveal** - (Optional) - If the variable is already displayed, it will select it instead of adding another instance. Note that this only applies to netlist variables.
 
 Note that a variable must be specified with at least of the following set of keys, and priority is as follows:
 

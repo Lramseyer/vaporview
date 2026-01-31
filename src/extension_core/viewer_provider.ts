@@ -951,7 +951,12 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
           const recursive = e.recursive === true;
           this.addAllInScopeToDocument(metadata, recursive, 128);
         } else {
-          document.renderSignals([metadata.netlistId], [], undefined);
+          const isDisplayed = document.isSignalDisplayed(metadata.netlistId);
+          if (e.reveal === true && isDisplayed) {
+            document.revealSignalInWebview(metadata.netlistId);
+          } else {
+            document.renderSignals([metadata.netlistId], [], undefined);
+          }
         }
         break;
       } 
@@ -985,10 +990,11 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       document.reveal();
     }
 
+    const markerType = e.markerType || 0;
     if (e.units !== undefined) {
-      this.setMarkerAtTimeWithUnits(e.time, e.units, e.markerType);
+      this.setMarkerAtTimeWithUnits(e.time, e.units, markerType);
     } else {
-      this.setMarkerAtTime(e.time, e.markerType);
+      this.setMarkerAtTime(e.time, markerType);
     }
   }
 

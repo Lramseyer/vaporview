@@ -820,7 +820,7 @@ class VaporviewWebview {
     dataManager.unload();
     labelsPanel.renderLabelsPanels();
     // we don't need to do anything to the viewport, because the ready message will reinitialize it
-    vscode.postMessage({type: 'ready'});
+    vscode.postMessage({command: 'ready'});
   }
 
   removeVariable(netlistId: NetlistId | undefined, rowId: RowId | undefined, removeAllSelected: boolean | undefined) {

@@ -230,7 +230,7 @@ export class WasmFormatHandler implements WaveformFileParser {
 
   async loadBody() {
     if (this.fileType === 'vcd') {
-      vscode.window.withProgress({
+      await vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
         title: "Parsing Waveforms for " + this.uri.fsPath,
         cancellable: false

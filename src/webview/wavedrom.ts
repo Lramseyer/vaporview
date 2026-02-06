@@ -1,5 +1,5 @@
 import { vscode, viewerState, dataManager, ValueChange } from "./vaporview";
-import { VariableItem } from "./signal_item";
+import { NetlistVariable } from "./signal_item";
 
 // Maximum number of transitions to display
 // Maybe I should make dataManager a user setting in the future...
@@ -21,7 +21,7 @@ export function copyWaveDrom() {
   viewerState.displayedSignalsFlat.forEach((rowId) => {
 
     const netlistItem: any = dataManager.rowItems[rowId];
-    if (netlistItem === undefined || netlistItem instanceof VariableItem === false) {return;}
+    if (netlistItem === undefined || netlistItem instanceof NetlistVariable === false) {return;}
     const netlistId       = netlistItem.netlistId;
     const signalName      = netlistItem.scopePath + "." + netlistItem.signalName;
     const signalId        = netlistItem.signalId;
@@ -61,7 +61,7 @@ export function copyWaveDrom() {
         transitionCount++;
         viewerState.displayedSignalsFlat.forEach((rowId) => {
           const varItem = dataManager.rowItems[rowId];
-          if (varItem instanceof VariableItem === false) {return;}
+          if (varItem instanceof NetlistVariable === false) {return;}
           const n = dataManager.rowItems[rowId].netlistId;
           if (n === undefined) {return;}
           const signal = waveDromData[n];
@@ -94,7 +94,7 @@ export function copyWaveDrom() {
       viewerState.displayedSignalsFlat.forEach((rowId) => {
 
         const varItem = dataManager.rowItems[rowId];
-        if (varItem instanceof VariableItem === false) {return;}
+        if (varItem instanceof NetlistVariable === false) {return;}
         const n = varItem.netlistId;
         const signal = waveDromData[n];
         const signalData = signal.signalData;

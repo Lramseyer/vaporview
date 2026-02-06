@@ -9,7 +9,7 @@
 // contributes.menus.vaporview.valueFormat.
 // 3. Register the new command in the extension.ts (which has examples)
 
-import { htmlSafe, VariableItem } from "./signal_item";
+import { htmlSafe, NetlistVariable, CustomVariable } from "./signal_item";
 import { dataManager, outputLog } from "./vaporview";
 import { vscode } from "./vaporview";
 
@@ -481,7 +481,7 @@ export class EnumValueFormat implements ValueFormat {
   constructor(public enumType: string) {this.enumType = enumType;}
 
   public formatString = (inputString: string, width: number, is2State: boolean) => {
-    // This function is a placeholder and will be replaced in the VariableItem class
+    // This function is a placeholder and will be replaced in the NetlistVariable class
     const enumTable = dataManager.enumTable[this.enumType];
     if (!enumTable) {return htmlSafe(inputString);}
     const result = enumTable.find((entry) => {return entry[0] === inputString;});
@@ -559,7 +559,7 @@ export const valueFormatList: ValueFormat[] = [
   formatString
 ];
 
-export function getNumberFormatById(netlistData: VariableItem, numberFormatId: string): ValueFormat {
+export function getNumberFormatById(netlistData: NetlistVariable | CustomVariable, numberFormatId: string): ValueFormat {
   let valueFormat = valueFormatList.find((format) => format.id === numberFormatId);
   if (valueFormat !== undefined) {return valueFormat;}
   if (numberFormatId === "enum") {

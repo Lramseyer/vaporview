@@ -1,7 +1,7 @@
-import { dataManager, viewport, CollapseState, NetlistId, RowId, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, WAVE_HEIGHT, sendWebviewContext } from "./vaporview";
+import { dataManager, viewport, CollapseState, NetlistId, RowId, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, WAVE_HEIGHT, sendWebviewContext, SignalId } from "./vaporview";
 import { EnumValueFormat, formatBinary, formatHex, formatString, ValueFormat } from "./value_format";
 import { WaveformRenderer, setRenderBounds } from "./renderer";
-import { WaveformData } from "./data_manager";
+import { WaveformData, BitRangeSource } from "./data_manager";
 import { vscode, labelsPanel } from "./vaporview";
 import { LabelsPanels } from "./labels";
 
@@ -19,6 +19,11 @@ export function htmlAttributeSafe(string: string) {
   return string.replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 
+export function isAnalogSignal(renderType: WaveformRenderer) {
+  return renderType.id === 'linear' || renderType.id === 'linearSigned' ||
+         renderType.id === 'stepped' || renderType.id === 'steppedSigned';
+}
+
 function getColorFromColorIndex(colorIndex: number) {
   if (colorIndex < 4) {
     return viewport.colorKey[colorIndex];
@@ -27,7 +32,7 @@ function getColorFromColorIndex(colorIndex: number) {
   }
 }
 
-function mouseOverHandler(event: MouseEvent, signalItem: VariableItem, checkBounds: boolean) {
+function mouseOverHandler(event: MouseEvent, signalItem: NetlistVariable, checkBounds: boolean) {
   if (!event.target) {return;}
 
   let redraw        = false;
@@ -65,6 +70,8 @@ function mouseOverHandler(event: MouseEvent, signalItem: VariableItem, checkBoun
   }
 }
 
+export type VariableItem = NetlistVariable | CustomVariable;
+
 export abstract class SignalItem {
 
   public labelElement: HTMLElement | null = null
@@ -84,8 +91,9 @@ export abstract class SignalItem {
   public rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number {return 1;}
   public findParentGroupId(rowId: RowId): number | null {return null;}
   public formatValue(value: any): string {return "";}
+  public getWaveformData(): WaveformData | undefined {return undefined;}
   public renderWaveform() {return;}
-  public handleValueLink(time: number, snapToTime: number) {return;}
+  public handleValueLink(time: number, snapToTime: number) {return false;}
   public getAllEdges(valueList: string[]): number[] {return [];}
   public getNextEdge(time: number, direction: number, valueList: string[]): number | null {return null;}
   public resize() {return;}
@@ -118,9 +126,10 @@ export interface RowItem {
   getAllEdges(valueList: string[]): number[];
   getNextEdge(time: number, direction: number, valueList: string[]): number | null;
   getNearestTransition(time: number | null): [number, string] | null;
+  getWaveformData(): WaveformData | undefined;
 
   renderWaveform(): void;
-  handleValueLink(time: number, snapToTime: number): void;
+  handleValueLink(time: number, snapToTime: number): boolean;
   resize(): void;
 
   dispose(): void;
@@ -179,7 +188,7 @@ export class SignalSeparator extends SignalItem implements RowItem {
   setLabelText(newLabel: string) {this.label = newLabel;}
 }
 
-export class VariableItem extends SignalItem implements RowItem {
+export class NetlistVariable extends SignalItem implements RowItem {
 
   public valueFormat: ValueFormat;
   public valueLinkCommand: string = "";
@@ -295,12 +304,9 @@ export class VariableItem extends SignalItem implements RowItem {
     this.viewportElement = waveformContainer;
   }
 
-  public isAnalogSignal() {return this.renderType.id === 'linear' || this.renderType.id === 'linearSigned' ||
-                            this.renderType.id === 'stepped' || this.renderType.id === 'steppedSigned';}
-
   public setSignalContextAttribute() {
     const renderType = this.renderType.id;
-    const isAnalog = this.isAnalogSignal();
+    const isAnalog = isAnalogSignal(this.renderType);
     this.vscodeContext = `${JSON.stringify({
       webviewSection: "signal",
       scopePath: this.scopePath,
@@ -349,11 +355,17 @@ export class VariableItem extends SignalItem implements RowItem {
   }
 
   public getValueAtTime(time: number | null) {
-    return dataManager.getValueAtTime(this.signalId, time);
+    const data = dataManager.valueChangeData[this.signalId];
+    return dataManager.getValueAtTime(data, time);
   }
 
   public getNearestTransition(time: number | null) {
-    return dataManager.getNearestTransition(this.signalId, time);
+    const data = dataManager.valueChangeData[this.signalId];
+    return dataManager.getNearestTransition(data, time);
+  }
+
+  public getWaveformData(): WaveformData | undefined {
+    return dataManager.valueChangeData[this.signalId];
   }
 
   public setColorFromColorIndex() {
@@ -361,11 +373,13 @@ export class VariableItem extends SignalItem implements RowItem {
   }
 
   public getAllEdges(valueList: string[]): number[] {
-    return dataManager.getAllEdges(valueList, this.signalId, this.signalWidth);
+    const data = dataManager.valueChangeData[this.signalId];
+    return dataManager.getAllEdges(valueList, data, this.signalWidth);
   }
 
   public getNextEdge(time: number, direction: number, valueList: string[]): number | null {
-    return dataManager.getNextEdge(this.signalId, time, direction, valueList);
+    const data = dataManager.valueChangeData[this.signalId];
+    return dataManager.getNextEdge(data, time, direction, valueList);
   }
 
   public resize() {
@@ -384,6 +398,9 @@ export class VariableItem extends SignalItem implements RowItem {
 
   handleValueLink(time: number, snapToTime: number): boolean {
 
+    const data = dataManager.valueChangeData[this.signalId];
+
+    if (!data) {return false;}
     if (this.valueLinkCommand === "") {return false;}
     if (this.renderType.id !== 'multiBit') {return false;}
     if (this.valueLinkIndex < 0) {return false;}
@@ -391,7 +408,7 @@ export class VariableItem extends SignalItem implements RowItem {
 
     const command        = this.valueLinkCommand;
     const signalId       = this.signalId;
-    const index          = dataManager.getNearestTransitionIndex(signalId, time) - 1;
+    const index          = dataManager.getNearestTransitionIndex(data, time) - 1;
     const valueChange    = dataManager.valueChangeData[signalId].valueChangeData[index];
     const timeValue      = valueChange[0];
     const value          = valueChange[1];
@@ -422,6 +439,203 @@ export class VariableItem extends SignalItem implements RowItem {
     this.valueDisplayElement = null;
     this.viewportElement = null;
   }
+}
+
+export class CustomVariable extends SignalItem implements RowItem {
+
+  public valueFormat: ValueFormat;
+  public valueLinkCommand: string = "";
+  public valueLinkBounds: [number, number][] = [];
+  public valueLinkIndex: number = -1;
+  public colorIndex: number = 0;
+  public color: string = "";
+  public rowHeight: number = 1;
+  public wasRendered: boolean = false;
+  public canvas: HTMLCanvasElement | null = null
+  public ctx: CanvasRenderingContext2D | null = null
+  public verticalScale: number = 1;
+  public nameType: NameType = NameType.fullPath;
+  public customName: string = "";
+  public min: number = 0;
+  public max: number = 0;
+  public variableType: string = "custom";
+  public encoding: string = "BitVector";
+  public enumType: string = "";
+
+  constructor(
+    public rowId: number,
+    public source: BitRangeSource[],
+    public customSignalId: number,
+    public signalName: string,
+    public signalWidth: number,
+    public renderType: WaveformRenderer,
+  ) {
+    super();
+    this.customName = this.signalName;
+    this.valueFormat = this.signalWidth === 1 ? formatBinary : formatHex;
+    this.setSignalContextAttribute();
+    this.setColorFromColorIndex();
+  }
+
+  public createWaveformRowContent(): string {
+
+    if (this.nameType === NameType.custom) {
+      return `<p>${htmlSafe(this.customName)}</p>`;
+    } else {
+      return `<p>${htmlSafe(this.signalName)}</p>`;
+    }
+  }
+
+  public createLabelElement() {
+
+    const height        = getRowHeightCssClass(this.rowHeight);
+    const signalName    = htmlSafe(this.signalName);
+    const isSelectedClass   = this.isSelected ? 'is-selected' : '';
+    const lastSelectedClass = viewerState.lastSelectedSignal === this.rowId ? 'last-selected' : '';
+    const selectorClass = isSelectedClass + ' ' + lastSelectedClass;
+    const tooltip       = "Name: " + signalName + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
+    return `<div class="waveform-label is-idle" id="label-${this.rowId}" title="${tooltip}" data-vscode-context=${this.vscodeContext}>
+              <div class='waveform-row ${selectorClass} ${height}'>${this.createWaveformRowContent()}</div>
+            </div>`;
+    }
+
+    public createValueDisplayElement() {
+
+      let   value = labelsPanel.valueAtMarker[this.rowId];
+      if (value === undefined) {value = [];}
+      const isSelectedClass   = this.isSelected ? 'is-selected' : '';
+      const lastSelectedClass = viewerState.lastSelectedSignal === this.rowId ? 'last-selected' : '';
+      const selectorClass = isSelectedClass + ' ' + lastSelectedClass;
+      const height        = getRowHeightCssClass(this.rowHeight);
+      const joinString    = '<p style="color:var(--vscode-foreground)">-></p>';
+      const parseValue    = this.valueFormat.formatString;
+      const valueIs9State = this.valueFormat.is9State;
+      const pElement      = value.map((v: string) => {
+        const is9State     = valueIs9State(v);
+        const colorStyle   = is9State ? 'var(--vscode-debugTokenExpression-error)' : this.color;
+        const displayValue = parseValue(v, this.signalWidth, !is9State);
+        return `<p style="color:${colorStyle}">${displayValue}</p>`;
+      }).join(joinString);
+  
+      return `<div class="value-display-item ${selectorClass} ${height}" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}>${pElement}</div>`;
+    }
+
+  public createViewportElement(rowId: number) {
+
+    const canvas = document.createElement('canvas');
+    canvas.setAttribute('id', 'waveform-canvas-' + rowId);
+    canvas.classList.add('waveform-canvas');
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    const canvasHeight = (this.rowHeight * WAVE_HEIGHT) - 8;
+    if (this.ctx) {
+      viewport.resizeCanvas(canvas, this.ctx, viewport.viewerWidth, canvasHeight);
+    }
+    const waveformContainer = document.createElement('div');
+    waveformContainer.setAttribute('id', 'waveform-' + rowId);
+    waveformContainer.classList.add('waveform-container');
+    waveformContainer.appendChild(canvas);
+    waveformContainer.setAttribute("data-vscode-context", this.vscodeContext);
+    this.viewportElement = waveformContainer;
+  }
+
+  public setSignalContextAttribute() {
+    const renderType = this.renderType.id;
+    const isAnalog = isAnalogSignal(this.renderType);
+    this.vscodeContext = `${JSON.stringify({
+      webviewSection: "signal",
+      signalName: this.signalName,
+      type: this.variableType,
+      width: this.signalWidth,
+      preventDefaultContextMenuItems: true,
+      rowId: this.rowId,
+      isAnalog: isAnalog,
+    }).replace(/\s/g, '%x20')}`;
+  }
+
+  public getLabelText(): string {
+    if (this.nameType === NameType.custom) {
+      return this.customName;
+    } else if (this.nameType === NameType.signalName) {
+      return this.signalName;
+    } else {
+      return this.signalName;
+    }
+  }
+
+  public setLabelText(newLabel: string) {
+    this.customName = newLabel;
+    this.nameType = NameType.custom;
+  }
+
+  public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {
+    if (ignoreRowId === this.rowId) {return [];}
+    return [this.rowId];
+  }
+
+  public renderWaveform() {
+
+    const data = dataManager.customValueChangeData[this.customSignalId];
+
+    if (!data) {return;}
+    if (!this.ctx) {return;}
+
+    const valueChangeChunk = setRenderBounds(this, data);
+    this.renderType.draw(valueChangeChunk, this, viewport);
+    this.wasRendered = true;
+  }
+
+  public getValueAtTime(time: number | null) {
+    const data = dataManager.customValueChangeData[this.customSignalId];
+    return dataManager.getValueAtTime(data, time);
+  }
+
+  public getNearestTransition(time: number | null) {
+    const data = dataManager.customValueChangeData[this.customSignalId];
+    return dataManager.getNearestTransition(data, time);
+  }
+
+  public getWaveformData(): WaveformData | undefined {
+    return dataManager.customValueChangeData[this.customSignalId];
+  }
+
+  public setColorFromColorIndex() {
+    this.color = getColorFromColorIndex(this.colorIndex);
+  }
+
+  public getAllEdges(valueList: string[]): number[] {
+    const data = dataManager.customValueChangeData[this.customSignalId];
+    return dataManager.getAllEdges(valueList, data, this.signalWidth);
+  }
+
+  public getNextEdge(time: number, direction: number, valueList: string[]): number | null {
+    const data = dataManager.customValueChangeData[this.customSignalId];
+    return dataManager.getNextEdge(data, time, direction, valueList);
+  }
+
+  public resize() {
+    if (!this.canvas || !this.ctx) {return;}
+    const canvasHeight = (this.rowHeight * WAVE_HEIGHT) - 8;
+    viewport.resizeCanvas(this.canvas, this.ctx, viewport.viewerWidth, canvasHeight);
+  }
+
+  //handleValueLinkMouseOver(event: MouseEvent) {
+  //  mouseOverHandler(event, this, true);
+  //}
+
+  //handleValueLinkMouseExit(event: MouseEvent) {
+  //  mouseOverHandler(event, this, false);
+  //}
+
+  public dispose() {
+    this.canvas?.remove();
+    this.canvas = null;
+    this.ctx = null;
+    this.labelElement = null;
+    this.valueDisplayElement = null;
+    this.viewportElement = null;
+  }
+
 }
 
 export class SignalGroup extends SignalItem implements RowItem {
@@ -557,7 +771,7 @@ export class SignalGroup extends SignalItem implements RowItem {
       if (!viewportRow) {return;}
       viewportRow.style.display = style;
       const signalItem = dataManager.rowItems[rowId];
-      if (signalItem instanceof VariableItem) {
+      if (signalItem instanceof NetlistVariable) {
         signalItem.wasRendered = false; // Reset rendering state for child signals
       }
       viewport.updateBackgroundCanvas(true);

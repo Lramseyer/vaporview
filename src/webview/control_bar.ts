@@ -1,7 +1,7 @@
 import { commands } from 'vscode';
 import {ActionType, EventHandler, viewerState, viewport, dataManager, vscode, RowId, sendWebviewContext} from './vaporview';
 import { sign, Sign } from 'crypto';
-import { VariableItem } from './signal_item';
+import { CustomVariable, NetlistVariable } from './signal_item';
 
 enum ButtonState {
   Disabled = 0,
@@ -243,7 +243,7 @@ export class ControlBar {
     let isSingleBit: boolean[] = [];
     rowIdList.forEach((rowId) => {
       const signalItem = dataManager.rowItems[rowId];
-      if (signalItem instanceof VariableItem === false) {return;}
+      if (!(signalItem instanceof NetlistVariable) && !(signalItem instanceof CustomVariable)) {return;}
       isSingleBit.push(signalItem.signalWidth === 1);
     });
     const allSingleBit = isSingleBit.reduce((prev, curr) => {return prev && curr;}, true);
@@ -298,8 +298,9 @@ export class ControlBar {
     //console.log(this.searchState);
     if (viewerState.selectedSignal.length === 1) {
       const rowId  = viewerState.selectedSignal[0];
-      if (dataManager.rowItems[rowId] instanceof VariableItem) {
-        const format = dataManager.rowItems[rowId].valueFormat;
+      const rowItem = dataManager.rowItems[rowId];
+      if (rowItem instanceof NetlistVariable || rowItem instanceof CustomVariable) {
+        const format = rowItem.valueFormat;
         const checkValidSearch = format.checkValidSearch;
         const parseValue = format.parseSearchValue;
 
@@ -340,8 +341,9 @@ export class ControlBar {
   
     const rowId  = viewerState.selectedSignal[0];
     const rowItem = dataManager.rowItems[rowId];
-    if (rowItem === undefined || rowItem instanceof VariableItem === false) {return;}
-    const signalId = rowItem.signalId;
+    if (rowItem === undefined || !(rowItem instanceof NetlistVariable) && !(rowItem instanceof CustomVariable)) {return;}
+    const data = rowItem.getWaveformData();
+    if (data === undefined) {return;}
     const format   = rowItem.valueFormat;
     const checkSearchValue = format.checkSearchValue;
   
@@ -349,9 +351,9 @@ export class ControlBar {
       this.events.dispatch(ActionType.MarkerSet, parseInt(this.parsedSearchValue), 0);
       updateState = true;
     } else {
-      const signalWidth     = dataManager.valueChangeData[signalId].signalWidth;
+      const signalWidth     = data.signalWidth;
       //if (this.parsedSearchValue.length > signalWidth) {trimmedSearchValue = this.parsedSearchValue.slice(-1 * signalWidth);}
-      const data            = dataManager.valueChangeData[signalId];
+
       const valueChangeData = data.valueChangeData;
       const formattedData   = data.formattedValues;
       if (!formattedData[format.id]) {return;}
@@ -403,14 +405,14 @@ export class ControlBar {
 
     if (rowIdList.length !== 1) {return;}
     const signalItem = dataManager.rowItems[rowIdList[0]];
-    if (signalItem && signalItem instanceof VariableItem) {
+    if (signalItem && (signalItem instanceof NetlistVariable || signalItem instanceof CustomVariable)) {
       this.valueEqualsSymbol.textContent = signalItem.valueFormat.symbolText;
     }
   }
 
   handleRedrawVariable(rowId: RowId) {
     const rowItem = dataManager.rowItems[rowId];
-    if (rowItem === undefined || rowItem instanceof VariableItem === false) {return;}
+    if (!(rowItem instanceof NetlistVariable) && !(rowItem instanceof CustomVariable)) {return;}
     if (rowId === viewerState.selectedSignal[0]) {
       this.valueEqualsSymbol.textContent = rowItem.valueFormat.symbolText;
     }

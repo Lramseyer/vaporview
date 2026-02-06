@@ -3,7 +3,7 @@ import { Viewport } from './viewport';
 import { LabelsPanels } from './labels';
 import { ControlBar } from './control_bar';
 import { WaveformDataManager } from './data_manager';
-import { VariableItem, SignalGroup, SignalSeparator, RowItem, NameType } from './signal_item';
+import { NetlistVariable, CustomVariable, SignalGroup, SignalSeparator, RowItem, NameType } from './signal_item';
 import { copyWaveDrom } from './wavedrom';
 
 declare function acquireVsCodeApi(): VsCodeApi;
@@ -281,7 +281,7 @@ function createWebviewContext() {
   let selectedNetlistId: any = null; 
   if (viewerState.selectedSignal.length === 1) {
     const data = dataManager.rowItems[viewerState.selectedSignal[0]];
-    if (data instanceof VariableItem) {
+    if (data instanceof NetlistVariable) {
       selectedNetlistId = data.netlistId;
     }
   }
@@ -317,7 +317,7 @@ function signalListForSaveFile(rowIdList: RowId[]): any[] {
         rowHeight: data.rowHeight,
       });
     }
-    if (!(data instanceof VariableItem)) {return;}
+    if (!(data instanceof NetlistVariable)) {return;}
 
     const netlistId = data.netlistId;
     result.push({
@@ -654,7 +654,7 @@ class VaporviewWebview {
     rowIdList.forEach((rowId) => {
       if (rowId === null) {return;}
       const netlistData = dataManager.rowItems[rowId];
-      if (!(netlistData instanceof VariableItem)) {return;}
+      if (!(netlistData instanceof NetlistVariable) && !(netlistData instanceof CustomVariable)) {return;}
       const renderType = netlistData.renderType.id;
       if (renderType === "multiBit" || renderType === "binary") {return;}
       netlistData.verticalScale = Math.max(1, netlistData.verticalScale * scale);
@@ -766,7 +766,7 @@ class VaporviewWebview {
     rowIdList.forEach(rowId => {
       const netlistData = dataManager.rowItems[rowId];
       if (netlistData === undefined) {return;}
-      if (!(netlistData instanceof VariableItem)) {return;}
+      if (!(netlistData instanceof NetlistVariable)) {return;}
       netlistIdList.push(netlistData.netlistId);
       let instancePath = netlistData.scopePath + '.' + netlistData.signalName;
       if (netlistData.scopePath === "") {instancePath = netlistData.signalName;}
@@ -897,7 +897,7 @@ class VaporviewWebview {
     const netlistIdList: number[] = []
     rowIdList.forEach(rowId => {
       const signalItem = dataManager.rowItems[rowId];
-      if (!(signalItem instanceof VariableItem)) {return;}
+      if (!(signalItem instanceof NetlistVariable)) {return;}
       netlistIdList.push(signalItem.netlistId);
       instancePathList.push(signalItem.scopePath + '.' + signalItem.signalName);
     });

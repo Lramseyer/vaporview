@@ -1,7 +1,7 @@
 import { EventHandler, viewport, arrayMove, NetlistId, ActionType, viewerState, dataManager, RowId, getChildrenByGroupId, getIndexInGroup, sendWebviewContext, handleClickSelection} from './vaporview';
 import { ValueFormat } from './value_format';
 import { vscode, getParentGroupId } from './vaporview';
-import { SignalGroup, VariableItem, SignalItem, RowItem, htmlSafe } from './signal_item';
+import { SignalGroup, NetlistVariable, SignalItem, RowItem, htmlSafe, CustomVariable, SignalSeparator } from './signal_item';
 import { sign } from 'crypto';
 
 export class LabelsPanels {
@@ -147,7 +147,7 @@ export class LabelsPanels {
     const value = this.valueAtMarker[rowId];
     if (value === undefined) {return;}
     const variableItem = dataManager.rowItems[rowId];
-    if (!(variableItem instanceof VariableItem)) {return;}
+    if (!(variableItem instanceof NetlistVariable) && !(variableItem instanceof CustomVariable)) {return;}
 
     const formatString   = variableItem.valueFormat.formatString;
     const width          = variableItem.signalWidth;
@@ -181,7 +181,7 @@ export class LabelsPanels {
         const childGroups = children.filter((id) => dataManager.rowItems[id] instanceof SignalGroup);
         draggableGroups.push(...childGroups);
         this.draggableRows.push(...children);
-      } else if (signalItem instanceof VariableItem) {
+      } else if (signalItem instanceof NetlistVariable || signalItem instanceof CustomVariable || signalItem instanceof SignalSeparator) {
         draggableSignals.push(rowId);
         this.draggableRows.push(rowId);
       }

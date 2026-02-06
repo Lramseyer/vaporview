@@ -2,7 +2,7 @@ import { vscode, arrayMove, sendWebviewContext, SignalId, ValueChange, ActionTyp
 import { ValueFormat } from './value_format';
 import { WaveformRenderer } from './renderer';
 import { labelsPanel } from "./vaporview";
-import { VariableItem } from "./signal_item";
+import { CustomVariable, NetlistVariable, VariableItem } from "./signal_item";
 
 const domParser = new DOMParser();
 
@@ -26,7 +26,7 @@ export class Viewport {
   markerLabelElement: HTMLElement;
   altMarkerLabelElement: HTMLElement;
   netlistLinkElement: HTMLElement | null = null;
-  valueLinkObject: VariableItem | null = null;
+  valueLinkObject: NetlistVariable | null = null;
 
   highlightElement: any     = null;
   highlightEndEvent: any    = null;
@@ -456,7 +456,7 @@ export class Viewport {
     const signalItem = dataManager.rowItems[rowId];
     if (!signalItem) {return;}
 
-    if (signalItem instanceof VariableItem) {
+    if (signalItem instanceof NetlistVariable || signalItem instanceof CustomVariable) {
       // Snap to the nearest transition if the click is close enough
       const nearestTransition = signalItem.getNearestTransition(time);
 
@@ -1020,7 +1020,7 @@ export class Viewport {
   updateElementHeight(rowId: RowId) {
     const netlistData = dataManager.rowItems[rowId];
     if (!netlistData) {return;}
-    if (!(netlistData instanceof VariableItem)) {return;}
+    if (!(netlistData instanceof NetlistVariable) && !(netlistData instanceof CustomVariable)) {return;}
     if (netlistData.viewportElement === null) {return;}
     const element = netlistData.viewportElement;
     const rowHeight = (netlistData.rowHeight * WAVE_HEIGHT);

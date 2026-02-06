@@ -1,15 +1,15 @@
 //import { NetlistData } from './vaporview';
-import { VariableItem } from './signal_item';
+import { NetlistVariable, CustomVariable } from './signal_item';
 import { Viewport } from './viewport';
 import { dataManager, viewport, WAVE_HEIGHT } from './vaporview';
 import { WaveformData } from './data_manager';
 
 export interface WaveformRenderer {
   id: string;
-  draw(valueChangeChunk: any, netlistData: VariableItem, viewport: Viewport): void;
+  draw(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable, viewport: Viewport): void;
 }
 
-export function setRenderBounds(netlistData: VariableItem, waveformData: WaveformData) {
+export function setRenderBounds(netlistData: NetlistVariable | CustomVariable, waveformData: WaveformData) {
 
   // find the closest timestamp to timeScrollLeft
   const valueChanges = waveformData.valueChangeData;
@@ -39,7 +39,11 @@ export function setRenderBounds(netlistData: VariableItem, waveformData: Wavefor
       renderBounds.formattedValues = formatInfo.values;
     }
   } else if (waveformData.signalWidth > 1) {
-    console.log(`No cached format found for signalId ${netlistData.signalId} with format ${netlistData.valueFormat.id}`);
+    if (netlistData instanceof NetlistVariable) {
+      console.log(`No cached format found for signalId ${netlistData.signalId} with format ${netlistData.valueFormat.id}`);
+    } else {
+      console.log(`No cached format found for customSignalId ${netlistData.customSignalId} with format ${netlistData.valueFormat.id}`);
+    }
   }
 
   return renderBounds;
@@ -113,7 +117,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     ctx.stroke();
   }
 
-  public draw(valueChangeChunk: any, netlistData: VariableItem, viewportSpecs: Viewport) {
+  public draw(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable, viewportSpecs: Viewport) {
     const ctx            = netlistData.ctx;
     if (!ctx) {return;}
     const transitionData = valueChangeChunk.valueChanges;
@@ -366,7 +370,7 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
   public id: string = "binary";
   constructor() {}
 
-  public draw(valueChangeChunk: any, netlistData: VariableItem, viewportSpecs: Viewport) {
+  public draw(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable, viewportSpecs: Viewport) {
 
     const ctx            = netlistData.ctx;
     if (!ctx) {return;}
@@ -547,7 +551,7 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
   }
 }
 
-function createAnalogWaveform(valueChangeChunk: any, netlistData: VariableItem, viewportSpecs: any, stepped: boolean, evalCoordinates: (v: string) => number) {
+function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable, viewportSpecs: any, stepped: boolean, evalCoordinates: (v: string) => number) {
 
   const ctx              = netlistData.ctx;
   if (!ctx) {return;}
@@ -772,7 +776,7 @@ export class LinearWaveformRenderer implements WaveformRenderer {
     }
   }
 
-  draw(valueChangeChunk: any, netlistData: VariableItem, viewportSpecs: any) {
+  draw(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable, viewportSpecs: any) {
     //const evalCoordinates = getEval(valueChangeChunk.encoding, netlistData.signalWidth, false);
     return createAnalogWaveform(valueChangeChunk, netlistData, viewportSpecs, this.stepped, this.evalCoordinates);
   }

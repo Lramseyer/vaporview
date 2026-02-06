@@ -536,7 +536,7 @@
         },
         {
           "command": "vaporview.newBitSlice",
-          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus && width > 1 && false",
+          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus && width > 1",
           "group": "3_groups@6"
         },
         {

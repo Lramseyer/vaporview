@@ -1,15 +1,11 @@
-import { dataManager, viewport, CollapseState, NetlistId, RowId, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, WAVE_HEIGHT, sendWebviewContext, SignalId } from "./vaporview";
+import { NetlistId, RowId, EnumData, EnumEntry, NameType } from '../common/types';
+
+import { dataManager, viewport, CollapseState, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, WAVE_HEIGHT, sendWebviewContext, rowHandler } from "./vaporview";
 import { EnumValueFormat, formatBinary, formatHex, formatString, ValueFormat } from "./value_format";
 import { WaveformRenderer, setRenderBounds } from "./renderer";
 import { WaveformData, BitRangeSource } from "./data_manager";
 import { vscode, labelsPanel } from "./vaporview";
 import { LabelsPanels } from "./labels";
-
-export enum NameType {
-  fullPath = 'fullPath',
-  signalName = 'signalName',
-  custom = 'custom',
-}
 
 export function htmlSafe(string: string) {
   return string.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -665,7 +661,7 @@ export class SignalGroup extends SignalItem implements RowItem {
     let groupClass = 'collapsed-group';
     if (this.collapseState === CollapseState.Expanded) {
       this.children.forEach((childRowId) => {
-        const signalItem = dataManager.rowItems[childRowId];
+        const signalItem = rowHandler.rowItems[childRowId];
         childElements += signalItem.createLabelElement();
       });
       icon = 'codicon-chevron-down';
@@ -691,7 +687,7 @@ export class SignalGroup extends SignalItem implements RowItem {
     if (value === undefined) {value = [];}
     if (this.collapseState === CollapseState.Expanded) {
       this.children.forEach((childRowId) => {
-        const signalItem = dataManager.rowItems[childRowId];
+        const signalItem = rowHandler.rowItems[childRowId];
         result += signalItem.createValueDisplayElement();
       });
     }
@@ -723,7 +719,7 @@ export class SignalGroup extends SignalItem implements RowItem {
     if (!ignoreCollapsed || this.collapseState === CollapseState.Expanded) {
       this.children.forEach((rowId) => {
         if (rowId === ignoreRowId) {return;} // Skip the ignored rowId
-        const signalItem = dataManager.rowItems[rowId];
+        const signalItem = rowHandler.rowItems[rowId];
         result.push(...signalItem.getFlattenedRowIdList(ignoreCollapsed, ignoreRowId));
       });
     }
@@ -735,7 +731,7 @@ export class SignalGroup extends SignalItem implements RowItem {
     if (!ignoreCollapsed || this.collapseState === CollapseState.Expanded) {
       this.children.forEach((rowId, i) => {
         if (i >= stopIndex) {return;}
-        const signalItem = dataManager.rowItems[rowId];
+        const signalItem = rowHandler.rowItems[rowId];
         total += signalItem.rowIdCount(ignoreCollapsed, Infinity);
       });
     }
@@ -747,7 +743,7 @@ export class SignalGroup extends SignalItem implements RowItem {
       return this.groupId;
     }
     for (const childRowId of this.children) {
-      const signalItem = dataManager.rowItems[childRowId];
+      const signalItem = rowHandler.rowItems[childRowId];
       const parentGroupId = signalItem.findParentGroupId(rowId);
       if (parentGroupId !== null) {
         return parentGroupId;
@@ -761,7 +757,7 @@ export class SignalGroup extends SignalItem implements RowItem {
     const style = this.collapseState === CollapseState.Expanded ? 'flex' : 'none';
     let childRows: number[] = [];
     this.children.forEach((rowId) => {
-      const childRowItem = dataManager.rowItems[rowId];
+      const childRowItem = rowHandler.rowItems[rowId];
       if (!childRowItem) {return;}
       childRows = childRows.concat(childRowItem.getFlattenedRowIdList(true, -1));
     });
@@ -770,7 +766,7 @@ export class SignalGroup extends SignalItem implements RowItem {
       const viewportRow = document.getElementById(`waveform-${rowId}`);
       if (!viewportRow) {return;}
       viewportRow.style.display = style;
-      const signalItem = dataManager.rowItems[rowId];
+      const signalItem = rowHandler.rowItems[rowId];
       if (signalItem instanceof NetlistVariable) {
         signalItem.wasRendered = false; // Reset rendering state for child signals
       }

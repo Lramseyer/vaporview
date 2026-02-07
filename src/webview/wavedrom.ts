@@ -1,4 +1,5 @@
-import { vscode, viewerState, dataManager, ValueChange } from "./vaporview";
+import { NetlistId, SignalId, RowId, EnumData, EnumEntry, ValueChange } from '../common/types';
+import { vscode, viewerState, dataManager, rowHandler } from "./vaporview";
 import { NetlistVariable } from "./signal_item";
 
 // Maximum number of transitions to display
@@ -20,7 +21,7 @@ export function copyWaveDrom() {
   const waveDromData: any = {};
   viewerState.displayedSignalsFlat.forEach((rowId) => {
 
-    const netlistItem: any = dataManager.rowItems[rowId];
+    const netlistItem: any = rowHandler.rowItems[rowId];
     if (netlistItem === undefined || netlistItem instanceof NetlistVariable === false) {return;}
     const netlistId       = netlistItem.netlistId;
     const signalName      = netlistItem.scopePath + "." + netlistItem.signalName;
@@ -60,9 +61,9 @@ export function copyWaveDrom() {
         currentTime = time;
         transitionCount++;
         viewerState.displayedSignalsFlat.forEach((rowId) => {
-          const varItem = dataManager.rowItems[rowId];
+          const varItem = rowHandler.rowItems[rowId];
           if (varItem instanceof NetlistVariable === false) {return;}
-          const n = dataManager.rowItems[rowId].netlistId;
+          const n = rowHandler.rowItems[rowId].netlistId;
           if (n === undefined) {return;}
           const signal = waveDromData[n];
           const parseValue = varItem.valueFormat.formatString;
@@ -93,7 +94,7 @@ export function copyWaveDrom() {
       if (currentTime >= timeWindow[1] || transitionCount >= MAX_TRANSITIONS) {break;}
       viewerState.displayedSignalsFlat.forEach((rowId) => {
 
-        const varItem = dataManager.rowItems[rowId];
+        const varItem = rowHandler.rowItems[rowId];
         if (varItem instanceof NetlistVariable === false) {return;}
         const n = varItem.netlistId;
         const signal = waveDromData[n];
@@ -127,7 +128,7 @@ export function copyWaveDrom() {
   // write the waveDrom JSON to the clipboard
   let result = '{"signal": [\n';
   viewerState.displayedSignalsFlat.forEach((rowId) => {
-    const netlistId = dataManager.rowItems[rowId].netlistId;
+    const netlistId = rowHandler.rowItems[rowId].netlistId;
     if (netlistId === undefined || waveDromData[netlistId] === undefined) {return;}
     const signalData = waveDromData[netlistId].json;
     result += '  ' + JSON.stringify(signalData) + ',\n';

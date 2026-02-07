@@ -5,7 +5,8 @@
 import * as net from 'net';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
-import { WaveformViewerProvider, scaleFromUnits } from './viewer_provider';
+import { scaleFromUnits } from '../common/functions';
+import { WaveformViewerProvider } from './viewer_provider';
 import { VaporviewDocument } from './document';
 import { getInstancePath } from './tree_view';
 

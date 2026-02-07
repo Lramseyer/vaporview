@@ -1,7 +1,9 @@
-import { vscode, arrayMove, sendWebviewContext, SignalId, ValueChange, ActionType, EventHandler, viewerState, dataManager, restoreState, RowId, updateDisplayedSignalsFlat, WAVE_HEIGHT, handleClickSelection, controlBar, RULER_HEIGHT } from "./vaporview";
+import { NetlistId, SignalId, RowId, EnumData, EnumEntry, StateChangeType } from '../common/types';
+import { logScaleFromUnits } from '../common/functions';
+import { vscode, sendWebviewContext, ActionType, EventHandler, viewerState, dataManager, restoreState, updateDisplayedSignalsFlat, WAVE_HEIGHT, handleClickSelection, controlBar, RULER_HEIGHT } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer } from './renderer';
-import { labelsPanel } from "./vaporview";
+import { labelsPanel, rowHandler } from "./vaporview";
 import { CustomVariable, NetlistVariable, VariableItem } from "./signal_item";
 
 const domParser = new DOMParser();
@@ -292,7 +294,7 @@ export class Viewport {
 
   setRulerVscodeContext() {
     const unitsList = ['fs', 'ps', 'ns', 'µs', 'ms', 's'];
-    const maxTime   = (10 ** this.logScaleFromUnits(this.timeUnit)) * this.timeScale * this.timeStop;
+    const maxTime   = (10 ** logScaleFromUnits(this.timeUnit)) * this.timeScale * this.timeStop;
     const context: any = {
       webviewSection: 'ruler',
       preventDefaultContextMenuItems: true,
@@ -301,7 +303,7 @@ export class Viewport {
     };
 
     unitsList.forEach((unit) => {
-      context[unit] = maxTime >= (10 ** this.logScaleFromUnits(unit));
+      context[unit] = maxTime >= (10 ** logScaleFromUnits(unit));
     });
 
     const contextAttribute = `${JSON.stringify(context).replace(/\s/g, '%x20')}`;
@@ -319,9 +321,9 @@ export class Viewport {
 
   handleAddVariable(rowIdList: RowId[], updateFlag: boolean) {
     rowIdList.forEach((rowId) => {
-      if (!dataManager.rowItems[rowId]) {return;}
+      if (!rowHandler.rowItems[rowId]) {return;}
       this.removeNetlistLink();
-      const netlistData = dataManager.rowItems[rowId];
+      const netlistData = rowHandler.rowItems[rowId];
       netlistData.createViewportElement(rowId);
       if (netlistData.viewportElement === null) {return;}
       this.waveformArea.appendChild(netlistData.viewportElement);
@@ -364,7 +366,7 @@ export class Viewport {
     let topBounds    = 0;
     let bottomBounds = 0;
     for (const rowId of viewerState.visibleSignalsFlat) {
-      const netlistData = dataManager.rowItems[rowId];
+      const netlistData = rowHandler.rowItems[rowId];
       const rowHeight   = netlistData.rowHeight * WAVE_HEIGHT;
       topBounds    = bottomBounds;
       bottomBounds += rowHeight;
@@ -412,7 +414,7 @@ export class Viewport {
       this.overlayCanvasElement.setAttribute('data-vscode-context', "");
       return;
     }
-    const signalItem = dataManager.rowItems[rowId];
+    const signalItem = rowHandler.rowItems[rowId];
     if (!signalItem) {
       this.overlayCanvasElement.setAttribute('data-vscode-context', "");
       return;
@@ -453,7 +455,7 @@ export class Viewport {
     // Get the signal id of the click
     const rowId      = this.getRowIdFromMouseEvent(event);
     if (rowId === null) {return;}
-    const signalItem = dataManager.rowItems[rowId];
+    const signalItem = rowHandler.rowItems[rowId];
     if (!signalItem) {return;}
 
     if (signalItem instanceof NetlistVariable || signalItem instanceof CustomVariable) {
@@ -597,7 +599,7 @@ export class Viewport {
     let bottomBounds   = 0;
 
     viewerState.visibleSignalsFlat.forEach((rowId) => {
-      const netlistData = dataManager.rowItems[rowId];
+      const netlistData = rowHandler.rowItems[rowId];
       const rowHeight   = netlistData.rowHeight * WAVE_HEIGHT;
       topBounds         = bottomBounds;
       bottomBounds      = topBounds + rowHeight;
@@ -614,7 +616,7 @@ export class Viewport {
 
   async annotateWaveform(rowId: RowId, valueList: string[]) {
 
-    const netlistData = dataManager.rowItems[rowId];
+    const netlistData = rowHandler.rowItems[rowId];
     if (!netlistData) {return;}
     this.annotateTime = netlistData.getAllEdges(valueList);
     this.updateBackgroundCanvas(false);
@@ -623,7 +625,7 @@ export class Viewport {
   updateSignalOrder() {
     const newChildren: HTMLElement[] = [];
     viewerState.displayedSignalsFlat.forEach((rowId, i) => {
-      const element = dataManager.rowItems[rowId].viewportElement;
+      const element = rowHandler.rowItems[rowId].viewportElement;
       if (!element) {return;}
       newChildren.push(element);
     });
@@ -728,25 +730,9 @@ export class Viewport {
     }
   }
 
-  logScaleFromUnits(unit: string | undefined) {
-    switch (unit) {
-      case 'zs': return -21;
-      case 'as': return -18;
-      case 'fs': return -15;
-      case 'ps': return -12;
-      case 'ns': return -9;
-      case 'us': return -6;
-      case 'µs': return -6;
-      case 'ms': return -3;
-      case 's':  return -0;
-      case 'ks': return 3;
-      default: return 0;
-    }
-  }
-
   updateUnits(units: string, updateContext: boolean) {
     this.displayTimeUnit = units;
-    this.adjustedLogTimeScale = this.logScaleFromUnits(this.timeUnit) - this.logScaleFromUnits(units);
+    this.adjustedLogTimeScale = logScaleFromUnits(this.timeUnit) - logScaleFromUnits(units);
     if (viewerState.markerTime !== null) {
       this.markerLabelElement.innerText = this.scaleTime(viewerState.markerTime) + ' ' + this.displayTimeUnit;
     }
@@ -756,7 +742,7 @@ export class Viewport {
     this.updateRuler();
     if (updateContext) {
       console.log('updateUnits');
-      sendWebviewContext(5);
+      sendWebviewContext(StateChangeType.User);
     }
   }
 
@@ -1018,7 +1004,7 @@ export class Viewport {
   }
 
   updateElementHeight(rowId: RowId) {
-    const netlistData = dataManager.rowItems[rowId];
+    const netlistData = rowHandler.rowItems[rowId];
     if (!netlistData) {return;}
     if (!(netlistData instanceof NetlistVariable) && !(netlistData instanceof CustomVariable)) {return;}
     if (netlistData.viewportElement === null) {return;}
@@ -1035,7 +1021,7 @@ export class Viewport {
   }
 
   handleRedrawSignal(rowId: RowId) {
-    const signalItem = dataManager.rowItems[rowId];
+    const signalItem = rowHandler.rowItems[rowId];
     if (!signalItem) {return;}
     labelsPanel.valueAtMarker[rowId] = signalItem.getValueAtTime(viewerState.markerTime);
     signalItem.renderWaveform();
@@ -1063,7 +1049,7 @@ export class Viewport {
     this.resizeCanvas(this.overlayCanvasElement, this.overlayCanvas, this.viewerWidth, this.viewerHeight);
 
     // Update Waveform Canvas Dimensions
-    dataManager.rowItems.forEach((netlistItem) => {
+    rowHandler.rowItems.forEach((netlistItem) => {
       netlistItem.resize();
     });
 

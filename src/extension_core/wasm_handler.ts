@@ -3,10 +3,11 @@ import { promisify } from 'util';
 import { Worker } from 'worker_threads';
 import * as fs from 'fs';
 
-import { SignalId, VaporviewDocumentDelegate } from './viewer_provider';
+import { EnumQueueEntry, SignalId } from '../common/types';
+import { VaporviewDocumentDelegate } from './viewer_provider';
 import { filehandler } from './filehandler';
 import { NetlistItem, createScope, createVar } from './tree_view';
-import { WaveformFileParser, EnumQueueEntry, WaveformTopMetadata } from './document';
+import { WaveformFileParser, WaveformTopMetadata } from './document';
 
 // #region fsWrapper
 interface fsWrapper {

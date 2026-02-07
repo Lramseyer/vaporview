@@ -1,8 +1,8 @@
-import { EventHandler, viewport, arrayMove, NetlistId, ActionType, viewerState, dataManager, RowId, getChildrenByGroupId, getIndexInGroup, sendWebviewContext, handleClickSelection} from './vaporview';
+import { EventHandler, viewport, ActionType, viewerState, dataManager, getChildrenByGroupId, getIndexInGroup, sendWebviewContext, handleClickSelection, rowHandler} from './vaporview';
 import { ValueFormat } from './value_format';
 import { vscode, getParentGroupId } from './vaporview';
 import { SignalGroup, NetlistVariable, SignalItem, RowItem, htmlSafe, CustomVariable, SignalSeparator } from './signal_item';
-import { sign } from 'crypto';
+import { NetlistId, SignalId, RowId, EnumData, EnumEntry, StateChangeType } from '../common/types';
 
 export class LabelsPanels {
 
@@ -104,7 +104,7 @@ export class LabelsPanels {
     this.labelsList.push('<svg id="drag-divider" style="top: 0px; display:none; pointer-events: none;"><line x1="0" y1="0" x2="100%" y2="0"></line></svg>');
     this.labelsList.push('<div id="draggable-cursor-tag" class="draggable-label" style="position: fixed; top: 0px; display:none; pointer-events: none;"> </div>');
     viewerState.displayedSignals.forEach((rowId, index) => {
-      const netlistData = dataManager.rowItems[rowId];
+      const netlistData = rowHandler.rowItems[rowId];
       this.labelsList.push(netlistData.createLabelElement());
       transitions.push(netlistData.createValueDisplayElement());
     });
@@ -131,9 +131,9 @@ export class LabelsPanels {
 
     if (event.target.classList.contains('codicon-chevron-down') ||
         event.target.classList.contains('codicon-chevron-right')) {
-        if (dataManager.rowItems[rowId] instanceof SignalGroup) {
-          dataManager.rowItems[rowId].toggleCollapse();
-          sendWebviewContext(5);
+        if (rowHandler.rowItems[rowId] instanceof SignalGroup) {
+          rowHandler.rowItems[rowId].toggleCollapse();
+          sendWebviewContext(StateChangeType.User);
         }
     } else {
       //this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
@@ -146,7 +146,7 @@ export class LabelsPanels {
     if (rowId === undefined) {return;}
     const value = this.valueAtMarker[rowId];
     if (value === undefined) {return;}
-    const variableItem = dataManager.rowItems[rowId];
+    const variableItem = rowHandler.rowItems[rowId];
     if (!(variableItem instanceof NetlistVariable) && !(variableItem instanceof CustomVariable)) {return;}
 
     const formatString   = variableItem.valueFormat.formatString;
@@ -173,12 +173,12 @@ export class LabelsPanels {
     const draggableGroups: RowId[]  = [];
     this.draggableRows = [];
 
-    const topLevelRowIds = dataManager.removeChildrenFromSignalList(rowIdList);
+    const topLevelRowIds = rowHandler.removeChildrenFromSignalList(rowIdList);
     topLevelRowIds.forEach((rowId) => {
-      const signalItem = dataManager.rowItems[rowId];
+      const signalItem = rowHandler.rowItems[rowId];
       if (signalItem instanceof SignalGroup) {
         const children = signalItem.getFlattenedRowIdList(false, -1);
-        const childGroups = children.filter((id) => dataManager.rowItems[id] instanceof SignalGroup);
+        const childGroups = children.filter((id) => rowHandler.rowItems[id] instanceof SignalGroup);
         draggableGroups.push(...childGroups);
         this.draggableRows.push(...children);
       } else if (signalItem instanceof NetlistVariable || signalItem instanceof CustomVariable || signalItem instanceof SignalSeparator) {
@@ -207,7 +207,7 @@ export class LabelsPanels {
     });
 
     viewerState.visibleSignalsFlat.forEach((id: RowId) => {
-      const signalItem = dataManager.rowItems[id];
+      const signalItem = rowHandler.rowItems[id];
       if (signalItem instanceof SignalGroup && !draggableGroups.includes(id)) {
         const element = this.labels.querySelector(`#label-${id}`);
         if (element) {
@@ -242,7 +242,7 @@ export class LabelsPanels {
       rowIdList = viewerState.selectedSignal;
     }
 
-    const signalItem = dataManager.rowItems[rowId];
+    const signalItem = rowHandler.rowItems[rowId];
     if (signalItem) {
       this.dragCursorText = signalItem.getLabelText();
     }
@@ -401,7 +401,7 @@ export class LabelsPanels {
     const newGroupRowId = this.getRowIdFromElement(this.groupContainer);
     let newGroupId = 0;
     if (newGroupRowId !== null) {
-      newGroupId = dataManager.groupIdTable.indexOf(newGroupRowId);
+      newGroupId = rowHandler.groupIdTable.indexOf(newGroupRowId);
       if (newGroupId === -1) {
         newGroupId = 0; // If the group is not found, default to group 0
       }
@@ -466,7 +466,7 @@ export class LabelsPanels {
     if (!abort) {
       this.events.dispatch(ActionType.ReorderSignals, rowIdList, newGroupId, newIndex);
       console.log('dragEnd');
-      sendWebviewContext(5);
+      sendWebviewContext(StateChangeType.User);
     } else {
       this.renderLabelsPanels();
     }
@@ -474,7 +474,7 @@ export class LabelsPanels {
 
   public showRenameInput(rowId: RowId) {
     this.dragEnd(null, true); // Abort any drag operation
-    const signalItem    = dataManager.rowItems[rowId];
+    const signalItem    = rowHandler.rowItems[rowId];
     const isSignalGroup = signalItem instanceof SignalGroup;
     const labelElement  = document.getElementById(`label-${rowId}`);
     if (!labelElement) {return;}
@@ -501,7 +501,7 @@ export class LabelsPanels {
       if (e.key === 'Enter') {
         const newNameInput = textarea.value.trim() || signalItem.getLabelText();
         const parentGroupId = getParentGroupId(rowId) || 0;
-        const isTaken = dataManager.groupNameExists(newNameInput, parentGroupId) && isSignalGroup;
+        const isTaken = rowHandler.groupNameExists(newNameInput, parentGroupId) && isSignalGroup;
         const isEmpty = newNameInput.trim().length === 0;
         const isValid = !isEmpty && !isTaken;
         e.preventDefault();
@@ -523,7 +523,7 @@ export class LabelsPanels {
   }
 
   private finishRename(rowId: RowId, waveformRow: Element, newName: string, renameValid: boolean) {
-    const signalItem = dataManager.rowItems[rowId];
+    const signalItem = rowHandler.rowItems[rowId];
     if (!this.renameActive) {return;}
     this.renameActive = false;
     if (renameValid) {
@@ -534,7 +534,7 @@ export class LabelsPanels {
       waveformRow.classList.add('is-selected');
     }
     console.log('finishRename');
-    sendWebviewContext(5);
+    sendWebviewContext(StateChangeType.User);
   }
 
   getRowIdFromElement(element: HTMLElement | null): RowId | null {
@@ -593,7 +593,7 @@ export class LabelsPanels {
 
     if (markerType === 0) {
       viewerState.displayedSignalsFlat.forEach((rowId) => {
-        const signalItem = dataManager.rowItems[rowId];
+        const signalItem = rowHandler.rowItems[rowId];
         this.valueAtMarker[rowId] = signalItem.getValueAtTime(time);
       });
 
@@ -602,7 +602,7 @@ export class LabelsPanels {
   }
 
   selectRowId(rowId: RowId, isSelected: boolean) {
-    const signalItem = dataManager.rowItems[rowId];
+    const signalItem = rowHandler.rowItems[rowId];
     if (!signalItem) {return;}
     signalItem.isSelected = isSelected;
   }

@@ -1,4 +1,4 @@
-import { SignalId, NetlistId } from './viewer_provider';
+import { NetlistId, SignalId } from '../common/types';
 
 let fsdbAddon: any = null;
 try {

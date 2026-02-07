@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import { NetlistId, SignalId, StateChangeType, markerSetEvent, signalEvent, viewerDropEvent } from '../common/types';
+import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
 import { Worker } from 'worker_threads';
 import * as fs from 'fs';
 import { getTokenColorsForTheme } from './extension';
@@ -8,10 +10,8 @@ import { FsdbFormatHandler } from './fsdb_handler';
 import { SurferFormatHandler } from './surfer_handler';
 import { NetlistTreeDataProvider, NetlistItem, WebviewCollection, netlistItemDragAndDropController } from './tree_view';
 import { getInstancePath } from './tree_view';
-import { resolve } from 'path/win32';
 
-export type NetlistId = number;
-export type SignalId  = number;
+
 export interface VaporviewDocumentDelegate {
   addSignalByNameToDocument(signalName: string): void;
   logOutputChannel(message: string): void;
@@ -23,70 +23,9 @@ export interface VaporviewDocumentDelegate {
   applySettings(settings: any, document: VaporviewDocument, stateChangeType: StateChangeType): void;
 }
 
-export function scaleFromUnits(unit: string | undefined) {
-  switch (unit) {
-    case 'zs': return 1e-21;
-    case 'as': return 1e-18;
-    case 'fs': return 1e-15;
-    case 'ps': return 1e-12;
-    case 'ns': return 1e-9;
-    case 'us': return 1e-6;
-    case 'µs': return 1e-6;
-    case 'ms': return 1e-3;
-    case 's':  return 1;
-    case 'ks': return 1000;
-    default: return 1;
-  }
-}
-
-export function logScaleFromUnits(unit: string | undefined) {
-  switch (unit) {
-    case 'zs': return -21;
-    case 'as': return -18;
-    case 'fs': return -15;
-    case 'ps': return -12;
-    case 'ns': return -9;
-    case 'us': return -6;
-    case 'µs': return -6;
-    case 'ms': return -3;
-    case 's':  return 0;
-    case 'ks': return 3;
-    default: return 0;
-  }
-}
-
-export interface markerSetEvent {
-  uri: string;
-  time: number;
-  units: string;
-}
-
-export interface signalEvent {
-  uri: string;
-  instancePath: string;
-  netlistId: number;
-  source: string; // "viewer" or "treeView"
-}
-
-export interface viewerDropEvent {
-  uri: string;
-  resourceUriList: vscode.Uri[];
-  groupPath: string[];
-  index: number;
-}
-
 class VaporviewDocumentBackup implements vscode.CustomDocumentBackup {
   constructor(public readonly id: string) {}
   delete(): void {return;}
-}
-
-export enum StateChangeType {
-  None    = 0,
-  Restore = 1,
-  File    = 2,
-  Undo    = 3,
-  Redo    = 4,
-  User    = 5,
 }
 
 // #region WaveformViewerProvider
@@ -279,7 +218,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
       if (e.webviewPanel.active) {
         this.onDidChangeViewStateActive(document, webviewPanel);
-        webviewPanel.webview.postMessage({command: 'getSelectionContext'});
+        webviewPanel.webview.postMessage({command: 'getContext'});
       } else if (!e.webviewPanel.visible && e.webviewPanel === this.activeWebview) {
         this.onDidChangeViewStateInactive();
       }

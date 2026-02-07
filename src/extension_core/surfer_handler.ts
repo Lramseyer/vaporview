@@ -1,10 +1,11 @@
 import * as vscode from 'vscode';
 import { Worker } from 'worker_threads';
+import { EnumQueueEntry, SignalId } from '../common/types';
 
-import { SignalId, VaporviewDocumentDelegate } from './viewer_provider';
+import { VaporviewDocumentDelegate } from './viewer_provider';
 import { filehandler } from './filehandler';
 import { NetlistItem, createScope, createVar } from './tree_view';
-import { WaveformFileParser, EnumQueueEntry, WaveformTopMetadata } from './document';
+import { WaveformFileParser, WaveformTopMetadata } from './document';
 
 
 export class SurferFormatHandler implements WaveformFileParser {

@@ -6,12 +6,12 @@
     "noImplicitAny": true,
     "moduleResolution": "node",
     "outDir": "./out/webview",
-    "rootDir": "./src/webview",
+    "rootDir": "./src",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "lib": ["es6", "dom"],
     "sourceMap": true
   },
-  "include": ["src/webview/**/*.ts"],
+  "include": ["src/webview/**/*.ts", "src/common/**/*.ts"],
   "exclude": ["node_modules"]
 }

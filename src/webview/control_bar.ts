@@ -1,6 +1,6 @@
 import { commands } from 'vscode';
-import {ActionType, EventHandler, viewerState, viewport, dataManager, vscode, RowId, sendWebviewContext} from './vaporview';
-import { sign, Sign } from 'crypto';
+import { EnumQueueEntry, SignalId, RowId, StateChangeType } from '../common/types';
+import {ActionType, EventHandler, viewerState, viewport, dataManager, vscode, sendWebviewContext, rowHandler} from './vaporview';
 import { CustomVariable, NetlistVariable } from './signal_item';
 
 enum ButtonState {
@@ -145,7 +145,7 @@ export class ControlBar {
     if (direction === -1) {nearestTime = 0;}
     viewerState.selectedSignal.forEach((rowId) => {
       if (viewerState.markerTime === null) {return;}
-      const data  = dataManager.rowItems[rowId];
+      const data  = rowHandler.rowItems[rowId];
       const time  = data.getNextEdge(viewerState.markerTime, direction, edge);
       if (time === null) {return;}
       if (direction === 1)       {nearestTime = Math.min(nearestTime, time);}
@@ -154,7 +154,7 @@ export class ControlBar {
 
     this.events.dispatch(ActionType.MarkerSet, nearestTime, 0);
     console.log('goToNextTransition');
-    sendWebviewContext(5);
+    sendWebviewContext(StateChangeType.User);
   }
 
   handleScrollModeClick(mode: string) {
@@ -242,7 +242,7 @@ export class ControlBar {
     let result = SelectedSignalWidth.None;
     let isSingleBit: boolean[] = [];
     rowIdList.forEach((rowId) => {
-      const signalItem = dataManager.rowItems[rowId];
+      const signalItem = rowHandler.rowItems[rowId];
       if (!(signalItem instanceof NetlistVariable) && !(signalItem instanceof CustomVariable)) {return;}
       isSingleBit.push(signalItem.signalWidth === 1);
     });
@@ -298,7 +298,7 @@ export class ControlBar {
     //console.log(this.searchState);
     if (viewerState.selectedSignal.length === 1) {
       const rowId  = viewerState.selectedSignal[0];
-      const rowItem = dataManager.rowItems[rowId];
+      const rowItem = rowHandler.rowItems[rowId];
       if (rowItem instanceof NetlistVariable || rowItem instanceof CustomVariable) {
         const format = rowItem.valueFormat;
         const checkValidSearch = format.checkValidSearch;
@@ -340,7 +340,7 @@ export class ControlBar {
     if (startTime === null) {startTime = 0;}
   
     const rowId  = viewerState.selectedSignal[0];
-    const rowItem = dataManager.rowItems[rowId];
+    const rowItem = rowHandler.rowItems[rowId];
     if (rowItem === undefined || !(rowItem instanceof NetlistVariable) && !(rowItem instanceof CustomVariable)) {return;}
     const data = rowItem.getWaveformData();
     if (data === undefined) {return;}
@@ -376,13 +376,13 @@ export class ControlBar {
     }
     if (updateState) {
       console.log('handleSearchGoTo');
-      sendWebviewContext(5);
+      sendWebviewContext(StateChangeType.User);
     }
   }
 
   handleAutoReloadCheckbox(event: any) {
     viewerState.autoReload = event.target.checked;
-    sendWebviewContext(0);
+    sendWebviewContext(StateChangeType.None);
   }
 
   handleSearchBarInFocus(isFocused: boolean) {
@@ -404,14 +404,14 @@ export class ControlBar {
     this.updateNextEdgeButtons(rowIdList);
 
     if (rowIdList.length !== 1) {return;}
-    const signalItem = dataManager.rowItems[rowIdList[0]];
+    const signalItem = rowHandler.rowItems[rowIdList[0]];
     if (signalItem && (signalItem instanceof NetlistVariable || signalItem instanceof CustomVariable)) {
       this.valueEqualsSymbol.textContent = signalItem.valueFormat.symbolText;
     }
   }
 
   handleRedrawVariable(rowId: RowId) {
-    const rowItem = dataManager.rowItems[rowId];
+    const rowItem = rowHandler.rowItems[rowId];
     if (!(rowItem instanceof NetlistVariable) && !(rowItem instanceof CustomVariable)) {return;}
     if (rowId === viewerState.selectedSignal[0]) {
       this.valueEqualsSymbol.textContent = rowItem.valueFormat.symbolText;

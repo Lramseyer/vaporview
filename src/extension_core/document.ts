@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
+import { SignalId, NetlistId, StateChangeType, QueueEntry, EnumQueueEntry } from '../common/types';
+import { logScaleFromUnits } from '../common/functions';
 import { NetlistLinkProvider } from './terminal_links';
 import * as path from 'path';
-import { SignalId, NetlistId, VaporviewDocumentDelegate, logScaleFromUnits, StateChangeType } from './viewer_provider';
+import { VaporviewDocumentDelegate } from './viewer_provider';
 import { NetlistItem, getInstancePath } from './tree_view';
 
 export type WaveformTopMetadata = {
@@ -17,19 +19,6 @@ export type WaveformTopMetadata = {
   chunkSize: number;
 };
 
-// Re-export queue entry types for handlers
-export type SignalQueueEntry = {
-  type: 'signal';
-  id: SignalId;
-};
-
-export type EnumQueueEntry = {
-  type: 'enum';
-  name: string;
-  netlistId: NetlistId;
-};
-
-export type QueueEntry     = SignalQueueEntry | EnumQueueEntry;
 export type NetlistIdTable = NetlistItem[];
 
 /* 

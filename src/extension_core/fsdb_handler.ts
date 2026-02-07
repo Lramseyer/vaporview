@@ -1,10 +1,11 @@
 import * as vscode from 'vscode';
+import { EnumQueueEntry, SignalId, NetlistId } from '../common/types';
 import { ChildProcess, fork } from 'child_process';
 import * as path from 'path';
 
-import { SignalId, NetlistId, VaporviewDocumentDelegate } from './viewer_provider';
+import { VaporviewDocumentDelegate } from './viewer_provider';
 import { NetlistItem, createScope, createVar } from './tree_view';
-import { WaveformFileParser, EnumQueueEntry, WaveformTopMetadata } from './document';
+import { WaveformFileParser, WaveformTopMetadata } from './document';
 
 type FsdbWorkerMessage = {
   id: string;

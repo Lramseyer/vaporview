@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { NetlistId, SignalId } from './viewer_provider';
+import { NetlistId, SignalId } from '../common/types';
+import { bitRangeString } from '../common/functions';
 import { VaporviewDocument } from './document';
 
 // Scopes
@@ -64,12 +65,6 @@ export function createScope(
   module.iconPath = icon;
 
   return module;
-}
-  
-function bitRangeString(msb: number, lsb: number): string {
-  if (msb < 0 || lsb < 0) {return "";}
-  if (msb === lsb) {return " [" + msb + "]";}
-  return "[" + msb + ":" + lsb + "]";
 }
 
 // Variables

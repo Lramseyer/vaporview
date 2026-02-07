@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "rootDir": "./src/extension_core",
+        "rootDir": "./src",
         "skipLibCheck": true,
         "lib": [
             "es2022",
@@ -24,6 +24,6 @@
         "noUnusedLocals": false,
         "noUnusedParameters": false
     },
-    "include": ["src/extension_core/**/*.ts"],
+    "include": ["src/extension_core/**/*.ts", "src/common/**/*.ts"],
     "exclude": ["src/webview/**/*.ts"]
 }

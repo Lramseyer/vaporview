@@ -1,5 +1,5 @@
 import { error, group } from 'console';
-import { type NetlistId, SignalId, type RowId, StateChangeType, type DocumentId } from '../common/types';
+import { type NetlistId, SignalId, type RowId, StateChangeType, type DocumentId, SavedNetlistVariable, SavedSignalSeparator, SavedSignalGroup, CollapseState, SavedCustomVariable } from '../common/types';
 import { Viewport } from './viewport';
 import { LabelsPanels } from './labels';
 import { ControlBar } from './control_bar';
@@ -14,12 +14,6 @@ interface VsCodeApi {
   postMessage(message: any): void;
   setState(newState: any): void;
   getState(): any;
-}
-
-export enum CollapseState {
-  None      = 0,
-  Collapsed = 1,
-  Expanded  = 2,
 }
 
 export enum DataType {
@@ -299,13 +293,15 @@ function signalListForSaveFile(rowIdList: RowId[]): any[] {
         groupName: data.label,
         collapseState: data.collapseState,
         children:  signalListForSaveFile(data.children)
-      });
+      } as SavedSignalGroup);
     } else if (data instanceof SignalSeparator) {
       result.push({
         dataType: "signal-separator",
         label:    data.label,
         rowHeight: data.rowHeight,
-      });
+      } as SavedSignalSeparator);
+    } else if (data instanceof CustomVariable) {
+      // do nothing for now
     }
     if (!(data instanceof NetlistVariable)) {return;}
 
@@ -322,7 +318,7 @@ function signalListForSaveFile(rowIdList: RowId[]): any[] {
       customName:       data.customName,
       renderType:       data.renderType.id,
       valueLinkCommand: data.valueLinkCommand,
-    });
+    } as SavedNetlistVariable);
   });
   return result;
 }

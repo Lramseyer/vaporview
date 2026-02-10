@@ -54,3 +54,44 @@ export enum StateChangeType {
   Redo    = 4,
   User    = 5,
 }
+
+// Save file schema
+
+export type SavedRowItem = SavedNetlistVariable | SavedSignalGroup | SavedSignalSeparator | SavedCustomVariable;
+
+export type SavedNetlistVariable = {
+  dataType: 'netlist-variable';
+  netlistId: NetlistId;
+  name: string;
+  numberFormat: string;
+  colorIndex: number;
+  rowHeight: number;
+  verticalScale: number;
+  nameType: NameType;
+  customName: string;
+  renderType: string;
+  valueLinkCommand: string;
+}
+
+export enum CollapseState {
+  None      = 0,
+  Collapsed = 1,
+  Expanded  = 2,
+}
+
+export type SavedSignalGroup = {
+  dataType: 'signal-group';
+  groupName: string;
+  collapseState: CollapseState;
+  children: SavedRowItem[];
+}
+
+export type SavedSignalSeparator = {
+  dataType: 'signal-separator';
+  label: string;
+  rowHeight: number;
+}
+
+export type SavedCustomVariable = {
+
+}

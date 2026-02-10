@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type EnumQueueEntry, type DocumentId } from '../common/types';
+import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type EnumQueueEntry, type DocumentId, type SavedRowItem } from '../common/types';
 import { logScaleFromUnits } from '../common/functions';
 import { NetlistLinkProvider } from './terminal_links';
 import * as path from 'path';
@@ -69,7 +69,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     markerTime: null as number | null,
     altMarkerTime: null as number | null,
     selectedSignal: null as NetlistId | null,
-    displayedSignals: [] as any[],
+    displayedSignals: [] as SavedRowItem[],
     zoomRatio: 1,
     scrollLeft: 0,
     numberFormat: "hexadecimal",

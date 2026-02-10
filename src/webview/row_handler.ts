@@ -1,5 +1,6 @@
-import { type NetlistId, SignalId, type RowId, EnumData, EnumEntry, QueueEntry, SignalQueueEntry, type EnumQueueEntry, NameType, StateChangeType } from '../common/types';
-import { ActionType, dataManager, type EventHandler, viewerState, getParentGroupId, updateDisplayedSignalsFlat, labelsPanel, controlBar, sendWebviewContext, getIndexInGroup, getChildrenByGroupId, CollapseState, viewport } from './vaporview';
+import { type NetlistId, SignalId, type RowId, EnumData, EnumEntry, QueueEntry, SignalQueueEntry, type EnumQueueEntry, NameType, StateChangeType, CollapseState } from '../common/types';
+import { bitRangeString } from '../common/functions';
+import { ActionType, dataManager, type EventHandler, viewerState, getParentGroupId, updateDisplayedSignalsFlat, labelsPanel, controlBar, sendWebviewContext, getIndexInGroup, getChildrenByGroupId, viewport } from './vaporview';
 import { NetlistVariable, type RowItem, SignalGroup, SignalSeparator, CustomVariable, isAnalogSignal } from './signal_item';
 import { BinaryWaveformRenderer, MultiBitWaveformRenderer, LinearWaveformRenderer } from './renderer';
 import type { BitRangeSource, WaveformData } from './data_manager';
@@ -331,7 +332,7 @@ export class RowHandler {
     const customSignalId = dataManager.createCustomSignal([source]);
     if (customSignalId === undefined) {return;}
     const width          = msb - lsb + 1;
-    const signalName     = name || [sourceSignalItem.scopePath, sourceSignalItem.signalName].join(".") + "[" + msb + ":" + lsb + "]";
+    const signalName     = name || [sourceSignalItem.scopePath, sourceSignalItem.signalName].join(".") + bitRangeString(msb, lsb);
     const renderType     = width === 1 ? new BinaryWaveformRenderer() : new MultiBitWaveformRenderer();
     const customVariable = new CustomVariable(rowId, [source], customSignalId, signalName, width, renderType);
     this.rowItems[rowId] = customVariable;

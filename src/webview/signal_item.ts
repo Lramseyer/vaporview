@@ -1,6 +1,6 @@
-import { type NetlistId, type RowId, EnumData, EnumEntry, NameType } from '../common/types';
+import { type NetlistId, type RowId, EnumData, EnumEntry, NameType, CollapseState } from '../common/types';
 
-import { dataManager, viewport, CollapseState, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, WAVE_HEIGHT, sendWebviewContext, rowHandler } from "./vaporview";
+import { dataManager, viewport, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, WAVE_HEIGHT, sendWebviewContext, rowHandler } from "./vaporview";
 import { EnumValueFormat, formatBinary, formatHex, formatString, type ValueFormat } from "./value_format";
 import { type WaveformRenderer, setRenderBounds } from "./renderer";
 import type { WaveformData, BitRangeSource } from "./data_manager";

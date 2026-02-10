@@ -166,13 +166,13 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.removeSeparator(e.rowId, true);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.newBitSlice', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.newSignalFromBitRange', (e) => {
     // Show input box for offset
     vscode.window.showInputBox({prompt: 'Enter the bit range (e.g. 7:0 for bits 0 to 7, or 7 for a single bit)',
       value: '0'
     }).then((bitRangeString) => {
       if (!bitRangeString) {return;}
-      viewerProvider.newBitSlice(e.name, e.groupPath, e.parentGroupId, e.rowId, bitRangeString);
+      viewerProvider.newSignalFromBitRange(e.name, e.groupPath, e.parentGroupId, e.rowId, bitRangeString);
     });
   }));
 

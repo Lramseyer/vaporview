@@ -535,7 +535,7 @@
           "group": "3_groups@7"
         },
         {
-          "command": "vaporview.newBitSlice",
+          "command": "vaporview.newSignalFromBitRange",
           "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus && width > 1",
           "group": "3_groups@6"
         },
@@ -932,8 +932,8 @@
         "title": "Remove Separator"
       },
       {
-        "command": "vaporview.newBitSlice",
-        "title": "New Bit Slice"
+        "command": "vaporview.newSignalFromBitRange",
+        "title": "New Signal From Bit Range"
       },
       {
         "command": "vaporview.displayAsBinary",

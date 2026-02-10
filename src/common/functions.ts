@@ -1,6 +1,6 @@
 export function bitRangeString(msb: number, lsb: number): string {
   if (msb < 0 || lsb < 0) {return "";}
-  if (msb === lsb) {return " [" + msb + "]";}
+  if (msb === lsb) {return "[" + msb + "]";}
   return "[" + msb + ":" + lsb + "]";
 }
 

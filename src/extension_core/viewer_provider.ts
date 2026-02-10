@@ -1163,7 +1163,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     });
   }
 
-  public newBitSlice(
+  public newSignalFromBitRange(
     name: string | undefined,
     groupPath: string[] | undefined,
     parentGroupId: number | undefined,

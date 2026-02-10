@@ -3,11 +3,11 @@ import { promisify } from 'util';
 import { Worker } from 'worker_threads';
 import * as fs from 'fs';
 
-import { EnumQueueEntry, SignalId } from '../common/types';
-import { VaporviewDocumentDelegate } from './viewer_provider';
+import type { EnumQueueEntry, SignalId } from '../common/types';
+import type { VaporviewDocumentDelegate } from './viewer_provider';
 import { filehandler } from './filehandler';
-import { NetlistItem, createScope, createVar } from './tree_view';
-import { WaveformFileParser, WaveformTopMetadata } from './document';
+import { type NetlistItem, createScope, createVar } from './tree_view';
+import type { WaveformFileParser, WaveformTopMetadata } from './document';
 
 // #region fsWrapper
 interface fsWrapper {
@@ -248,7 +248,7 @@ export class WasmFormatHandler implements WaveformFileParser {
   }
 
   private getParametersInTreeData(treeData: NetlistItem[]): NetlistItem[] {
-    let result: NetlistItem[] = [];
+    const result: NetlistItem[] = [];
     treeData.forEach((item) => {
       if (item.type === 'Parameter') {
         result.push(item);
@@ -327,7 +327,7 @@ export class WasmFormatHandler implements WaveformFileParser {
         const bitList: NetlistItem[] = [];
         const busList: NetlistItem[] = [];
         let maxWidth = 0;
-        let parent: any = undefined;
+        let parent: any ;
         varList.forEach((varItem) => {
           if (varItem.width === 1) { bitList.push(varItem); }
           else { busList.push(varItem); }

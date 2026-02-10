@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
-import { SignalId, NetlistId, StateChangeType, QueueEntry, EnumQueueEntry, DocumentId } from '../common/types';
+import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type EnumQueueEntry, type DocumentId } from '../common/types';
 import { logScaleFromUnits } from '../common/functions';
 import { NetlistLinkProvider } from './terminal_links';
 import * as path from 'path';
-import { VaporviewDocumentCollection, VaporviewDocumentDelegate } from './viewer_provider';
-import { NetlistItem, getInstancePath } from './tree_view';
+import type { VaporviewDocumentCollection, VaporviewDocumentDelegate } from './viewer_provider';
+import { type NetlistItem, getInstancePath } from './tree_view';
 
 export type WaveformTopMetadata = {
   timeTableLoaded: boolean;
@@ -283,7 +283,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   // #region Netlist helpers
 
   public sortNetlistScopeChildren(netlistItems: NetlistItem[]) {
-    let result = [];
+    const result = [];
     const scopes = netlistItems.filter(item => item.contextValue === 'netlistScope');
     const variables = netlistItems.filter(item => item.contextValue !== 'netlistScope');
     const parameters = variables.filter(item => item.type === 'Parameter');

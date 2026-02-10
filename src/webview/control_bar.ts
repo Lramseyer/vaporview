@@ -1,6 +1,6 @@
 import { commands } from 'vscode';
-import { EnumQueueEntry, SignalId, RowId, StateChangeType } from '../common/types';
-import {ActionType, EventHandler, viewerState, viewport, dataManager, vscode, sendWebviewContext, rowHandler} from './vaporview';
+import { EnumQueueEntry, SignalId, type RowId, StateChangeType } from '../common/types';
+import {ActionType, type EventHandler, viewerState, viewport, dataManager, vscode, sendWebviewContext, rowHandler} from './vaporview';
 import { CustomVariable, NetlistVariable } from './signal_item';
 
 enum ButtonState {
@@ -240,7 +240,7 @@ export class ControlBar {
 
   getSelectedSignalWidths(rowIdList: RowId[]) {
     let result = SelectedSignalWidth.None;
-    let isSingleBit: boolean[] = [];
+    const isSingleBit: boolean[] = [];
     rowIdList.forEach((rowId) => {
       const signalItem = rowHandler.rowItems[rowId];
       if (!(signalItem instanceof NetlistVariable) && !(signalItem instanceof CustomVariable)) {return;}

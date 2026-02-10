@@ -1,8 +1,8 @@
-import { EventHandler, viewport, ActionType, viewerState, dataManager, getChildrenByGroupId, getIndexInGroup, sendWebviewContext, handleClickSelection, rowHandler} from './vaporview';
+import { type EventHandler, viewport, ActionType, viewerState, dataManager, getChildrenByGroupId, getIndexInGroup, sendWebviewContext, handleClickSelection, rowHandler} from './vaporview';
 import { ValueFormat } from './value_format';
 import { vscode, getParentGroupId } from './vaporview';
 import { SignalGroup, NetlistVariable, SignalItem, RowItem, htmlSafe, CustomVariable, SignalSeparator } from './signal_item';
-import { NetlistId, SignalId, RowId, EnumData, EnumEntry, StateChangeType } from '../common/types';
+import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType } from '../common/types';
 
 export class LabelsPanels {
 
@@ -447,7 +447,7 @@ export class LabelsPanels {
     if (!this.draggableItem) {return;}
     if (event) {event.preventDefault();}
 
-    let {newGroupId, newIndex} = this.getDropIndex();
+    const {newGroupId, newIndex} = this.getDropIndex();
 
     const draggableItemRowId = this.getRowIdFromElement(this.draggableItem);
     if (draggableItemRowId === null || isNaN(draggableItemRowId)) {

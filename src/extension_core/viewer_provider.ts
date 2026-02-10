@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
-import { DocumentId, NetlistId, SignalId, StateChangeType, markerSetEvent, signalEvent, viewerDropEvent } from '../common/types';
+import { type DocumentId, type NetlistId, SignalId, StateChangeType, type markerSetEvent, type signalEvent, type viewerDropEvent } from '../common/types';
 import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
 import { Worker } from 'worker_threads';
 import * as fs from 'fs';
 import { getTokenColorsForTheme } from './extension';
-import { VaporviewDocument, WaveformFileParser } from './document';
+import { VaporviewDocument, type WaveformFileParser } from './document';
 import { WasmFormatHandler } from './wasm_handler';
 import { FsdbFormatHandler } from './fsdb_handler';
 import { SurferFormatHandler } from './surfer_handler';
-import { NetlistTreeDataProvider, NetlistItem, netlistItemDragAndDropController, VaporviewStatusBar } from './tree_view';
+import { NetlistTreeDataProvider, type NetlistItem, netlistItemDragAndDropController, VaporviewStatusBar } from './tree_view';
 import { getInstancePath } from './tree_view';
 
 
@@ -431,7 +431,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   public async loadSettingsFromFileUri(document: VaporviewDocument, saveFileUri: vscode.Uri): Promise<boolean> {
     const fileData = await vscode.workspace.fs.readFile(saveFileUri).then((data) => {
       return JSON.parse(new TextDecoder().decode(data));
-    })
+    });
 
     if (!fileData) {return false;}
     if (fileData.fileName && fileData.fileName !== document.uri.fsPath) {
@@ -681,13 +681,13 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
   emitEvent(e: any) {
 
-    let markerData: markerSetEvent = {
+    const markerData: markerSetEvent = {
       uri: e.uri,
       time: e.time,
       units: e.units,
     }
 
-    let signalData: signalEvent = {
+    const signalData: signalEvent = {
       uri: e.uri,
       instancePath: e.instancePath,
       netlistId: e.netlistId,
@@ -732,7 +732,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     if (!this.lastActiveDocument) {return;}
     const document = this.lastActiveDocument;
-    let netlistId: NetlistId | undefined | null = undefined;
+    let netlistId: NetlistId | undefined | null ;
 
     if (e) {
       netlistId = e.netlistId
@@ -829,7 +829,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       document.reveal();
     }
 
-    let metadata = await this.getNetlistItemFromCommandArgs(e);
+    const metadata = await this.getNetlistItemFromCommandArgs(e);
     if (metadata === null) {
       vscode.window.showWarningMessage('Signal not found: ' + e.netlistId);
       return;
@@ -915,7 +915,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     });
 
     let groupPath: string[] = [];
-    let index = undefined;
+    let index;
     if (e.groupPath) {groupPath = e.groupPath}
     if (e.dropIndex || e.dropIndex === 0) {index = e.dropIndex;}
 
@@ -998,7 +998,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     //console.log('found signal ' + instancePath);
     const netlistId = metadata.netlistId;
     const displayedNetlistIds = document.getDisplayedNetlistIds();
-    let isDisplayed = displayedNetlistIds.includes(netlistId);
+    const isDisplayed = displayedNetlistIds.includes(netlistId);
 
     if (isDisplayed) {
       document.revealSignalInWebview(netlistId);
@@ -1203,9 +1203,9 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}
 
-    let groupId: number | undefined = e?.groupId;
-    let groupName: string | undefined = e?.name;
-    let rowId: number | undefined = e?.rowId;
+    const groupId: number | undefined = e?.groupId;
+    const groupName: string | undefined = e?.name;
+    const rowId: number | undefined = e?.rowId;
 
     const panel = this.activeWebview;
     panel.webview.postMessage({
@@ -1237,7 +1237,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}
 
-    let groupId: number | undefined = e?.groupId;
+    const groupId: number | undefined = e?.groupId;
 
     const panel = this.activeWebview;
     panel.webview.postMessage({

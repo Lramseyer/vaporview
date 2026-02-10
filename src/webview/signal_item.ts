@@ -1,9 +1,9 @@
-import { NetlistId, RowId, EnumData, EnumEntry, NameType } from '../common/types';
+import { type NetlistId, type RowId, EnumData, EnumEntry, NameType } from '../common/types';
 
 import { dataManager, viewport, CollapseState, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, WAVE_HEIGHT, sendWebviewContext, rowHandler } from "./vaporview";
-import { EnumValueFormat, formatBinary, formatHex, formatString, ValueFormat } from "./value_format";
-import { WaveformRenderer, setRenderBounds } from "./renderer";
-import { WaveformData, BitRangeSource } from "./data_manager";
+import { EnumValueFormat, formatBinary, formatHex, formatString, type ValueFormat } from "./value_format";
+import { type WaveformRenderer, setRenderBounds } from "./renderer";
+import type { WaveformData, BitRangeSource } from "./data_manager";
 import { vscode, labelsPanel } from "./vaporview";
 import { LabelsPanels } from "./labels";
 
@@ -40,7 +40,7 @@ function mouseOverHandler(event: MouseEvent, signalItem: NetlistVariable, checkB
       if (elementX >= min && elementX <= max) {
         valueIndex = i;
       }
-    })
+    });
   }
 
   // store a pointer to the netlistData object for a keydown event handler
@@ -160,7 +160,7 @@ export class SignalSeparator extends SignalItem implements RowItem {
     const isSelectedClass   = this.isSelected ? 'is-selected' : '';
     const lastSelectedClass = viewerState.lastSelectedSignal === this.rowId ? 'last-selected' : '';
     const selectorClass     = isSelectedClass + ' ' + lastSelectedClass;
-    let result = `<div class="value-display-item ${selectorClass} ${height}" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}></div>`;
+    const result = `<div class="value-display-item ${selectorClass} ${height}" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}></div>`;
     return result;
   }
 
@@ -649,7 +649,7 @@ export class SignalGroup extends SignalItem implements RowItem {
   }
 
   public createWaveformRowContent() {
-    let icon = this.collapseState === CollapseState.Expanded ? 
+    const icon = this.collapseState === CollapseState.Expanded ? 
       'codicon-chevron-down' : 'codicon-chevron-right';
     return `<div class='codicon ${icon}'></div><p>${this.label}</p>`;
   }
@@ -715,7 +715,7 @@ export class SignalGroup extends SignalItem implements RowItem {
   setLabelText(newLabel: string) {this.label = newLabel;}
 
   public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {
-    let result: number[] = [this.rowId];
+    const result: number[] = [this.rowId];
     if (!ignoreCollapsed || this.collapseState === CollapseState.Expanded) {
       this.children.forEach((rowId) => {
         if (rowId === ignoreRowId) {return;} // Skip the ignored rowId

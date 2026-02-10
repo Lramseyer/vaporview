@@ -9,7 +9,7 @@
 // contributes.menus.vaporview.valueFormat.
 // 3. Register the new command in the extension.ts (which has examples)
 
-import { htmlSafe, NetlistVariable, CustomVariable } from "./signal_item";
+import { htmlSafe, type NetlistVariable, type CustomVariable } from "./signal_item";
 import { dataManager, outputLog } from "./vaporview";
 import { vscode } from "./vaporview";
 
@@ -26,7 +26,7 @@ function signedBinaryStringToInt(inputString: string) {
   const isNegative = inputString[0] === '1';
   let result = parseInt(inputString, 2);
   if (isNegative) {
-    result -= Math.pow(2, inputString.length);
+    result -= 2 ** inputString.length;
   }
   return result;
 }
@@ -43,14 +43,14 @@ function parseBinaryStringAsFloat(inputString: string, exponentBits: number, man
   const exponent = parseInt(inputString.slice(1, 1 + exponentBits), 2);
   const mantissa = parseInt(inputString.slice(1 + exponentBits), 2);
   // Infinity and NaN
-  if (exponent === Math.pow(2, exponentBits) - 1) {
+  if (exponent === 2 ** exponentBits - 1) {
     if (mantissa === 0) {
       return sign * Infinity;
     } else {
       return sign * NaN;
     }
   }
-  return sign * Math.pow(2, exponent - (Math.pow(2, exponentBits - 1) - 1)) * (1 + mantissa / Math.pow(2, mantissaBits));
+  return sign * 2 ** (exponent - (2 ** (exponentBits - 1) - 1)) * (1 + mantissa / 2 ** mantissaBits);
 }
 
 function formatFloat(inputString: string, exponentBits: number, mantissaBits: number, is2State: boolean) {
@@ -82,7 +82,7 @@ function parseFloatForSearch(inputText: string, exponentBits: number, mantissaBi
   const sign = number < 0 ? '1' : '0';
   const absNumber = Math.abs(number);
   const exponent = Math.floor(Math.log2(absNumber));
-  const mantissa = absNumber / Math.pow(2, exponent) - 1;
+  const mantissa = absNumber / 2 ** exponent - 1;
   return sign + exponent.toString(2).padStart(exponentBits, '0') + mantissa.toString(2).slice(2).padEnd(mantissaBits, '0');
 }
 
@@ -516,7 +516,7 @@ export class FixedPointValueFormat implements ValueFormat {
     this.signed = signed;
     this.id = "fixedpoint_" + (signed ? "s" : "u") + "_" + offset.toString();
     this.intBits = Math.max(0, width - this.offset);
-    this.multiplier = Math.pow(2, -this.offset);
+    this.multiplier = 2 ** -this.offset;
   }
 
   public formatString = (binaryString: string, width: number, is2State: boolean) => {
@@ -560,7 +560,7 @@ export const valueFormatList: ValueFormat[] = [
 ];
 
 export function getNumberFormatById(netlistData: NetlistVariable | CustomVariable, numberFormatId: string): ValueFormat {
-  let valueFormat = valueFormatList.find((format) => format.id === numberFormatId);
+  const valueFormat = valueFormatList.find((format) => format.id === numberFormatId);
   if (valueFormat !== undefined) {return valueFormat;}
   if (numberFormatId === "enum") {
     const enumType = netlistData.enumType;

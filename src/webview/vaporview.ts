@@ -1,11 +1,11 @@
 import { error, group } from 'console';
-import { NetlistId, SignalId, RowId, StateChangeType, DocumentId } from '../common/types';
+import { type NetlistId, SignalId, type RowId, StateChangeType, type DocumentId } from '../common/types';
 import { Viewport } from './viewport';
 import { LabelsPanels } from './labels';
 import { ControlBar } from './control_bar';
 import { RowHandler } from './row_handler';
 import { WaveformDataManager } from './data_manager';
-import { NetlistVariable, CustomVariable, SignalGroup, SignalSeparator, RowItem } from './signal_item';
+import { NetlistVariable, CustomVariable, SignalGroup, SignalSeparator, type RowItem } from './signal_item';
 import { copyWaveDrom } from './wavedrom';
 
 declare function acquireVsCodeApi(): VsCodeApi;
@@ -521,7 +521,7 @@ class VaporviewWebview {
 
     let selectedSignalIndex: number | null = null;
     if (viewerState.lastSelectedSignal !== null) {
-      selectedSignalIndex = viewerState.visibleSignalsFlat.indexOf(viewerState.lastSelectedSignal)
+      selectedSignalIndex = viewerState.visibleSignalsFlat.indexOf(viewerState.lastSelectedSignal);
     }
 
     if ((e.key === 'ArrowRight') && (viewerState.markerTime !== null)) {
@@ -605,14 +605,14 @@ class VaporviewWebview {
       const parentGroupRowId = rowHandler.groupIdTable[parentGroupId];
       const grandparentGroupId = getParentGroupId(parentGroupRowId);
       if (grandparentGroupId === null) {return;}
-      let parentIndex = getIndexInGroup(rowHandler.groupIdTable[parentGroupId], grandparentGroupId);
+      const parentIndex = getIndexInGroup(rowHandler.groupIdTable[parentGroupId], grandparentGroupId);
       newIndex = parentIndex;
       if (direction > 0) {newIndex += direction;}
       parentGroupId = grandparentGroupId;
     } else {
       // if the adjacent row is a group, and the group is expanded, we place it in the top or bottom of the group
-      let adjacentRowId = parentList[newIndex];
-      let adjacentGroupId = rowHandler.groupIdTable.indexOf(adjacentRowId);
+      const adjacentRowId = parentList[newIndex];
+      const adjacentGroupId = rowHandler.groupIdTable.indexOf(adjacentRowId);
       if (adjacentGroupId !== -1) {
         const groupItem = rowHandler.rowItems[rowHandler.groupIdTable[adjacentGroupId]];
         if (groupItem instanceof SignalGroup && groupItem.collapseState === CollapseState.Expanded) {
@@ -761,7 +761,7 @@ class VaporviewWebview {
       let instancePath = netlistData.scopePath + '.' + netlistData.signalName;
       if (netlistData.scopePath === "") {instancePath = netlistData.signalName;}
       instancePathList.push(instancePath);
-    })
+    });
 
     if (rowIdList.length === 1) {
       vscode.postMessage({

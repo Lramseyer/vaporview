@@ -1,6 +1,6 @@
-import { NetlistId, SignalId, RowId, EnumData, EnumEntry, StateChangeType, DocumentId } from '../common/types';
+import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType, type DocumentId } from '../common/types';
 import { logScaleFromUnits } from '../common/functions';
-import { vscode, sendWebviewContext, ActionType, EventHandler, viewerState, dataManager, restoreState, updateDisplayedSignalsFlat, WAVE_HEIGHT, handleClickSelection, controlBar, RULER_HEIGHT } from "./vaporview";
+import { vscode, sendWebviewContext, ActionType, type EventHandler, viewerState, dataManager, restoreState, updateDisplayedSignalsFlat, WAVE_HEIGHT, handleClickSelection, controlBar, RULER_HEIGHT } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer } from './renderer';
 import { labelsPanel, rowHandler } from "./vaporview";
@@ -226,7 +226,7 @@ export class Viewport {
   }
 
   async getThemeColors() {
-    let style = window.getComputedStyle(document.body)
+    const style = window.getComputedStyle(document.body);
     // Token colors
     this.colorKey[0] = style.getPropertyValue('--vscode-debugTokenExpression-number');
     this.colorKey[1] = style.getPropertyValue('--vscode-debugTokenExpression-string');
@@ -263,7 +263,7 @@ export class Viewport {
     const fontList = this.fontFamily.split(',').map((font) => font.trim());
     let usedFont = '';
     for (let i = 0; i < fontList.length; i++) {
-      let font = fontList[i];
+      const font = fontList[i];
       if (document.fonts.check('12px ' + font)) {
         usedFont = fontList[i];
         break;
@@ -655,7 +655,7 @@ export class Viewport {
   handleMarkerSet(time: number, markerType: number) {
     if (time > this.timeStop || time < 0) {return;}
 
-    let labelElement = markerType === 0 ? this.markerLabelElement : this.altMarkerLabelElement;
+    const labelElement = markerType === 0 ? this.markerLabelElement : this.altMarkerLabelElement;
 
     if (time === null) {
       labelElement.style.display = 'none';
@@ -752,7 +752,7 @@ export class Viewport {
     let tickX = this.rulerTickSpacing - (this.pseudoScrollLeft % this.rulerTickSpacing) - (this.rulerTickSpacing + 0.5);
     let tickXalt = tickX - (this.rulerTickSpacing / 2);
     let numberX = -1 * (this.pseudoScrollLeft % this.rulerNumberSpacing);
-    let numberDirty = (this.pseudoScrollLeft + numberX) * this.pixelTime;
+    const numberDirty = (this.pseudoScrollLeft + numberX) * this.pixelTime;
     let number = Math.round(numberDirty / this.rulerNumberIncrement) * this.rulerNumberIncrement;
     let setIndex = Math.round(number / this.rulerNumberIncrement);
     const alpha = Math.min((this.zoomOffset - Math.floor(this.zoomOffset)) * 4, 1);
@@ -852,8 +852,8 @@ export class Viewport {
     // Annotation lines
     const startIndex = dataManager.binarySearchTime(this.annotateTime, this.timeScrollLeft);
     const endIndex   = dataManager.binarySearchTime(this.annotateTime, this.timeScrollRight);
-    let lineList: any= [];
-    let boxList: any[] = [];
+    const lineList: any= [];
+    const boxList: any[] = [];
     let noDrawFlag   = false;
     let lastDrawTime = 0;
     let lastNoDrawTime = 0;
@@ -958,7 +958,7 @@ export class Viewport {
     if (this.updatePending) {return;}
     if (amount === 0) {return;}
 
-    let newZoomRatio  = this.zoomRatio * Math.pow(2, (-1 * amount));
+    let newZoomRatio  = this.zoomRatio * 2 ** (-1 * amount);
 
     if (newZoomRatio > this.maxZoomRatio && amount < 0) {
       newZoomRatio = this.maxZoomRatio;

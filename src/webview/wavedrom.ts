@@ -1,4 +1,4 @@
-import { NetlistId, SignalId, RowId, EnumData, EnumEntry, ValueChange } from '../common/types';
+import { NetlistId, SignalId, RowId, EnumData, EnumEntry, type ValueChange } from '../common/types';
 import { vscode, viewerState, dataManager, rowHandler } from "./vaporview";
 import { NetlistVariable } from "./signal_item";
 

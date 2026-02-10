@@ -6,8 +6,8 @@ import * as net from 'net';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import { scaleFromUnits } from '../common/functions';
-import { WaveformViewerProvider } from './viewer_provider';
-import { VaporviewDocument } from './document';
+import type { WaveformViewerProvider } from './viewer_provider';
+import type { VaporviewDocument } from './document';
 import { getInstancePath } from './tree_view';
 
 export interface WCPCommand {
@@ -47,7 +47,7 @@ export function updateWCPServerFromConfiguration(wcpServer: WCPServer | null, vi
   } else if (newEnabled && wcpServer && newPort !== wcpServer.getPort()) {
     wcpServer.stop();
     wcpServer = new WCPServer(viewerProvider, context, newPort);
-    wcpServer.start()
+    wcpServer.start();
   }
 }
 

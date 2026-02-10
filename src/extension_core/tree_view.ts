@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { NetlistId, SignalId } from '../common/types';
+import type { NetlistId, SignalId } from '../common/types';
 import { bitRangeString } from '../common/functions';
-import { VaporviewDocument } from './document';
+import type { VaporviewDocument } from './document';
 import { WaveformViewerProvider } from './viewer_provider';
 
 // Scopes

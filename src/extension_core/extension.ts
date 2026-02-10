@@ -132,7 +132,7 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.addVariable', async (e) => {
-    viewerProvider.filterAddSignalsInNetlist([e], true)
+    viewerProvider.filterAddSignalsInNetlist([e], true);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeSignal', (e) => {

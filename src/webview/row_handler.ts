@@ -1,9 +1,9 @@
-import { NetlistId, SignalId, RowId, EnumData, EnumEntry, QueueEntry, SignalQueueEntry, EnumQueueEntry, NameType, StateChangeType } from '../common/types';
-import { ActionType, dataManager, EventHandler, viewerState, getParentGroupId, updateDisplayedSignalsFlat, labelsPanel, controlBar, sendWebviewContext, getIndexInGroup, getChildrenByGroupId, CollapseState, viewport } from './vaporview';
-import { NetlistVariable, RowItem, SignalGroup, SignalSeparator, CustomVariable, isAnalogSignal } from './signal_item';
+import { type NetlistId, SignalId, type RowId, EnumData, EnumEntry, QueueEntry, SignalQueueEntry, type EnumQueueEntry, NameType, StateChangeType } from '../common/types';
+import { ActionType, dataManager, type EventHandler, viewerState, getParentGroupId, updateDisplayedSignalsFlat, labelsPanel, controlBar, sendWebviewContext, getIndexInGroup, getChildrenByGroupId, CollapseState, viewport } from './vaporview';
+import { NetlistVariable, type RowItem, SignalGroup, SignalSeparator, CustomVariable, isAnalogSignal } from './signal_item';
 import { BinaryWaveformRenderer, MultiBitWaveformRenderer, LinearWaveformRenderer } from './renderer';
-import { BitRangeSource, WaveformData } from './data_manager';
-import { ValueFormat, getNumberFormatById } from './value_format';
+import type { BitRangeSource, WaveformData } from './data_manager';
+import { type ValueFormat, getNumberFormatById } from './value_format';
 
 export class RowHandler {
 
@@ -38,7 +38,7 @@ export class RowHandler {
 
   getGroupByIdOrName(groupPath: string[] | undefined, parentGroupId: number | undefined): SignalGroup | null {
     let groupId = 0;
-    let groupIsValid = false;
+    const groupIsValid = false;
 
     if (parentGroupId !== undefined) {
       groupId = parentGroupId;
@@ -87,7 +87,7 @@ export class RowHandler {
       const netlistId = signal.netlistId;
       const signalId  = signal.signalId;
       const enumType  = signal.enumType;
-      let rowId       = this.nextRowId;
+      const rowId       = this.nextRowId;
       lastRowId       = rowId;
       this.nextRowId++;
 
@@ -152,7 +152,7 @@ export class RowHandler {
     let moveIndex = 0;
 
     // If a location was specified, use it
-    let groupItem = this.getGroupByIdOrName(groupPath, parentGroupId);
+    const groupItem = this.getGroupByIdOrName(groupPath, parentGroupId);
     if (groupItem !== null) {
       groupId = groupItem.groupId;
       moveIndex = groupItem.children.length;
@@ -196,7 +196,7 @@ export class RowHandler {
     let parentGroupId = 0;
     let reorder = false;
     let index = viewerState.displayedSignalsFlat.length;
-    let parentGroup = this.getGroupByIdOrName(groupPath, inputParentGroupId);
+    const parentGroup = this.getGroupByIdOrName(groupPath, inputParentGroupId);
     if (eventRowId !== undefined || moveSelected) {
       // Command was sent via keybinding, or right clicking on an empty area
       let targetRowId = eventRowId;
@@ -281,7 +281,7 @@ export class RowHandler {
 
     let reorder = false;
     let index = viewerState.displayedSignalsFlat.length;
-    let parentGroup = this.getGroupByIdOrName(groupPath, parentGroupId);
+    const parentGroup = this.getGroupByIdOrName(groupPath, parentGroupId);
     if (eventRowId !== undefined) {
       parentGroupId = getParentGroupId(eventRowId) || 0;
       const parentGroupChildren = getChildrenByGroupId(parentGroupId);
@@ -310,7 +310,7 @@ export class RowHandler {
     this.nextRowId++;
 
     // get the source signal item
-    let sourceSignalItem: RowItem | undefined = undefined;
+    let sourceSignalItem: RowItem | undefined ;
     if (eventRowId !== undefined) {
       sourceSignalItem = this.rowItems[eventRowId];
     } else if (netlistId !== undefined) {
@@ -343,7 +343,7 @@ export class RowHandler {
 
     let reorder = false;
     let index = viewerState.displayedSignalsFlat.length;
-    let parentGroup = this.getGroupByIdOrName(groupPath, parentGroupId);
+    const parentGroup = this.getGroupByIdOrName(groupPath, parentGroupId);
     if (eventRowId !== undefined) {
       parentGroupId = getParentGroupId(eventRowId) || 0;
       const parentGroupChildren = getChildrenByGroupId(parentGroupId);
@@ -454,7 +454,7 @@ export class RowHandler {
     const name = message.name;
     const isExpanded = message.isExpanded;
 
-    let groupItem = this.getGroupByIdOrName(groupPath, groupId);
+    const groupItem = this.getGroupByIdOrName(groupPath, groupId);
     if (groupItem === null) {return;}
 
     if (name !== undefined) {
@@ -513,7 +513,7 @@ export class RowHandler {
       rowIdList = viewerState.selectedSignal;
     }
 
-    let newSelected = viewerState.selectedSignal;
+    const newSelected = viewerState.selectedSignal;
     const removeList: RowId[] = []
     rowIdList.forEach((rId) => {
       const groupItem = this.rowItems[rId];
@@ -552,10 +552,10 @@ export class RowHandler {
       const indexInGroup = getIndexInGroup(rowId, parentGroupId);
 
       if (recursive) {
-        disposedRowIdList = signalItem.getFlattenedRowIdList(false, -1)
+        disposedRowIdList = signalItem.getFlattenedRowIdList(false, -1);
       } else if (signalItem instanceof SignalGroup) {
         signalItem.collapseState = CollapseState.Expanded;
-        signalItem.showHideViewportRows()
+        signalItem.showHideViewportRows();
         children = signalItem.children;
       }
       if (parentGroupId === 0) {
@@ -733,7 +733,7 @@ export class RowHandler {
 
   setDisplayFormat(message: any) {
 
-    let netlistId = message.netlistId;
+    const netlistId = message.netlistId;
     let rowId = message.rowId;
     if (netlistId === undefined && rowId === undefined) {return;}
     if (rowId === undefined) {
@@ -867,11 +867,11 @@ export class RowHandler {
 
     if (netlistData.encoding !== "Real") {
       if (renderType === 'steppedSigned' || renderType === 'linearSigned') {
-        netlistData.min = Math.max(-Math.pow(2, netlistData.signalWidth - 1), -32768);
-        netlistData.max = Math.min(Math.pow(2, netlistData.signalWidth - 1) - 1, 32767);
+        netlistData.min = Math.max(-(2 ** (netlistData.signalWidth - 1)), -32768);
+        netlistData.max = Math.min(2 ** (netlistData.signalWidth - 1) - 1, 32767);
       } else {
         netlistData.min = 0;
-        netlistData.max = Math.min(Math.pow(2, netlistData.signalWidth) - 1, 65535);
+        netlistData.max = Math.min(2 ** netlistData.signalWidth - 1, 65535);
       }
     }
 

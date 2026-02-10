@@ -1,11 +1,10 @@
-import { NetlistId, SignalId, RowId, EnumData, EnumEntry, QueueEntry, SignalQueueEntry, EnumQueueEntry, NameType } from '../common/types';
-import { EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, labelsPanel, outputLog, getIndexInGroup, CollapseState, controlBar, rowHandler, events } from './vaporview';
+import { type NetlistId, type SignalId, type RowId, type EnumData, type EnumEntry, type QueueEntry, type SignalQueueEntry, type EnumQueueEntry, NameType } from '../common/types';
+import { type EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, labelsPanel, outputLog, getIndexInGroup, CollapseState, controlBar, rowHandler, events } from './vaporview';
 import { getNumberFormatById, ValueFormat } from './value_format';
 import { WaveformRenderer, MultiBitWaveformRenderer, BinaryWaveformRenderer, LinearWaveformRenderer } from './renderer';
 import { SignalGroup, NetlistVariable, RowItem, SignalSeparator, isAnalogSignal, CustomVariable } from './signal_item';
 
 
-// @ts-ignore
 import * as LZ4 from 'lz4js';
 
 export type FormattedValueData = {
@@ -234,7 +233,7 @@ export class WaveformDataManager {
       const decompressedData = LZ4.decompress(fullCompressedData);
       const byteIncrement = 8 + message.signalWidth;
       let time = 0;
-      let transitionData: any[] = [];
+      const transitionData: any[] = [];
       
       // Create DataView once from the entire decompressed data
       const dataView = new DataView(decompressedData.buffer, decompressedData.byteOffset, decompressedData.byteLength);
@@ -316,7 +315,7 @@ export class WaveformDataManager {
     const signalWidth = this.valueChangeData[signalId].signalWidth;
     const valueChangeData = this.valueChangeData[signalId].valueChangeData;
     let sliceStart = signalWidth - source.msb - 1;
-    let sliceEnd = signalWidth - source.lsb;
+    const sliceEnd = signalWidth - source.lsb;
     let nullValue   = "";
     if (sliceStart < 0) {
       nullValue = "x".repeat(-sliceStart);
@@ -354,7 +353,7 @@ export class WaveformDataManager {
 
     // create new custom signal
     let signalWidth = 0;
-    let signalIdList: SignalId[] = [];
+    const signalIdList: SignalId[] = [];
     source.forEach((s) => {
       signalWidth += s.msb - s.lsb + 1;
       if (this.valueChangeData[s.signalId] === undefined) {
@@ -449,7 +448,7 @@ export class WaveformDataManager {
   }
 
   getTransitionCount(): number | null {
-    let result = null;
+    const result = null;
     if (viewerState.selectedSignal.length !== 1) {return result;}
     if (viewerState.markerTime === null || viewerState.altMarkerTime === null) {return result;}
     const rowId = viewerState.selectedSignal[0];

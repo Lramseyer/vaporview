@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { WaveformViewerProvider, VaporviewDocumentDelegate } from './viewer_provider';
+import type { WaveformViewerProvider, VaporviewDocumentDelegate } from './viewer_provider';
 
 
 interface CustomTerminalLink extends vscode.TerminalLink {data: string; type: string;}
@@ -9,7 +9,7 @@ export class TimestampLinkProvider implements vscode.TerminalLinkProvider {
   // Detect UVM timestamps - ie: @ 1234
   private readonly uvmTimestampRegex  = /@\s+(\d+)/g;
   // Detect timestamps with units - ie: 1.234 ns
-  private readonly timeStampWithUnits = /([\d,\.]+)\s*([kmµunpf]?s)/g;
+  private readonly timeStampWithUnits = /([\d,.]+)\s*([kmµunpf]?s)/g;
   // Detect surver URL - ie: http://192.168.1.100:8080
   private readonly surverUrlRegex     = /surfer\s+(https?:\/\/[^\s]+)/g;
 
@@ -89,7 +89,7 @@ export class TimestampLinkProvider implements vscode.TerminalLinkProvider {
           value: ''
         }).then(bearerToken => {
           this.viewerProvider.openRemoteViewer(url, bearerToken);
-        })
+        });
         break;
       }
     }
@@ -100,7 +100,7 @@ export class NetlistLinkProvider implements vscode.TerminalLinkProvider {
 
   // Terminal link provider code
   // Detect netlist elements in the terminal - ie: top.submodule.signal
-  private readonly defaultRegex     = /(([\w\$\.\[\]\:]+)\.)+[\w\$\.\[\]\:]+/g;
+  private readonly defaultRegex     = /(([\w$.[\]:]+)\.)+[\w$.[\]:]+/g;
   private readonly regexList: RegExp[] = [];
 
   // We only want to match to valid top level modules (which will be passed in)

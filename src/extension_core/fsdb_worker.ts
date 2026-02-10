@@ -1,4 +1,4 @@
-import { NetlistId, SignalId } from '../common/types';
+import type { NetlistId, SignalId } from '../common/types';
 
 let fsdbAddon: any = null;
 try {

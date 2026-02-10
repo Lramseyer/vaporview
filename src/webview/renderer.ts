@@ -1,8 +1,8 @@
 //import { NetlistData } from './vaporview';
-import { NetlistVariable, CustomVariable } from './signal_item';
-import { Viewport } from './viewport';
+import { NetlistVariable, type CustomVariable } from './signal_item';
+import type { Viewport } from './viewport';
 import { dataManager, viewport, WAVE_HEIGHT } from './vaporview';
-import { WaveformData } from './data_manager';
+import type { WaveformData } from './data_manager';
 
 export interface WaveformRenderer {
   id: string;
@@ -144,11 +144,11 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     let xPosition       = 0;
     let yPosition       = 0;
     const adjustedTime  = time - viewportSpecs.timeScrollLeft;
-    let points          = [[adjustedTime, 0]];
+    const points        = [[adjustedTime, 0]];
     const endPoints     = [[adjustedTime, 0]];
-    let xzPoints: any[] = [];
+    const xzPoints: any[] = [];
     //const xzValues: string[] = [];
-    let textElements: any[] = [];
+    const textElements: any[] = [];
     let moveCursor      = false;
     let drawBackgroundStrokes = false;
     const minTextWidth  = 12 * viewportSpecs.pixelTime;
@@ -333,7 +333,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     ctx.textRendering = 'optimizeLegibility';
     textElements.forEach(([text, xValue, center], i) => {
       if (center) {
-        ctx.fillText(text, xValue, textY)
+        ctx.fillText(text, xValue, textY);
         if (i === netlistData.valueLinkIndex) {ctx.fillText("_".repeat(text.length), xValue, textY);}
       };
     });
@@ -384,7 +384,7 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     let initialValue2state = parseInt(initialValue);
     let initialTime        = initialState[0];
     let initialTimeOrStart = Math.max(initialState[0], -10);
-    let xzPath: any[]      = [];
+    const xzPath: any[]    = [];
     const minDrawWidth     = viewportSpecs.pixelTime / viewportSpecs.pixelRatio;
     const drawColor        = netlistData.color;
     const xzColor          = viewportSpecs.xzColor;
@@ -399,13 +399,13 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
       initialValue2state = 0;
     }
     const startScreenX  = -10 * viewportSpecs.pixelTime
-    let accumulatedPath = [[startScreenX, 0], [startScreenX, initialValue2state]];
+    const accumulatedPath = [[startScreenX, 0], [startScreenX, initialValue2state]];
     let value2state     = 0;
     // No Draw Code
     let lastDrawTime    = 0;
     let lastNoDrawTime: any = null;
     let noDrawFlag      = false;
-    let noDrawPath: any[] = [];
+    const noDrawPath: any[] = [];
     let lastDrawValue   = initialValue2state;
     let lastNoDrawValue: any = null;
 
@@ -569,7 +569,7 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariabl
   const minDrawWidth     = viewportSpecs.pixelTime / (viewportSpecs.pixelRatio * 4);
   const timeScrollLeft   = viewportSpecs.timeScrollLeft;
   const timeScrollRight  = viewportSpecs.timeScrollRight - timeScrollLeft;
-  let xzPath: any[]      = [];
+  const xzPath: any[]    = [];
   const valueIs9State    = netlistData.valueFormat.is9State;
   const rowHeight        = netlistData.rowHeight * WAVE_HEIGHT;
   const canvasHeight     = rowHeight - 8;
@@ -580,7 +580,7 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariabl
     initialValue2state = "0";
   }
 
-  let accumulatedPath: any[] = [[-10 * viewportSpecs.pixelTime, 0]];
+  const accumulatedPath: any[] = [[-10 * viewportSpecs.pixelTime, 0]];
   accumulatedPath.push([initialTime - timeScrollLeft, evalCoordinates(initialValue2state)]);
 
   let value2state    = "0";
@@ -588,7 +588,7 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariabl
   let lastDrawTime        = 0;
   let lastNoDrawTime: any = null;
   let noDrawFlag          = false;
-  let noDrawPath: any[]   = [];
+  const noDrawPath: any[] = [];
   let lastDrawValue       = initialValue2state;
   let lastNoDrawValue: any = null;
 

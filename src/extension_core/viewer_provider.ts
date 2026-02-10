@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { NetlistId, SignalId, StateChangeType, markerSetEvent, signalEvent, viewerDropEvent } from '../common/types';
+import { DocumentId, NetlistId, SignalId, StateChangeType, markerSetEvent, signalEvent, viewerDropEvent } from '../common/types';
 import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
 import { Worker } from 'worker_threads';
 import * as fs from 'fs';
@@ -8,14 +8,13 @@ import { VaporviewDocument, WaveformFileParser } from './document';
 import { WasmFormatHandler } from './wasm_handler';
 import { FsdbFormatHandler } from './fsdb_handler';
 import { SurferFormatHandler } from './surfer_handler';
-import { NetlistTreeDataProvider, NetlistItem, WebviewCollection, netlistItemDragAndDropController } from './tree_view';
+import { NetlistTreeDataProvider, NetlistItem, netlistItemDragAndDropController, VaporviewStatusBar } from './tree_view';
 import { getInstancePath } from './tree_view';
 
 
 export interface VaporviewDocumentDelegate {
   addSignalByNameToDocument(signalName: string): void;
   logOutputChannel(message: string): void;
-  getViewerContext(): Promise<Uint8Array>;
   updateViews(uri: vscode.Uri): void;
   emitEvent(e: any): void;
   removeFromCollection(uri: vscode.Uri, document: VaporviewDocument): void;
@@ -28,25 +27,75 @@ class VaporviewDocumentBackup implements vscode.CustomDocumentBackup {
   delete(): void {return;}
 }
 
+export class VaporviewDocumentCollection {
+
+  private readonly _documents: Record<DocumentId, VaporviewDocument> = {};
+  private _numDocuments = 0;
+  public get numDocuments() {return this._numDocuments;}
+
+  private randomString() {return Math.random().toString(36).substring(2, 15);}
+
+  public createUniqueDocumentId(): DocumentId {
+    let documentId = this.randomString();
+    while (this._documents[documentId]) {
+      documentId = this.randomString();
+    }
+    return documentId;
+  }
+
+  public add(documentId: DocumentId, document: VaporviewDocument) {
+    this._documents[documentId] = document;
+    this._numDocuments++;
+  }
+
+  public get(documentId: DocumentId): VaporviewDocument | undefined {
+    return this._documents[documentId];
+  }
+
+  public remove(documentId: DocumentId) {
+    delete this._documents[documentId];
+    this._numDocuments--;
+  }
+
+  public getDocumentFromUri(uri: string): VaporviewDocument | undefined {
+    for (const documentId in this._documents) {
+      if (this._documents[documentId].uri.toString() === uri) {
+        return this._documents[documentId];
+      }
+    }
+    return undefined;
+  }
+
+  public getAllDocuments() {
+    return Object.keys(this._documents).map(documentId => {
+      return {
+        documentId: documentId,
+        uri: this._documents[documentId].uri
+      };
+    });
+  }
+
+  public broadcast(callback: (document: VaporviewDocument) => void) {
+    for (const documentId in this._documents) {
+      const document = this._documents[documentId];
+      if (document) {
+        callback(document);
+      }
+    }
+  }
+}
+
 // #region WaveformViewerProvider
 export class WaveformViewerProvider implements vscode.CustomEditorProvider<VaporviewDocument> {
 
-  private readonly _onDidChangeCustomDocument = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<VaporviewDocument>>();
-  public readonly onDidChangeCustomDocument = this._onDidChangeCustomDocument.event;
-  
-  private static newViewerId = 1;
   private static readonly viewType = 'vaporview.waveformViewer';
-  private readonly webviews = new WebviewCollection();
-  //private readonly documentCollection = new DocumentCollection();
-  private _numDocuments = 0;
   public themeColors = new Map<string, string>();
-  private readonly documentCollection = new Set<{
-    readonly resource: string;
-    readonly document: VaporviewDocument;
-  }>();
-
   private wasmWorkerFile: string;
-  // Store remote server connection info for vaporview-remote:// URIs
+
+  private readonly documentCollection = new VaporviewDocumentCollection();
+  public getDocumentFromUri(uri: string): VaporviewDocument | undefined {
+    return this.documentCollection.getDocumentFromUri(uri);
+  }
   private readonly remoteConnections = new Map<string, {
     serverUrl: string;
     bearerToken?: string;
@@ -59,21 +108,20 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   public get getActiveDocument(): VaporviewDocument | undefined {return this.activeDocument;}
   public get getLastActiveDocument(): VaporviewDocument | undefined {return this.lastActiveDocument;}
 
+  // API endpoints
   public netlistTreeDataProvider: NetlistTreeDataProvider;
   public netlistView: vscode.TreeView<NetlistItem>;
-  public deltaTimeStatusBarItem: vscode.StatusBarItem;
-  public markerTimeStatusBarItem: vscode.StatusBarItem;
-  public selectedSignalStatusBarItem: vscode.StatusBarItem;
-
-  public netlistViewSelectedSignals: NetlistItem[] = [];
+  public statusBar: VaporviewStatusBar;
   public log: vscode.OutputChannel;
-  public get numDocuments(): number {return this.numDocuments;}
 
+  // Event emitters
   public static readonly markerSetEventEmitter = new vscode.EventEmitter<markerSetEvent>();
   public static readonly signalSelectEventEmitter = new vscode.EventEmitter<signalEvent>();
   public static readonly addVariableEventEmitter = new vscode.EventEmitter<signalEvent>();
   public static readonly removeVariableEventEmitter = new vscode.EventEmitter<signalEvent>();
   public static readonly externalDropEventEmitter = new vscode.EventEmitter<viewerDropEvent>();
+  private readonly _onDidChangeCustomDocument = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<VaporviewDocument>>();
+  public readonly onDidChangeCustomDocument = this._onDidChangeCustomDocument.event;
 
   constructor(
     private readonly _context: vscode.ExtensionContext, 
@@ -97,13 +145,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     });
     this._context.subscriptions.push(this.netlistView);
 
-    // Create a status bar item for marker time, delta time, and selected signal
-    this.markerTimeStatusBarItem     = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 97);
-    this.deltaTimeStatusBarItem      = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
-    this.selectedSignalStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
-
-    this.markerTimeStatusBarItem.command = 'vaporview.setTimeUnits';
-    this.markerTimeStatusBarItem.tooltip = 'Select Time Units';
+    this.statusBar = new VaporviewStatusBar(this._context);
 
     // Subscribe to the View events. We need to subscribe to expand and collapse events
     // because the collapsible state would not otherwise be preserved when the tree view is refreshed
@@ -126,34 +168,18 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     const delegate: VaporviewDocumentDelegate = {
       addSignalByNameToDocument: this.addSignalByNameToDocument.bind(this),
       logOutputChannel: (message: string) => {this.log.appendLine(message);},
-      getViewerContext: async (): Promise<Uint8Array> => {
-        const webviewsForDocument: vscode.WebviewPanel[] = Array.from(this.webviews.get(document.uri));
-        if (!webviewsForDocument.length) {
-          throw new Error('Could not find webview to save for');
-        }
-        const panel: vscode.WebviewPanel = webviewsForDocument[0];
-        const response: number[] = await this.postMessageWithResponse<number[]>(panel, 'getContext', {});
-        return new Uint8Array(response);
-      },
       updateViews: (uri: vscode.Uri) => {
         if (this.activeDocument?.uri !== uri) {return;}
         this.netlistTreeDataProvider.loadDocument(document);
       },
       emitEvent: (e: any) => {this.emitEvent(e);},
       removeFromCollection: (uri: vscode.Uri, doc: VaporviewDocument) => {
-        for (const entry of this.documentCollection) {
-          if (entry.resource === uri.toString() && entry.document === doc) {
-            this.documentCollection.delete(entry);
-            this._numDocuments--;
-            
-            // Clean up remote connection info if this is a vaporview-remote:// URI
-            if (uri.scheme === 'vaporview-remote') {
-              this.remoteConnections.delete(uri.toString());
-              // Also clean up persisted state
-              this._context.globalState.update(`remote-connection-${uri.toString()}`, undefined);
-            }
-            return;
-          }
+        this.documentCollection.remove(doc.documentId);
+        // Clean up remote connection info if this is a vaporview-remote:// URI
+        if (uri.scheme === 'vaporview-remote') {
+          this.remoteConnections.delete(uri.toString());
+          // Also clean up persisted state
+          this._context.globalState.update(`remote-connection-${uri.toString()}`, undefined);
         }
       },
       createFileParser: async (uri: vscode.Uri) => {
@@ -178,7 +204,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     };
 
     // Create the document and load it using its handler
-    document = await VaporviewDocument.create(uri, delegate);
+    document = await VaporviewDocument.create(uri, delegate, this.documentCollection);
     await document.load();
     return document;
   }
@@ -213,9 +239,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     // Handle switching tab events
     webviewPanel.onDidChangeViewState(e => {
-
-      this.netlistViewSelectedSignals = [];
-
       if (e.webviewPanel.active) {
         this.onDidChangeViewStateActive(document, webviewPanel);
         webviewPanel.webview.postMessage({command: 'getContext'});
@@ -235,17 +258,9 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       }
     }, this, this._context.subscriptions);
 
-    // Add the webview to our internal set of active webviews
-    this.webviews.add(document.uri, webviewPanel);
-
     // Setup initial content for the webview
     webviewPanel.webview.options = { enableScripts: true, };
     webviewPanel.webview.html    = this.getHtmlContent(webviewPanel.webview);
-
-    // Register the document in the document collection
-    const entry = { resource: document.uri.toString(), document};
-    this.documentCollection.add(entry);
-    this._numDocuments++;
 
     this.onDidChangeViewStateActive(document, webviewPanel);
   }
@@ -274,31 +289,13 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     await this.saveSettingsToFile(document, destination, cancellation);
   }
 
-  public getDocumentFromUri(uri: string): VaporviewDocument | undefined {
-    const key = uri
-    for (const entry of this.documentCollection) {
-      if (entry.resource === key) {return entry.document;}
-    }
-    return undefined;
-  }
-
   public getDocumentFromOptionalUri(uri: string | undefined): VaporviewDocument | undefined {
     if (!uri) {return this.activeDocument;}
-    else {return this.getDocumentFromUri(uri);}
+    else {return this.documentCollection.getDocumentFromUri(uri);}
   }
 
-  public getAllDocuments() {
-    const result: any = {
-      documents: [],
-      lastActiveDocument: null
-    };
-    this.documentCollection.forEach((entry) => {
-      result.documents.push(entry.document.uri.toString());
-    });
-    if (this.lastActiveDocument) {
-      result.lastActiveDocument = this.lastActiveDocument.uri.toString();
-    }
-    return result;
+  public getAllDocumentUris() {
+    return this.documentCollection.getAllDocuments().map(entry => entry.uri.toString());
   }
 
   public getViewerState(uri: any) {
@@ -527,7 +524,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   }
 
   public restoreState(state: any, uri: vscode.Uri) {
-    const document = this.getDocumentFromUri(uri.toString());
+    const document = this.documentCollection.getDocumentFromUri(uri.toString());
     if (state) {
       this.applySettings(state, document, StateChangeType.Restore);
     } else {
@@ -553,7 +550,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     let document: VaporviewDocument | undefined;
     if (e.fsPath) {
-      document = this.getDocumentFromUri(e.toString());
+      document = this.documentCollection.getDocumentFromUri(e.toString());
     } else {
       document = this.activeDocument;
     }
@@ -570,23 +567,28 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     this.activeWebview?.webview.postMessage({command: 'copyWaveDrom'});
   }
 
+  setWaveDromClock(edge: string, netlistId: NetlistId | null) {
+    this.activeWebview?.webview.postMessage({
+      command: 'setWaveDromClock',
+      edge: edge,
+      netlistId: netlistId,
+    });
+  }
+
   // Send command to all webviews
   public updateColorTheme(e: any) {
     //const themeName = vscode.workspace.getConfiguration("workbench").get("colorTheme");
-    this.documentCollection.forEach((entry) => {
-      const webview = entry.document.webviewPanel;
+    this.documentCollection.broadcast((document) => {
+      const webview = document.webviewPanel;
       if (webview) {
-        webview.webview.postMessage({
-          command: 'updateColorTheme',
-          //colorPalate: colorPalate
-        });
+        webview.webview.postMessage({command: 'updateColorTheme'});
       }
     });
   }
 
   updateConfiguration(e: any) {
-    this.documentCollection.forEach((entry) => {
-      entry.document.setConfigurationSettings();
+    this.documentCollection.broadcast((document) => {
+      document.setConfigurationSettings();
     });
   }
 
@@ -597,14 +599,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       case 'info':    {vscode.window.showInformationMessage(event.message); break;}
       default:        {vscode.window.showInformationMessage(event.message); break;}
     }
-  }
-
-  setWaveDromClock(edge: string, netlistId: NetlistId | null) {
-    this.activeWebview?.webview.postMessage({
-      command: 'setWaveDromClock',
-      edge: edge,
-      netlistId: netlistId,
-    });
   }
 
   setMarkerAtTimeWithUnits(time: number, unit: string, altMarker: number) {
@@ -679,52 +673,11 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     if (event.autoReload && document.fileUpdated && document.reloadPending) {
       vscode.commands.executeCommand('vaporview.reloadFile', document.uri);
     } else {
-      this.updateStatusBarItems(document, event);
+      this.statusBar.update(document, event);
     }
   }
 
-  updateStatusBarItems(document: VaporviewDocument, event: any) {
-    //this.deltaTimeStatusBarItem.hide();
-    //this.markerTimeStatusBarItem.hide();
-    //this.selectedSignalStatusBarItem.hide();
 
-    if (!document) {return;}
-    const w = document.webviewContext;
-
-    //console.log(event);
-
-    if (w.markerTime || w.markerTime === 0) {
-      this.markerTimeStatusBarItem.text = 'Time: ' + document.formatTime(w.markerTime, event.displayTimeUnit);
-      if (w.altMarkerTime !== null && w.markerTime !== null) {
-        const deltaT = w.markerTime - w.altMarkerTime;
-        this.deltaTimeStatusBarItem.text = 'Δt: ' + document.formatTime(deltaT, event.displayTimeUnit);
-        this.deltaTimeStatusBarItem.show();
-      } else {
-        this.deltaTimeStatusBarItem.hide();
-      }
-    } else {
-      this.deltaTimeStatusBarItem.hide();
-      //this.markerTimeStatusBarItem.hide();
-      this.markerTimeStatusBarItem.text = 'Time Units: ' + event.displayTimeUnit;
-    }
-    this.markerTimeStatusBarItem.show();
-
-    if (w.selectedSignal || w.selectedSignal === 0) {
-      const netlistData = document.netlistIdTable[w.selectedSignal];
-      const signalName = netlistData.name;
-      this.selectedSignalStatusBarItem.text = 'Selected signal: ' + signalName;
-
-      if (event.transitionCount !== null) {
-        const plural = event.transitionCount === 1 ? ')' : 's)';
-        this.selectedSignalStatusBarItem.text += ' (' + event.transitionCount + ' value change' + plural;
-      }
-      this.selectedSignalStatusBarItem.show();
-    } else if (event.selectedSignalCount > 1) {
-      this.selectedSignalStatusBarItem.text = event.selectedSignalCount + ' signals selected';
-    } else {
-      this.selectedSignalStatusBarItem.hide();
-    }
-  }
 
   emitEvent(e: any) {
 
@@ -763,9 +716,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     this.activeWebview  = undefined;
     this.activeDocument = undefined;
     this.netlistTreeDataProvider.hide();
-    this.deltaTimeStatusBarItem.hide();
-    this.markerTimeStatusBarItem.hide();
-    this.selectedSignalStatusBarItem.hide();
+    this.statusBar.hide();
   }
 
   async showInNetlistViewByName(signalName: string) {
@@ -813,7 +764,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   // #region Command Handlers
   private getDocumentFromCommandArgs(e: any): VaporviewDocument | undefined {
     if (e.uri !== undefined) {
-      const document = this.getDocumentFromUri(e.uri);
+      const document = this.documentCollection.getDocumentFromUri(e.uri);
       if (!document) {
         vscode.window.showErrorMessage('Document not found: ' + e.uri.fsPath);
         return undefined;
@@ -859,7 +810,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   }
 
   public loadAllVariablesFromFile(uri: string, maxSignals: number) {
-    const document = this.getDocumentFromUri(uri);
+    const document = this.documentCollection.getDocumentFromUri(uri);
     if (!document) {return;}
     const netlistIdCount = document.metadata.netlistIdCount;
     if (netlistIdCount > maxSignals || netlistIdCount > 64) {return;}
@@ -946,7 +897,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     const unknownUriList: vscode.Uri[] = [];
     const netlistIdList: NetlistId[] = [];
-    const document = this.getDocumentFromUri(e.uri.external);
+    const document = this.documentCollection.getDocumentFromUri(e.uri.external);
     if (!document) {return;}
     if (!e.resourceUriList) {return;}
 
@@ -1384,22 +1335,9 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   // so we need to copy the selected elements to a new array
   // Six one way, half a dozen the other. One is just more concise...
   private handleNetlistViewSelectionChanged = (e: vscode.TreeViewSelectionChangeEvent<NetlistItem>) => {
-    this.netlistViewSelectedSignals = [];
-    e.selection.forEach((element) => {
-      this.netlistViewSelectedSignals.push(element);
-    });
-    if (this.netlistViewSelectedSignals.length === 1) {
-      const netlistData = this.netlistViewSelectedSignals[0];
-      const uri = this.activeDocument?.uri;
-      if (!uri) {return;}
 
-      WaveformViewerProvider.signalSelectEventEmitter.fire({
-        uri: uri.toString(),
-        instancePath: getInstancePath(netlistData),
-        netlistId: netlistData.netlistId,
-        source: "netlistView",
-      });
-    }
+    const uri = this.activeDocument?.uri;
+    this.netlistTreeDataProvider.handleSelectionChanged(e, uri);
   };
 
   private handleNetlistCollapseElement = (e: vscode.TreeViewExpansionEvent<NetlistItem>) => {

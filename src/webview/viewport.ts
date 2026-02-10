@@ -1,4 +1,4 @@
-import { NetlistId, SignalId, RowId, EnumData, EnumEntry, StateChangeType } from '../common/types';
+import { NetlistId, SignalId, RowId, EnumData, EnumEntry, StateChangeType, DocumentId } from '../common/types';
 import { logScaleFromUnits } from '../common/functions';
 import { vscode, sendWebviewContext, ActionType, EventHandler, viewerState, dataManager, restoreState, updateDisplayedSignalsFlat, WAVE_HEIGHT, handleClickSelection, controlBar, RULER_HEIGHT } from "./vaporview";
 import { ValueFormat } from './value_format';
@@ -191,14 +191,16 @@ export class Viewport {
     this.redrawViewport();
   }
 
-  init(metadata: any, uri: string) {
+  init(metadata: any, uri: string, documentId: DocumentId) {
     document.title     = metadata.filename;
     document.body.setAttribute("data-vscode-context", JSON.stringify({
       preventDefaultContextMenuItems: true,
       webviewSelection: true,
+      documentId: documentId,
       uri: uri,
     }));
     viewerState.uri     = uri;
+    viewerState.documentId = documentId;
     this.pixelRatio     = window.devicePixelRatio || 1;
     this.defaultZoom    = metadata.defaultZoom;
     this.zoomRatio      = metadata.defaultZoom;

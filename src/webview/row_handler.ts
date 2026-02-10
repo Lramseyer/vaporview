@@ -7,10 +7,10 @@ import { ValueFormat, getNumberFormatById } from './value_format';
 
 export class RowHandler {
 
-  rowItems: RowItem[]                 = []; // rowId is the key/index, RowItem is the value
-  groupIdTable: RowId[]               = []; // group ID is the key/index, rowId is the value
-  private nextRowId: number           = 0;
-  private nextGroupId: number         = 1;
+  rowItems: RowItem[]         = []; // rowId is the key/index, RowItem is the value
+  groupIdTable: RowId[]       = []; // group ID is the key/index, rowId is the value
+  private nextRowId: number   = 0;
+  private nextGroupId: number = 1;
 
   constructor(private events: EventHandler) {
 

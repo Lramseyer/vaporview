@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { NetlistId, SignalId } from '../common/types';
 import { bitRangeString } from '../common/functions';
 import { VaporviewDocument } from './document';
+import { WaveformViewerProvider } from './viewer_provider';
 
 // Scopes
 const scopeColor    = new vscode.ThemeColor('charts.purple');
@@ -168,48 +169,6 @@ export function getInstancePath(netlistItem: NetlistItem): string {
   return path;
 }
 
-
-// #region WebviewCollection
-/**
- * Tracks all webviews.
- */
-export class WebviewCollection {
-
-  private numWebviews = 0;
-  public get getNumWebviews() {return this.numWebviews;}
-
-  private readonly _webviews = new Set<{
-    readonly resource: string;
-    readonly webviewPanel: vscode.WebviewPanel;
-  }>();
-
-  /**
-   * Get all known webviews for a given uri.
-   */
-  public *get(uri: vscode.Uri): Iterable<vscode.WebviewPanel> {
-    const key = uri.toString();
-    for (const entry of this._webviews) {
-      if (entry.resource === key) {
-        yield entry.webviewPanel;
-      }
-    }
-  }
-
-  /**
-   * Add a new webview to the collection.
-   */
-  public add(uri: vscode.Uri, webviewPanel: vscode.WebviewPanel) {
-    const entry = { resource: uri.toString(), webviewPanel };
-    this._webviews.add(entry);
-    this.numWebviews++;
-
-    webviewPanel.onDidDispose(() => {
-      this._webviews.delete(entry);
-      this.numWebviews--;
-    });
-  }
-}
-
 // #region NetlistTreeDataProvider
 export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistItem> {
 
@@ -219,10 +178,34 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
   private document: VaporviewDocument | undefined;
   private lastClickedTreeItem: vscode.Uri | undefined = undefined;
   private lastClickedTime: number = 0;
+  private _selectedSignals: NetlistItem[] = [];
+  public get selectedSignals(): NetlistItem[] {return this._selectedSignals;}
+
+  // onDidChangeSelection() event returns readonly elements
+  // so we need to copy the selected elements to a new array
+  // Six one way, half a dozen the other. One is just more concise...
+  public handleSelectionChanged = (e: vscode.TreeViewSelectionChangeEvent<NetlistItem>, uri: vscode.Uri | undefined) => {
+    this._selectedSignals = [];
+    e.selection.forEach((element) => {
+      this._selectedSignals.push(element);
+    });
+
+    if (this._selectedSignals.length === 1 && uri !== undefined) {
+      const netlistData = this._selectedSignals[0];
+
+      WaveformViewerProvider.signalSelectEventEmitter.fire({
+        uri: uri.toString(),
+        instancePath: getInstancePath(netlistData),
+        netlistId: netlistData.netlistId,
+        source: "netlistView",
+      });
+    }
+  };
 
   public loadDocument(document: VaporviewDocument) {
     this.setTreeData(document.treeData);
     this.document = document;
+    this._selectedSignals = [];
   }
 
   // Method to set the tree data
@@ -234,6 +217,7 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
   public hide() {
     this.setTreeData([]);
     this.document = undefined;
+    this._selectedSignals = [];
   }
 
   public getTreeData(): NetlistItem[] {return this.treeData;}
@@ -377,4 +361,76 @@ export const netlistItemDragAndDropController: vscode.TreeDragAndDropController<
   dropMimeTypes: [],
   handleDrag: (source: readonly NetlistItem[], dataTransfer: vscode.DataTransfer, token: vscode.CancellationToken) => {return Promise.resolve()},
   handleDrop: (target: NetlistItem | undefined, dataTransfer: vscode.DataTransfer, token: vscode.CancellationToken) => {return Promise.resolve()},
+}
+
+export class VaporviewStatusBar {
+
+  public markerTimeStatusBarItem: vscode.StatusBarItem;
+  public deltaTimeStatusBarItem: vscode.StatusBarItem;
+  public selectedSignalStatusBarItem: vscode.StatusBarItem;
+
+  constructor(
+    private readonly context: vscode.ExtensionContext
+  ) {
+    this.markerTimeStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 97);
+    this.deltaTimeStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
+    this.selectedSignalStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
+
+    this.markerTimeStatusBarItem.command = 'vaporview.setTimeUnits';
+    this.markerTimeStatusBarItem.tooltip = 'Select Time Units';
+
+    this.context.subscriptions.push(this.markerTimeStatusBarItem);
+    this.context.subscriptions.push(this.deltaTimeStatusBarItem);
+    this.context.subscriptions.push(this.selectedSignalStatusBarItem);
+  }
+
+  public hide() {
+    this.markerTimeStatusBarItem.hide();
+    this.deltaTimeStatusBarItem.hide();
+    this.selectedSignalStatusBarItem.hide();
+  }
+
+  update(document: VaporviewDocument, event: any) {
+    //this.deltaTimeStatusBarItem.hide();
+    //this.markerTimeStatusBarItem.hide();
+    //this.selectedSignalStatusBarItem.hide();
+
+    if (!document) {return;}
+    const w = document.webviewContext;
+
+    //console.log(event);
+
+    if (w.markerTime || w.markerTime === 0) {
+      this.markerTimeStatusBarItem.text = 'Time: ' + document.formatTime(w.markerTime, event.displayTimeUnit);
+      if (w.altMarkerTime !== null && w.markerTime !== null) {
+        const deltaT = w.markerTime - w.altMarkerTime;
+        this.deltaTimeStatusBarItem.text = 'Δt: ' + document.formatTime(deltaT, event.displayTimeUnit);
+        this.deltaTimeStatusBarItem.show();
+      } else {
+        this.deltaTimeStatusBarItem.hide();
+      }
+    } else {
+      this.deltaTimeStatusBarItem.hide();
+      //this.markerTimeStatusBarItem.hide();
+      this.markerTimeStatusBarItem.text = 'Time Units: ' + event.displayTimeUnit;
+    }
+    this.markerTimeStatusBarItem.show();
+
+    if (w.selectedSignal || w.selectedSignal === 0) {
+      const netlistData = document.netlistIdTable[w.selectedSignal];
+      const signalName = netlistData.name;
+      this.selectedSignalStatusBarItem.text = 'Selected signal: ' + signalName;
+
+      if (event.transitionCount !== null) {
+        const plural = event.transitionCount === 1 ? ')' : 's)';
+        this.selectedSignalStatusBarItem.text += ' (' + event.transitionCount + ' value change' + plural;
+      }
+      this.selectedSignalStatusBarItem.show();
+    } else if (event.selectedSignalCount > 1) {
+      this.selectedSignalStatusBarItem.text = event.selectedSignalCount + ' signals selected';
+    } else {
+      this.selectedSignalStatusBarItem.hide();
+    }
+  }
+
 }

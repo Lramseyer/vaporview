@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
-import { SignalId, NetlistId, StateChangeType, QueueEntry, EnumQueueEntry } from '../common/types';
+import { SignalId, NetlistId, StateChangeType, QueueEntry, EnumQueueEntry, DocumentId } from '../common/types';
 import { logScaleFromUnits } from '../common/functions';
 import { NetlistLinkProvider } from './terminal_links';
 import * as path from 'path';
-import { VaporviewDocumentDelegate } from './viewer_provider';
+import { VaporviewDocumentCollection, VaporviewDocumentDelegate } from './viewer_provider';
 import { NetlistItem, getInstancePath } from './tree_view';
 
 export type WaveformTopMetadata = {
@@ -53,6 +53,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   private reloadDebounce: NodeJS.Timeout | undefined = undefined;
   private _fileUpdated: boolean = false;
   private _reloadPending: boolean = false;
+  public readonly documentId: DocumentId;
   // Hierarchy
   public treeData: NetlistItem[] = [];
   private _netlistIdTable: NetlistIdTable = [];
@@ -80,9 +81,15 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public undoStack: any[] = [];
   public redoStack: any[] = [];
 
-  constructor(uri: vscode.Uri, providerDelegate: VaporviewDocumentDelegate, handler: WaveformFileParser) {
+  constructor(
+    uri: vscode.Uri,
+    providerDelegate: VaporviewDocumentDelegate,
+    handler: WaveformFileParser,
+    documentId: DocumentId
+  ) {
     super(() => this.dispose());
     this.uri = uri;
+    this.documentId = documentId;
     this.fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
     this._providerDelegate = providerDelegate;
     this._handler = handler;
@@ -90,10 +97,12 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this.setupFileWatcher();
   }
 
-  static async create(uri: vscode.Uri, providerDelegate: VaporviewDocumentDelegate): Promise<VaporviewDocument> {
+  static async create(uri: vscode.Uri, providerDelegate: VaporviewDocumentDelegate, documentCollection: VaporviewDocumentCollection): Promise<VaporviewDocument> {
     const handler  = await providerDelegate.createFileParser(uri);
     const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
-    const document = new VaporviewDocument(uri, providerDelegate, handler);
+    const documentId = documentCollection.createUniqueDocumentId();
+    const document = new VaporviewDocument(uri, providerDelegate, handler, documentId);
+    documentCollection.add(documentId, document);
     if (fileType === 'fsdb') {
       (document._handler as any).findTreeItemFn = document.findTreeItem.bind(document);
     }
@@ -159,6 +168,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     webviewPanel.webview.postMessage({
       command: 'initViewport',
       metadata: this.metadata,
+      documentId: this.documentId,
       uri: this.uri
     });
     this.setConfigurationSettings();

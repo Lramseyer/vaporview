@@ -101,7 +101,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.getOpenDocuments', (e) => {
     viewerProvider.log.appendLine("Command called: 'waveformViewer.getOpenDocuments' " + JSON.stringify(e));
-    return viewerProvider.getAllDocuments();
+    return viewerProvider.getAllDocumentUris();
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.getViewerState', (e) => {
@@ -181,7 +181,7 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.addSelected', (e) => {
-    viewerProvider.filterAddSignalsInNetlist(viewerProvider.netlistViewSelectedSignals, false);
+    viewerProvider.filterAddSignalsInNetlist(viewerProvider.netlistTreeDataProvider.selectedSignals, false);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.addAllInScopeShallow', (e) => {
@@ -193,7 +193,7 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeSelectedNetlist', (e) => {
-    viewerProvider.removeSignalList(viewerProvider.netlistViewSelectedSignals);
+    viewerProvider.removeSignalList(viewerProvider.netlistTreeDataProvider.selectedSignals);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.removeAllInScope', (e) => {

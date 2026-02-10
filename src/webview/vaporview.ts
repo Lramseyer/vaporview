@@ -1,5 +1,5 @@
 import { error, group } from 'console';
-import { NetlistId, SignalId, RowId, StateChangeType } from '../common/types';
+import { NetlistId, SignalId, RowId, StateChangeType, DocumentId } from '../common/types';
 import { Viewport } from './viewport';
 import { LabelsPanels } from './labels';
 import { ControlBar } from './control_bar';
@@ -45,6 +45,7 @@ let resizeDebounce: any = 0;
 
 export interface ViewerState {
   uri: any;
+  documentId: DocumentId;
   markerTime: number | null;
   altMarkerTime: number | null;
   selectedSignal: RowId[];
@@ -62,6 +63,7 @@ export interface ViewerState {
 
 export const viewerState: ViewerState = {
   uri: null,
+  documentId: "",
   markerTime: null,
   altMarkerTime: null,
   selectedSignal: [],
@@ -896,7 +898,7 @@ class VaporviewWebview {
     const message = e.data;
 
     switch (message.command) {
-      case 'initViewport':          {this.viewport.init(message.metadata, message.uri); break;}
+      case 'initViewport':          {this.viewport.init(message.metadata, message.uri, message.documentId); break;}
       case 'unload':                {this.unload(); break;}
       case 'setConfigSettings':     {this.handleSetConfigSettings(message); break;}
       case 'getContext':            {sendWebviewContext(StateChangeType.None); break;}

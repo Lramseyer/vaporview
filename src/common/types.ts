@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+export type DocumentId  = string;
 export type NetlistId   = number;
 export type SignalId    = number;
 export type RowId       = number;

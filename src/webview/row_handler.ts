@@ -1,9 +1,9 @@
-import { type NetlistId, SignalId, type RowId, EnumData, EnumEntry, QueueEntry, SignalQueueEntry, type EnumQueueEntry, NameType, StateChangeType, CollapseState } from '../common/types';
+import { type NetlistId, SignalId, type RowId, EnumData, EnumEntry, QueueEntry, SignalQueueEntry, type EnumQueueEntry, NameType, StateChangeType, CollapseState, type BitRangeSource } from '../common/types';
 import { bitRangeString } from '../common/functions';
 import { ActionType, dataManager, type EventHandler, viewerState, getParentGroupId, updateDisplayedSignalsFlat, labelsPanel, controlBar, sendWebviewContext, getIndexInGroup, getChildrenByGroupId, viewport } from './vaporview';
 import { NetlistVariable, type RowItem, SignalGroup, SignalSeparator, CustomVariable, isAnalogSignal } from './signal_item';
 import { BinaryWaveformRenderer, MultiBitWaveformRenderer, LinearWaveformRenderer } from './renderer';
-import type { BitRangeSource, WaveformData } from './data_manager';
+import type { WaveformData } from './data_manager';
 import { type ValueFormat, getNumberFormatById } from './value_format';
 
 export class RowHandler {

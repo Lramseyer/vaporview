@@ -5,6 +5,7 @@ import { TimestampLinkProvider, NetlistLinkProvider } from './terminal_links';
 import { WaveformViewerProvider } from './viewer_provider';
 import { updateWCPServerFromConfiguration, WCPServer, wcpDefaultPort } from './wcp_server';
 import * as path from 'path';
+import { SignalGroupContextMenuEvent } from '../common/types';
 
 // #region activate()
 export async function activate(context: vscode.ExtensionContext) {
@@ -150,11 +151,11 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.newSignalGroup(e?.name, e?.groupPath, e?.parentGroupId, e?.rowId, true);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.ungroupSignals', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.ungroupSignals', (e: SignalGroupContextMenuEvent) => {
     viewerProvider.deleteSignalGroup(e, false);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.deleteGroup', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.deleteGroup', (e: SignalGroupContextMenuEvent) => {
     viewerProvider.deleteSignalGroup(e, true);
   }));
 

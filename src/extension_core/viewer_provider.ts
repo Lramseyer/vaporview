@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { type DocumentId, type NetlistId, SignalId, StateChangeType, type markerSetEvent, type signalEvent, type viewerDropEvent } from '../common/types';
+import { type DocumentId, type NetlistId, SignalGroupContextMenuEvent, SignalId, StateChangeType, type markerSetEvent, type signalEvent, type viewerDropEvent } from '../common/types';
 import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
 import { Worker } from 'worker_threads';
 import * as fs from 'fs';
@@ -1232,7 +1232,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     });
   }
 
-  public deleteSignalGroup(e: any | undefined, recursive: boolean) {
+  public deleteSignalGroup(e: SignalGroupContextMenuEvent | undefined, recursive: boolean) {
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}

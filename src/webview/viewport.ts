@@ -1,4 +1,4 @@
-import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType, type DocumentId } from '../common/types';
+import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType, type DocumentId, type DefaultWebviewContext, type RulerContext } from '../common/types';
 import { logScaleFromUnits } from '../common/functions';
 import { vscode, sendWebviewContext, ActionType, type EventHandler, viewerState, dataManager, restoreState, updateDisplayedSignalsFlat, WAVE_HEIGHT, handleClickSelection, controlBar, RULER_HEIGHT } from "./vaporview";
 import { ValueFormat } from './value_format';
@@ -192,13 +192,14 @@ export class Viewport {
   }
 
   init(metadata: any, uri: string, documentId: DocumentId) {
-    document.title     = metadata.filename;
-    document.body.setAttribute("data-vscode-context", JSON.stringify({
+    const context: DefaultWebviewContext = {
       preventDefaultContextMenuItems: true,
       webviewSelection: true,
       documentId: documentId,
       uri: uri,
-    }));
+    }
+    document.title      = metadata.filename;
+    document.body.setAttribute("data-vscode-context", JSON.stringify(context));
     viewerState.uri     = uri;
     viewerState.documentId = documentId;
     this.pixelRatio     = window.devicePixelRatio || 1;
@@ -295,18 +296,19 @@ export class Viewport {
   }
 
   setRulerVscodeContext() {
-    const unitsList = ['fs', 'ps', 'ns', 'µs', 'ms', 's'];
     const maxTime   = (10 ** logScaleFromUnits(this.timeUnit)) * this.timeScale * this.timeStop;
-    const context: any = {
+    const context: RulerContext = {
       webviewSection: 'ruler',
       preventDefaultContextMenuItems: true,
       rulerLines: this.rulerLines,
-      fillBitVector: this.fillMultiBitValues
+      fillBitVector: this.fillMultiBitValues,
+      fs: maxTime >= (10 ** logScaleFromUnits('fs')),
+      ps: maxTime >= (10 ** logScaleFromUnits('ps')),
+      ns: maxTime >= (10 ** logScaleFromUnits('ns')),
+      µs: maxTime >= (10 ** logScaleFromUnits('µs')),
+      ms: maxTime >= (10 ** logScaleFromUnits('ms')),
+      s:  maxTime >= (10 ** logScaleFromUnits('s')),
     };
-
-    unitsList.forEach((unit) => {
-      context[unit] = maxTime >= (10 ** logScaleFromUnits(unit));
-    });
 
     const contextAttribute = `${JSON.stringify(context).replace(/\s/g, '%x20')}`;
     this.rulerElement.setAttribute("data-vscode-context", contextAttribute);

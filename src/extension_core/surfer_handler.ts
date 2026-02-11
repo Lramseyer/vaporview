@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
 import { Worker } from 'worker_threads';
-import type { EnumQueueEntry, SignalId } from '../common/types';
+import type { EnumQueueEntry, SignalId, ValueChangeDataChunk, CompressedValueChangeDataChunk, EnumDataChunk } from '../common/types';
 
 import type { VaporviewDocumentDelegate } from './viewer_provider';
 import { filehandler } from './filehandler';
 import { type NetlistItem, createScope, createVar } from './tree_view';
-import type { WaveformFileParser, WaveformTopMetadata } from './document';
+import type { WaveformFileParser, WaveformDumpMetadata } from './document';
 
 
 export class SurferFormatHandler implements WaveformFileParser {
@@ -22,7 +22,7 @@ export class SurferFormatHandler implements WaveformFileParser {
   private parametersLoaded: boolean = false;
 
   public postMessageToWebview = (message: any) => {};
-  public metadata: WaveformTopMetadata = {
+  public metadata: WaveformDumpMetadata = {
     timeTableLoaded: false,
     scopeCount: 0,
     netlistIdCount: 0,
@@ -110,7 +110,7 @@ export class SurferFormatHandler implements WaveformFileParser {
         chunkNum: chunknum,
         min: min,
         max: max
-      });
+      } as ValueChangeDataChunk);
     },
     sendenumdata: (name: string, totalchunks: number, chunknum: number, data: string) => {
       this.postMessageToWebview({
@@ -119,7 +119,7 @@ export class SurferFormatHandler implements WaveformFileParser {
         enumDataChunk: data,
         totalChunks: totalchunks,
         chunkNum: chunknum,
-      });
+      } as EnumDataChunk);
     },
     sendcompressedtransitiondata: (signalid: number, signalwidth: number, totalchunks: number, chunknum: number, min: number, max: number, compresseddata: Uint8Array, originalsize: number) => {
       this.postMessageToWebview({
@@ -132,7 +132,7 @@ export class SurferFormatHandler implements WaveformFileParser {
         min: min,
         max: max,
         originalSize: originalsize
-      });
+      } as CompressedValueChangeDataChunk);
     }
   };
 

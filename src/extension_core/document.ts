@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
 import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type EnumQueueEntry, type DocumentId, type SavedRowItem } from '../common/types';
-import { logScaleFromUnits } from '../common/functions';
+import { logScaleFromUnits, toStringWithCommas } from '../common/functions';
 import { NetlistLinkProvider } from './terminal_links';
 import * as path from 'path';
 import type { VaporviewDocumentCollection, VaporviewDocumentDelegate } from './viewer_provider';
 import { type NetlistItem, getInstancePath } from './tree_view';
 
-export type WaveformTopMetadata = {
+export type WaveformDumpMetadata = {
   timeTableLoaded: boolean;
   scopeCount: number;
   netlistIdCount: number;
@@ -27,7 +27,7 @@ Interface for waveform file parsers
 export interface WaveformFileParser {
 
   // Properties
-  metadata: WaveformTopMetadata;
+  metadata: WaveformDumpMetadata;
 
   // Methods
   loadNetlist(): Promise<void>;
@@ -41,6 +41,16 @@ export interface WaveformFileParser {
 
   // Callbacks
   postMessageToWebview(message: any): void;
+}
+
+class WebviewState {
+  markerTime: number | null = null;
+  altMarkerTime: number | null = null;
+  selectedSignal: NetlistId | null = null;
+  zoomRatio: number = 1;
+  scrollLeft: number = 0;
+  autoReload: boolean = false;
+  displayedSignals: SavedRowItem[] = [];
 }
 
 // #region VaporviewDocument
@@ -64,17 +74,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   // Webview
   public webviewPanel: vscode.WebviewPanel | undefined = undefined;
   private _webviewInitialized: boolean = false;
-  public metadata: WaveformTopMetadata;
-  public webviewContext = {
-    markerTime: null as number | null,
-    altMarkerTime: null as number | null,
-    selectedSignal: null as NetlistId | null,
-    displayedSignals: [] as SavedRowItem[],
-    zoomRatio: 1,
-    scrollLeft: 0,
-    numberFormat: "hexadecimal",
-    autoReload: false,
-  };
+  public metadata: WaveformDumpMetadata;
+  public webviewContext: WebviewState = new WebviewState();
   // State management
   public clearDirtyStatus: boolean = false;
   public saveFileUri: vscode.Uri | undefined = undefined;
@@ -142,8 +143,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this.setTerminalLinkProvider();
     this._providerDelegate.updateViews(this.uri);
 
-    const scopeCount     = this.toStringWithCommas(this._handler.metadata.scopeCount);
-    const netlistIdCount = this.toStringWithCommas(this._handler.metadata.netlistIdCount);
+    const scopeCount     = toStringWithCommas(this._handler.metadata.scopeCount);
+    const netlistIdCount = toStringWithCommas(this._handler.metadata.netlistIdCount);
     this.providerDelegate.logOutputChannel("Finished parsing netlist for " + this.uri.fsPath);
     this.providerDelegate.logOutputChannel("Scope count: " + scopeCount + ", Variable count: " + netlistIdCount + ", Time: " + netlistTime + " seconds");
 
@@ -153,7 +154,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     const bodyTime     = (Date.now() - bodyLoadTime) / 1000;
     this.setChunkSize();
 
-    const timeTableCount = this.toStringWithCommas(Number(this.metadata.timeTableCount));
+    const timeTableCount = toStringWithCommas(Number(this.metadata.timeTableCount));
     this.providerDelegate.logOutputChannel("Finished parsing body for " + this.uri.fsPath);
     this._providerDelegate.logOutputChannel("Total Value Change Events: " + timeTableCount + ", Time: " + bodyTime + " seconds");
   }
@@ -224,7 +225,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this.webviewContext.displayedSignals = event.displayedSignals || this.webviewContext.displayedSignals;
     this.webviewContext.zoomRatio        = event.zoomRatio        || this.webviewContext.zoomRatio;
     this.webviewContext.scrollLeft       = event.scrollLeft       || this.webviewContext.scrollLeft;
-    this.webviewContext.numberFormat     = event.numberFormat     || this.webviewContext.numberFormat;
     this.webviewContext.autoReload       = event.autoReload       || this.webviewContext.autoReload;
 
     return isDirty;
@@ -327,10 +327,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       scrollLeft: this.webviewContext.scrollLeft,
       displayedSignals: this.webviewContext.displayedSignals
     };
-  }
-
-  public toStringWithCommas(n: number) {
-    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }
 
   public formatTime(time: number, unit: string) {

@@ -4,6 +4,10 @@ export function bitRangeString(msb: number, lsb: number): string {
   return "[" + msb + ":" + lsb + "]";
 }
 
+export function toStringWithCommas(n: number): string {
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
 export function scaleFromUnits(unit: string | undefined) {
   switch (unit) {
     case 'zs': return 1e-21;

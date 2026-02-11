@@ -1,9 +1,9 @@
-import { type NetlistId, type RowId, EnumData, EnumEntry, NameType, CollapseState } from '../common/types';
+import { type NetlistId, type RowId, type ValueChange, EnumData, EnumEntry, NameType, VariableEncoding, CollapseState, type BitRangeSource, type SignalSeparatorContext, type NetlistVariableContext, CustomVariableContext, SignalGroupContext } from '../common/types';
 
 import { dataManager, viewport, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, WAVE_HEIGHT, sendWebviewContext, rowHandler } from "./vaporview";
 import { EnumValueFormat, formatBinary, formatHex, formatString, type ValueFormat } from "./value_format";
 import { type WaveformRenderer, setRenderBounds } from "./renderer";
-import type { WaveformData, BitRangeSource } from "./data_manager";
+import type { WaveformData } from "./data_manager";
 import { vscode, labelsPanel } from "./vaporview";
 import { LabelsPanels } from "./labels";
 
@@ -82,7 +82,7 @@ export abstract class SignalItem {
   public abstract createLabelElement(): string
   public abstract createValueDisplayElement(): string
   public getValueAtTime(time: number | null): string[] {return [""];}
-  public getNearestTransition(time: number) {return null}
+  public getNearestTransition(time: number | null): ValueChange | null {return null;}
   public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {return [this.rowId];}
   public rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number {return 1;}
   public findParentGroupId(rowId: RowId): number | null {return null;}
@@ -173,11 +173,12 @@ export class SignalSeparator extends SignalItem implements RowItem {
   }
 
   public setSignalContextAttribute() {
-    this.vscodeContext = `${JSON.stringify({
+    const context: SignalSeparatorContext = {
       webviewSection: "signal-separator",
       rowId: this.rowId,
       preventDefaultContextMenuItems: true,
-    }).replace(/\s/g, '%x20')}`;
+    }
+    this.vscodeContext = `${JSON.stringify(context).replace(/\s/g, '%x20')}`;
   }
 
   getLabelText(): string {return this.label;}
@@ -210,17 +211,17 @@ export class NetlistVariable extends SignalItem implements RowItem {
     public scopePath: string,
     public signalWidth: number,
     public variableType: string,
-    public encoding: string,
+    public encoding: VariableEncoding,
     public renderType: WaveformRenderer,
     public enumType: string,
   ) {
     super();
 
     this.customName = this.signalName;
-    if (this.encoding === "String") {
+    if (this.encoding === VariableEncoding.String) {
       this.valueFormat = formatString;
       this.colorIndex  = 1;
-    } else if (this.encoding === "Real") {
+    } else if (this.encoding === VariableEncoding.Real) {
       this.valueFormat = formatString;
     } else if (this.enumType !== "") {
       this.valueFormat = new EnumValueFormat(this.enumType);
@@ -303,7 +304,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
   public setSignalContextAttribute() {
     const renderType = this.renderType.id;
     const isAnalog = isAnalogSignal(this.renderType);
-    this.vscodeContext = `${JSON.stringify({
+    const context: NetlistVariableContext = {
       webviewSection: "signal",
       scopePath: this.scopePath,
       signalName: this.signalName,
@@ -315,7 +316,8 @@ export class NetlistVariable extends SignalItem implements RowItem {
       rowId: this.rowId,
       isAnalog: isAnalog,
       enum: this.enumType !== "",
-    }).replace(/\s/g, '%x20')}`;
+    }
+    this.vscodeContext = `${JSON.stringify(context).replace(/\s/g, '%x20')}`;
   }
 
   public getLabelText(): string {
@@ -355,7 +357,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
     return dataManager.getValueAtTime(data, time);
   }
 
-  public getNearestTransition(time: number | null) {
+  public getNearestTransition(time: number | null): ValueChange | null {
     const data = dataManager.valueChangeData[this.signalId];
     return dataManager.getNearestTransition(data, time);
   }
@@ -455,7 +457,7 @@ export class CustomVariable extends SignalItem implements RowItem {
   public min: number = 0;
   public max: number = 0;
   public variableType: string = "custom";
-  public encoding: string = "BitVector";
+  public encoding: VariableEncoding = VariableEncoding.BitVector;
   public enumType: string = "";
 
   constructor(
@@ -538,7 +540,7 @@ export class CustomVariable extends SignalItem implements RowItem {
   public setSignalContextAttribute() {
     const renderType = this.renderType.id;
     const isAnalog = isAnalogSignal(this.renderType);
-    this.vscodeContext = `${JSON.stringify({
+    const context: CustomVariableContext = {
       webviewSection: "signal",
       signalName: this.signalName,
       type: this.variableType,
@@ -546,7 +548,8 @@ export class CustomVariable extends SignalItem implements RowItem {
       preventDefaultContextMenuItems: true,
       rowId: this.rowId,
       isAnalog: isAnalog,
-    }).replace(/\s/g, '%x20')}`;
+    };
+    this.vscodeContext = `${JSON.stringify(context).replace(/\s/g, '%x20')}`;
   }
 
   public getLabelText(): string {
@@ -586,7 +589,7 @@ export class CustomVariable extends SignalItem implements RowItem {
     return dataManager.getValueAtTime(data, time);
   }
 
-  public getNearestTransition(time: number | null) {
+  public getNearestTransition(time: number | null): ValueChange | null {
     const data = dataManager.customValueChangeData[this.customSignalId];
     return dataManager.getNearestTransition(data, time);
   }
@@ -703,12 +706,13 @@ export class SignalGroup extends SignalItem implements RowItem {
   }
 
   public setSignalContextAttribute() {
-    this.vscodeContext = `${JSON.stringify({
+    const context: SignalGroupContext = {
       webviewSection: "signal-group",
       groupId: this.groupId,
       rowId: this.rowId,
       preventDefaultContextMenuItems: true,
-    }).replace(/\s/g, '%x20')}`;
+    }
+  this.vscodeContext = `${JSON.stringify(context).replace(/\s/g, '%x20')}`;
   }
 
   getLabelText(): string {return this.label;}

@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
-import type { EnumQueueEntry, SignalId, NetlistId } from '../common/types';
+import type { EnumQueueEntry, SignalId, NetlistId, ValueChangeDataChunk } from '../common/types';
 import { type ChildProcess, fork } from 'child_process';
 import * as path from 'path';
 
 import type { VaporviewDocumentDelegate } from './viewer_provider';
 import { type NetlistItem, createScope, createVar } from './tree_view';
-import type { WaveformFileParser, WaveformTopMetadata } from './document';
+import type { WaveformFileParser, WaveformDumpMetadata } from './document';
 
 type FsdbWorkerMessage = {
   id: string;
@@ -32,7 +32,7 @@ export class FsdbFormatHandler implements WaveformFileParser {
   private parametersLoaded: boolean = false;
 
   public postMessageToWebview = (message: any) => {};
-  public metadata: WaveformTopMetadata = {
+  public metadata: WaveformDumpMetadata = {
     timeTableLoaded: false,
     scopeCount: 0,
     netlistIdCount: 0,
@@ -244,7 +244,7 @@ export class FsdbFormatHandler implements WaveformFileParser {
         chunkNum: 0,
         min: data.min,
         max: data.max
-      });
+      } as ValueChangeDataChunk);
     });
     // Run all tasks concurrently
     await Promise.all(tasks);

@@ -1,4 +1,4 @@
-import { type NetlistId, type SignalId, type RowId, type EnumData, type EnumEntry, type QueueEntry, type SignalQueueEntry, type EnumQueueEntry, NameType, CollapseState } from '../common/types';
+import { type NetlistId, type SignalId, type RowId, type ValueChange, type EnumData, type EnumEntry, type QueueEntry, type SignalQueueEntry, type EnumQueueEntry, NameType, CollapseState, type BitRangeSource, type ValueChangeDataChunk, type CompressedValueChangeDataChunk, type EnumDataChunk } from '../common/types';
 import { type EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, labelsPanel, outputLog, getIndexInGroup, controlBar, rowHandler, events } from './vaporview';
 import { getNumberFormatById, ValueFormat } from './value_format';
 import { WaveformRenderer, MultiBitWaveformRenderer, BinaryWaveformRenderer, LinearWaveformRenderer } from './renderer';
@@ -14,22 +14,15 @@ export type FormattedValueData = {
 };
 
 export interface WaveformData {
-  valueChangeData: any[];
+  valueChangeData: ValueChange[];
   formattedValues: Record<string, FormattedValueData>;
   signalWidth: number;
   min: number;
   max: number;
 };
 
-export type BitRangeSource = {
-  netlistId: NetlistId;
-  signalId: SignalId;
-  msb: number;
-  lsb: number;
-}
-
 export interface CustomWaveformData extends WaveformData {
-  valueChangeData: any[];
+  valueChangeData: ValueChange[];
   formattedValues: Record<string, FormattedValueData>;
   signalWidth: number;
   min: number;
@@ -133,7 +126,7 @@ export class WaveformDataManager {
     return isRequested;
   }
 
-  updateWaveformChunk(message: any) {
+  updateWaveformChunk(message: ValueChangeDataChunk) {
 
     const signalId = message.signalId;
     if (this.valueChangeDataTemp[signalId].totalChunks === 0) {
@@ -170,7 +163,7 @@ export class WaveformDataManager {
     this.updateWaveform(signalId, transitionData, message.min, message.max);
   }
 
-  updateEnumChunk(message: any) {
+  updateEnumChunk(message: EnumDataChunk) {
 
     const enumName = message.enumName;
     if (this.enumTableTemp[enumName] === undefined || this.enumTableTemp[enumName].totalChunks === 0) {
@@ -196,7 +189,7 @@ export class WaveformDataManager {
     this.updateEnum(enumName, enumData);
   }
 
-  updateWaveformChunkCompressed(message: any) {
+  updateWaveformChunkCompressed(message: CompressedValueChangeDataChunk) {
     const signalId = message.signalId;
     
     if (this.valueChangeDataTemp[signalId].totalChunks === 0) {
@@ -503,7 +496,7 @@ export class WaveformDataManager {
     if (!data) {return null;}
     const valueChangeData  = data.valueChangeData;
     const valueChangeIndex = this.getNearestTransitionIndex(data, time);
-    let nextEdge           = null;
+    let nextEdge: number | null = null;
 
     if (valueChangeIndex === -1) {return null;}
 
@@ -551,7 +544,7 @@ export class WaveformDataManager {
     return result;
   }
 
-  public getNearestTransition(waveforms: WaveformData, time: number | null) {
+  public getNearestTransition(waveforms: WaveformData, time: number | null): ValueChange | null {
 
     const result = null;
 

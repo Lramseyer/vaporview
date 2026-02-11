@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { NetlistId, SignalId } from '../common/types';
+import { NetlistId, SignalId, VariableEncoding } from '../common/types';
 import { bitRangeString } from '../common/functions';
 import type { VaporviewDocument } from './document';
 import { WaveformViewerProvider } from './viewer_provider';
@@ -62,7 +62,7 @@ export function createScope(
     name = name.replace(regex, '');
   }
 
-  const module    = new NetlistItem(name, "", typename, 'none', 0, 0, netlistId, name, path, 0, 0, "", scopeOffsetIdx, [], vscode.TreeItemCollapsibleState.Collapsed, uri);
+  const module    = new NetlistItem(name, "", typename, VariableEncoding.none, 0, 0, netlistId, name, path, 0, 0, "", scopeOffsetIdx, [], vscode.TreeItemCollapsibleState.Collapsed, uri);
   module.iconPath = icon;
 
   return module;
@@ -110,7 +110,15 @@ export function createVar(
     name = name.replace(regex, '');
   }
 
-  const variable = new NetlistItem(label, paramValue, type, encoding, width, signalId, netlistId, name, path, msb, lsb, enumType, -1, [], vscode.TreeItemCollapsibleState.None, uri);
+  let variableEncoding = VariableEncoding.none;
+  switch (encoding) {
+    case 'BitVector': {variableEncoding = VariableEncoding.BitVector; break;}
+    case 'Real':      {variableEncoding = VariableEncoding.Real; break;}
+    case 'String':    {variableEncoding = VariableEncoding.String; break;}
+    default:          {variableEncoding = VariableEncoding.none; break;}
+  }
+
+  const variable = new NetlistItem(label, paramValue, type, variableEncoding, width, signalId, netlistId, name, path, msb, lsb, enumType, -1, [], vscode.TreeItemCollapsibleState.None, uri);
   const typename = type.toLocaleLowerCase();
   let icon;
 
@@ -266,7 +274,7 @@ export class NetlistItem extends vscode.TreeItem {
     public readonly label:      string,
     public          paramValue: string,
     public readonly type:       string,
-    public readonly encoding:   string,
+    public readonly encoding:   VariableEncoding,
     public readonly width:      number,
     public readonly signalId:   SignalId, // Signal-specific information
     public readonly netlistId:  NetlistId, // Netlist-specific information

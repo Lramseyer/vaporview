@@ -561,11 +561,12 @@ class VaporviewWebview {
 
     else if (e.key === 'Escape') {this.handleMouseUp(e, true);}
     else if (e.key === 'Delete' || e.key === 'Backspace') {
-      viewerState.selectedSignal.forEach((rowId) => {
-        const rowItem = rowHandler.rowItems[rowId];
-        if (rowItem instanceof SignalGroup && rowItem.children.length > 0) {return;}
-        rowHandler.removeVariable(undefined, rowId, true);
-      });
+      //viewerState.selectedSignal.forEach((rowId) => {
+      //  const rowItem = rowHandler.rowItems[rowId];
+      //  if (rowItem instanceof SignalGroup && rowItem.children.length > 0) {return;}
+      //  rowHandler.removeVariable(undefined, rowId, true);
+      //});
+      rowHandler.removeVariable(undefined, viewerState.selectedSignal[0], true);
     }
 
     else if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(true);}

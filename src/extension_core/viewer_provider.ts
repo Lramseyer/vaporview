@@ -19,7 +19,6 @@ export interface VaporviewDocumentDelegate {
   emitEvent(e: any): void;
   removeFromCollection(uri: vscode.Uri, document: VaporviewDocument): void;
   createFileParser(uri: vscode.Uri): Promise<WaveformFileParser>;
-  applySettings(settings: any, document: VaporviewDocument, stateChangeType: StateChangeType): void;
 }
 
 class VaporviewDocumentBackup implements vscode.CustomDocumentBackup {
@@ -199,8 +198,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
           }
         }
         return handler;
-      },
-      applySettings: this.applySettings.bind(this),
+      }
     };
 
     // Create the document and load it using its handler
@@ -440,93 +438,19 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     this.log.appendLine('Loading settings from file: ' + fileData.fileName);
     document.saveFileUri = saveFileUri;
-    this.applySettings(fileData, document, StateChangeType.File);
+    document.applySettings(fileData, StateChangeType.File, false);
     return true;
   }
 
-  public async convertSignalListToSettings(signalList: any, document: VaporviewDocument): Promise<any> {
-    const missingSignals: string[] = [];
-    const settings: any = [];
-    for (const signalInfo of signalList) {
-      if (signalInfo.dataType && signalInfo.dataType === 'signal-group') {
-        const childrenSettings = await this.convertSignalListToSettings(signalInfo.children, document);
-        const groupData = Object.assign({}, signalInfo, {children: childrenSettings.signalList});
-        settings.push(groupData);
-        missingSignals.push(...childrenSettings.missingSignals);
-      } else if (signalInfo.dataType && signalInfo.dataType === 'signal-separator') {
-        settings.push(signalInfo);
-      } else if (signalInfo.dataType && signalInfo.dataType === 'netlist-variable') {
-        const signal   = signalInfo.name;
-        const metadata = await document.findTreeItem(signal, signalInfo.msb, signalInfo.lsb);
-        if (metadata !== null) {
-          const signalData = Object.assign(signalInfo, {
-            netlistId:  metadata.netlistId,
-            signalId:   metadata.signalId,
-            signalName: metadata.name,
-            scopePath:  metadata.scopePath,
-            signalWidth: metadata.width,
-            type:       metadata.type,
-            encoding:   metadata.encoding,
-            enumType:   metadata.enumType,
-            msb:        metadata.msb,
-            lsb:        metadata.lsb,
-          });
-          settings.push(signalData);
-        } else {
-          missingSignals.push(signal);
-        }
-      }
-    }
-
-    return {
-      missingSignals: missingSignals,
-      signalList: settings,
-    };
-  }
-
-  public async applySettings(settings: any, document: VaporviewDocument | undefined, stateChangeType: StateChangeType) {
-
-    if (!settings.displayedSignals) {return;}
+  public restoreState(state: any, uri: vscode.Uri) {
+    let document = this.documentCollection.getDocumentFromUri(uri.toString());
     if (!document) {
-      if (!this.activeDocument) {return;}
       document = this.activeDocument;
     }
+    if (!document) {return;}
 
-    //this.netlistTreeDataProvider.loadDocument(document);
-    const signalListSettings = await this.convertSignalListToSettings(settings.displayedSignals, document);
-    const documentSettings: any = {
-      displayedSignals: signalListSettings.signalList,
-      markerTime: settings.markerTime,
-      altMarkerTime: settings.altMarkerTime,
-      selectedSignal: settings.selectedSignal,
-      zoomRatio: settings.zoomRatio,
-      scrollLeft: settings.scrollLeft,
-      autoReload: settings.autoReload,
-    };
-
-    console.log(stateChangeType);
-      
-    const color1 = vscode.workspace.getConfiguration('vaporview').get('customColor1');
-    const color2 = vscode.workspace.getConfiguration('vaporview').get('customColor2');
-    const color3 = vscode.workspace.getConfiguration('vaporview').get('customColor3');
-    const color4 = vscode.workspace.getConfiguration('vaporview').get('customColor4');
-
-    document.webviewPanel?.webview.postMessage({
-      command: 'apply-state',
-      settings: documentSettings,
-      customColors: [color1, color2, color3, color4],
-      stateChangeType: stateChangeType,
-    });
-
-    if (signalListSettings.missingSignals.length > 0) {
-      this.log.appendLine('Missing signals: '+ signalListSettings.missingSignals.join(', '));
-    }
-  }
-
-  public restoreState(state: any, uri: vscode.Uri) {
-    const document = this.documentCollection.getDocumentFromUri(uri.toString());
     if (state) {
-      this.applySettings(state, document, StateChangeType.Restore);
+      document.applySettings(state, StateChangeType.Restore, false);
     } else {
       // check the directory for a file with the same name as the document, but with the extension .vaporview.json
       const filePath = uri.fsPath.match(/^(.*)\.[^.]+$/)?.[1] + '.json';
@@ -539,7 +463,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         ).then((action) => {
           if (action === 'Yes') {
             const state = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            this.applySettings(state, document, StateChangeType.File);
+            document.applySettings(state, StateChangeType.File, false);
           }
         });
       }
@@ -676,8 +600,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       this.statusBar.update(document, event);
     }
   }
-
-
 
   emitEvent(e: any) {
 

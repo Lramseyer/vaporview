@@ -145,8 +145,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
 
     const scopeCount     = toStringWithCommas(this._handler.metadata.scopeCount);
     const netlistIdCount = toStringWithCommas(this._handler.metadata.netlistIdCount);
-    this.providerDelegate.logOutputChannel("Finished parsing netlist for " + this.uri.fsPath);
-    this.providerDelegate.logOutputChannel("Scope count: " + scopeCount + ", Variable count: " + netlistIdCount + ", Time: " + netlistTime + " seconds");
+    this._providerDelegate.logOutputChannel("Finished parsing netlist for " + this.uri.fsPath);
+    this._providerDelegate.logOutputChannel("Scope count: " + scopeCount + ", Variable count: " + netlistIdCount + ", Time: " + netlistTime + " seconds");
 
     // Then load body
     const bodyLoadTime = Date.now();
@@ -155,7 +155,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this.setChunkSize();
 
     const timeTableCount = toStringWithCommas(Number(this.metadata.timeTableCount));
-    this.providerDelegate.logOutputChannel("Finished parsing body for " + this.uri.fsPath);
+    this._providerDelegate.logOutputChannel("Finished parsing body for " + this.uri.fsPath);
     this._providerDelegate.logOutputChannel("Total Value Change Events: " + timeTableCount + ", Time: " + bodyTime + " seconds");
   }
 
@@ -201,6 +201,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     }
   }
 
+  // #region Webview state management
   public captureWebviewState(event: any): boolean {
 
     let isDirty = false;
@@ -230,6 +231,97 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     return isDirty;
   }
 
+  public getSettings() {
+    return {
+      extensionVersion: vscode.extensions.getExtension('Lramseyer.vaporview')?.packageJSON.version,
+      fileName: this.uri.fsPath,
+      markerTime: this.webviewContext.markerTime,
+      altMarkerTime: this.webviewContext.altMarkerTime,
+      selectedSignal: this.getNameFromNetlistId(this.webviewContext.selectedSignal),
+      zoomRatio: this.webviewContext.zoomRatio,
+      scrollLeft: this.webviewContext.scrollLeft,
+      displayedSignals: this.webviewContext.displayedSignals
+    };
+  }
+
+  public async convertSignalListToSettings(signalList: any, useNetlistId: boolean): Promise<any> {
+    const missingSignals: string[] = [];
+    const settings: any = [];
+    for (const signalInfo of signalList) {
+      if (signalInfo.dataType && signalInfo.dataType === 'signal-group') {
+        const childrenSettings = await this.convertSignalListToSettings(signalInfo.children, useNetlistId);
+        const groupData = Object.assign({}, signalInfo, {children: childrenSettings.signalList});
+        settings.push(groupData);
+        missingSignals.push(...childrenSettings.missingSignals);
+      } else if (signalInfo.dataType && signalInfo.dataType === 'signal-separator') {
+        settings.push(signalInfo);
+      } else if (signalInfo.dataType && signalInfo.dataType === 'netlist-variable') {
+        const name   = signalInfo.name;
+        let metadata: NetlistItem | null = null;
+        if (useNetlistId) {
+          metadata = this.netlistIdTable[signalInfo.netlistId];
+        } else {
+          metadata = await this.findTreeItem(name, signalInfo.msb, signalInfo.lsb);
+        }
+        if (metadata !== null) {
+          const signalData = Object.assign(signalInfo, {
+            netlistId:  metadata.netlistId,
+            signalId:   metadata.signalId,
+            signalName: metadata.name,
+            scopePath:  metadata.scopePath,
+            signalWidth: metadata.width,
+            type:       metadata.type,
+            encoding:   metadata.encoding,
+            enumType:   metadata.enumType,
+            msb:        metadata.msb,
+            lsb:        metadata.lsb,
+          });
+          settings.push(signalData);
+        } else {
+          missingSignals.push(name);
+        }
+      }
+    }
+
+    return {
+      missingSignals: missingSignals,
+      signalList: settings,
+    };
+  }
+
+  public async applySettings(settings: any, stateChangeType: StateChangeType, useNetlistId: boolean) {
+
+    //this.netlistTreeDataProvider.loadDocument(document);
+    const signalListSettings = await this.convertSignalListToSettings(settings.displayedSignals, useNetlistId);
+    const documentSettings: any = {
+      displayedSignals: signalListSettings.signalList,
+      markerTime: settings.markerTime,
+      altMarkerTime: settings.altMarkerTime,
+      selectedSignal: settings.selectedSignal,
+      zoomRatio: settings.zoomRatio,
+      scrollLeft: settings.scrollLeft,
+      autoReload: settings.autoReload,
+    };
+
+    console.log(stateChangeType);
+
+    const color1 = vscode.workspace.getConfiguration('vaporview').get('customColor1');
+    const color2 = vscode.workspace.getConfiguration('vaporview').get('customColor2');
+    const color3 = vscode.workspace.getConfiguration('vaporview').get('customColor3');
+    const color4 = vscode.workspace.getConfiguration('vaporview').get('customColor4');
+
+    this.webviewPanel?.webview.postMessage({
+      command: 'apply-state',
+      settings: documentSettings,
+      customColors: [color1, color2, color3, color4],
+      stateChangeType: stateChangeType,
+    });
+
+    if (signalListSettings.missingSignals.length > 0) {
+      this._providerDelegate.logOutputChannel('Missing signals: '+ signalListSettings.missingSignals.join(', '));
+    }
+  }
+
   captureStateForUndo() {
     this.undoStack.push(JSON.stringify(this.webviewContext));
     if (this.undoStack.length > 50) {
@@ -242,14 +334,14 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     if (this.undoStack.length === 0) {return;}
     const lastState = this.undoStack.pop();
     this.redoStack.push(JSON.stringify(this.webviewContext));
-    this._providerDelegate.applySettings(JSON.parse(lastState), this, StateChangeType.Undo);
+    this.applySettings(JSON.parse(lastState), StateChangeType.Undo, false);
   }
   
   redo() {
     if (this.redoStack.length === 0) {return;}
     const lastState = this.redoStack.pop();
     this.undoStack.push(JSON.stringify(this.webviewContext));
-    this._providerDelegate.applySettings(JSON.parse(lastState), this, StateChangeType.Redo);
+    this.applySettings(JSON.parse(lastState), StateChangeType.Redo, false);
   }
 
   // #region File watching
@@ -314,19 +406,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public reveal() {
     if (!this.webviewPanel) { return; }
     this.webviewPanel.reveal(vscode.ViewColumn.Active);
-  }
-
-  public getSettings() {
-    return {
-      extensionVersion: vscode.extensions.getExtension('Lramseyer.vaporview')?.packageJSON.version,
-      fileName: this.uri.fsPath,
-      markerTime: this.webviewContext.markerTime,
-      altMarkerTime: this.webviewContext.altMarkerTime,
-      selectedSignal: this.getNameFromNetlistId(this.webviewContext.selectedSignal),
-      zoomRatio: this.webviewContext.zoomRatio,
-      scrollLeft: this.webviewContext.scrollLeft,
-      displayedSignals: this.webviewContext.displayedSignals
-    };
   }
 
   public formatTime(time: number, unit: string) {

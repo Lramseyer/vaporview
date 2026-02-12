@@ -189,6 +189,7 @@ export class Viewport {
     this.updateSignalOrder();
     this.updateBackgroundCanvas(true);
     this.redrawViewport();
+    this.handleSignalSelect(viewerState.selectedSignal, viewerState.lastSelectedSignal);
   }
 
   init(metadata: any, uri: string, documentId: DocumentId) {
@@ -414,16 +415,13 @@ export class Viewport {
 
   handleOverlayContext(event: MouseEvent) {
     const rowId = this.getRowIdFromMouseEvent(event);
-    if (rowId === null) {
-      this.overlayCanvasElement.setAttribute('data-vscode-context', "");
-      return;
+    if (rowId !== null) {
+      const signalItem = rowHandler.rowItems[rowId];
+      if (signalItem) {
+        this.overlayCanvasElement.setAttribute('data-vscode-context', signalItem.vscodeContext);
+      }
     }
-    const signalItem = rowHandler.rowItems[rowId];
-    if (!signalItem) {
-      this.overlayCanvasElement.setAttribute('data-vscode-context', "");
-      return;
-    }
-    this.overlayCanvasElement.setAttribute('data-vscode-context', signalItem.vscodeContext);
+    this.overlayCanvasElement.setAttribute('data-vscode-context', "{}");
   }
 
   handleScrollAreaMouseDown(event: MouseEvent) {
@@ -698,6 +696,8 @@ export class Viewport {
   }
 
   handleSignalSelect(rowIdList: RowId[], lastSelected: RowId | null) {
+
+    console.log('handleSignalSelect in viewport', rowIdList, lastSelected);
 
     //if (rowIdList.length === 0) {return;}
 

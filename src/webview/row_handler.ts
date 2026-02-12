@@ -500,7 +500,11 @@ export class RowHandler {
     if (rowId !== undefined) {
       removeList = [rowId];
       if (viewerState.selectedSignal.includes(rowId) && removeAllSelected) {
-        removeList = viewerState.selectedSignal;
+        removeList = viewerState.selectedSignal.filter((id) => {
+          const signalItem = this.rowItems[id];
+          if ((signalItem instanceof SignalGroup) && signalItem.children.length > 0) {return false;}
+          return true;
+        });
       }
     } else if (netlistId !== undefined) {
       removeList = this.getRowIdsFromNetlistId(netlistId);

@@ -617,11 +617,11 @@ class VaporviewWebview {
       document.removeEventListener('mousemove', this.viewport.handleScrollbarMove);
       this.viewport.scrollbarMoved = false;
     } else if (viewerState.mouseupEventType === 'highlightZoom') {
-      this.scrollArea.removeEventListener('mousemove', viewport.drawHighlightZoom, false);
+      document.removeEventListener('mousemove', viewport.drawHighlightZoom, false);
       viewport.highlightListenerSet = false;
       viewport.highlightZoom(abort);
     } else if (viewerState.mouseupEventType === 'markerSet') {
-      this.scrollArea.removeEventListener('mousemove', viewport.drawHighlightZoom, false);
+      document.removeEventListener('mousemove', viewport.drawHighlightZoom, false);
       clearTimeout(viewport.highlightDebounce);
       viewport.handleScrollAreaClick(viewport.highlightStartEvent, 0);
       viewport.highlightListenerSet = false;

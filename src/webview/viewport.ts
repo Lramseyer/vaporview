@@ -81,9 +81,6 @@ export class Viewport {
   updatePending: boolean      = false;
   scrollEventPending: boolean = false;
 
-  // CSS and styling Properties
-  fillMultiBitValues: boolean = true;
-
   constructor(
     private events: EventHandler,
   ) {
@@ -230,7 +227,7 @@ export class Viewport {
       webviewSection: 'ruler',
       preventDefaultContextMenuItems: true,
       rulerLines: this.rulerLines,
-      fillBitVector: this.fillMultiBitValues,
+      fillBitVector: styles.fillMultiBitValues,
       fs: maxTime >= (10 ** logScaleFromUnits('fs')),
       ps: maxTime >= (10 ** logScaleFromUnits('ps')),
       ns: maxTime >= (10 ** logScaleFromUnits('ns')),
@@ -363,7 +360,7 @@ export class Viewport {
       if (!this.highlightListenerSet) {
         const rowId = this.getRowIdFromMouseEvent(event);
         if (rowId === null) {return;}
-        this.scrollArea.addEventListener('mousemove', this.drawHighlightZoom, false);
+        document.addEventListener('mousemove', this.drawHighlightZoom, false);
         this.highlightListenerSet = true;
       }
     }

@@ -12,6 +12,7 @@
 - Fixed
   - Selecting multiple signals no longer moves the time marker
   - Right clicking on marker no longer brings up the wrong menu
+  - Highlight zooming at the edge of the viewport now works as expected
 
 ## 1.4.5 - 1/8/2026 - Latest Release
 

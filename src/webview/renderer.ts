@@ -154,7 +154,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     const minDrawWidth  = viewport.pixelTime / viewport.pixelRatio;
     const drawColor     = netlistData.color;
     const xzColor       = styles.xzColor;
-    const fillShape     = viewport.fillMultiBitValues;
+    const fillShape     = styles.fillMultiBitValues;
     //const minYPosition  = halfCanvasHeight / viewport.zoomRatio;
     let lastDrawTime    = 0;
     let parsedValue;

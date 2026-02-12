@@ -32,6 +32,7 @@ export class ThemeColors {
   markerAnnotation: string = '';
   rowHeight: number = 28;
   rulerHeight: number = 36;
+  fillMultiBitValues: boolean = true;
 
   constructor(
     private events: EventHandler
@@ -172,7 +173,7 @@ export class VscodeWrapper {
       viewport.setRulerLines(settings.rulerLines);
     }
     if (settings.fillMultiBitValues !== undefined) {
-      viewport.fillMultiBitValues = settings.fillMultiBitValues;
+      styles.fillMultiBitValues = settings.fillMultiBitValues;
       viewport.renderAllWaveforms(true);
       viewport.setRulerVscodeContext();
     }

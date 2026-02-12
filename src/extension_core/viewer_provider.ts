@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { type DocumentId, type NetlistId, SignalGroupContextMenuEvent, SignalId, StateChangeType, type markerSetEvent, type signalEvent, type viewerDropEvent } from '../common/types';
+import { type DocumentId, type NetlistId, SignalGroupContextMenuEvent, SignalId, StateChangeType, WindowMessageType, type markerSetEvent, type signalEvent, type viewerDropEvent } from '../common/types';
 import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
 import { Worker } from 'worker_threads';
 import * as fs from 'fs';
@@ -518,10 +518,10 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
   handleWebviewMessage(event: any) {
     switch (event.messageType) {
-      case 'warning': {vscode.window.showWarningMessage(event.message); break;}
-      case 'error':   {vscode.window.showErrorMessage(event.message); break;}
-      case 'info':    {vscode.window.showInformationMessage(event.message); break;}
-      default:        {vscode.window.showInformationMessage(event.message); break;}
+      case WindowMessageType.Warning: {vscode.window.showWarningMessage(event.message); break;}
+      case WindowMessageType.Error:   {vscode.window.showErrorMessage(event.message); break;}
+      case WindowMessageType.Info:    {vscode.window.showInformationMessage(event.message); break;}
+      default:                        {vscode.window.showInformationMessage(event.message); break;}
     }
   }
 

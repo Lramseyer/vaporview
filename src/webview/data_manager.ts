@@ -1,9 +1,6 @@
 import { type NetlistId, type SignalId, type RowId, type ValueChange, type EnumData, type EnumEntry, type QueueEntry, type SignalQueueEntry, type EnumQueueEntry, NameType, CollapseState, type BitRangeSource, type ValueChangeDataChunk, type CompressedValueChangeDataChunk, type EnumDataChunk } from '../common/types';
-import { type EventHandler, viewerState, ActionType, vscode, viewport, sendWebviewContext, DataType, dataManager, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, labelsPanel, outputLog, getIndexInGroup, controlBar, rowHandler, events } from './vaporview';
-import { getNumberFormatById, ValueFormat } from './value_format';
-import { WaveformRenderer, MultiBitWaveformRenderer, BinaryWaveformRenderer, LinearWaveformRenderer } from './renderer';
+import { type EventHandler, viewerState, ActionType, viewport, DataType, dataManager, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, labelsPanel, getIndexInGroup, controlBar, rowHandler, events, vscodeWrapper } from './vaporview';
 import { SignalGroup, NetlistVariable, RowItem, SignalSeparator, isAnalogSignal, CustomVariable } from './signal_item';
-
 
 import * as LZ4 from 'lz4js';
 
@@ -53,7 +50,6 @@ export class WaveformDataManager {
   customValueChangeData: CustomWaveformData[] = [];
   enumTable: Record<string, EnumData> = {}; // enum type is the key/index, array of enum values is the value
   enumTableTemp: any                  = {}
-  customColorKey: string[]            = ['#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC'];
 
   private nextCustomSignalId: number = 0;
 
@@ -130,10 +126,7 @@ export class WaveformDataManager {
     this.requested     = this.queued;
     this.queued        = [];
 
-    vscode.postMessage({
-      command: 'fetchDataFromFile',
-      requestList: this.requested,
-    });
+    vscodeWrapper.fetchData(this.requested);
 
     // Prevent Enum requests from holding up signal requests, since enums are cached along with the netlist hierarchy
     this.requested = this.requested.filter(entry => entry.type === 'signal');
@@ -181,7 +174,7 @@ export class WaveformDataManager {
     }
 
     if (!this.requestActive) {
-      outputLog("Request complete, time: " + (Date.now() - this.requestStart) / 1000 + " seconds");
+      vscodeWrapper.outputLog("Request complete, time: " + (Date.now() - this.requestStart) / 1000 + " seconds");
       this.requestStart = 0;
     }
 
@@ -208,7 +201,7 @@ export class WaveformDataManager {
     const enumData = JSON.parse(this.enumTableTemp[enumName].chunkData.join(""));
 
     if (!this.requestActive) {
-      outputLog("Enum Request time: " + (Date.now() - this.requestStart) / 1000 + " seconds");
+      vscodeWrapper.outputLog("Enum Request time: " + (Date.now() - this.requestStart) / 1000 + " seconds");
     }
 
     this.updateEnum(enumName, enumData);
@@ -266,7 +259,7 @@ export class WaveformDataManager {
       }
 
       if (!this.requestActive) {
-        outputLog("Compressed request complete, time: " + (Date.now() - this.requestStart) / 1000 + " seconds");
+        vscodeWrapper.outputLog("Compressed request complete, time: " + (Date.now() - this.requestStart) / 1000 + " seconds");
         this.requestStart = 0;
       }
 

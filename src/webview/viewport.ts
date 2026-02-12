@@ -1,9 +1,9 @@
 import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType, type DocumentId, type DefaultWebviewContext, type RulerContext } from '../common/types';
 import { logScaleFromUnits } from '../common/functions';
-import { vscode, sendWebviewContext, ActionType, type EventHandler, viewerState, dataManager, restoreState, updateDisplayedSignalsFlat, WAVE_HEIGHT, handleClickSelection, controlBar, RULER_HEIGHT } from "./vaporview";
+import { ActionType, type EventHandler, viewerState, dataManager, updateDisplayedSignalsFlat, handleClickSelection, controlBar } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer } from './renderer';
-import { labelsPanel, rowHandler } from "./vaporview";
+import { labelsPanel, rowHandler, vscodeWrapper, styles } from "./vaporview";
 import { CustomVariable, NetlistVariable, VariableItem } from "./signal_item";
 
 const domParser = new DOMParser();
@@ -40,7 +40,7 @@ export class Viewport {
   pseudoScrollLeft: number    = 0;
   viewerWidth: number         = 0;
   viewerHeight: number        = 0;
-  waveformsHeight: number     = RULER_HEIGHT;
+  waveformsHeight: number     = styles.rulerHeight;
   halfViewerWidth: number     = 0;
   maxScrollLeft: number       = 0;
   maxScrollbarPosition: number = 0;
@@ -82,20 +82,6 @@ export class Viewport {
   scrollEventPending: boolean = false;
 
   // CSS and styling Properties
-  colorKey: string[]          = ['green', 'orange', 'blue', 'purple'];
-  xzColor: string             = 'red';
-  textColor: string           = 'white';
-  rulerTextColor: string      = 'grey';
-  rulerGuideColor: string     = 'grey';
-  edgeGuideColor: string      = 'orange';
-  markerAnnotation: string    = '';
-  markerColor: string         = 'white';
-  backgroundColor: string     = 'black';
-  fontFamily: string          = 'Menlo';
-  fontSize: string            = '12px';
-  fontStyle: string           = '12px Menlo';
-  characterWidth: number      = 7.69;
-  baselineOffset: number      = 0;
   fillMultiBitValues: boolean = true;
 
   constructor(
@@ -218,74 +204,16 @@ export class Viewport {
     this.updateUnits(this.timeUnit, false);
     this.setRulerVscodeContext();
     this.addNetlistLink();
-    this.getThemeColors();
+    styles.getThemeColors();
     this.updateViewportWidth();
     this.updateScrollbarResize();
     this.handleZoom(1, 0, 0);
-    restoreState();
+    vscodeWrapper.restoreState();
     //this.updateRuler();
     //this.updatePending = false;
   }
 
-  async getThemeColors() {
-    const style = window.getComputedStyle(document.body);
-    // Token colors
-    this.colorKey[0] = style.getPropertyValue('--vscode-debugTokenExpression-number');
-    this.colorKey[1] = style.getPropertyValue('--vscode-debugTokenExpression-string');
-    this.colorKey[2] = style.getPropertyValue('--vscode-debugTokenExpression-type');
-    this.colorKey[3] = style.getPropertyValue('--vscode-debugTokenExpression-name');
-
-    // Non-2-State Signal Color
-    this.xzColor = style.getPropertyValue('--vscode-debugTokenExpression-error');
-
-    // Text Color
-    this.textColor = style.getPropertyValue('--vscode-editor-foreground');
-
-    // Ruler Color
-    this.rulerTextColor = style.getPropertyValue('--vscode-editorLineNumber-foreground');
-    this.rulerGuideColor = style.getPropertyValue('--vscode-editorIndentGuide-background');
-    //this.edgeGuideColor = style.getPropertyValue('--vscode-terminal-findMatchBackground');
-    this.edgeGuideColor = style.getPropertyValue('--vscode-terminalOverviewRuler-findMatchForeground');
-
-    // Marker Color
-    this.markerColor = style.getPropertyValue('--vscode-editorLineNumber-activeForeground');
-
-    // I calculated this as 174, 176, 173 @ 10% opacity in the default theme, but there was no CSS color that matched
-    this.markerAnnotation = document.documentElement.style.getPropertyValue('--vscode-editorOverviewRuler-selectionHighlightForeground');
-
-    // Background Color
-    this.backgroundColor = style.getPropertyValue('--vscode-editor-background');
-
-    // Font
-    this.fontSize = style.getPropertyValue('--vscode-editor-font-size');
-    this.fontFamily = style.getPropertyValue('--vscode-editor-font-family');
-    this.fontStyle = this.fontSize + ' ' + this.fontFamily;
-
-    // Look through all of the fonts in the fontFamily to see which font was used
-    const fontList = this.fontFamily.split(',').map((font) => font.trim());
-    let usedFont = '';
-    for (let i = 0; i < fontList.length; i++) {
-      const font = fontList[i];
-      if (document.fonts.check('12px ' + font)) {
-        usedFont = fontList[i];
-        break;
-      }
-    }
-
-    // Somebody help me with this, because I don't have all of these fonts
-    switch (usedFont) {
-      case 'Monaco':          this.characterWidth = 7.20; break;
-      case 'Menlo':           this.characterWidth = 7.22; break;
-      case 'Consolas':        this.characterWidth = 7.69; this.baselineOffset = 1; break;
-      case 'Droid Sans Mono': this.characterWidth = 7.69; break;
-      case 'Inconsolata':     this.characterWidth = 7.69; break;
-      case 'Courier New':     this.characterWidth = 7.69; break;
-      default:                this.characterWidth = 7.69; break;
-    }
-  }
-
   async handleColorChange() {
-    this.getThemeColors();
     this.redrawViewport();
   }
 
@@ -347,7 +275,7 @@ export class Viewport {
     const linkText = document.getElementById('netlist-link-text');
     if (linkText) {
       linkText.addEventListener('click', () => {
-        vscode.postMessage({ command: 'executeCommand', commandName: "waveformViewerNetlistView.focus" });
+        vscodeWrapper.executeCommand("waveformViewerNetlistView.focus", []);
       });
     }
   }
@@ -367,12 +295,12 @@ export class Viewport {
 
   getRowIdFromMouseEvent(event: MouseEvent): RowId | null {
     const eventTop   = Math.round(event.pageY - this.scrollAreaBounds.top);
-    const pageY      = eventTop + this.scrollArea.scrollTop - RULER_HEIGHT;
+    const pageY      = eventTop + this.scrollArea.scrollTop - styles.rulerHeight;
     let topBounds    = 0;
     let bottomBounds = 0;
     for (const rowId of viewerState.visibleSignalsFlat) {
       const netlistData = rowHandler.rowItems[rowId];
-      const rowHeight   = netlistData.rowHeight * WAVE_HEIGHT;
+      const rowHeight   = netlistData.rowHeight * styles.rowHeight;
       topBounds    = bottomBounds;
       bottomBounds += rowHeight;
       if (pageY >= topBounds && pageY < bottomBounds) {
@@ -419,6 +347,7 @@ export class Viewport {
       const signalItem = rowHandler.rowItems[rowId];
       if (signalItem) {
         this.overlayCanvasElement.setAttribute('data-vscode-context', signalItem.vscodeContext);
+        return;
       }
     }
     this.overlayCanvasElement.setAttribute('data-vscode-context', "{}");
@@ -594,7 +523,7 @@ export class Viewport {
 
   renderAllWaveforms(skipRendered: boolean) {
     if (this.events.isBatchMode) {return;}
-    const viewerHeightMinusRuler = this.viewerHeight - RULER_HEIGHT;
+    const viewerHeightMinusRuler = this.viewerHeight - styles.rulerHeight;
     const scrollTop    = this.scrollArea.scrollTop;
     const windowHeight = scrollTop + viewerHeightMinusRuler;
     let topBounds      = 0;
@@ -602,7 +531,7 @@ export class Viewport {
 
     viewerState.visibleSignalsFlat.forEach((rowId) => {
       const netlistData = rowHandler.rowItems[rowId];
-      const rowHeight   = netlistData.rowHeight * WAVE_HEIGHT;
+      const rowHeight   = netlistData.rowHeight * styles.rowHeight;
       topBounds         = bottomBounds;
       bottomBounds      = topBounds + rowHeight;
 
@@ -679,8 +608,8 @@ export class Viewport {
 
   updateScrollContainer() {
     this.scrollbarCanvas.clearRect(0, 0, this.scrollbarCanvas.canvas.width, this.scrollbarCanvas.canvas.height);
-    this.annotateScrollContainer(this.markerAnnotation , viewerState.markerTime);
-    this.annotateScrollContainer(this.markerAnnotation , viewerState.altMarkerTime);
+    this.annotateScrollContainer(styles.markerAnnotation , viewerState.markerTime);
+    this.annotateScrollContainer(styles.markerAnnotation , viewerState.altMarkerTime);
   }
 
   annotateScrollContainer(color: string, time: number | null) {
@@ -746,7 +675,7 @@ export class Viewport {
     this.updateRuler();
     if (updateContext) {
       console.log('updateUnits');
-      sendWebviewContext(StateChangeType.User);
+      vscodeWrapper.sendWebviewContext(StateChangeType.User);
     }
   }
 
@@ -759,18 +688,18 @@ export class Viewport {
     let setIndex = Math.round(number / this.rulerNumberIncrement);
     const alpha = Math.min((this.zoomOffset - Math.floor(this.zoomOffset)) * 4, 1);
     const twoPi = Math.PI * 2;
-    const textBaseline = 23 + this.baselineOffset;
+    const textBaseline = 23 + styles.baselineOffset;
 
     const ctx = this.rulerCanvas;
     ctx.imageSmoothingEnabled = false;
     ctx.textRendering = 'optimizeLegibility';
     ctx.lineWidth = 1;
-    ctx.strokeStyle = this.rulerTextColor;
-    ctx.font = this.fontStyle;
-    ctx.fillStyle = this.rulerTextColor;
+    ctx.strokeStyle = styles.rulerTextColor;
+    ctx.font = styles.fontStyle;
+    ctx.fillStyle = styles.rulerTextColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.clearRect(0, 0, this.viewerWidth, RULER_HEIGHT);
+    ctx.clearRect(0, 0, this.viewerWidth, styles.rulerHeight);
 
     // Draw the Ticks
     ctx.beginPath();
@@ -798,7 +727,7 @@ export class Viewport {
     }
 
     this.rulerLineX = [];
-    ctx.fillStyle = this.rulerTextColor;
+    ctx.fillStyle = styles.rulerTextColor;
     while (numberX <= this.viewerWidth + 50) {
       if (this.adjustedLogTimeScale > 0) {
         valueString = (number * this.timeScale * scale).toString();
@@ -834,7 +763,7 @@ export class Viewport {
     }
 
     const ctx = this.backgroundCanvas;
-    ctx.strokeStyle = this.rulerGuideColor;
+    ctx.strokeStyle = styles.rulerGuideColor;
     ctx.lineWidth   = 1;
     ctx.clearRect(0, 0, this.viewerWidth, this.viewerHeight);
 
@@ -880,8 +809,8 @@ export class Viewport {
       boxList.push([lastDrawTime, lastNoDrawTime]);
     }
 
-    ctx.strokeStyle  = this.edgeGuideColor;
-    ctx.fillStyle    = this.edgeGuideColor;
+    ctx.strokeStyle  = styles.edgeGuideColor;
+    ctx.fillStyle    = styles.edgeGuideColor;
     ctx.globalAlpha  = 1;
     ctx.beginPath();
     lineList.forEach((time: number) => {
@@ -907,7 +836,7 @@ export class Viewport {
   updateOverlayCanvas() {
     const ctx = this.overlayCanvas;
     ctx.clearRect(0, 0, this.viewerWidth, this.viewerHeight);
-    ctx.strokeStyle = this.markerColor;
+    ctx.strokeStyle = styles.markerColor;
     ctx.lineWidth = 1;
 
     // set stroke dash array to 2 2
@@ -916,7 +845,7 @@ export class Viewport {
     if (viewerState.markerTime !== null) {
       const markerX = this.getViewportLeft(viewerState.markerTime, 100);
       ctx.beginPath();
-      ctx.moveTo(markerX, RULER_HEIGHT);
+      ctx.moveTo(markerX, styles.rulerHeight);
       ctx.lineTo(markerX, this.waveformsHeight);
       ctx.stroke();
     }
@@ -925,7 +854,7 @@ export class Viewport {
     if (viewerState.altMarkerTime !== null) {
     const altMarkerX = this.getViewportLeft(viewerState.altMarkerTime, 100);
       ctx.beginPath();
-      ctx.moveTo(altMarkerX, RULER_HEIGHT);
+      ctx.moveTo(altMarkerX, styles.rulerHeight);
       ctx.lineTo(altMarkerX, this.waveformsHeight);
       ctx.stroke();
     }
@@ -1013,7 +942,7 @@ export class Viewport {
     if (!(netlistData instanceof NetlistVariable) && !(netlistData instanceof CustomVariable)) {return;}
     if (netlistData.viewportElement === null) {return;}
     const element = netlistData.viewportElement;
-    const rowHeight = (netlistData.rowHeight * WAVE_HEIGHT);
+    const rowHeight = (netlistData.rowHeight * styles.rowHeight);
     element.style.height = rowHeight + 'px';
     const canvasHeight = rowHeight - 8;
     if (netlistData.ctx && netlistData.canvas) {
@@ -1048,7 +977,7 @@ export class Viewport {
 
     // Update Ruler Canvas, Background Canvas, and Scrollbar Canvas Dimensions
     this.resizeCanvas(this.scrollbarCanvasElement, this.scrollbarCanvas, this.viewerWidth, 10);
-    this.resizeCanvas(this.rulerCanvasElement, this.rulerCanvas, this.viewerWidth, RULER_HEIGHT);
+    this.resizeCanvas(this.rulerCanvasElement, this.rulerCanvas, this.viewerWidth, styles.rulerHeight);
     this.resizeCanvas(this.backgroundCanvasElement, this.backgroundCanvas, this.viewerWidth, this.viewerHeight);
     this.resizeCanvas(this.overlayCanvasElement, this.overlayCanvas, this.viewerWidth, this.viewerHeight);
 

@@ -1,6 +1,6 @@
 import { type NetlistId, SignalId, type RowId, EnumData, EnumEntry, QueueEntry, SignalQueueEntry, type EnumQueueEntry, NameType, StateChangeType, CollapseState, type BitRangeSource } from '../common/types';
 import { bitRangeString } from '../common/functions';
-import { ActionType, dataManager, type EventHandler, viewerState, getParentGroupId, updateDisplayedSignalsFlat, labelsPanel, controlBar, sendWebviewContext, getIndexInGroup, getChildrenByGroupId, viewport } from './vaporview';
+import { ActionType, dataManager, type EventHandler, viewerState, getParentGroupId, updateDisplayedSignalsFlat, labelsPanel, controlBar, getIndexInGroup, getChildrenByGroupId, viewport, vscodeWrapper, styles } from './vaporview';
 import { NetlistVariable, type RowItem, SignalGroup, SignalSeparator, CustomVariable, isAnalogSignal } from './signal_item';
 import { BinaryWaveformRenderer, MultiBitWaveformRenderer, LinearWaveformRenderer } from './renderer';
 import type { WaveformData } from './data_manager';
@@ -183,7 +183,7 @@ export class RowHandler {
     this.events.dispatch(ActionType.SignalSelect, rowIdList, lastRowId);
 
     console.log('addVariable');
-    sendWebviewContext(StateChangeType.User);
+    vscodeWrapper.sendWebviewContext(StateChangeType.User);
     return rowIdList;
   }
 
@@ -261,7 +261,7 @@ export class RowHandler {
 
     labelsPanel.showRenameInput(rowId);
     console.log('addSignalGroup');
-    sendWebviewContext(StateChangeType.User);
+    vscodeWrapper.sendWebviewContext(StateChangeType.User);
 
     this.nextGroupId++;
     this.nextRowId++;
@@ -299,7 +299,7 @@ export class RowHandler {
 
     this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
     console.log('addSeparator');
-    sendWebviewContext(StateChangeType.User);
+    vscodeWrapper.sendWebviewContext(StateChangeType.User);
     return rowId;
   }
 
@@ -384,7 +384,7 @@ export class RowHandler {
 
     this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
     console.log('addBitSlice');
-    sendWebviewContext(StateChangeType.User);
+    vscodeWrapper.sendWebviewContext(StateChangeType.User);
     return rowId;
   }
 
@@ -447,7 +447,7 @@ export class RowHandler {
 
     this.events.exitBatchMode();
     console.log('applyState', stateChangeType);
-    sendWebviewContext(stateChangeType);
+    vscodeWrapper.sendWebviewContext(stateChangeType);
   }
 
   renameSignalGroup(rowId: RowId | undefined, name: string | undefined) {
@@ -525,7 +525,7 @@ export class RowHandler {
       this.events.dispatch(ActionType.SignalSelect, newSelected, viewerState.lastSelectedSignal);
     }
     console.log('removeVariable');
-    sendWebviewContext(StateChangeType.User);
+    vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }
 
   removeSignalGroup(groupId: number, recursive: boolean) {
@@ -564,7 +564,7 @@ export class RowHandler {
       this.events.dispatch(ActionType.SignalSelect, newSelected, viewerState.lastSelectedSignal);
     }
     console.log('removeSignalGroup');
-    sendWebviewContext(StateChangeType.User);
+    vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }
 
   handleRemoveVariable(rowIdList: RowId[], recursive: boolean) {
@@ -696,7 +696,6 @@ export class RowHandler {
   }
 
   handleColorChange() {
-    viewport.getThemeColors();
     this.rowItems.forEach((data) => {
       if (data instanceof NetlistVariable === false) {return;}
       data.setColorFromColorIndex();
@@ -797,7 +796,7 @@ export class RowHandler {
       // Color - this is applied to all selected signals if the selected signal is being updated
       if (message.colorIndex !== undefined) {
         if (message.customColors) {
-          dataManager.customColorKey = message.customColors;
+          styles.customColorKey = message.customColors;
         }
         data.colorIndex = message.colorIndex;
         data.setColorFromColorIndex();
@@ -868,7 +867,7 @@ export class RowHandler {
     }
 
     console.log('setDisplayFormat');
-    sendWebviewContext(StateChangeType.User);
+    vscodeWrapper.sendWebviewContext(StateChangeType.User);
     netlistData.setSignalContextAttribute();
 
     if (updateAllSelected && updateSelected) {redrawList = viewerState.selectedSignal;}

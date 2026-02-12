@@ -1,6 +1,6 @@
-import { type EventHandler, viewport, ActionType, viewerState, dataManager, getChildrenByGroupId, getIndexInGroup, sendWebviewContext, handleClickSelection, rowHandler} from './vaporview';
+import { type EventHandler, viewport, ActionType, viewerState, dataManager, getChildrenByGroupId, getIndexInGroup, handleClickSelection, rowHandler, vscodeWrapper, styles} from './vaporview';
 import { ValueFormat } from './value_format';
-import { vscode, getParentGroupId } from './vaporview';
+import { getParentGroupId } from './vaporview';
 import { SignalGroup, NetlistVariable, SignalItem, RowItem, htmlSafe, CustomVariable, SignalSeparator } from './signal_item';
 import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType } from '../common/types';
 
@@ -25,15 +25,15 @@ export class LabelsPanels {
   idleItems: any             = [];
   idleGroups: any            = [];
   draggableRows: RowId[]     = [];
-  draggableItem: any         = null;
-  closestItem: any           = null;
-  groupContainer: any        = null;
-  indexOffset: number        = 0;
-  pointerStartX: any         = null;
-  pointerStartY: any         = null;
-  scrollStartY: any          = null;
-  resizeIndex: any           = null;
-  defaultDragDividerY: number= 0;
+  draggableItem: HTMLElement | null = null;
+  closestItem: HTMLElement | null   = null;
+  groupContainer: any               = null;
+  indexOffset: number               = 0;
+  pointerStartX: number | null      = null;
+  pointerStartY: number | null      = null;
+  scrollStartY: any                 = null;
+  resizeIndex: number | null        = null;
+  defaultDragDividerY: number       = 0;
   dragActive: boolean        = false;
   dragInProgress: boolean    = false;
   dragFreeze: boolean        = true;
@@ -133,7 +133,7 @@ export class LabelsPanels {
         event.target.classList.contains('codicon-chevron-right')) {
         if (rowHandler.rowItems[rowId] instanceof SignalGroup) {
           rowHandler.rowItems[rowId].toggleCollapse();
-          sendWebviewContext(StateChangeType.User);
+          vscodeWrapper.sendWebviewContext(StateChangeType.User);
         }
     } else {
       //this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
@@ -154,7 +154,7 @@ export class LabelsPanels {
     const bitVector      = value[value.length - 1];
     const formattedValue = formatString(bitVector, width, true);
 
-    vscode.postMessage({command: 'copyToClipboard', text: formattedValue});
+    vscodeWrapper.copyToClipboard(formattedValue);
   }
 
   initializeDragHandler(event: MouseEvent | any) {
@@ -347,7 +347,7 @@ export class LabelsPanels {
 
     let idleItems: any  = [];
     if (this.groupContainer) {
-      this.groupContainer.style.backgroundColor = 'var(--vscode-list-dropBackground)';
+      this.groupContainer.style.backgroundColor = styles.dropBackgroundColor;
       groupContainerBox = this.groupContainer.children[1].getBoundingClientRect();
       idleItems = Array.from(this.groupContainer.children[1].children);
       this.closestItem = null;
@@ -466,7 +466,7 @@ export class LabelsPanels {
     if (!abort) {
       this.events.dispatch(ActionType.ReorderSignals, rowIdList, newGroupId, newIndex);
       console.log('dragEnd');
-      sendWebviewContext(StateChangeType.User);
+      vscodeWrapper.sendWebviewContext(StateChangeType.User);
     } else {
       this.renderLabelsPanels();
     }
@@ -534,7 +534,7 @@ export class LabelsPanels {
       waveformRow.classList.add('is-selected');
     }
     console.log('finishRename');
-    sendWebviewContext(StateChangeType.User);
+    vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }
 
   getRowIdFromElement(element: HTMLElement | null): RowId | null {

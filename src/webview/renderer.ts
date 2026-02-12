@@ -1,12 +1,11 @@
 //import { NetlistData } from './vaporview';
 import { NetlistVariable, type CustomVariable } from './signal_item';
-import type { Viewport } from './viewport';
-import { dataManager, viewport, WAVE_HEIGHT } from './vaporview';
+import { dataManager, viewport, styles } from './vaporview';
 import type { WaveformData } from './data_manager';
 
 export interface WaveformRenderer {
   id: string;
-  draw(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable, viewport: Viewport): void;
+  draw(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable): void;
 }
 
 export function setRenderBounds(netlistData: NetlistVariable | CustomVariable, waveformData: WaveformData) {
@@ -56,11 +55,11 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
 
   // This function actually creates the individual bus elements, and has can
   // potentially called thousands of times during a render
-  private busValue(time: number, deltaTime: number, displayValue: string, viewportSpecs: any, justifyDirection: boolean) {
-    const textTime            = displayValue.length * viewportSpecs.characterWidth * viewportSpecs.pixelTime;
-    const padding             = 4 * viewportSpecs.pixelTime;
-    const adjustedTime        = Math.max(time, viewportSpecs.timeScrollLeft);
-    const adjustedDeltaTime   = Math.min(time + deltaTime, viewportSpecs.timeScrollRight) - adjustedTime;
+  private busValue(time: number, deltaTime: number, displayValue: string, justifyDirection: boolean) {
+    const textTime            = displayValue.length * styles.characterWidth * viewport.pixelTime;
+    const padding             = 4 * viewport.pixelTime;
+    const adjustedTime        = Math.max(time, viewport.timeScrollLeft);
+    const adjustedDeltaTime   = Math.min(time + deltaTime, viewport.timeScrollRight) - adjustedTime;
     const characterWidthLimit = adjustedDeltaTime - (2 * padding);
     const centerText          = (textTime <= characterWidthLimit);
     let text                  = displayValue;
@@ -69,7 +68,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     if (centerText) {
       xValue = adjustedTime + (adjustedDeltaTime / 2);
     } else {
-      const charCount = Math.floor(characterWidthLimit / (viewportSpecs.characterWidth * viewportSpecs.pixelTime)) - 1;
+      const charCount = Math.floor(characterWidthLimit / (styles.characterWidth * viewport.pixelTime)) - 1;
       if (charCount < 0) {return ["", -100];}
       if (justifyDirection) {
         xValue = adjustedTime + adjustedDeltaTime - padding;
@@ -80,15 +79,15 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
       }
     }
 
-    const adjustedXValue = (xValue * viewportSpecs.zoomRatio) - viewportSpecs.pseudoScrollLeft;
+    const adjustedXValue = (xValue * viewport.zoomRatio) - viewport.pseudoScrollLeft;
     return [text, adjustedXValue, centerText];
   }
 
-  private outlineBusValue(ctx: CanvasRenderingContext2D, drawColor: string, viewportSpecs: any, canvasHeight: number) {
+  private outlineBusValue(ctx: CanvasRenderingContext2D, drawColor: string, canvasHeight: number) {
     ctx.restore();
     ctx.save();
     ctx.clip();
-    ctx.clearRect(0, 0, viewportSpecs.viewerWidth, canvasHeight);
+    ctx.clearRect(0, 0, viewport.viewerWidth, canvasHeight);
     ctx.globalAlpha = 0.1;
     ctx.fillStyle = drawColor;
     ctx.fill();
@@ -100,9 +99,9 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     ctx.clip();
     ctx.beginPath();
     ctx.moveTo(0, 0.5);
-    ctx.lineTo(viewportSpecs.viewerWidth, 0.5);
+    ctx.lineTo(viewport.viewerWidth, 0.5);
     ctx.moveTo(0, canvasHeight - 0.5);
-    ctx.lineTo(viewportSpecs.viewerWidth, canvasHeight - 0.5);
+    ctx.lineTo(viewport.viewerWidth, canvasHeight - 0.5);
     ctx.stroke();
     ctx.restore();
     ctx.save();
@@ -117,7 +116,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     ctx.stroke();
   }
 
-  public draw(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable, viewportSpecs: Viewport) {
+  public draw(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable) {
     const ctx            = netlistData.ctx;
     if (!ctx) {return;}
     const transitionData = valueChangeChunk.valueChanges;
@@ -133,7 +132,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     const valueIs9State  = netlistData.valueFormat.is9State;
     const rightJustify   = netlistData.valueFormat.rightJustify;
     const justifyDirection = rightJustify ? "right" : "left";
-    const rowHeight      = netlistData.rowHeight * WAVE_HEIGHT;
+    const rowHeight      = netlistData.rowHeight * styles.rowHeight;
     const canvasHeight   = rowHeight - 8;
     const halfCanvasHeight = canvasHeight / 2;
 
@@ -143,7 +142,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     let time            = initialState[0];
     let xPosition       = 0;
     let yPosition       = 0;
-    const adjustedTime  = time - viewportSpecs.timeScrollLeft;
+    const adjustedTime  = time - viewport.timeScrollLeft;
     const points        = [[adjustedTime, 0]];
     const endPoints     = [[adjustedTime, 0]];
     const xzPoints: any[] = [];
@@ -151,12 +150,12 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     const textElements: any[] = [];
     let moveCursor      = false;
     let drawBackgroundStrokes = false;
-    const minTextWidth  = 12 * viewportSpecs.pixelTime;
-    const minDrawWidth  = viewportSpecs.pixelTime / viewportSpecs.pixelRatio;
+    const minTextWidth  = 12 * viewport.pixelTime;
+    const minDrawWidth  = viewport.pixelTime / viewport.pixelRatio;
     const drawColor     = netlistData.color;
-    const xzColor       = viewportSpecs.xzColor;
-    const fillShape     = viewportSpecs.fillMultiBitValues;
-    //const minYPosition  = halfCanvasHeight / viewportSpecs.zoomRatio;
+    const xzColor       = styles.xzColor;
+    const fillShape     = viewport.fillMultiBitValues;
+    //const minYPosition  = halfCanvasHeight / viewport.zoomRatio;
     let lastDrawTime    = 0;
     let parsedValue;
     //const noDrawRanges: any[] = [];
@@ -168,7 +167,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
       // If the element is too small to draw, we need to skip it
       if (elementWidth > minDrawWidth) {
 
-        const adjustedTime = time - viewportSpecs.timeScrollLeft;
+        const adjustedTime = time - viewport.timeScrollLeft;
         const adjustedTimeEnd = adjustedTime + elementWidth;
 
         if (moveCursor) {
@@ -201,8 +200,8 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
           } else {
             parsedValue = parseValue(value, signalWidth, !is4State);
           }
-          //spansChunk = spansChunk || (transitionData[i][0] > viewportSpecs.timeScrollRight);
-          textElements.push(this.busValue(time, elementWidth, parsedValue, viewportSpecs, rightJustify));
+          //spansChunk = spansChunk || (transitionData[i][0] > viewport.timeScrollRight);
+          textElements.push(this.busValue(time, elementWidth, parsedValue, rightJustify));
         }
 
         points.push([adjustedTimeEnd, 0]);
@@ -222,8 +221,8 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
 
     if (elementWidth > minDrawWidth) {
 
-      const adjustedTime = time - viewportSpecs.timeScrollLeft;
-      const adjustedTimeEnd = postState[0] + - viewportSpecs.timeScrollLeft;
+      const adjustedTime = time - viewport.timeScrollLeft;
+      const adjustedTimeEnd = postState[0] + - viewport.timeScrollLeft;
 
       if (moveCursor) {
         points.push([adjustedTime, 0]);
@@ -249,21 +248,21 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
       } else {
         parsedValue = parseValue(value, signalWidth, !is4State);
       }
-      textElements.push(this.busValue(time, elementWidth, parsedValue, viewportSpecs, rightJustify));
+      textElements.push(this.busValue(time, elementWidth, parsedValue, rightJustify));
     }
 
-    ctx.clearRect(0, 0, viewportSpecs.viewerWidth * viewportSpecs.pixelRatio, canvasHeight * viewportSpecs.pixelRatio);
+    ctx.clearRect(0, 0, viewport.viewerWidth * viewport.pixelRatio, canvasHeight * viewport.pixelRatio);
     ctx.save();
     ctx.translate(0, halfCanvasHeight);
 
     // No Draw Line
     ctx.strokeStyle = drawColor;
     if (fillShape) {
-      this.busValueNoDraw(ctx, 0.4, 3, viewportSpecs.viewerWidth);
-      this.busValueNoDraw(ctx, 0.8, 1, viewportSpecs.viewerWidth);
+      this.busValueNoDraw(ctx, 0.4, 3, viewport.viewerWidth);
+      this.busValueNoDraw(ctx, 0.8, 1, viewport.viewerWidth);
     } else {
-      this.busValueNoDraw(ctx, 0.5, 6, viewportSpecs.viewerWidth);
-      this.busValueNoDraw(ctx, 1, 5, viewportSpecs.viewerWidth);
+      this.busValueNoDraw(ctx, 0.5, 6, viewport.viewerWidth);
+      this.busValueNoDraw(ctx, 1, 5, viewport.viewerWidth);
     }
     ctx.moveTo(0, 0);
 
@@ -272,9 +271,9 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     ctx.save();
     ctx.translate(0.5, halfCanvasHeight);
     ctx.globalAlpha = 1;
-    ctx.transform(viewportSpecs.zoomRatio, 0, 0, viewportSpecs.zoomRatio, 0, 0);
+    ctx.transform(viewport.zoomRatio, 0, 0, viewport.zoomRatio, 0, 0);
     ctx.beginPath();
-    ctx.moveTo(-viewportSpecs.pixelTime * 2, 0); // This seems to fix a Windows render glitch, but cause another one
+    ctx.moveTo(-viewport.pixelTime * 2, 0); // This seems to fix a Windows render glitch, but cause another one
     points.forEach(([x, y]) => {ctx.lineTo(x, y);});
     endPoints.reverse().forEach(([x, y]) => {ctx.lineTo(x, y);});
 
@@ -282,9 +281,9 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
       ctx.fillStyle = drawColor;
       ctx.fill();
     } else {
-      this.outlineBusValue(ctx, drawColor, viewportSpecs, canvasHeight);
+      this.outlineBusValue(ctx, drawColor, canvasHeight);
       ctx.translate(0.5, halfCanvasHeight);
-      ctx.transform(viewportSpecs.zoomRatio, 0, 0, viewportSpecs.zoomRatio, 0, 0);
+      ctx.transform(viewport.zoomRatio, 0, 0, viewport.zoomRatio, 0, 0);
     }
 
     //const gradient = ctx.createLinearGradient(0, 2 * minYPosition, 0, -2 * minYPosition);
@@ -316,7 +315,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
       ctx.fill();
       ctx.restore();
     } else {
-      this.outlineBusValue(ctx, xzColor, viewportSpecs, canvasHeight);
+      this.outlineBusValue(ctx, xzColor, canvasHeight);
     }
 
     // Draw Text
@@ -325,8 +324,8 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     ctx.save();
     ctx.translate(0.5, 0);
     
-    ctx.font = fontWeight + viewportSpecs.fontStyle;
-    ctx.fillStyle = fillShape ? viewportSpecs.backgroundColor : viewportSpecs.textColor;
+    ctx.font = fontWeight + styles.fontStyle;
+    ctx.fillStyle = fillShape ? styles.backgroundColor : styles.textColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.imageSmoothingEnabled = false;
@@ -351,8 +350,8 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
       const leftOffset = justifyDirection === "left" ? 0 : 1;
       const rightOffset = justifyDirection === "left" ? -1 : 0;
       textElements.forEach(([text, xValue, center]) => {
-        const x = (xValue * viewportSpecs.zoomRatio) - viewportSpecs.pseudoScrollLeft;
-        const textWidth = text.length * viewportSpecs.characterWidth;
+        const x = (xValue * viewport.zoomRatio) - viewport.pseudoScrollLeft;
+        const textWidth = text.length * styles.characterWidth;
         if (!center) {
           netlistData.valueLinkBounds.push([x + (leftOffset * textWidth), x + (rightOffset * textWidth)]);
         } else {
@@ -370,7 +369,7 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
   public id: string = "binary";
   constructor() {}
 
-  public draw(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable, viewportSpecs: Viewport) {
+  public draw(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable) {
 
     const ctx            = netlistData.ctx;
     if (!ctx) {return;}
@@ -385,20 +384,20 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     let initialTime        = initialState[0];
     let initialTimeOrStart = Math.max(initialState[0], -10);
     const xzPath: any[]    = [];
-    const minDrawWidth     = viewportSpecs.pixelTime / viewportSpecs.pixelRatio;
+    const minDrawWidth     = viewport.pixelTime / viewport.pixelRatio;
     const drawColor        = netlistData.color;
-    const xzColor          = viewportSpecs.xzColor;
-    const viewerWidthTime  = viewportSpecs.viewerWidthTime;
-    const timeScrollLeft   = viewportSpecs.timeScrollLeft;
-    const timeScrollRight  = viewportSpecs.timeScrollRight - timeScrollLeft;
+    const xzColor          = styles.xzColor;
+    const viewerWidthTime  = viewport.viewerWidthTime;
+    const timeScrollLeft   = viewport.timeScrollLeft;
+    const timeScrollRight  = viewport.timeScrollRight - timeScrollLeft;
     const valueIs9State    = netlistData.valueFormat.is9State;
-    const rowHeight        = netlistData.rowHeight * WAVE_HEIGHT;
+    const rowHeight        = netlistData.rowHeight * styles.rowHeight;
     const canvasHeight     = rowHeight - 8;
 
     if (valueIs9State(initialValue)) {
       initialValue2state = 0;
     }
-    const startScreenX  = -10 * viewportSpecs.pixelTime
+    const startScreenX  = -10 * viewport.pixelTime
     const accumulatedPath = [[startScreenX, 0], [startScreenX, initialValue2state]];
     let value2state     = 0;
     // No Draw Code
@@ -487,20 +486,20 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     }
 
     // Guarantee a 1 -> 0 transition offscreen, otherwise we get rendering artifacts
-    accumulatedPath.push([timeScrollRight + (15 * viewportSpecs.pixelTime), initialValue2state]);
-    accumulatedPath.push([timeScrollRight + (15 * viewportSpecs.pixelTime), 1]);
-    accumulatedPath.push([timeScrollRight + (15 * viewportSpecs.pixelTime), 0]);
+    accumulatedPath.push([timeScrollRight + (15 * viewport.pixelTime), initialValue2state]);
+    accumulatedPath.push([timeScrollRight + (15 * viewport.pixelTime), 1]);
+    accumulatedPath.push([timeScrollRight + (15 * viewport.pixelTime), 0]);
 
     const waveHeight = canvasHeight - 4;
     const waveOffset = waveHeight + (canvasHeight - waveHeight) / 2;
 
-    ctx.clearRect(0, 0, viewportSpecs.viewerWidth, canvasHeight);
+    ctx.clearRect(0, 0, viewport.viewerWidth, canvasHeight);
     ctx.save();
     ctx.strokeStyle = drawColor;
     ctx.fillStyle   = drawColor;
-    //ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, waveOffset + 0.5);
+    //ctx.translate(0.5 - viewport.pseudoScrollLeft, waveOffset + 0.5);
     ctx.translate(0.5, waveOffset + 0.5);
-    ctx.transform(viewportSpecs.zoomRatio, 0, 0, -waveHeight, 0, 0);
+    ctx.transform(viewport.zoomRatio, 0, 0, -waveHeight, 0, 0);
     ctx.beginPath();
     accumulatedPath.forEach(([x, y]) => {ctx.lineTo(x, y);});
     ctx.globalAlpha = 0.1;
@@ -513,9 +512,9 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
 
     // NoDraw Elements
     ctx.save();
-    //ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, waveOffset + 0.5);
+    //ctx.translate(0.5 - viewport.pseudoScrollLeft, waveOffset + 0.5);
     ctx.translate(0.5, waveOffset + 0.5);
-    ctx.transform(viewportSpecs.zoomRatio, 0, 0, -waveHeight, 0, 0);
+    ctx.transform(viewport.zoomRatio, 0, 0, -waveHeight, 0, 0);
     ctx.beginPath();
     noDrawPath.forEach(([startTime, endTime]) => {
       ctx.moveTo(startTime, 0);
@@ -533,9 +532,9 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
 
     // Non-2-state values
     ctx.save();
-    //ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, waveOffset + 0.5);
+    //ctx.translate(0.5 - viewport.pseudoScrollLeft, waveOffset + 0.5);
     ctx.translate(0.5, waveOffset + 0.5);
-    ctx.transform(viewportSpecs.zoomRatio, 0, 0, -waveHeight, 0, 0);
+    ctx.transform(viewport.zoomRatio, 0, 0, -waveHeight, 0, 0);
     ctx.beginPath();
     xzPath.forEach(([startTime, EndTime]) => {
       ctx.moveTo(startTime, 0);
@@ -551,7 +550,7 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
   }
 }
 
-function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable, viewportSpecs: any, stepped: boolean, evalCoordinates: (v: string) => number) {
+function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable, stepped: boolean, evalCoordinates: (v: string) => number) {
 
   const ctx              = netlistData.ctx;
   if (!ctx) {return;}
@@ -566,12 +565,12 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariabl
   let initialValue2state = initialValue;
   let initialTime        = initialState[0];
   let initialTimeOrStart = Math.max(initialState[0], -10);
-  const minDrawWidth     = viewportSpecs.pixelTime / (viewportSpecs.pixelRatio * 4);
-  const timeScrollLeft   = viewportSpecs.timeScrollLeft;
-  const timeScrollRight  = viewportSpecs.timeScrollRight - timeScrollLeft;
+  const minDrawWidth     = viewport.pixelTime / (viewport.pixelRatio * 4);
+  const timeScrollLeft   = viewport.timeScrollLeft;
+  const timeScrollRight  = viewport.timeScrollRight - timeScrollLeft;
   const xzPath: any[]    = [];
   const valueIs9State    = netlistData.valueFormat.is9State;
-  const rowHeight        = netlistData.rowHeight * WAVE_HEIGHT;
+  const rowHeight        = netlistData.rowHeight * styles.rowHeight;
   const canvasHeight     = rowHeight - 8;
   const verticalScale    = netlistData.verticalScale;
   const halfCanvasHeight = canvasHeight / 2;
@@ -580,7 +579,7 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariabl
     initialValue2state = "0";
   }
 
-  const accumulatedPath: any[] = [[-10 * viewportSpecs.pixelTime, 0]];
+  const accumulatedPath: any[] = [[-10 * viewport.pixelTime, 0]];
   accumulatedPath.push([initialTime - timeScrollLeft, evalCoordinates(initialValue2state)]);
 
   let value2state    = "0";
@@ -663,7 +662,7 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariabl
   }
 
   if (stepped) {
-    accumulatedPath.push([timeScrollRight + (15 * viewportSpecs.pixelTime), evalCoordinates(initialValue2state)]);
+    accumulatedPath.push([timeScrollRight + (15 * viewport.pixelTime), evalCoordinates(initialValue2state)]);
   } else {
     accumulatedPath.push([postState[0] - timeScrollLeft, evalCoordinates(postState[1])]);
   }
@@ -673,19 +672,19 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariabl
   console.log(accumulatedPath);
 
   const drawColor  = netlistData.color;
-  const xzColor    = viewportSpecs.xzColor;
+  const xzColor    = styles.xzColor;
   const waveHeight = canvasHeight - 4;
   const waveOffset = waveHeight + (canvasHeight - waveHeight) / 2;
   const yScale     = waveHeight * verticalScale / (max - min);
   const translateY = 0.5 + (max / (max - min)) * waveOffset;
 
-  ctx.clearRect(0, 0, viewportSpecs.viewerWidth, canvasHeight);
+  ctx.clearRect(0, 0, viewport.viewerWidth, canvasHeight);
   ctx.save();
   ctx.strokeStyle = drawColor;
   ctx.fillStyle   = drawColor;
-  //ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, translateY + 0.5);
+  //ctx.translate(0.5 - viewport.pseudoScrollLeft, translateY + 0.5);
   ctx.translate(0.5, translateY + 0.5);
-  ctx.transform(viewportSpecs.zoomRatio, 0, 0, -yScale, 0, 0);
+  ctx.transform(viewport.zoomRatio, 0, 0, -yScale, 0, 0);
   ctx.beginPath();
   accumulatedPath.forEach(([x, y]) => {ctx.lineTo(x, y);});
   ctx.globalAlpha = 0.1;
@@ -698,9 +697,9 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariabl
 
   // NoDraw Elements
   ctx.save();
-  //ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, translateY + 0.5);
+  //ctx.translate(0.5 - viewport.pseudoScrollLeft, translateY + 0.5);
   ctx.translate(0.5, translateY + 0.5);
-  ctx.transform(viewportSpecs.zoomRatio, 0, 0, -yScale, 0, 0);
+  ctx.transform(viewport.zoomRatio, 0, 0, -yScale, 0, 0);
   ctx.beginPath();
   noDrawPath.forEach(([startTime, endTime]) => {
     ctx.moveTo(startTime, min);
@@ -718,9 +717,9 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariabl
 
   // Non-2-state values
   ctx.save();
-  //ctx.translate(0.5 - viewportSpecs.pseudoScrollLeft, translateY + 0.5);
+  //ctx.translate(0.5 - viewport.pseudoScrollLeft, translateY + 0.5);
   ctx.translate(0.5, translateY + 0.5);
-  ctx.transform(viewportSpecs.zoomRatio, 0, 0, -yScale, 0, 0);
+  ctx.transform(viewport.zoomRatio, 0, 0, -yScale, 0, 0);
   ctx.beginPath();
   xzPath.forEach(([startTime, EndTime]) => {
     ctx.moveTo(startTime, min);
@@ -776,8 +775,8 @@ export class LinearWaveformRenderer implements WaveformRenderer {
     }
   }
 
-  draw(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable, viewportSpecs: any) {
+  draw(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable) {
     //const evalCoordinates = getEval(valueChangeChunk.encoding, netlistData.signalWidth, false);
-    return createAnalogWaveform(valueChangeChunk, netlistData, viewportSpecs, this.stepped, this.evalCoordinates);
+    return createAnalogWaveform(valueChangeChunk, netlistData, this.stepped, this.evalCoordinates);
   }
 };

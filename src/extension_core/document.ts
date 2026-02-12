@@ -79,8 +79,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   // State management
   public clearDirtyStatus: boolean = false;
   public saveFileUri: vscode.Uri | undefined = undefined;
-  public undoStack: any[] = [];
-  public redoStack: any[] = [];
+  public undoStack: string[] = [];
+  public redoStack: string[] = [];
 
   constructor(
     uri: vscode.Uri,
@@ -334,14 +334,14 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     if (this.undoStack.length === 0) {return;}
     const lastState = this.undoStack.pop();
     this.redoStack.push(JSON.stringify(this.webviewContext));
-    this.applySettings(JSON.parse(lastState), StateChangeType.Undo, false);
+    this.applySettings(JSON.parse(lastState || '{}'), StateChangeType.Undo, false);
   }
   
   redo() {
     if (this.redoStack.length === 0) {return;}
     const lastState = this.redoStack.pop();
     this.undoStack.push(JSON.stringify(this.webviewContext));
-    this.applySettings(JSON.parse(lastState), StateChangeType.Redo, false);
+    this.applySettings(JSON.parse(lastState || '{}'), StateChangeType.Redo, false);
   }
 
   // #region File watching

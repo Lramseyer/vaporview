@@ -55,6 +55,12 @@ export enum NameType {
   custom = 'custom',
 }
 
+export enum WindowMessageType {
+  Warning = 'warning',
+  Error   = 'error',
+  Info    = 'info',
+}
+
 export enum StateChangeType {
   None    = 0,
   Restore = 1,

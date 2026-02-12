@@ -1,11 +1,10 @@
 import { type NetlistId, type RowId, type ValueChange, EnumData, EnumEntry, NameType, VariableEncoding, CollapseState, type BitRangeSource, type SignalSeparatorContext, type NetlistVariableContext, CustomVariableContext, SignalGroupContext } from '../common/types';
 
-import { dataManager, viewport, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, WAVE_HEIGHT, sendWebviewContext, rowHandler } from "./vaporview";
+import { dataManager, viewport, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, rowHandler, vscodeWrapper, styles } from "./vaporview";
 import { EnumValueFormat, formatBinary, formatHex, formatString, type ValueFormat } from "./value_format";
 import { type WaveformRenderer, setRenderBounds } from "./renderer";
 import type { WaveformData } from "./data_manager";
-import { vscode, labelsPanel } from "./vaporview";
-import { LabelsPanels } from "./labels";
+import { labelsPanel } from "./vaporview";
 
 export function htmlSafe(string: string) {
   return string.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -22,9 +21,9 @@ export function isAnalogSignal(renderType: WaveformRenderer) {
 
 function getColorFromColorIndex(colorIndex: number) {
   if (colorIndex < 4) {
-    return viewport.colorKey[colorIndex];
+    return styles.colorKey[colorIndex];
   } else {
-    return dataManager.customColorKey[colorIndex - 4];
+    return styles.customColorKey[colorIndex - 4];
   }
 }
 
@@ -168,7 +167,7 @@ export class SignalSeparator extends SignalItem implements RowItem {
     const waveformContainer = document.createElement('div');
     waveformContainer.setAttribute('id', 'waveform-' + rowId);
     waveformContainer.classList.add('waveform-container');
-    waveformContainer.setAttribute("data-vscode-context", this.vscodeContext);
+    //waveformContainer.setAttribute("data-vscode-context", this.vscodeContext);
     this.viewportElement = waveformContainer;
   }
 
@@ -289,7 +288,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
     canvas.classList.add('waveform-canvas');
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
-    const canvasHeight = (this.rowHeight * WAVE_HEIGHT) - 8;
+    const canvasHeight = (this.rowHeight * styles.rowHeight) - 8;
     if (this.ctx) {
       viewport.resizeCanvas(canvas, this.ctx, viewport.viewerWidth, canvasHeight);
     }
@@ -297,7 +296,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
     waveformContainer.setAttribute('id', 'waveform-' + rowId);
     waveformContainer.classList.add('waveform-container');
     waveformContainer.appendChild(canvas);
-    waveformContainer.setAttribute("data-vscode-context", this.vscodeContext);
+    //waveformContainer.setAttribute("data-vscode-context", this.vscodeContext);
     this.viewportElement = waveformContainer;
   }
 
@@ -348,7 +347,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
     if (!this.ctx) {return;}
 
     const valueChangeChunk = setRenderBounds(this, data);
-    this.renderType.draw(valueChangeChunk, this, viewport);
+    this.renderType.draw(valueChangeChunk, this);
     this.wasRendered = true;
   }
 
@@ -382,7 +381,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
 
   public resize() {
     if (!this.canvas || !this.ctx) {return;}
-    const canvasHeight = (this.rowHeight * WAVE_HEIGHT) - 8;
+    const canvasHeight = (this.rowHeight * styles.rowHeight) - 8;
     viewport.resizeCanvas(this.canvas, this.ctx, viewport.viewerWidth, canvasHeight);
   }
 
@@ -425,7 +424,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
       time: timeValue,
     }
 
-    vscode.postMessage({ command: 'executeCommand', commandName: command, args: [event] });
+    vscodeWrapper.executeCommand(command, [event]);
     return true;
   }
 
@@ -525,7 +524,7 @@ export class CustomVariable extends SignalItem implements RowItem {
     canvas.classList.add('waveform-canvas');
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
-    const canvasHeight = (this.rowHeight * WAVE_HEIGHT) - 8;
+    const canvasHeight = (this.rowHeight * styles.rowHeight) - 8;
     if (this.ctx) {
       viewport.resizeCanvas(canvas, this.ctx, viewport.viewerWidth, canvasHeight);
     }
@@ -533,7 +532,7 @@ export class CustomVariable extends SignalItem implements RowItem {
     waveformContainer.setAttribute('id', 'waveform-' + rowId);
     waveformContainer.classList.add('waveform-container');
     waveformContainer.appendChild(canvas);
-    waveformContainer.setAttribute("data-vscode-context", this.vscodeContext);
+    //waveformContainer.setAttribute("data-vscode-context", this.vscodeContext);
     this.viewportElement = waveformContainer;
   }
 
@@ -580,7 +579,7 @@ export class CustomVariable extends SignalItem implements RowItem {
     if (!this.ctx) {return;}
 
     const valueChangeChunk = setRenderBounds(this, data);
-    this.renderType.draw(valueChangeChunk, this, viewport);
+    this.renderType.draw(valueChangeChunk, this);
     this.wasRendered = true;
   }
 
@@ -614,7 +613,7 @@ export class CustomVariable extends SignalItem implements RowItem {
 
   public resize() {
     if (!this.canvas || !this.ctx) {return;}
-    const canvasHeight = (this.rowHeight * WAVE_HEIGHT) - 8;
+    const canvasHeight = (this.rowHeight * styles.rowHeight) - 8;
     viewport.resizeCanvas(this.canvas, this.ctx, viewport.viewerWidth, canvasHeight);
   }
 
@@ -701,7 +700,7 @@ export class SignalGroup extends SignalItem implements RowItem {
     const waveformContainer = document.createElement('div');
     waveformContainer.setAttribute('id', 'waveform-' + rowId);
     waveformContainer.classList.add('waveform-container');
-    waveformContainer.setAttribute("data-vscode-context", this.vscodeContext);
+    //waveformContainer.setAttribute("data-vscode-context", this.vscodeContext);
     this.viewportElement = waveformContainer;
   }
 
@@ -769,6 +768,7 @@ export class SignalGroup extends SignalItem implements RowItem {
       if (rowId === this.rowId) {return;} // Skip the group row itself
       const viewportRow = document.getElementById(`waveform-${rowId}`);
       if (!viewportRow) {return;}
+      console.log('style', style);
       viewportRow.style.display = style;
       const signalItem = rowHandler.rowItems[rowId];
       if (signalItem instanceof NetlistVariable) {

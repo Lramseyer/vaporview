@@ -1,5 +1,5 @@
-import { NetlistId, SignalId, RowId, EnumData, EnumEntry, type ValueChange } from '../common/types';
-import { vscode, viewerState, dataManager, rowHandler } from "./vaporview";
+import { NetlistId, SignalId, RowId, EnumData, EnumEntry, type ValueChange, WindowMessageType } from '../common/types';
+import { viewerState, dataManager, rowHandler, vscodeWrapper } from "./vaporview";
 import { NetlistVariable } from "./signal_item";
 
 // Maximum number of transitions to display
@@ -10,7 +10,7 @@ export function copyWaveDrom() {
 
   // Marker and alt marker need to be set
   if (viewerState.markerTime === null ||viewerState. altMarkerTime === null) {
-    //vscode.window.showErrorMessage('Please use the marker and alt marker to set time window for waveform data.');
+    //vscodeWrapper.showMessage(WindowMessageType.Error, 'Please use the marker and alt marker to set time window for waveform data.');
     return;
   }
 
@@ -136,12 +136,11 @@ export function copyWaveDrom() {
   result += ']}';
 
   if (transitionCount >= MAX_TRANSITIONS) {
-    vscode.postMessage({
-      command: 'showMessage',
-      messageType: 'warning',
-      message: 'The number of transitions exceeds the maximum limit of ' + MAX_TRANSITIONS,
-    });
+    vscodeWrapper.showMessage(
+      WindowMessageType.Warning,
+      'The number of transitions exceeds the maximum limit of ' + MAX_TRANSITIONS
+    );
   }
-  vscode.postMessage({command: 'copyToClipboard', text: result});
-  vscode.postMessage({command: 'showMessage',  message: 'WaveDrom JSON copied to clipboard.'});
+  vscodeWrapper.copyToClipboard(result);
+  vscodeWrapper.showMessage(WindowMessageType.Info, 'WaveDrom JSON copied to clipboard.');
 }

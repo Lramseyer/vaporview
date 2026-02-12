@@ -9,9 +9,9 @@
 // contributes.menus.vaporview.valueFormat.
 // 3. Register the new command in the extension.ts (which has examples)
 
+import { WindowMessageType } from "../common/types";
 import { htmlSafe, type NetlistVariable, type CustomVariable } from "./signal_item";
-import { dataManager, outputLog } from "./vaporview";
-import { vscode } from "./vaporview";
+import { dataManager, vscodeWrapper } from "./vaporview";
 
 export function  valueIs9State(value: string): boolean {
   if (value.match(/[uxzwlh-]/)) {return true;}
@@ -576,13 +576,8 @@ export function getNumberFormatById(netlistData: NetlistVariable | CustomVariabl
     return new FixedPointValueFormat(offset, signed, netlistData.signalWidth);
   }
 
-  vscode.postMessage({
-    command: "showMessage",
-    messageType: "warning",
-    message: "Unknown number format: " + numberFormatId,
-  });
-
-  outputLog("Unknown number format: " + numberFormatId);
+  vscodeWrapper.showMessage(WindowMessageType.Warning, "Unknown number format: " + numberFormatId);
+  vscodeWrapper.outputLog("Unknown number format: " + numberFormatId);
   return formatBinary;
 }
 

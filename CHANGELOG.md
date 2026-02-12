@@ -5,8 +5,10 @@
 - VScode now tracks save files, and will prompt you before closing with unsaved changes
 - Added Undo/Redo Support
 - Added Fixed Point number formats
+- Added ability to create custom signals as bit range
 - Updated to wellen 0.20.2
-- Added "reveal" option to waveformViewer.addVariable command
+- API
+  - Added "reveal" option to waveformViewer.addVariable command
 - Fixed
   - Selecting multiple signals no longer moves the time marker
   - Right clicking on marker no longer brings up the wrong menu

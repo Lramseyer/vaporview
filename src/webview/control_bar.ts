@@ -1,6 +1,5 @@
-import { commands } from 'vscode';
 import { EnumQueueEntry, SignalId, type RowId, StateChangeType } from '../common/types';
-import {ActionType, type EventHandler, viewerState, viewport, dataManager, vscode, sendWebviewContext, rowHandler} from './vaporview';
+import { vscodeWrapper, ActionType, type EventHandler, viewerState, viewport, dataManager, rowHandler} from './vaporview';
 import { CustomVariable, NetlistVariable } from './signal_item';
 
 enum ButtonState {
@@ -90,31 +89,31 @@ export class ControlBar {
     }
 
     // Control bar button event handlers
-    this.zoomInButton.addEventListener( 'click', (e) => {this.events.dispatch(ActionType.Zoom, -1, (viewport.pseudoScrollLeft + viewport.halfViewerWidth) / viewport.zoomRatio, viewport.halfViewerWidth);});
-    this.zoomOutButton.addEventListener('click', (e) => {this.events.dispatch(ActionType.Zoom, 1, (viewport.pseudoScrollLeft + viewport.halfViewerWidth) / viewport.zoomRatio, viewport.halfViewerWidth);});
-    this.zoomFitButton.addEventListener('click', (e) => {this.events.dispatch(ActionType.Zoom, Infinity, 0, 0);});
-    this.prevNegedge.addEventListener(  'click', (e: any) => {this.goToNextTransition(-1, ['0']);});
-    this.prevPosedge.addEventListener(  'click', (e: any) => {this.goToNextTransition(-1, ['1']);});
-    this.nextNegedge.addEventListener(  'click', (e: any) => {this.goToNextTransition( 1, ['0']);});
-    this.nextPosedge.addEventListener(  'click', (e: any) => {this.goToNextTransition( 1, ['1']);});
-    this.prevEdge.addEventListener(     'click', (e: any) => {this.goToNextTransition(-1, []);});
-    this.nextEdge.addEventListener(     'click', (e: any) => {this.goToNextTransition( 1, []);});
+    this.zoomInButton.addEventListener( 'click', () => {this.events.dispatch(ActionType.Zoom, -1, (viewport.pseudoScrollLeft + viewport.halfViewerWidth) / viewport.zoomRatio, viewport.halfViewerWidth);});
+    this.zoomOutButton.addEventListener('click', () => {this.events.dispatch(ActionType.Zoom, 1, (viewport.pseudoScrollLeft + viewport.halfViewerWidth) / viewport.zoomRatio, viewport.halfViewerWidth);});
+    this.zoomFitButton.addEventListener('click', () => {this.events.dispatch(ActionType.Zoom, Infinity, 0, 0);});
+    this.prevNegedge.addEventListener(  'click', () => {this.goToNextTransition(-1, ['0']);});
+    this.prevPosedge.addEventListener(  'click', () => {this.goToNextTransition(-1, ['1']);});
+    this.nextNegedge.addEventListener(  'click', () => {this.goToNextTransition( 1, ['0']);});
+    this.nextPosedge.addEventListener(  'click', () => {this.goToNextTransition( 1, ['1']);});
+    this.prevEdge.addEventListener(     'click', () => {this.goToNextTransition(-1, []);});
+    this.nextEdge.addEventListener(     'click', () => {this.goToNextTransition( 1, []);});
     this.autoReload.addEventListener(  'change', (e: any) => {this.handleAutoReloadCheckbox(e);});
 
     // Search bar event handlers
-    this.searchBar.addEventListener(     'focus', (e: any) => {this.handleSearchBarInFocus(true);});
-    this.searchBar.addEventListener(      'blur', (e: any) => {this.handleSearchBarInFocus(false);});
+    this.searchBar.addEventListener(     'focus', () => {this.handleSearchBarInFocus(true);});
+    this.searchBar.addEventListener(      'blur', () => {this.handleSearchBarInFocus(false);});
     this.searchBar.addEventListener(   'keydown', (e: any) => {this.handleSearchBarKeyDown(e);});
     this.searchBar.addEventListener(     'keyup', (e: any) => {this.handleSearchBarEntry(e);});
-    this.timeEquals.addEventListener(    'click', (e: any) => {this.handleSearchButtonSelect(0);});
-    this.valueEquals.addEventListener(   'click', (e: any) => {this.handleSearchButtonSelect(1);});
-    this.previousButton.addEventListener('click', (e: any) => {this.handleSearchGoTo(-1);});
-    this.nextButton.addEventListener(    'click', (e: any) => {this.handleSearchGoTo(1);});
+    this.timeEquals.addEventListener(    'click', () => {this.handleSearchButtonSelect(0);});
+    this.valueEquals.addEventListener(   'click', () => {this.handleSearchButtonSelect(1);});
+    this.previousButton.addEventListener('click', () => {this.handleSearchGoTo(-1);});
+    this.nextButton.addEventListener(    'click', () => {this.handleSearchGoTo(1);});
   
     // Scroll Type settings
-    this.autoScroll.addEventListener(    'click', (e: any) => {this.handleScrollModeClick("Auto");});
-    this.touchScroll.addEventListener(   'click', (e: any) => {this.handleScrollModeClick("Touchpad");});
-    this.mouseScroll.addEventListener(   'click', (e: any) => {this.handleScrollModeClick("Mouse");});
+    this.autoScroll.addEventListener(    'click', () => {this.handleScrollModeClick("Auto");});
+    this.touchScroll.addEventListener(   'click', () => {this.handleScrollModeClick("Touchpad");});
+    this.mouseScroll.addEventListener(   'click', () => {this.handleScrollModeClick("Mouse");});
 
     // Settings menu
     this.settings.addEventListener(      'click', (e: any) => {this.clickSettings(e);});
@@ -154,11 +153,11 @@ export class ControlBar {
 
     this.events.dispatch(ActionType.MarkerSet, nearestTime, 0);
     console.log('goToNextTransition');
-    sendWebviewContext(StateChangeType.User);
+    vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }
 
   handleScrollModeClick(mode: string) {
-    vscode.postMessage({command: 'updateConfiguration', property: "scrollingMode", value: mode});
+    vscodeWrapper.updateConfiguration("scrollingMode", mode);
   }
 
   setScrollMode(mode: string) {
@@ -376,13 +375,13 @@ export class ControlBar {
     }
     if (updateState) {
       console.log('handleSearchGoTo');
-      sendWebviewContext(StateChangeType.User);
+      vscodeWrapper.sendWebviewContext(StateChangeType.User);
     }
   }
 
   handleAutoReloadCheckbox(event: any) {
     viewerState.autoReload = event.target.checked;
-    sendWebviewContext(StateChangeType.None);
+    vscodeWrapper.sendWebviewContext(StateChangeType.None);
   }
 
   handleSearchBarInFocus(isFocused: boolean) {

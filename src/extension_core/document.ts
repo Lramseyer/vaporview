@@ -425,7 +425,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     const enumList: EnumQueueEntry[] = [];
     requestList.forEach((entry) => {
       if (entry.type === 'signal') {
-        signalIdList.push(entry.id);
+        signalIdList.push(entry.signalId);
       } else if (entry.type === 'enum') {
         enumList.push(entry);
       }

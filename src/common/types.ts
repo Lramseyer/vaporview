@@ -11,7 +11,9 @@ export type QueueEntry  = SignalQueueEntry | EnumQueueEntry;
 
 export type SignalQueueEntry = {
   type: 'signal';
-  id: SignalId;
+  signalId: SignalId;
+  rowId?: RowId;
+  customSignalId?: number;
 };
 
 export type EnumQueueEntry = {

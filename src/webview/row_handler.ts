@@ -125,14 +125,13 @@ export class RowHandler {
         const data = dataManager.valueChangeData[varItem.signalId];
         this.setValueFormat(data, varItem.valueFormat, false);
         labelsPanel.valueAtMarker[rowId] = varItem.getValueAtTime(viewerState.markerTime);
-      } else if (dataManager.valueChangeDataTemp[signalId] !== undefined) {
-        dataManager.valueChangeDataTemp[signalId].rowIdList.push(rowId);
-      } else if (dataManager.valueChangeDataTemp[signalId] === undefined) {
-        signalIdList.push(signalId);
-        dataManager.valueChangeDataTemp[signalId] = {
-          rowIdList: [rowId],
-          totalChunks: 0,
+      } else {
+        const signalQueueEntry: SignalQueueEntry = {
+          type: 'signal',
+          signalId: signalId,
+          rowId: rowId,
         };
+        signalIdList.push(signalQueueEntry);
       }
 
       // Check for enum type
@@ -311,7 +310,7 @@ export class RowHandler {
     this.nextRowId++;
 
     // get the source signal item
-    let sourceSignalItem: RowItem | undefined ;
+    let sourceSignalItem: RowItem | undefined;
     if (eventRowId !== undefined) {
       sourceSignalItem = this.rowItems[eventRowId];
     } else if (netlistId !== undefined) {
@@ -321,24 +320,47 @@ export class RowHandler {
       }
     }
     if (!(sourceSignalItem instanceof NetlistVariable)) {return;}
+    const sourceSignalId = sourceSignalItem.signalId;
 
     // Create custom signal
     const source: BitRangeSource = {
       netlistId: sourceSignalItem.netlistId,
-      signalId: sourceSignalItem.signalId,
+      signalId: sourceSignalId,
       msb: msb,
       lsb: lsb,
     };
-    const customSignalId = dataManager.createCustomSignal([source]);
-    if (customSignalId === undefined) {return;}
+    const customSignalId = dataManager.newCustomSignal([source]);
     const width          = msb - lsb + 1;
     const signalName     = name || [sourceSignalItem.scopePath, sourceSignalItem.signalName].join(".") + bitRangeString(msb, lsb);
     const renderType     = width === 1 ? new BinaryWaveformRenderer() : new MultiBitWaveformRenderer();
     const customVariable = new CustomVariable(rowId, [source], customSignalId, signalName, width, renderType);
     this.rowItems[rowId] = customVariable;
-    this.setValueFormat(customVariable.getWaveformData(), customVariable.valueFormat, false);
-    labelsPanel.valueAtMarker[rowId] = customVariable.getValueAtTime(viewerState.markerTime);
-    viewerState.displayedSignals     = viewerState.displayedSignals.concat(rowId);
+    const customSignalData = dataManager.customValueChangeData[customSignalId];
+    if (!customSignalData) {return;}
+
+    let drawFlag = false;
+    if (customSignalData.dataLoaded) {
+      console.log('custom signal found and loaded', customSignalId);
+      drawFlag = true;
+    } else if (dataManager.valueChangeData[sourceSignalId] !== undefined) {
+      dataManager.updateCustomSignal(customSignalId);
+      drawFlag = true;
+    } else {
+      const signalQueueEntry: SignalQueueEntry = {
+        type: 'signal',
+        signalId: sourceSignalId,
+        rowId: rowId,
+        customSignalId: customSignalId,
+      };
+      dataManager.requestData([signalQueueEntry], []);
+    }
+
+    if (drawFlag) {
+      this.setValueFormat(customVariable.getWaveformData(), customVariable.valueFormat, false);
+      labelsPanel.valueAtMarker[rowId] = customVariable.getValueAtTime(viewerState.markerTime);
+    }
+
+    viewerState.displayedSignals = viewerState.displayedSignals.concat(rowId);
     updateDisplayedSignalsFlat();
     this.events.dispatch(ActionType.AddVariable, [rowId], false);
 

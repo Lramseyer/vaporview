@@ -21,6 +21,16 @@ export interface WaveformData {
   max: number;
 };
 
+export class TempWaveformData {
+  totalChunks: number = 0;
+  chunkLoaded: boolean[] = [];
+  chunkData: (string | ValueChange[])[] = [];
+  rowIdList: RowId[] = [];
+  customSignalIdList: number[] = [];
+  compressedChunks: Uint8Array[] = [];
+  originalSize: number = 0;
+};
+
 export interface CustomWaveformData extends WaveformData {
   valueChangeData: ValueChange[];
   formattedValues: Record<string, FormattedValueData>;
@@ -28,6 +38,7 @@ export interface CustomWaveformData extends WaveformData {
   min: number;
   max: number;
   source: BitRangeSource[];
+  dataLoaded: boolean;
 };
 
 export class WaveformDataManager {
@@ -37,8 +48,8 @@ export class WaveformDataManager {
   requestActive: boolean = false;
   requestStart: number = 0;
 
-  valueChangeData: WaveformData[]     = []; // signalId is the key/index, WaveformData is the value
-  valueChangeDataTemp: any            = [];
+  valueChangeData: WaveformData[]         = []; // signalId is the key/index, WaveformData is the value
+  valueChangeDataTemp: TempWaveformData[] = [];
   customValueChangeData: CustomWaveformData[] = [];
   enumTable: Record<string, EnumData> = {}; // enum type is the key/index, array of enum values is the value
   enumTableTemp: any                  = {}
@@ -80,15 +91,28 @@ export class WaveformDataManager {
   // Value Change Blocks. Batch fetching is much faster than individual fetches,
   // so this queue will ensure that fetches are grouped while waiting for any
   // previous fetches to complete.
-  requestData(signalIdList: SignalId[], enumList: EnumQueueEntry[]) {
-    const signalList = signalIdList.map(id => ({type: 'signal', id} as SignalQueueEntry));
-    this.queued      = this.queued.concat(enumList, signalList);
+  requestData(signalIdList: SignalQueueEntry[], enumList: EnumQueueEntry[]) {
+    signalIdList.forEach(entry => {
+      const signalId = entry.signalId;
+      let tempData = this.valueChangeDataTemp[signalId];
+      if (tempData === undefined) {
+        tempData = new TempWaveformData();
+      }
+      if (entry.rowId !== undefined) {
+        tempData.rowIdList.push(entry.rowId);
+      }
+      if (entry.customSignalId !== undefined) {
+        tempData.customSignalIdList.push(entry.customSignalId);
+      }
+      this.valueChangeDataTemp[signalId] = tempData;
+    });
+    this.queued = this.queued.concat(enumList, signalIdList);
     this.fetch();
   }
 
   receiveSignal(signalId: SignalId) {
     this.requested = this.requested.filter(entry => {
-      return !(entry.type === 'signal' && entry.id === signalId);
+      return !(entry.type === 'signal' && entry.signalId === signalId);
     });
     if (this.requested.length === 0) {
       this.requestActive = false;
@@ -115,15 +139,16 @@ export class WaveformDataManager {
     this.requested = this.requested.filter(entry => entry.type === 'signal');
   }
 
-  isRequested(signalId: SignalId): boolean {
-    let isRequested = false;
-    this.requested.forEach(entry => {
-      if (entry.type === 'signal' && entry.id === signalId) {isRequested = true;}
-    });
-    this.queued.forEach(entry => {
-      if (entry.type === 'signal' && entry.id === signalId) {isRequested = true;}
-    });
-    return isRequested;
+  clearTempWaveformData(signalId: SignalId) {
+    this.valueChangeDataTemp[signalId] = {
+      totalChunks: 0,
+      chunkLoaded: [],
+      chunkData: [],
+      rowIdList: [],
+      customSignalIdList: [],
+      compressedChunks: [],
+      originalSize: 0,
+    };
   }
 
   updateWaveformChunk(message: ValueChangeDataChunk) {
@@ -251,18 +276,17 @@ export class WaveformDataManager {
       console.error('Failed to decompress waveform data for signal', signalId + ':', error);
       console.error('Compressed data size:', this.valueChangeDataTemp[signalId].compressedChunks?.length, 'chunks');
       console.error('Expected original size:', this.valueChangeDataTemp[signalId].originalSize);
-      
-      // Clean up the failed attempt
-      this.valueChangeDataTemp[signalId] = undefined;
-      
       // Could potentially request the data again using the fallback method here
       // For now, just log the error and let the user know something went wrong
       console.error('Signal data loading failed for signal ID', signalId, '- you may need to reload the file');
     }
+
+    this.clearTempWaveformData(signalId);
   }
 
   updateWaveform(signalId: SignalId, valueChangeData: any[], min: number, max: number) {
     const rowIdList    = this.valueChangeDataTemp[signalId].rowIdList;
+    const customSignalIdList = this.valueChangeDataTemp[signalId].customSignalIdList;
     if (rowIdList ===  undefined) {console.log('rowId not found for signalId ' + signalId); return;}
     const netlistData  = rowHandler.rowItems[rowIdList[0]];
     if (netlistData === undefined || netlistData instanceof NetlistVariable === false) {return;}
@@ -282,7 +306,9 @@ export class WaveformDataManager {
       max:            max,
     };
 
-    this.valueChangeDataTemp[signalId] = undefined;
+    customSignalIdList.forEach((customSignalId: number) => {
+      this.updateCustomSignal(customSignalId);
+    });
 
     rowIdList.forEach((rowId: RowId) => {
       const netlistData = rowHandler.rowItems[rowId];
@@ -297,10 +323,72 @@ export class WaveformDataManager {
       if (data === undefined) {return;}
       rowHandler.setValueFormat(data, netlistData.valueFormat, false);
     });
+
+    this.clearTempWaveformData(signalId);
   }
 
-  createCustomSignalData(source: BitRangeSource) {
-    const result: any[] = [];
+  newCustomSignal(source: BitRangeSource[]): number {
+    for (let customSignalId = 0; customSignalId < this.customValueChangeData.length; customSignalId++) {
+      const customSignal = this.customValueChangeData[customSignalId];
+      if (customSignal.source.length !== source.length) {continue;}
+      for (let i = 0; i < customSignal.source.length; i++) {
+        if (customSignal.source[i].signalId === source[i].signalId && 
+            customSignal.source[i].msb === source[i].msb && 
+            customSignal.source[i].lsb === source[i].lsb) {
+          console.log('custom signal found', customSignalId);
+          return customSignalId;
+        }
+      }
+    }
+
+    console.log('new custom signal', source);
+    const customSignalId = this.nextCustomSignalId;
+    this.nextCustomSignalId++;
+    const customSignal: CustomWaveformData = {
+      source: source,
+      dataLoaded: false,
+      valueChangeData: [],
+      formattedValues: {},
+      signalWidth: 0,
+      min: 0,
+      max: 0,
+    };
+    this.customValueChangeData[customSignalId] = customSignal;
+    return customSignalId;
+  }
+
+  updateCustomSignal(customSignalId: number): void {
+    console.log('updateCustomSignal', customSignalId);
+    const data = this.customValueChangeData[customSignalId];
+    if (data === undefined) {return;}
+    const source = data.source;
+
+    // create new custom signal
+    let signalWidth = 0;
+    const signalIdList: SignalQueueEntry[] = [];
+    source.forEach((s) => {
+      signalWidth += s.msb - s.lsb + 1;
+      if (this.valueChangeData[s.signalId] === undefined) {
+        const signalQueueEntry: SignalQueueEntry = {
+          type: 'signal',
+          signalId: s.signalId,
+          customSignalId: customSignalId,
+        };
+        signalIdList.push(signalQueueEntry);
+      }
+    });
+
+    dataManager.requestData(signalIdList, []);
+    const valueChangeData = this.createCustomSignalData(source[0]);
+    if (valueChangeData === undefined) {return;}
+    data.valueChangeData = valueChangeData;
+    data.signalWidth = signalWidth;
+    data.dataLoaded = true;
+    return;
+  }
+
+  createCustomSignalData(source: BitRangeSource): ValueChange[] | undefined {
+    const result: ValueChange[] = [];
     const signalId = source.signalId;
     if (this.valueChangeData[signalId] === undefined) {
       return undefined;
@@ -327,48 +415,6 @@ export class WaveformDataManager {
       }
     });
     return result;
-  }
-
-  createCustomSignal(source: BitRangeSource[]) {
-    // check custom signal with the same source
-    for (let customSignalId = 0; customSignalId < this.customValueChangeData.length; customSignalId++) {
-      const customSignal = this.customValueChangeData[customSignalId];
-      if (customSignal.source.length !== source.length) {continue;}
-      for (let i = 0; i < customSignal.source.length; i++) {
-        if (customSignal.source[i].signalId === source[i].signalId && 
-            customSignal.source[i].msb === source[i].msb && 
-            customSignal.source[i].lsb === source[i].lsb) {
-          console.log('custom signal found', customSignalId);
-          return customSignalId;
-        }
-      }
-    }
-
-    // create new custom signal
-    let signalWidth = 0;
-    const signalIdList: SignalId[] = [];
-    source.forEach((s) => {
-      signalWidth += s.msb - s.lsb + 1;
-      if (this.valueChangeData[s.signalId] === undefined) {
-        signalIdList.push(s.signalId);
-      }
-    });
-    this.requestData(signalIdList, []);
-    const customSignalId = this.nextCustomSignalId;
-    this.nextCustomSignalId++;
-
-    const valueChangeData = this.createCustomSignalData(source[0]);
-    if (valueChangeData === undefined) {return;}
-
-    this.customValueChangeData.push({
-      source: source,
-      valueChangeData: valueChangeData,
-      formattedValues: {},
-      signalWidth: signalWidth,
-      min: 0,
-      max: 0,
-    });
-    return customSignalId;
   }
 
   updateEnum(enumName: string, enumData: EnumEntry[]) {

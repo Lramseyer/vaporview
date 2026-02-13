@@ -1,8 +1,8 @@
-import { type EventHandler, viewport, ActionType, viewerState, dataManager, getChildrenByGroupId, getIndexInGroup, handleClickSelection, rowHandler, vscodeWrapper, styles} from './vaporview';
+import { type EventHandler, viewport, ActionType, viewerState, dataManager, getChildrenByGroupId, getIndexInGroup, handleClickSelection, rowHandler, vscodeWrapper, styles, MouseUpEventType} from './vaporview';
 import { ValueFormat } from './value_format';
 import { getParentGroupId } from './vaporview';
 import { SignalGroup, NetlistVariable, SignalItem, RowItem, htmlSafe, CustomVariable, SignalSeparator } from './signal_item';
-import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType } from '../common/types';
+import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType, NetlistVariableContext, NetlistVariableContextMenuEvent } from '../common/types';
 
 export class LabelsPanels {
 
@@ -16,15 +16,15 @@ export class LabelsPanels {
   valuesScroll: HTMLElement;
   resize1: HTMLElement;
   resize2: HTMLElement;
-  dragDivider: HTMLElement | null = null;
-  dragCursorTag: HTMLElement | null = null;
-  dragCursorText: string = "";
 
   // drag handler variables
-  labelsList: any            = [];
-  idleItems: any             = [];
-  idleGroups: any            = [];
-  draggableRows: RowId[]     = [];
+  dragDivider: HTMLElement | null   = null;
+  dragCursorTag: HTMLElement | null = null;
+  dragCursorText: string            = "";
+  labelsList: any                   = [];
+  idleItems: any                    = [];
+  idleGroups: any                   = [];
+  draggableRows: RowId[]            = [];
   draggableItem: HTMLElement | null = null;
   closestItem: HTMLElement | null   = null;
   groupContainer: any               = null;
@@ -34,12 +34,15 @@ export class LabelsPanels {
   scrollStartY: any                 = null;
   resizeIndex: number | null        = null;
   defaultDragDividerY: number       = 0;
-  dragActive: boolean        = false;
-  dragInProgress: boolean    = false;
-  dragFreeze: boolean        = true;
-  dragFreezeTimeout: any     = null;
-  renameActive: boolean      = false;
-  valueAtMarker: any         = {};
+  dragActive: boolean               = false;
+  dragInProgress: boolean           = false;
+  dragFreeze: boolean               = true;
+  dragFreezeTimeout: any            = null;
+
+  renameActive: boolean             = false;
+  valueAtMarker: any                = {};
+  lastClickedSignal: RowId | null   = null;
+  lastClickedTime: number           = 0;
 
   constructor(events: EventHandler) {
     this.events = events;
@@ -138,7 +141,22 @@ export class LabelsPanels {
     } else {
       //this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
       handleClickSelection(event, rowId);
+      //this.doubleClickLabel(rowId);
     }
+  }
+
+  doubleClickLabel(rowId: RowId) {
+    const time = Date.now();
+    if (time - this.lastClickedTime < 300 && rowId === this.lastClickedSignal) {
+      this.lastClickedSignal = null;
+      this.lastClickedTime   = 0;
+      const rowItem          = rowHandler.rowItems[rowId];
+      if (rowItem instanceof NetlistVariable) {
+        // emit double click event
+      }
+    }
+    this.lastClickedSignal = rowId;
+    this.lastClickedTime   = time;
   }
 
   copyValueAtMarker(rowId: RowId | undefined) {
@@ -253,7 +271,7 @@ export class LabelsPanels {
     this.dragFreeze = true;
     this.dragFreezeTimeout = setTimeout(() => {this.dragFreeze = false;}, 100);
     document.addEventListener('mousemove', this.dragMove);
-    viewerState.mouseupEventType = 'rearrange';
+    viewerState.mouseupEventType = MouseUpEventType.Rearrange;
 
     this.initializeDragHandler(event);
     this.setIdleItemsState(rowIdList);
@@ -264,7 +282,7 @@ export class LabelsPanels {
     this.initializeDragHandler(event);
     this.setIdleItemsState([]);
     this.defaultDragDividerY = this.labels.getBoundingClientRect().bottom + this.labelsScroll.scrollTop;
-    viewerState.mouseupEventType = 'dragAndDrop';
+    viewerState.mouseupEventType = MouseUpEventType.DragAndDrop;
   }
 
   setDraggableItemClasses() {
@@ -553,7 +571,7 @@ export class LabelsPanels {
     this.resizeElement.classList.remove('is-idle');
     this.resizeElement.classList.add('is-resizing');
     document.addEventListener("mousemove", this.resize, false);
-    viewerState.mouseupEventType = 'resize';
+    viewerState.mouseupEventType = MouseUpEventType.Resize;
   }
 
   // resize handler to handle resizing

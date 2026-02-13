@@ -1,4 +1,4 @@
-import { type NetlistId, type RowId, type ValueChange, EnumData, EnumEntry, NameType, VariableEncoding, CollapseState, type BitRangeSource, type SignalSeparatorContext, type NetlistVariableContext, CustomVariableContext, SignalGroupContext } from '../common/types';
+import { type NetlistId, type RowId, type ValueChange, EnumData, EnumEntry, NameType, VariableEncoding, CollapseState, type BitRangeSource, type SignalSeparatorContext, type NetlistVariableContext, CustomVariableContext, SignalGroupContext, SavedRowItem, SavedSignalSeparator, SavedNetlistVariable, SavedCustomVariable, SavedSignalGroup } from '../common/types';
 
 import { dataManager, viewport, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, rowHandler, vscodeWrapper, styles } from "./vaporview";
 import { EnumValueFormat, formatBinary, formatHex, formatString, type ValueFormat } from "./value_format";
@@ -112,6 +112,7 @@ export interface RowItem {
   createWaveformRowContent(): string;
   getLabelText(): string;
   setLabelText(newLabel: string): void;
+  getSaveData(): SavedRowItem;
 
   getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[];
   rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number
@@ -178,6 +179,14 @@ export class SignalSeparator extends SignalItem implements RowItem {
       preventDefaultContextMenuItems: true,
     }
     this.vscodeContext = `${JSON.stringify(context).replace(/\s/g, '%x20')}`;
+  }
+
+  public getSaveData(): SavedSignalSeparator {
+    return {
+      dataType: "signal-separator",
+      label: this.label,
+      rowHeight: this.rowHeight,
+    }
   }
 
   getLabelText(): string {return this.label;}
@@ -317,6 +326,22 @@ export class NetlistVariable extends SignalItem implements RowItem {
       enum: this.enumType !== "",
     }
     this.vscodeContext = `${JSON.stringify(context).replace(/\s/g, '%x20')}`;
+  }
+
+  public getSaveData(): SavedNetlistVariable {
+    return {
+      dataType:         "netlist-variable",
+      netlistId:        this.netlistId,
+      name:             this.scopePath + "." + this.signalName,
+      numberFormat:     this.valueFormat.id,
+      colorIndex:       this.colorIndex,
+      rowHeight:        this.rowHeight,
+      verticalScale:    this.verticalScale,
+      nameType:         this.nameType,
+      customName:       this.customName,
+      renderType:       this.renderType.id,
+      valueLinkCommand: this.valueLinkCommand
+    }
   }
 
   public getLabelText(): string {
@@ -551,6 +576,21 @@ export class CustomVariable extends SignalItem implements RowItem {
     this.vscodeContext = `${JSON.stringify(context).replace(/\s/g, '%x20')}`;
   }
 
+  public getSaveData(): SavedCustomVariable {
+    return {
+      dataType:         "custom-variable",
+      source:           this.source,
+      numberFormat:     this.valueFormat.id,
+      colorIndex:       this.colorIndex,
+      rowHeight:        this.rowHeight,
+      verticalScale:    this.verticalScale,
+      nameType:         this.nameType,
+      customName:       this.customName,
+      renderType:       this.renderType.id,
+      valueLinkCommand: this.valueLinkCommand,
+    }
+  }
+
   public getLabelText(): string {
     if (this.nameType === NameType.custom) {
       return this.customName;
@@ -711,7 +751,22 @@ export class SignalGroup extends SignalItem implements RowItem {
       rowId: this.rowId,
       preventDefaultContextMenuItems: true,
     }
-  this.vscodeContext = `${JSON.stringify(context).replace(/\s/g, '%x20')}`;
+    this.vscodeContext = `${JSON.stringify(context).replace(/\s/g, '%x20')}`;
+  }
+
+  public getSaveData(): SavedSignalGroup {
+    const children: SavedRowItem[] = [];
+    this.children.forEach((childRowId) => {
+      const rowItem = rowHandler.rowItems[childRowId];
+      if (!rowItem) {return;}
+      children.push(rowItem.getSaveData());
+    });
+    return {
+      dataType: "signal-group",
+      groupName: this.label,
+      collapseState: this.collapseState,
+      children: children,
+    }
   }
 
   getLabelText(): string {return this.label;}

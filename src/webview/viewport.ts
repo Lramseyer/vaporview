@@ -1,6 +1,6 @@
 import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType, type DocumentId, type DefaultWebviewContext, type RulerContext } from '../common/types';
 import { logScaleFromUnits } from '../common/functions';
-import { ActionType, type EventHandler, viewerState, dataManager, updateDisplayedSignalsFlat, handleClickSelection, controlBar } from "./vaporview";
+import { ActionType, type EventHandler, viewerState, dataManager, updateDisplayedSignalsFlat, handleClickSelection, controlBar, MouseUpEventType } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer } from './renderer';
 import { labelsPanel, rowHandler, vscodeWrapper, styles } from "./vaporview";
@@ -133,7 +133,6 @@ export class Viewport {
     this.overlayCanvas          = overlayCanvasCtx;
     this.scrollAreaBounds       = this.scrollArea.getBoundingClientRect();
 
-
     // click handler to handle clicking inside the waveform viewer
     // gets the absolute x position of the click relative to the scrollable content
     overlayCanvas.addEventListener('mousedown',      (e) => {this.handleScrollAreaMouseDown(e);});
@@ -175,39 +174,25 @@ export class Viewport {
     this.handleSignalSelect(viewerState.selectedSignal, viewerState.lastSelectedSignal);
   }
 
-  init(metadata: any, uri: string, documentId: DocumentId) {
-    const context: DefaultWebviewContext = {
-      preventDefaultContextMenuItems: true,
-      webviewSelection: true,
-      documentId: documentId,
-      uri: uri,
-    }
-    document.title      = metadata.filename;
-    document.body.setAttribute("data-vscode-context", JSON.stringify(context));
-    viewerState.uri     = uri;
-    viewerState.documentId = documentId;
-    this.pixelRatio     = window.devicePixelRatio || 1;
-    this.defaultZoom    = metadata.defaultZoom;
-    this.zoomRatio      = metadata.defaultZoom;
-    this.pixelTime      = 1 / this.zoomRatio;
-    this.timeScale      = metadata.timeScale;
-    this.timeUnit       = metadata.timeUnit;
-    this.adjustedLogTimeScale = 0;
-    this.displayTimeUnit   = metadata.timeUnit;
-    this.timeStop          = metadata.timeEnd;
-    this.timeTableCount    = metadata.timeTableCount;
-    this.maxZoomRatio      = this.zoomRatio * 64;
+  initViewport(metadata: any) {
+    this.pixelRatio      = window.devicePixelRatio || 1;
+    this.defaultZoom     = metadata.defaultZoom;
+    this.zoomRatio       = metadata.defaultZoom;
+    this.pixelTime       = 1 / this.zoomRatio;
+    this.timeScale       = metadata.timeScale;
+    this.timeUnit        = metadata.timeUnit;
+    this.displayTimeUnit = metadata.timeUnit;
+    this.timeStop        = metadata.timeEnd;
+    this.timeTableCount  = metadata.timeTableCount;
+    this.maxZoomRatio    = this.zoomRatio * 64;
+    this.adjustedLogTimeScale   = 0;
     this.waveformArea.innerHTML = '';
     this.updateUnits(this.timeUnit, false);
     this.setRulerVscodeContext();
     this.addNetlistLink();
-    styles.getThemeColors();
     this.updateViewportWidth();
     this.updateScrollbarResize();
     this.handleZoom(1, 0, 0);
-    vscodeWrapper.restoreState();
-    //this.updateRuler();
-    //this.updatePending = false;
   }
 
   async handleColorChange() {
@@ -354,8 +339,8 @@ export class Viewport {
     if (event.button === 1) {
       this.handleScrollAreaClick(event, 1);
     } else if (event.button === 0) {
-      this.highlightStartEvent = event;
-      viewerState.mouseupEventType    = 'markerSet';
+      this.highlightStartEvent     = event;
+      viewerState.mouseupEventType = MouseUpEventType.MarkerSet;
 
       if (!this.highlightListenerSet) {
         const rowId = this.getRowIdFromMouseEvent(event);
@@ -448,7 +433,7 @@ export class Viewport {
     this.scrollbar.classList.add('is-dragging');
 
     document.addEventListener('mousemove', this.handleScrollbarMove);
-    viewerState.mouseupEventType = 'scroll';
+    viewerState.mouseupEventType = MouseUpEventType.Scroll;
   }
 
   highlightZoom(abort: boolean) {
@@ -476,7 +461,7 @@ export class Viewport {
     const elementLeft = left - this.scrollAreaBounds.left;
     const style       = `left: ${elementLeft}px; width: ${width}px; height: ${this.contentArea.clientHeight};`;
   
-    if (width > 5) {viewerState.mouseupEventType = 'highlightZoom';}
+    if (width > 5) {viewerState.mouseupEventType = MouseUpEventType.HighlightZoom;}
   
     if (!this.highlightElement) {
       this.highlightElement = domParser.parseFromString(`<div id="highlight-zoom" style="${style}"></div>`, 'text/html').body.firstChild;
@@ -489,7 +474,7 @@ export class Viewport {
   
     if (!this.highlightDebounce) {
       this.highlightDebounce = setTimeout(() => {
-        viewerState.mouseupEventType  = 'highlightZoom';
+        viewerState.mouseupEventType  = MouseUpEventType.HighlightZoom;
       }, 300);
     }
   }
@@ -622,10 +607,6 @@ export class Viewport {
   }
 
   handleSignalSelect(rowIdList: RowId[], lastSelected: RowId | null) {
-
-    console.log('handleSignalSelect in viewport', rowIdList, lastSelected);
-
-    //if (rowIdList.length === 0) {return;}
 
     viewerState.selectedSignal.forEach((rowId) => {
       const element = document.getElementById('waveform-' + rowId);
@@ -857,27 +838,22 @@ export class Viewport {
     }
   }
 
-  setViewportRange(startTime: number, endTime: number) {
-    if (this.updatePending) {return;}
-    if (startTime < 0 || endTime <= startTime || endTime > this.timeStop) {
-      return; // Invalid range
-    }
+  clampZoomRatio(zoomRatio: number) {
+    return Math.max(this.minZoomRatio, Math.min(zoomRatio, this.maxZoomRatio));
+  }
 
+  setViewportRange(startTime: number, endTime: number) {
     const timeRange = endTime - startTime;
+
+    if (this.updatePending) {return;}
+    if (startTime < 0 || endTime <= startTime || endTime > this.timeStop) {return;}
     if (timeRange <= 0) {return;}
 
     // Calculate the zoom ratio needed to show this range
-    let newZoomRatio = this.viewerWidth / timeRange;
-
-    // Clamp to valid zoom range
-    if (newZoomRatio > this.maxZoomRatio) {
-      newZoomRatio = this.maxZoomRatio;
-    } else if (newZoomRatio < this.minZoomRatio) {
-      newZoomRatio = this.minZoomRatio;
-    }
-
-    const newScrollLeft   = startTime * newZoomRatio;
-    this.applyZoom(newScrollLeft, newZoomRatio);
+    const newZoomRatio     = this.viewerWidth / timeRange;
+    const clampedZoomRatio = this.clampZoomRatio(newZoomRatio);
+    const newScrollLeft    = startTime * clampedZoomRatio;
+    this.applyZoom(newScrollLeft, clampedZoomRatio);
   }
 
   handleZoom(amount: number, zoomOrigin: number, screenPosition: number) {
@@ -886,18 +862,13 @@ export class Viewport {
     if (this.updatePending) {return;}
     if (amount === 0) {return;}
 
-    let newZoomRatio  = this.zoomRatio * 2 ** (-1 * amount);
+    const newZoomRatio     = this.zoomRatio * 2 ** (-1 * amount);
+    const clampedZoomRatio = this.clampZoomRatio(newZoomRatio);
+    const newScrollLeft    = (zoomOrigin * clampedZoomRatio) - screenPosition;
 
-    if (newZoomRatio > this.maxZoomRatio && amount < 0) {
-      newZoomRatio = this.maxZoomRatio;
-    } else if (newZoomRatio < this.minZoomRatio && amount > 0) {
-      newZoomRatio = this.minZoomRatio;
-    }
+    if (clampedZoomRatio === this.zoomRatio) {return;}
 
-    if (newZoomRatio === this.zoomRatio) {return;}
-
-    const newScrollLeft   = (zoomOrigin * newZoomRatio) - screenPosition;
-    this.applyZoom(newScrollLeft, newZoomRatio);
+    this.applyZoom(newScrollLeft, clampedZoomRatio);
   }
 
   applyZoom(newScrollLeft: number, newZoomRatio: number) {

@@ -303,35 +303,44 @@ export class RowHandler {
     return rowId;
   }
 
-  addBitSlice(name: string | undefined, groupPath: string[] | undefined, parentGroupId: number | undefined, eventRowId: number | undefined, netlistId: NetlistId | undefined, msb: number, lsb: number) {
-    console.log('addBitSlice', name, groupPath, parentGroupId, eventRowId, netlistId, msb, lsb);
-    if (controlBar.searchInFocus || labelsPanel.renameActive) {return;}
-    const rowId = this.nextRowId;
-    this.nextRowId++;
-
+  newCustomVariableSource(rowId: number | undefined, netlistId: NetlistId | undefined, msb: number, lsb: number) {
     // get the source signal item
     let sourceSignalItem: RowItem | undefined;
-    if (eventRowId !== undefined) {
-      sourceSignalItem = this.rowItems[eventRowId];
+    if (rowId !== undefined) {
+      sourceSignalItem = this.rowItems[rowId];
     } else if (netlistId !== undefined) {
       const signalItems = this.getRowIdsFromNetlistId(netlistId);
       if (signalItems.length > 0) {
         sourceSignalItem = this.rowItems[signalItems[0]];
       }
-    }
+    } 
     if (!(sourceSignalItem instanceof NetlistVariable)) {return;}
     const sourceSignalId = sourceSignalItem.signalId;
 
     // Create custom signal
     const source: BitRangeSource = {
+      name: sourceSignalItem.scopePath + "." + sourceSignalItem.signalName,
       netlistId: sourceSignalItem.netlistId,
       signalId: sourceSignalId,
       msb: msb,
       lsb: lsb,
     };
+    return source;
+  }
+
+  addCustomVariable(name: string | undefined, groupPath: string[] | undefined, parentGroupId: number | undefined, eventRowId: number | undefined, netlistId: NetlistId | undefined, msb: number, lsb: number, inputSource: BitRangeSource | undefined) {
+    console.log('addCustomVariable', name, groupPath, parentGroupId, eventRowId, netlistId, msb, lsb);
+    if (controlBar.searchInFocus || labelsPanel.renameActive) {return;}
+    const rowId = this.nextRowId;
+    this.nextRowId++;
+
+    const source = inputSource || this.newCustomVariableSource(eventRowId, netlistId, msb, lsb);
+    if (source === undefined) {return;}
+
+    const sourceSignalId = source.signalId;
     const customSignalId = dataManager.newCustomSignal([source]);
-    const width          = msb - lsb + 1;
-    const signalName     = name || [sourceSignalItem.scopePath, sourceSignalItem.signalName].join(".") + bitRangeString(msb, lsb);
+    const width          = source.msb - source.lsb + 1;
+    const signalName     = source.name + bitRangeString(source.msb, source.lsb);
     const renderType     = width === 1 ? new BinaryWaveformRenderer() : new MultiBitWaveformRenderer();
     const customVariable = new CustomVariable(rowId, [source], customSignalId, signalName, width, renderType);
     this.rowItems[rowId] = customVariable;
@@ -383,7 +392,7 @@ export class RowHandler {
     }
 
     this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
-    console.log('addBitSlice');
+    console.log('addCustomVariable');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
     return rowId;
   }
@@ -410,6 +419,17 @@ export class RowHandler {
         const rowId     = rowIdList[0];
         const displayFormat = Object.assign({rowId: rowId}, signal);
         this.setDisplayFormat(displayFormat);
+      } else if (signal.dataType === 'custom-variable') {
+        console.log('addCustomVariable', signal);
+        const bitRange      = signal.source[0];
+        const msb           = bitRange.msb;
+        const lsb           = bitRange.lsb;
+        const name          = bitRange.instancePath + bitRangeString(msb, lsb);
+        const rowIdList     = this.addCustomVariable(name, undefined, parentGroupId, undefined, undefined, msb, lsb, bitRange);
+        if (rowIdList === undefined) {return;}
+        const rowId         = rowIdList[0];
+        const displayFormat = Object.assign({rowId: rowId}, signal);
+        this.setDisplayFormat(displayFormat);
       }
     });
   }
@@ -418,6 +438,7 @@ export class RowHandler {
     //this.flushRowCache(true);
     //console.log('applyState()', settings);
 
+    console.log('applyState', settings);
     this.events.enterBatchMode();
     try {
       if (viewerState.displayedSignals.length > 0) {

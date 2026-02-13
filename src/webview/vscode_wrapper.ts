@@ -1,6 +1,6 @@
 import { QueueEntry, WindowMessageType, StateChangeType, NetlistId, RowId } from "../common/types";
 import { SignalGroup, NetlistVariable, CustomVariable } from "./signal_item";
-import { viewerState, events, createWebviewContext, viewport, rowHandler, getParentGroupIdList, labelsPanel, EventHandler, ActionType, dataManager, controlBar, styles, unload } from "./vaporview";
+import { viewerState, events, createWebviewContext, viewport, rowHandler, getParentGroupIdList, labelsPanel, EventHandler, ActionType, dataManager, controlBar, styles, unload, init } from "./vaporview";
 import { copyWaveDrom } from "./wavedrom";
 
 declare function acquireVsCodeApi(): VsCodeApi;
@@ -37,8 +37,9 @@ export class ThemeColors {
   constructor(
     private events: EventHandler
   ) {
-    this.events = events;
+    this.handleUpdateColorTheme = this.handleUpdateColorTheme.bind(this);
     this.events.subscribe(ActionType.UpdateColorTheme, this.handleUpdateColorTheme);
+
     this.getThemeColors();
   }
 
@@ -46,7 +47,7 @@ export class ThemeColors {
     this.getThemeColors();
   }
 
-  async getThemeColors() {
+  getThemeColors() {
     const style = window.getComputedStyle(document.body);
     // Token colors
     this.colorKey[0] = style.getPropertyValue('--vscode-debugTokenExpression-number');
@@ -122,14 +123,14 @@ export class VscodeWrapper {
     const message = e.data;
 
     switch (message.command) {
-      case 'initViewport':          {viewport.init(message.metadata, message.uri, message.documentId); break;}
+      case 'initViewport':          {init(message.metadata, message.uri, message.documentId); break;}
       case 'unload':                {unload(); break;}
       case 'setConfigSettings':     {this.handleSetConfigSettings(message); break;}
       case 'getContext':            {this.sendWebviewContext(StateChangeType.None); break;}
       case 'apply-state':           {rowHandler.applyState(message.settings, message.stateChangeType); break;}
       case 'add-variable':          {rowHandler.addVariable(message.signalList, message.groupPath, undefined, message.index); break;}
       case 'add-separator':         {rowHandler.addSeparator(message.name, message.groupPath, message.parentGroupId, message.eventRowId, message.moveSelected); break;}
-      case 'add-bit-slice':         {rowHandler.addBitSlice(message.name, message.groupPath, message.parentGroupId, message.eventRowId, undefined, message.msb, message.lsb); break;}
+      case 'add-bit-slice':         {rowHandler.addCustomVariable(message.name, message.groupPath, message.parentGroupId, message.eventRowId, undefined, message.msb, message.lsb, undefined); break;}
       case 'newSignalGroup':        {rowHandler.addSignalGroup(message.groupName, message.groupPath, message.parentGroupId, message.eventRowId, message.moveSelected); break;}
       case 'setDisplayFormat':      {rowHandler.setDisplayFormat(message); break;}
       case 'renameSignalGroup':     {rowHandler.renameSignalGroup(message.rowId, message.groupName); break;}

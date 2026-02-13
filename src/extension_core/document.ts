@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type EnumQueueEntry, type DocumentId, type SavedRowItem } from '../common/types';
+import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type EnumQueueEntry, type DocumentId, type SavedRowItem, VariableEncoding, type BitRangeSource } from '../common/types';
 import { logScaleFromUnits, toStringWithCommas } from '../common/functions';
 import { NetlistLinkProvider } from './terminal_links';
 import * as path from 'path';
@@ -244,6 +244,68 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     };
   }
 
+  public async getNetlistItemFromSignalInfo(signalInfo: any, useNetlistId: boolean): Promise<NetlistItem | null> {
+    const name = signalInfo.name;
+    let metadata: NetlistItem | null = null;
+    if (useNetlistId && signalInfo.netlistId !== undefined) {
+      metadata = this.netlistIdTable[signalInfo.netlistId];
+    } else {
+      metadata = await this.findTreeItem(name, signalInfo.msb, signalInfo.lsb);
+    }
+    return metadata;
+  }
+
+  public async parseNetlistVariableSettings(signalInfo: any, useNetlistId: boolean): Promise<any> {
+    const metadata = await this.getNetlistItemFromSignalInfo(signalInfo, useNetlistId);
+    if (metadata !== null) {
+      const signalData = Object.assign(signalInfo, {
+        netlistId:  metadata.netlistId,
+        signalId:   metadata.signalId,
+        signalName: metadata.name,
+        scopePath:  metadata.scopePath,
+        signalWidth: metadata.width,
+        type:       metadata.type,
+        encoding:   metadata.encoding,
+        enumType:   metadata.enumType,
+        msb:        metadata.msb,
+        lsb:        metadata.lsb,
+      });
+      return signalData;
+    } else {
+      return null;
+    }
+  }
+
+  public async parseCustomVariableSettings(signalInfo: any, useNetlistId: boolean): Promise<any> {
+    let dataValid = true;
+    let missingSignals: string[] = [];
+    const source = await Promise.all(signalInfo.source.map(async (item: any) => {
+      const metadata = await this.getNetlistItemFromSignalInfo(item, useNetlistId);
+      if (metadata === null) {
+        dataValid = false;
+        missingSignals.push(item.name);
+        return null;
+      }
+      const source: BitRangeSource = {
+        name: metadata.scopePath + '.' + metadata.name,
+        netlistId: metadata.netlistId,
+        signalId: metadata.signalId,
+        msb: item.msb,
+        lsb: item.lsb,
+      };
+      return source;
+    }));
+    const signalData = Object.assign(signalInfo, {
+      encoding: VariableEncoding.BitVector,
+      source:   source,
+    });
+    return {
+      dataValid: dataValid,
+      signalData: signalData,
+      missingSignals: missingSignals,
+    };
+  }
+
   public async convertSignalListToSettings(signalList: any, useNetlistId: boolean): Promise<any> {
     const missingSignals: string[] = [];
     const settings: any = [];
@@ -256,29 +318,19 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       } else if (signalInfo.dataType && signalInfo.dataType === 'signal-separator') {
         settings.push(signalInfo);
       } else if (signalInfo.dataType && signalInfo.dataType === 'netlist-variable') {
-        const name   = signalInfo.name;
-        let metadata: NetlistItem | null = null;
-        if (useNetlistId) {
-          metadata = this.netlistIdTable[signalInfo.netlistId];
-        } else {
-          metadata = await this.findTreeItem(name, signalInfo.msb, signalInfo.lsb);
-        }
-        if (metadata !== null) {
-          const signalData = Object.assign(signalInfo, {
-            netlistId:  metadata.netlistId,
-            signalId:   metadata.signalId,
-            signalName: metadata.name,
-            scopePath:  metadata.scopePath,
-            signalWidth: metadata.width,
-            type:       metadata.type,
-            encoding:   metadata.encoding,
-            enumType:   metadata.enumType,
-            msb:        metadata.msb,
-            lsb:        metadata.lsb,
-          });
+        const signalData = await this.parseNetlistVariableSettings(signalInfo, useNetlistId);
+        if (signalData !== null) {
           settings.push(signalData);
         } else {
           missingSignals.push(name);
+        }
+      } else if (signalInfo.dataType && signalInfo.dataType === 'custom-variable') {
+        const result = await this.parseCustomVariableSettings(signalInfo, useNetlistId);
+        console.log('parseCustomVariableSettings', result);
+        if (result.dataValid) {
+          settings.push(result.signalData);
+        } else {
+          missingSignals.push(...result.missingSignals);
         }
       }
     }

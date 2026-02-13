@@ -88,6 +88,19 @@ export type SavedNetlistVariable = {
   valueLinkCommand: string;
 }
 
+export type SavedCustomVariable = {
+  dataType: 'custom-variable';
+  numberFormat: string;
+  colorIndex: number;
+  rowHeight: number;
+  verticalScale: number;
+  nameType: NameType;
+  customName: string;
+  renderType: string;
+  valueLinkCommand: string;
+  source: BitRangeSource[];
+};
+
 export enum CollapseState {
   None      = 0,
   Collapsed = 1,
@@ -95,6 +108,7 @@ export enum CollapseState {
 }
 
 export type BitRangeSource = {
+  name: string;
   netlistId: NetlistId;
   signalId: SignalId;
   msb: number;
@@ -113,19 +127,6 @@ export type SavedSignalSeparator = {
   label: string;
   rowHeight: number;
 }
-
-export type SavedCustomVariable = {
-  dataType: 'custom-variable';
-  valueFormat: string;
-  colorIndex: number;
-  rowHeight: number;
-  verticalScale: number;
-  nameType: NameType;
-  customName: string;
-  renderType: string;
-  valueLinkCommand: string;
-  source: BitRangeSource[];
-};
 
 // Webview Value Change Data Structure
 

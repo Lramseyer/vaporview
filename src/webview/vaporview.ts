@@ -1,5 +1,5 @@
 import { error, group } from 'console';
-import { type NetlistId, SignalId, type RowId, StateChangeType, type DocumentId, SavedNetlistVariable, SavedSignalSeparator, SavedSignalGroup, CollapseState, SavedCustomVariable } from '../common/types';
+import { type NetlistId, SignalId, type RowId, StateChangeType, type DocumentId, SavedNetlistVariable, SavedSignalSeparator, SavedSignalGroup, CollapseState, SavedCustomVariable, DefaultWebviewContext, SavedRowItem } from '../common/types';
 import { Viewport } from './viewport';
 import { LabelsPanels } from './labels';
 import { ControlBar } from './control_bar';
@@ -28,6 +28,16 @@ export enum ActionType {
   ExitBatchMode,
 }
 
+export enum MouseUpEventType {
+  Rearrange,
+  DragAndDrop,
+  Resize,
+  Scroll,
+  HighlightZoom,
+  MarkerSet,
+  None,
+}
+
 let resizeDebounce: any = 0;
 
 export interface ViewerState {
@@ -44,7 +54,7 @@ export interface ViewerState {
   scrollLeft: number;
   touchpadScrolling: boolean;
   autoTouchpadScrolling: boolean;
-  mouseupEventType: string | null;
+  mouseupEventType: MouseUpEventType;
   autoReload: boolean;
 }
 
@@ -62,7 +72,7 @@ export const viewerState: ViewerState = {
   scrollLeft: 0,
   touchpadScrolling: false,
   autoTouchpadScrolling: false,
-  mouseupEventType: null,
+  mouseupEventType: MouseUpEventType.None,
   autoReload: false,
 };
 
@@ -243,6 +253,15 @@ export function createWebviewContext() {
       selectedNetlistId = data.netlistId;
     }
   }
+
+  const signalList: SavedRowItem[] = [];
+  viewerState.displayedSignals.forEach((rowId) => {
+    const data = rowHandler.rowItems[rowId];
+    if (!data) {return;}
+    const saveData = data.getSaveData();
+    signalList.push(saveData);
+  });
+
   return  {
     markerTime: viewerState.markerTime,
     altMarkerTime: viewerState.altMarkerTime,
@@ -253,48 +272,8 @@ export function createWebviewContext() {
     zoomRatio: vaporview.viewport.zoomRatio,
     scrollLeft: Math.round(vaporview.viewport.timeScrollLeft),
     autoReload: viewerState.autoReload,
-    displayedSignals: signalListForSaveFile(viewerState.displayedSignals),
+    displayedSignals: signalList,
   }
-}
-
-function signalListForSaveFile(rowIdList: RowId[]): any[] {
-  const result: any[] = [];
-  rowIdList.forEach((rowId) => {
-    const data = rowHandler.rowItems[rowId];
-    if (data instanceof SignalGroup) {
-      result.push({
-        dataType:  "signal-group",
-        groupName: data.label,
-        collapseState: data.collapseState,
-        children:  signalListForSaveFile(data.children)
-      } as SavedSignalGroup);
-    } else if (data instanceof SignalSeparator) {
-      result.push({
-        dataType: "signal-separator",
-        label:    data.label,
-        rowHeight: data.rowHeight,
-      } as SavedSignalSeparator);
-    } else if (data instanceof CustomVariable) {
-      // do nothing for now
-    }
-    if (!(data instanceof NetlistVariable)) {return;}
-
-    const netlistId = data.netlistId;
-    result.push({
-      dataType:         "netlist-variable",
-      netlistId:        netlistId,
-      name:             data.scopePath + "." + data.signalName,
-      numberFormat:     data.valueFormat.id,
-      colorIndex:       data.colorIndex,
-      rowHeight:        data.rowHeight,
-      verticalScale:    data.verticalScale,
-      nameType:         data.nameType,
-      customName:       data.customName,
-      renderType:       data.renderType.id,
-      valueLinkCommand: data.valueLinkCommand,
-    } as SavedNetlistVariable);
-  });
-  return result;
 }
 
 class VaporviewWebview {
@@ -603,24 +582,24 @@ class VaporviewWebview {
 
   handleMouseUp(event: MouseEvent | KeyboardEvent, abort: boolean) {
     //console.log('mouseup event type: ' + viewerState.mouseupEventType);
-    if (viewerState.mouseupEventType === 'rearrange') {
+    if (viewerState.mouseupEventType === MouseUpEventType.Rearrange) {
       labelsPanel.dragEnd(event, abort);
-    } else if (viewerState.mouseupEventType === 'dragAndDrop') {
+    } else if (viewerState.mouseupEventType === MouseUpEventType.DragAndDrop) {
       labelsPanel.dragEndExternal(event, abort);
-    } else if (viewerState.mouseupEventType === 'resize') {
+    } else if (viewerState.mouseupEventType === MouseUpEventType.Resize) {
       labelsPanel.resizeElement.classList.remove('is-resizing');
       labelsPanel.resizeElement.classList.add('is-idle');
       document.removeEventListener("mousemove", labelsPanel.resize, false);
       this.handleResizeViewer();
-    } else if (viewerState.mouseupEventType === 'scroll') {
+    } else if (viewerState.mouseupEventType === MouseUpEventType.Scroll) {
       this.scrollbar.classList.remove('is-dragging');
       document.removeEventListener('mousemove', this.viewport.handleScrollbarMove);
       this.viewport.scrollbarMoved = false;
-    } else if (viewerState.mouseupEventType === 'highlightZoom') {
+    } else if (viewerState.mouseupEventType === MouseUpEventType.HighlightZoom) {
       document.removeEventListener('mousemove', viewport.drawHighlightZoom, false);
       viewport.highlightListenerSet = false;
       viewport.highlightZoom(abort);
-    } else if (viewerState.mouseupEventType === 'markerSet') {
+    } else if (viewerState.mouseupEventType === MouseUpEventType.MarkerSet) {
       document.removeEventListener('mousemove', viewport.drawHighlightZoom, false);
       clearTimeout(viewport.highlightDebounce);
       viewport.handleScrollAreaClick(viewport.highlightStartEvent, 0);
@@ -629,14 +608,14 @@ class VaporviewWebview {
         viewport.highlightElement.remove();
         viewport.highlightElement = null;
       }
-    } else if (viewerState.mouseupEventType === null && abort) {
+    } else if (viewerState.mouseupEventType === MouseUpEventType.None && abort) {
       if (!labelsPanel.renameActive) {
         this.events.dispatch(ActionType.SignalSelect, [], null);
         console.log('handleMouseUp');
         vscodeWrapper.sendWebviewContext(StateChangeType.User);
       }
     }
-    viewerState.mouseupEventType = null;
+    viewerState.mouseupEventType = MouseUpEventType.None;
   }
 
   // #region Global Events
@@ -726,6 +705,24 @@ class VaporviewWebview {
 
     vscodeWrapper.emitRemoveVariableEvent(instancePathList, netlistIdList);
   }
+}
+
+export function init(metadata: any, uri: string, documentId: DocumentId) {
+  const context: DefaultWebviewContext = {
+    preventDefaultContextMenuItems: true,
+    webviewSelection: true,
+    documentId: documentId,
+    uri: uri,
+  }
+  document.body.setAttribute("data-vscode-context", JSON.stringify(context));
+  document.title         = metadata.filename;
+  viewerState.uri        = uri;
+  viewerState.documentId = documentId;
+  styles.getThemeColors();
+  viewport.initViewport(metadata);
+  vscodeWrapper.restoreState();
+  //this.updateRuler();
+  //this.updatePending = false;
 }
 
 export function unload() {

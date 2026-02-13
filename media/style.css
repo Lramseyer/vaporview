@@ -73,6 +73,7 @@ body {
   height: 20px;
   width: 20px;
   fill: var(--vscode-icon-foreground);
+  color: var(--vscode-icon-foreground);
 }
 
 .control-bar-button:hover {

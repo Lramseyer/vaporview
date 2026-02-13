@@ -1,6 +1,6 @@
 import { QueueEntry, WindowMessageType, StateChangeType, NetlistId, RowId } from "../common/types";
 import { SignalGroup, NetlistVariable, CustomVariable } from "./signal_item";
-import { viewerState, events, createWebviewContext, viewport, rowHandler, getParentGroupIdList, labelsPanel, EventHandler, ActionType, dataManager, controlBar, styles, unload, init } from "./vaporview";
+import { viewerState, events, createWebviewContext, viewport, rowHandler, getParentGroupIdList, labelsPanel, EventHandler, ActionType, dataManager, controlBar, styles, unload, init, revealSignal } from "./vaporview";
 import { copyWaveDrom } from "./wavedrom";
 
 declare function acquireVsCodeApi(): VsCodeApi;
@@ -39,8 +39,6 @@ export class ThemeColors {
   ) {
     this.handleUpdateColorTheme = this.handleUpdateColorTheme.bind(this);
     this.events.subscribe(ActionType.UpdateColorTheme, this.handleUpdateColorTheme);
-
-    this.getThemeColors();
   }
 
   handleUpdateColorTheme() {
@@ -48,6 +46,7 @@ export class ThemeColors {
   }
 
   getThemeColors() {
+
     const style = window.getComputedStyle(document.body);
     // Token colors
     this.colorKey[0] = style.getPropertyValue('--vscode-debugTokenExpression-number');
@@ -113,10 +112,18 @@ export class ThemeColors {
 
 export class VscodeWrapper {
 
-  constructor(private events: EventHandler) {this.events = events;}
+  constructor(private events: EventHandler) {
+    this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
+    this.handleMarkerSet    = this.handleMarkerSet.bind(this);
+    this.handleSignalSelect = this.handleSignalSelect.bind(this);
+
+    this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
+    this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
+    this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
+  }
 
   webviewReady() {
-    vscode.postMessage({ command: 'ready' });
+    vscode.postMessage({command: 'ready'});
   }
 
   handleMessage(e: any) {
@@ -147,7 +154,7 @@ export class VscodeWrapper {
       case 'setViewportTo':         {viewport.moveViewToTime(message.time); break;}
       case 'setViewportRange':      {viewport.setViewportRange(message.startTime, message.endTime); break;}
       case 'setTimeUnits':          {viewport.updateUnits(message.units, true); break;}
-      case 'setSelectedSignal':     {this.handleSetSelectedSignal(message.netlistId); break;}
+      case 'setSelectedSignal':     {this.setSelectedSignal(message.netlistId); break;}
       case 'copyWaveDrom':          {copyWaveDrom(); break;}
       case 'copyValueAtMarker':     {labelsPanel.copyValueAtMarker(message.rowId); break;}
       case 'updateColorTheme':      {this.events.dispatch(ActionType.UpdateColorTheme); break;}
@@ -183,7 +190,7 @@ export class VscodeWrapper {
     }
   }
 
-  handleSetSelectedSignal(netlistId: NetlistId | undefined) {
+  setSelectedSignal(netlistId: NetlistId | undefined) {
     if (netlistId === undefined) {return;}
     const rowIdList = rowHandler.getRowIdsFromNetlistId(netlistId);
     if (rowIdList.length === 0) {return;}
@@ -207,6 +214,43 @@ export class VscodeWrapper {
       netlistData.verticalScale = Math.max(1, netlistData.verticalScale * scale);
       this.events.dispatch(ActionType.RedrawVariable, rowId);
     }); 
+  }
+
+  handleRemoveVariable(rowIdList: RowId[], recursive: boolean) {
+    const instancePathList: string[] = [];
+    const netlistIdList: number[] = []
+    rowIdList.forEach(rowId => {
+      const signalItem = rowHandler.rowItems[rowId];
+      if (!(signalItem instanceof NetlistVariable)) {return;}
+      netlistIdList.push(signalItem.netlistId);
+      instancePathList.push(signalItem.scopePath + '.' + signalItem.signalName);
+    });
+
+    this.emitRemoveVariableEvent(instancePathList, netlistIdList);
+  }
+
+  handleMarkerSet(time: number, markerType: number) {
+    if (time > viewport.timeStop || time < 0) {return;}
+    this.emitMarkerSetEvent(time, viewport.timeUnit);
+  }
+
+  handleSignalSelect(rowIdList: RowId[], lastSelected: RowId | null = null) {
+
+    const netlistIdList: number[] = [];
+    const instancePathList: string[] = [];
+    rowIdList.forEach(rowId => {
+      const netlistData = rowHandler.rowItems[rowId];
+      if (netlistData === undefined) {return;}
+      if (!(netlistData instanceof NetlistVariable)) {return;}
+      netlistIdList.push(netlistData.netlistId);
+      let instancePath = netlistData.scopePath + '.' + netlistData.signalName;
+      if (netlistData.scopePath === "") {instancePath = netlistData.signalName;}
+      instancePathList.push(instancePath);
+    });
+
+    if (rowIdList.length === 1) {
+      this.emitSignalSelectEvent(instancePathList, netlistIdList);
+    }
   }
 
   sendWebviewContext(stateChangeType: number) {
@@ -259,6 +303,7 @@ export class VscodeWrapper {
   }
 
   fetchData(requestList: QueueEntry[]) {
+    console.log('fetchData', requestList);
     vscode.postMessage({
       command: 'fetchDataFromFile',
       requestList: requestList,

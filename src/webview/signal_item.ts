@@ -617,6 +617,8 @@ export class CustomVariable extends SignalItem implements RowItem {
 
     if (!data) {return;}
     if (!this.ctx) {return;}
+    const valueChangeData = data.valueChangeData;
+    if (valueChangeData.length === 0) {return;}
 
     const valueChangeChunk = setRenderBounds(this, data);
     this.renderType.draw(valueChangeChunk, this);

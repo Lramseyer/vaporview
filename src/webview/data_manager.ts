@@ -19,6 +19,7 @@ export interface WaveformData {
 };
 
 export class TempWaveformData {
+  constructor(public signalWidth: number) {}
   totalChunks: number = 0;
   chunkLoaded: boolean[] = [];
   chunkData: (string | ValueChange[])[] = [];
@@ -92,7 +93,7 @@ export class WaveformDataManager {
       const signalId = entry.signalId;
       let tempData = this.valueChangeDataTemp[signalId];
       if (tempData === undefined) {
-        tempData = new TempWaveformData();
+        tempData = new TempWaveformData(entry.signalWidth);
       }
       if (entry.rowId !== undefined) {
         tempData.rowIdList.push(entry.rowId);
@@ -134,6 +135,7 @@ export class WaveformDataManager {
 
   clearTempWaveformData(signalId: SignalId) {
     this.valueChangeDataTemp[signalId] = {
+      signalWidth: 0,
       totalChunks: 0,
       chunkLoaded: [],
       chunkData: [],
@@ -278,12 +280,11 @@ export class WaveformDataManager {
   }
 
   updateWaveform(signalId: SignalId, valueChangeData: any[], min: number, max: number) {
+    console.log('updateWaveform', signalId, valueChangeData);
     const rowIdList    = this.valueChangeDataTemp[signalId].rowIdList;
     const customSignalIdList = this.valueChangeDataTemp[signalId].customSignalIdList;
-    if (rowIdList ===  undefined) {console.log('rowId not found for signalId ' + signalId); return;}
-    const netlistData  = rowHandler.rowItems[rowIdList[0]];
-    if (netlistData === undefined || netlistData instanceof NetlistVariable === false) {return;}
-    const signalWidth  = netlistData.signalWidth;
+    const signalWidth = this.valueChangeDataTemp[signalId].signalWidth;
+
     const nullValue = "x".repeat(signalWidth);
     if (valueChangeData[0][0] !== 0) {
       valueChangeData.unshift([0, nullValue]);
@@ -303,6 +304,9 @@ export class WaveformDataManager {
       this.updateCustomSignal(customSignalId);
     });
 
+    this.clearTempWaveformData(signalId);
+
+    if (rowIdList ===  undefined) {console.log('rowId not found for signalId ' + signalId); return;}
     rowIdList.forEach((rowId: RowId) => {
       const netlistData = rowHandler.rowItems[rowId];
       if (netlistData === undefined || netlistData instanceof NetlistVariable === false) {return;}
@@ -316,8 +320,6 @@ export class WaveformDataManager {
       if (data === undefined) {return;}
       rowHandler.setValueFormat(data, netlistData.valueFormat, false);
     });
-
-    this.clearTempWaveformData(signalId);
   }
 
   newCustomSignal(source: BitRangeSource[]): number {
@@ -364,6 +366,7 @@ export class WaveformDataManager {
       if (this.valueChangeData[s.signalId] === undefined) {
         const signalQueueEntry: SignalQueueEntry = {
           type: 'signal',
+          signalWidth: s.signalWidth,
           signalId: s.signalId,
           customSignalId: customSignalId,
         };

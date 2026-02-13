@@ -128,6 +128,7 @@ export class RowHandler {
       } else {
         const signalQueueEntry: SignalQueueEntry = {
           type: 'signal',
+          signalWidth: signal.signalWidth,
           signalId: signalId,
           rowId: rowId,
         };
@@ -322,6 +323,7 @@ export class RowHandler {
       name: sourceSignalItem.scopePath + "." + sourceSignalItem.signalName,
       netlistId: sourceSignalItem.netlistId,
       signalId: sourceSignalId,
+      signalWidth: sourceSignalItem.signalWidth,
       msb: msb,
       lsb: lsb,
     };
@@ -357,6 +359,7 @@ export class RowHandler {
     } else {
       const signalQueueEntry: SignalQueueEntry = {
         type: 'signal',
+        signalWidth: source.signalWidth,
         signalId: sourceSignalId,
         rowId: rowId,
         customSignalId: customSignalId,
@@ -442,7 +445,7 @@ export class RowHandler {
     this.events.enterBatchMode();
     try {
       if (viewerState.displayedSignals.length > 0) {
-        this.handleRemoveVariable(viewerState.displayedSignalsFlat, true);
+        this.events.dispatch(ActionType.RemoveVariable, viewerState.visibleSignalsFlat, true);
       }
       this.addSignalList(settings.displayedSignals, 0);
       dataManager.garbageCollectValueFormats();

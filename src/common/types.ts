@@ -11,6 +11,7 @@ export type QueueEntry  = SignalQueueEntry | EnumQueueEntry;
 
 export type SignalQueueEntry = {
   type: 'signal';
+  signalWidth: number;
   signalId: SignalId;
   rowId?: RowId;
   customSignalId?: number;
@@ -111,6 +112,7 @@ export type BitRangeSource = {
   name: string;
   netlistId: NetlistId;
   signalId: SignalId;
+  signalWidth: number;
   msb: number;
   lsb: number;
 };

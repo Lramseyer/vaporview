@@ -290,6 +290,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
         name: metadata.scopePath + '.' + metadata.name,
         netlistId: metadata.netlistId,
         signalId: metadata.signalId,
+        signalWidth: metadata.width,
         msb: item.msb,
         lsb: item.lsb,
       };
@@ -326,7 +327,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
         }
       } else if (signalInfo.dataType && signalInfo.dataType === 'custom-variable') {
         const result = await this.parseCustomVariableSettings(signalInfo, useNetlistId);
-        console.log('parseCustomVariableSettings', result);
         if (result.dataValid) {
           settings.push(result.signalData);
         } else {

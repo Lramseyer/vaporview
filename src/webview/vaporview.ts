@@ -80,7 +80,7 @@ export class EventHandler {
   private subscribers: Map<ActionType, ((...args: any[]) => void)[]> = new Map();
   private batchMode: boolean = false;
   public get isBatchMode(): boolean {return this.batchMode;}
-  private signalSelectArgs: any[] = [];
+  private signalSelectArgs: any[] = [[], null];
 
   enterBatchMode() {
     console.log("entering batch mode");
@@ -88,7 +88,6 @@ export class EventHandler {
   }
 
   exitBatchMode() {
-    console.log("exiting batch mode");
     this.batchMode = false;
     this.dispatch(ActionType.SignalSelect, ...this.signalSelectArgs);
     this.dispatch(ActionType.ExitBatchMode);
@@ -342,15 +341,8 @@ class VaporviewWebview {
     this.webview.addEventListener('dragover', (e) => {labelsPanel.dragMoveExternal(e);});
     this.webview.addEventListener('drop', (e) => {vscodeWrapper.handleDrop(e);});
 
-    this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
-    this.handleMarkerSet    = this.handleMarkerSet.bind(this);
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
-    this.reorderSignals     = this.reorderSignals.bind(this);
-
-    this.events.subscribe(ActionType.Resize, this.handleRemoveVariable);
-    this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
-    this.events.subscribe(ActionType.ReorderSignals, this.reorderSignals);
   }
 
   // Function to test whether or not the user is using a touchpad
@@ -619,52 +611,18 @@ class VaporviewWebview {
   }
 
   // #region Global Events
-  reorderSignals(rowIdList: number[], newGroupId: number, newIndex: number) {
-    let lastSelectedRowId: RowId | null = viewerState.lastSelectedSignal;
-    if (rowIdList.length === 1) {lastSelectedRowId = rowIdList[0];}
-    //this.events.dispatch(ActionType.SignalSelect, [rowIdList], lastSelectedRowId);
-  }
-
   handleResizeViewer() {
     clearTimeout(resizeDebounce);
     resizeDebounce = setTimeout(this.events.dispatch.bind(this.events, ActionType.Resize), 100);
   }
 
-  handleMarkerSet(time: number, markerType: number) {
-    if (time > this.viewport.timeStop || time < 0) {return;}
-
-    vscodeWrapper.emitMarkerSetEvent(time, this.viewport.timeUnit);
-  }
-
   handleSignalSelect(rowIdList: RowId[], lastSelected: RowId | null = null) {
 
-    //const filteredRowIdList = dataManager.removeChildrenFromSignalList(rowIdList);
-
-    //if (rowIdList.length === 0) {return;}
     viewerState.lastSelectedSignal = lastSelected;
-    viewerState.selectedSignal = rowIdList;
+    viewerState.selectedSignal     = rowIdList;
 
-    //if (lastSelected === null) {return;}
     if (rowIdList.length > 0) {
       revealSignal(rowIdList[0]);
-    }
-    viewerState.selectedSignal = rowIdList;
-
-    const netlistIdList: number[] = [];
-    const instancePathList: string[] = [];
-    rowIdList.forEach(rowId => {
-      const netlistData = rowHandler.rowItems[rowId];
-      if (netlistData === undefined) {return;}
-      if (!(netlistData instanceof NetlistVariable)) {return;}
-      netlistIdList.push(netlistData.netlistId);
-      let instancePath = netlistData.scopePath + '.' + netlistData.signalName;
-      if (netlistData.scopePath === "") {instancePath = netlistData.signalName;}
-      instancePathList.push(instancePath);
-    });
-
-    if (rowIdList.length === 1) {
-
-      vscodeWrapper.emitSignalSelectEvent(instancePathList, netlistIdList);
     }
   }
 
@@ -691,19 +649,6 @@ class VaporviewWebview {
     this.valuesScroll.scrollTop = this.scrollArea.scrollTop;
     viewport.renderAllWaveforms(false);
     this.viewport.updatePending = false;
-  }
-
-  handleRemoveVariable(rowIdList: RowId[], recursive: boolean) {
-    const instancePathList: string[] = [];
-    const netlistIdList: number[] = []
-    rowIdList.forEach(rowId => {
-      const signalItem = rowHandler.rowItems[rowId];
-      if (!(signalItem instanceof NetlistVariable)) {return;}
-      netlistIdList.push(signalItem.netlistId);
-      instancePathList.push(signalItem.scopePath + '.' + signalItem.signalName);
-    });
-
-    vscodeWrapper.emitRemoveVariableEvent(instancePathList, netlistIdList);
   }
 }
 

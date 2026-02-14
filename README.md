@@ -206,6 +206,21 @@ This extension requires VScode 1.96.0 or later
 
 # Development Roadmap
 
+# 1.5.0 - Upcoming Release
+
+- VScode now tracks save files, and will prompt you before closing with unsaved changes
+- Added Undo/Redo Support
+- Added Fixed Point number formats
+- Added feature to create custom signals as bit range
+- Added feature to split bit vector into individual bits
+- Updated to wellen 0.20.2
+- API
+  - Added "reveal" option to waveformViewer.addVariable command
+- Fixed
+  - Selecting multiple signals no longer moves the time marker
+  - Right clicking on marker no longer brings up the wrong menu
+  - Highlight zooming at the edge of the viewport now works as expected
+
 ## 1.4.5 - 1/8/2026 - Latest Release
 
 - Added Ctrl/Cmd+R hotkey for "Show in Netlist View"

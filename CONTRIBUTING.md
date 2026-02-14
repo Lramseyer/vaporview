@@ -9,7 +9,7 @@ Design opinions and bug reports are welcome. This project has thousands of users
 - [Bugs and Issues](https://github.com/Lramseyer/vaporview/issues)
 - [Design Opinions](https://github.com/Lramseyer/vaporview/discussions)
 
-Note that Vaporview uses an output log for extra debug information
+Note that Vaporview uses an output log for extra debug information, which may provide relevant information to your issue.
 
 ## Contributing your code
 
@@ -35,7 +35,7 @@ Since Vaporview requires a lot of custom UI elements that do not come standard w
 2. It needs to look nice
 3. It needs to feel smooth and snappy wherever possible
 4. It needs to follow suit with the VScode design language and behavior where posible
-5. It needs look and feel familiar to both VScode and other waveform viewers (like Surfer, GTKwave, or Verdi)
+5. It needs to look and feel familiar to both VScode and other waveform viewers (like Surfer, GTKwave, or Verdi)
 
 I believe good software makes the easy things easy, and the hard things possible.
 

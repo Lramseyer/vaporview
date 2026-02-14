@@ -1,11 +1,12 @@
 # Change Log
 
-# Upcoming Release
+# 1.5.0 - Upcoming Release
 
 - VScode now tracks save files, and will prompt you before closing with unsaved changes
 - Added Undo/Redo Support
 - Added Fixed Point number formats
-- Added ability to create custom signals as bit range
+- Added feature to create custom signals as bit range
+- Added feature to split bit vector into individual bits
 - Updated to wellen 0.20.2
 - API
   - Added "reveal" option to waveformViewer.addVariable command

@@ -138,7 +138,8 @@ export class VscodeWrapper {
       case 'add-variable':          {rowHandler.addVariable(message.signalList, message.groupPath, undefined, message.index); break;}
       case 'add-separator':         {rowHandler.addSeparator(message.name, message.groupPath, message.parentGroupId, message.eventRowId, message.moveSelected); break;}
       case 'add-bit-slice':         {rowHandler.addCustomVariable(message.name, message.groupPath, message.parentGroupId, message.eventRowId, undefined, message.msb, message.lsb, undefined); break;}
-      case 'newSignalGroup':        {rowHandler.addSignalGroup(message.groupName, message.groupPath, message.parentGroupId, message.eventRowId, message.moveSelected); break;}
+      case 'add-all-bit-slices':    {rowHandler.addAllBitSlices(message.name, message.groupPath, message.parentGroupId, message.eventRowId); break;}
+      case 'newSignalGroup':        {rowHandler.addSignalGroup(message.groupName, message.groupPath, message.parentGroupId, message.eventRowId, message.moveSelected, message.showRenameInput); break;}
       case 'setDisplayFormat':      {rowHandler.setDisplayFormat(message); break;}
       case 'renameSignalGroup':     {rowHandler.renameSignalGroup(message.rowId, message.groupName); break;}
       case 'editSignalGroup':       {rowHandler.editSignalGroup(message); break;}
@@ -150,7 +151,7 @@ export class VscodeWrapper {
       case 'update-enum-chunk':     {dataManager.updateEnumChunk(message); break;}
       case 'handle-keypress':       {this.externalKeyDownHandler(message); break;}
       case 'setWaveDromClock':      {dataManager.waveDromClock = {netlistId: message.netlistId, edge:  message.edge,}; break;}
-      case 'setMarker':             {this.events.dispatch(ActionType.MarkerSet, message.time, message.markerType); console.log('handleMessage - setMarker'); this.sendWebviewContext(StateChangeType.User); break;}
+      case 'setMarker':             {this.setMarker(message.time, message.markerType); break;}
       case 'setViewportTo':         {viewport.moveViewToTime(message.time); break;}
       case 'setViewportRange':      {viewport.setViewportRange(message.startTime, message.endTime); break;}
       case 'setTimeUnits':          {viewport.updateUnits(message.units, true); break;}
@@ -196,6 +197,12 @@ export class VscodeWrapper {
     if (rowIdList.length === 0) {return;}
     this.events.dispatch(ActionType.SignalSelect, rowIdList, rowIdList[0]);
     console.log('handleSetSelectedSignal');
+    this.sendWebviewContext(StateChangeType.User);
+  }
+
+  setMarker(time: number, markerType: number) {
+    console.log('handleMessage - setMarker');
+    this.events.dispatch(ActionType.MarkerSet, time, markerType);
     this.sendWebviewContext(StateChangeType.User);
   }
 

@@ -537,7 +537,12 @@
         {
           "command": "vaporview.newSignalFromBitRange",
           "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus && width > 1",
-          "group": "3_groups@6"
+          "group": "3_groups@8"
+        },
+        {
+          "command": "vaporview.createSignalsForAllBits",
+          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus && width > 1 && width <= 32",
+          "group": "3_groups@9"
         },
         {
           "command": "vaporview.saveViewerSettings",
@@ -933,7 +938,11 @@
       },
       {
         "command": "vaporview.newSignalFromBitRange",
-        "title": "New Signal From Bit Range"
+        "title": "New Signal From Bit Range..."
+      },
+      {
+        "command": "vaporview.createSignalsForAllBits",
+        "title": "Create Signals From Bits"
       },
       {
         "command": "vaporview.displayAsBinary",

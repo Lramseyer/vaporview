@@ -1062,6 +1062,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       parentGroupId: parentGroupId,
       eventRowId: eventRowId,
       moveSelected: moveSelected,
+      showRenameInput: true,
     });
   }
 
@@ -1118,6 +1119,21 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         lsb: lsb,
       });
     }
+  }
+
+  public createSignalsForAllBits(name: string | undefined, groupPath: string[] | undefined, parentGroupId: number | undefined, eventRowId: number | undefined) {
+    if (!this.activeWebview) {return;}
+    if (!this.activeDocument) {return;}
+    if (!this.activeWebview.visible) {return;}
+
+    const panel = this.activeWebview;
+    panel.webview.postMessage({
+      command: 'add-all-bit-slices',
+      name: name,
+      groupPath: groupPath,
+      parentGroupId: parentGroupId,
+      eventRowId: eventRowId,
+    });
   }
 
   public renameSignalGroup(e: any | undefined) {

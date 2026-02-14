@@ -188,7 +188,7 @@ export class RowHandler {
     return rowIdList;
   }
 
-  addSignalGroup(name: string | undefined, groupPath: string[] | undefined, inputParentGroupId: number | undefined, eventRowId: number | undefined, moveSelected: boolean): number | undefined {
+  addSignalGroup(name: string | undefined, groupPath: string[] | undefined, inputParentGroupId: number | undefined, eventRowId: number | undefined, moveSelected: boolean, showRenameInput: boolean): number | undefined {
     if (controlBar.searchInFocus || labelsPanel.renameActive) {return;}
 
     const groupId = this.nextGroupId;
@@ -260,7 +260,8 @@ export class RowHandler {
       this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
     }
 
-    labelsPanel.showRenameInput(rowId);
+    if (showRenameInput) {labelsPanel.showRenameInput(rowId);}
+
     console.log('addSignalGroup');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
 
@@ -379,14 +380,14 @@ export class RowHandler {
     let reorder = false;
     let index = viewerState.displayedSignalsFlat.length;
     const parentGroup = this.getGroupByIdOrName(groupPath, parentGroupId);
-    if (eventRowId !== undefined) {
+    if (parentGroup !== null) {
+      parentGroupId = parentGroup.groupId;
+      index = parentGroup.children.length;
+      reorder = true;
+    } else if (eventRowId !== undefined) {
       parentGroupId = getParentGroupId(eventRowId) || 0;
       const parentGroupChildren = getChildrenByGroupId(parentGroupId);
       index = parentGroupChildren.indexOf(eventRowId) + 1;
-      reorder = true;
-    } else if (parentGroup !== null) {
-      parentGroupId = parentGroup.groupId;
-      index = parentGroup.children.length;
       reorder = true;
     }
 
@@ -400,10 +401,37 @@ export class RowHandler {
     return rowId;
   }
 
+  addAllBitSlices(name: string | undefined, groupPath: string[] | undefined, parentGroupId: number | undefined, eventRowId: number | undefined) {
+
+    if (eventRowId === undefined) {return;}
+    const signalItem = this.rowItems[eventRowId];
+    if (signalItem === undefined) {return;}
+    if (!(signalItem instanceof NetlistVariable)) {return;}
+    const signalWidth = signalItem.signalWidth;
+    const signalName = signalItem.scopePath + "." + signalItem.signalName + bitRangeString(signalWidth - 1, 0);
+
+    // Create a group for the bit slices
+    const groupRowId = this.addSignalGroup(signalName, groupPath, parentGroupId, eventRowId, false, false);
+    let groupId = parentGroupId;
+    if (groupRowId === undefined) {return;}
+    const groupItem = this.rowItems[groupRowId];
+    if (groupItem instanceof SignalGroup) {
+      groupId = groupItem.groupId;
+    }
+
+    for (let i = 0; i < signalWidth; i++) {
+      this.addCustomVariable(undefined, groupPath, groupId, eventRowId, undefined, i, i, undefined);
+    }
+
+    const eventGroupId = getParentGroupId(eventRowId);
+    const eventIndex = getIndexInGroup(eventRowId, eventGroupId);
+    this.events.dispatch(ActionType.ReorderSignals, [groupRowId], eventGroupId, eventIndex + 1);
+  }
+
   addSignalList(signalList: any, parentGroupId: number | undefined) {
     signalList.forEach((signal: any) => {
       if (signal.dataType === 'signal-group') {
-        const groupRowId = this.addSignalGroup(signal.groupName, undefined, parentGroupId, undefined, false);
+        const groupRowId = this.addSignalGroup(signal.groupName, undefined, parentGroupId, undefined, false, false);
         let groupId = parentGroupId;
         if (groupRowId === undefined) {return;}
         const groupItem = this.rowItems[groupRowId];
@@ -424,13 +452,12 @@ export class RowHandler {
         this.setDisplayFormat(displayFormat);
       } else if (signal.dataType === 'custom-variable') {
         console.log('addCustomVariable', signal);
-        const bitRange      = signal.source[0];
-        const msb           = bitRange.msb;
-        const lsb           = bitRange.lsb;
-        const name          = bitRange.instancePath + bitRangeString(msb, lsb);
-        const rowIdList     = this.addCustomVariable(name, undefined, parentGroupId, undefined, undefined, msb, lsb, bitRange);
-        if (rowIdList === undefined) {return;}
-        const rowId         = rowIdList[0];
+        const bitRange = signal.source[0];
+        const msb      = bitRange.msb;
+        const lsb      = bitRange.lsb;
+        const name     = bitRange.instancePath + bitRangeString(msb, lsb);
+        const rowId    = this.addCustomVariable(name, undefined, parentGroupId, undefined, undefined, msb, lsb, bitRange);
+        if (rowId === undefined) {return;}
         const displayFormat = Object.assign({rowId: rowId}, signal);
         this.setDisplayFormat(displayFormat);
       }

@@ -828,7 +828,7 @@ export class SignalGroup extends SignalItem implements RowItem {
       console.log('style', style);
       viewportRow.style.display = style;
       const signalItem = rowHandler.rowItems[rowId];
-      if (signalItem instanceof NetlistVariable) {
+      if (signalItem instanceof NetlistVariable || signalItem instanceof CustomVariable) {
         signalItem.wasRendered = false; // Reset rendering state for child signals
       }
       viewport.updateBackgroundCanvas(true);

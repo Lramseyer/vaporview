@@ -307,17 +307,17 @@ export class WaveformDataManager {
     this.clearTempWaveformData(signalId);
 
     if (rowIdList ===  undefined) {console.log('rowId not found for signalId ' + signalId); return;}
+
     rowIdList.forEach((rowId: RowId) => {
       const netlistData = rowHandler.rowItems[rowId];
-      if (netlistData === undefined || netlistData instanceof NetlistVariable === false) {return;}
+      if (!(netlistData instanceof NetlistVariable) && !(netlistData instanceof CustomVariable)) {return;}
       labelsPanel.valueAtMarker[rowId] = netlistData.getValueAtTime(viewerState.markerTime);
       events.dispatch(ActionType.RedrawVariable, rowId);
       if (netlistData.encoding === "Real") {
         netlistData.min = min;
         netlistData.max = max;
       }
-      const data = this.valueChangeData[netlistData.signalId];
-      if (data === undefined) {return;}
+      const data = netlistData.getWaveformData();
       rowHandler.setValueFormat(data, netlistData.valueFormat, false);
     });
   }

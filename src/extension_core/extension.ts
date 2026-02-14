@@ -177,6 +177,11 @@ export async function activate(context: vscode.ExtensionContext) {
     });
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.createSignalsForAllBits', (e) => {
+    // Show input box for offset
+    viewerProvider.createSignalsForAllBits(e.name, e.groupPath, e.parentGroupId, e.rowId);
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.renameSignalGroup', (e) => {
     viewerProvider.renameSignalGroup(e);
   }));

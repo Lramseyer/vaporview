@@ -673,7 +673,7 @@ export class RowHandler {
       }
       this.updateValueFormatCache(data, valueFormat, force);
     }
-    console.log(data.formattedValues[valueFormat.id]);
+    console.log("formatCached:", data.formattedValues[valueFormat.id].formatCached, "users:", data.formattedValues[valueFormat.id].users);
 
     data.formattedValues[valueFormat.id].users++;
   }

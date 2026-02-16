@@ -59,6 +59,7 @@ export class Viewport {
 
   scrollbarMoved: boolean     = false;
   scrollbarStartX: number     = 0;
+  scrollbarPointerId: number | null = null;
 
   // Zoom level variables
   zoomRatio: number           = 1;
@@ -136,12 +137,13 @@ export class Viewport {
     // click handler to handle clicking inside the waveform viewer
     // gets the absolute x position of the click relative to the scrollable content
     overlayCanvas.addEventListener('mousedown',      (e) => {this.handleScrollAreaMouseDown(e);});
-    scrollbar.addEventListener('mousedown',          (e) => {this.handleScrollbarDrag(e);});
-    scrollbarContainer.addEventListener('mousedown', (e) => {this.handleScrollbarContainerClick(e);});
-    overlayCanvas.addEventListener('contextmenu',    (e) => {this.handleOverlayContext(e);});
+    scrollbar.addEventListener('pointerdown',        (e) => {this.handleScrollbarDrag(e);});
+    scrollbarContainer.addEventListener('pointerdown', (e) => {this.handleScrollbarContainerClick(e);});
+    overlayCanvas.addEventListener('contextmenu',    (e) => {this.handleContextMenu(e);});
 
     this.handleScrollbarMove = this.handleScrollbarMove.bind(this);
-    this.handleOverlayContext = this.handleOverlayContext.bind(this);
+    this.handleScrollbarPointerUp = this.handleScrollbarPointerUp.bind(this);
+    this.handleContextMenu = this.handleContextMenu.bind(this);
     this.updateViewportWidth = this.updateViewportWidth.bind(this);
     this.handleZoom = this.handleZoom.bind(this);
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
@@ -298,11 +300,7 @@ export class Viewport {
   }
 
   isInView(time: number) {
-    const pixel      = time * this.zoomRatio;
-    const scrollLeft = this.pseudoScrollLeft;
-
-    if (pixel < scrollLeft || pixel > scrollLeft + this.viewerWidth) {return false;}
-    else {return true;}
+    return (time >= this.timeScrollLeft && time <= this.timeScrollRight);
   }
 
   moveViewToTime(time: number) {
@@ -323,7 +321,7 @@ export class Viewport {
     }
   }
 
-  handleOverlayContext(event: MouseEvent) {
+  handleContextMenu(event: MouseEvent) {
     const rowId = this.getRowIdFromMouseEvent(event);
     if (rowId !== null) {
       const signalItem = rowHandler.rowItems[rowId];
@@ -393,7 +391,6 @@ export class Viewport {
 
     if (button === 0) {
       handleClickSelection(event, rowId);
-      //this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
     }
   }
 
@@ -413,7 +410,7 @@ export class Viewport {
     this.scrollbar.style.left    = this.scrollbarPosition + 'px';
   }
 
-  handleScrollbarContainerClick(e: MouseEvent) {
+  handleScrollbarContainerClick(e: PointerEvent) {
     e.preventDefault();
     if (this.scrollbarHidden) {return;}
     const scrollbarX      = e.clientX - this.scrollAreaBounds.left;
@@ -425,14 +422,18 @@ export class Viewport {
     this.handleScrollbarDrag(e);
   }
 
-  handleScrollbarDrag(event: MouseEvent) {
+  handleScrollbarDrag(event: PointerEvent) {
     event.preventDefault();
     event.stopPropagation();
     this.scrollbarMoved = false;
     this.scrollbarStartX = event.clientX;
     this.scrollbar.classList.add('is-dragging');
+    this.scrollbarPointerId = event.pointerId;
+    this.scrollbar.setPointerCapture(event.pointerId);
+    this.scrollbar.addEventListener('pointermove', this.handleScrollbarMove);
+    this.scrollbar.addEventListener('pointerup', this.handleScrollbarPointerUp);
+    this.scrollbar.addEventListener('pointercancel', this.handleScrollbarPointerUp);
 
-    document.addEventListener('mousemove', this.handleScrollbarMove);
     viewerState.mouseupEventType = MouseUpEventType.Scroll;
   }
 
@@ -479,7 +480,7 @@ export class Viewport {
     }
   }
 
-  handleScrollbarMove(e: MouseEvent) {
+  handleScrollbarMove(e: MouseEvent | PointerEvent) {
     if (!this.scrollbarMoved) {
       this.scrollbarMoved = e.clientX !== this.scrollbarStartX;
       if (!this.scrollbarMoved) {return;}
@@ -488,6 +489,24 @@ export class Viewport {
     this.scrollbarStartX = e.clientX;
     const newScrollLeft = Math.round((newPosition / this.maxScrollbarPosition) * this.maxScrollLeft);
     this.handleScrollEvent(newScrollLeft);
+  }
+
+  handleScrollbarPointerUp(event: PointerEvent) {
+    if (this.scrollbarPointerId !== event.pointerId) {return;}
+    this.endScrollbarDrag();
+  }
+
+  endScrollbarDrag() {
+    this.scrollbar.classList.remove('is-dragging');
+    this.scrollbar.removeEventListener('pointermove', this.handleScrollbarMove);
+    this.scrollbar.removeEventListener('pointerup', this.handleScrollbarPointerUp);
+    this.scrollbar.removeEventListener('pointercancel', this.handleScrollbarPointerUp);
+    if (this.scrollbarPointerId !== null) {
+      try {this.scrollbar.releasePointerCapture(this.scrollbarPointerId);}
+      catch {/*ignore if capture already released*/}
+      this.scrollbarPointerId = null;
+    }
+    this.scrollbarMoved = false;
   }
 
   updateMarker() {

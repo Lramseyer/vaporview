@@ -585,9 +585,7 @@ class VaporviewWebview {
       document.removeEventListener("mousemove", labelsPanel.resize, false);
       this.handleResizeViewer();
     } else if (viewerState.mouseupEventType === MouseUpEventType.Scroll) {
-      this.scrollbar.classList.remove('is-dragging');
-      document.removeEventListener('mousemove', this.viewport.handleScrollbarMove);
-      this.viewport.scrollbarMoved = false;
+      this.viewport.endScrollbarDrag();
     } else if (viewerState.mouseupEventType === MouseUpEventType.HighlightZoom) {
       document.removeEventListener('mousemove', viewport.drawHighlightZoom, false);
       viewport.highlightListenerSet = false;

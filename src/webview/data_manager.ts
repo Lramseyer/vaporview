@@ -280,7 +280,7 @@ export class WaveformDataManager {
   }
 
   updateWaveform(signalId: SignalId, valueChangeData: any[], min: number, max: number) {
-    console.log('updateWaveform', signalId, valueChangeData);
+
     const rowIdList    = this.valueChangeDataTemp[signalId].rowIdList;
     const customSignalIdList = this.valueChangeDataTemp[signalId].customSignalIdList;
     const signalWidth = this.valueChangeDataTemp[signalId].signalWidth;

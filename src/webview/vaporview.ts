@@ -12,7 +12,9 @@ import { ThemeColors, VscodeWrapper } from './vscode_wrapper';
 export enum DataType {
   None,
   Variable,
+  Custom,
   Group,
+  Separator
 }
 
 export enum ActionType {
@@ -209,10 +211,7 @@ export function revealSignal(rowId: RowId) {
 
 export function handleClickSelection(event: MouseEvent, rowId: RowId) {
   let newSelection: RowId[] = [rowId];
-  if (viewerState.selectedSignal.length === 0 || viewerState.lastSelectedSignal === null) {
-    // No existing selection, just select the clicked row
-  }
-  else if (event.shiftKey) {
+  if (event.shiftKey && viewerState.lastSelectedSignal !== null) {
     const lastSelectedIndex = viewerState.visibleSignalsFlat.indexOf(viewerState.lastSelectedSignal);
     const clickedIndex      = viewerState.visibleSignalsFlat.indexOf(rowId);
     const startIndex        = Math.min(lastSelectedIndex, clickedIndex);
@@ -225,6 +224,8 @@ export function handleClickSelection(event: MouseEvent, rowId: RowId) {
     } else {
       newSelection = viewerState.selectedSignal.concat([rowId]);
     }
+  } else {
+    newSelection = [rowId];
   }
   events.dispatch(ActionType.SignalSelect, newSelection, rowId);
   console.log('handleClickSelection');

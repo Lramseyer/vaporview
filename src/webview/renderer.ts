@@ -497,7 +497,6 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     ctx.save();
     ctx.strokeStyle = drawColor;
     ctx.fillStyle   = drawColor;
-    //ctx.translate(0.5 - viewport.pseudoScrollLeft, waveOffset + 0.5);
     ctx.translate(0.5, waveOffset + 0.5);
     ctx.transform(viewport.zoomRatio, 0, 0, -waveHeight, 0, 0);
     ctx.beginPath();
@@ -512,7 +511,6 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
 
     // NoDraw Elements
     ctx.save();
-    //ctx.translate(0.5 - viewport.pseudoScrollLeft, waveOffset + 0.5);
     ctx.translate(0.5, waveOffset + 0.5);
     ctx.transform(viewport.zoomRatio, 0, 0, -waveHeight, 0, 0);
     ctx.beginPath();
@@ -532,7 +530,6 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
 
     // Non-2-state values
     ctx.save();
-    //ctx.translate(0.5 - viewport.pseudoScrollLeft, waveOffset + 0.5);
     ctx.translate(0.5, waveOffset + 0.5);
     ctx.transform(viewport.zoomRatio, 0, 0, -waveHeight, 0, 0);
     ctx.beginPath();
@@ -616,7 +613,7 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariabl
 
       const timeLeft = time - timeScrollLeft;
       if (valueIs9State(initialValue)) {
-        xzPath.push([initialTimeOrStart - timeScrollLeft, time]);
+        xzPath.push([initialTimeOrStart - timeScrollLeft, timeLeft]);
       }
 
       value2state = value;
@@ -669,8 +666,6 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariabl
 
   accumulatedPath.push([postState[0], 0]);
 
-  console.log(accumulatedPath);
-
   const drawColor  = netlistData.color;
   const xzColor    = styles.xzColor;
   const waveHeight = canvasHeight - 4;
@@ -682,7 +677,6 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariabl
   ctx.save();
   ctx.strokeStyle = drawColor;
   ctx.fillStyle   = drawColor;
-  //ctx.translate(0.5 - viewport.pseudoScrollLeft, translateY + 0.5);
   ctx.translate(0.5, translateY + 0.5);
   ctx.transform(viewport.zoomRatio, 0, 0, -yScale, 0, 0);
   ctx.beginPath();
@@ -697,7 +691,6 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariabl
 
   // NoDraw Elements
   ctx.save();
-  //ctx.translate(0.5 - viewport.pseudoScrollLeft, translateY + 0.5);
   ctx.translate(0.5, translateY + 0.5);
   ctx.transform(viewport.zoomRatio, 0, 0, -yScale, 0, 0);
   ctx.beginPath();
@@ -717,7 +710,6 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariabl
 
   // Non-2-state values
   ctx.save();
-  //ctx.translate(0.5 - viewport.pseudoScrollLeft, translateY + 0.5);
   ctx.translate(0.5, translateY + 0.5);
   ctx.transform(viewport.zoomRatio, 0, 0, -yScale, 0, 0);
   ctx.beginPath();

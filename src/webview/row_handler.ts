@@ -410,6 +410,7 @@ export class RowHandler {
     const signalWidth = signalItem.signalWidth;
     const signalName = signalItem.scopePath + "." + signalItem.signalName + bitRangeString(signalWidth - 1, 0);
 
+    this.events.enterBatchMode();
     // Create a group for the bit slices
     const groupRowId = this.addSignalGroup(signalName, groupPath, parentGroupId, eventRowId, false, false);
     let groupId = parentGroupId;
@@ -426,6 +427,9 @@ export class RowHandler {
     const eventGroupId = getParentGroupId(eventRowId);
     const eventIndex = getIndexInGroup(eventRowId, eventGroupId);
     this.events.dispatch(ActionType.ReorderSignals, [groupRowId], eventGroupId, eventIndex + 1);
+    this.events.exitBatchMode();
+    console.log('addAllBitSlices');
+    vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }
 
   addSignalList(signalList: any, parentGroupId: number | undefined) {

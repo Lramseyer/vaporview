@@ -322,8 +322,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
         const signalData = await this.parseNetlistVariableSettings(signalInfo, useNetlistId);
         if (signalData !== null) {
           settings.push(signalData);
-        } else {
-          missingSignals.push(name);
+        } else if (signalData && signalData.name) {
+          missingSignals.push(signalData.name);
         }
       } else if (signalInfo.dataType && signalInfo.dataType === 'custom-variable') {
         const result = await this.parseCustomVariableSettings(signalInfo, useNetlistId);
@@ -344,7 +344,9 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public async applySettings(settings: any, stateChangeType: StateChangeType, useNetlistId: boolean) {
 
     //this.netlistTreeDataProvider.loadDocument(document);
+    console.log('applySettings', settings);
     const signalListSettings = await this.convertSignalListToSettings(settings.displayedSignals, useNetlistId);
+    console.log('signalListSettings', signalListSettings);
     const documentSettings: any = {
       displayedSignals: signalListSettings.signalList,
       markerTime: settings.markerTime,
@@ -637,10 +639,10 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   public async unload(): Promise<void> {
+    this.metadata.timeTableLoaded = false;
     this.unloadWebview();
     this.unloadTreeData();
     await this._handler.unload();
-    this.metadata.timeTableLoaded = false;
   }
 
   public dispose(): void {

@@ -6,8 +6,6 @@ import { WaveformRenderer } from './renderer';
 import { labelsPanel, rowHandler, vscodeWrapper, styles } from "./vaporview";
 import { CustomVariable, NetlistVariable, VariableItem } from "./signal_item";
 
-const domParser = new DOMParser();
-
 export class Viewport {
 
   scrollArea: HTMLElement;
@@ -30,7 +28,6 @@ export class Viewport {
   netlistLinkElement: HTMLElement | null = null;
   valueLinkObject: NetlistVariable | null = null;
 
-  highlightElement: any     = null;
   highlightEndEvent: any    = null;
   highlightStartEvent: any  = null;
   highlightListenerSet      = false;
@@ -150,7 +147,7 @@ export class Viewport {
     this.handleMarkerSet = this.handleMarkerSet.bind(this);
     this.handleReorderSignals = this.handleReorderSignals.bind(this);
     this.highlightZoom = this.highlightZoom.bind(this);
-    this.drawHighlightZoom = this.drawHighlightZoom.bind(this);
+    this.drawHighlightZoomCanvas = this.drawHighlightZoomCanvas.bind(this);
     this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
     this.handleAddVariable = this.handleAddVariable.bind(this);
     this.handleRedrawSignal = this.handleRedrawSignal.bind(this);
@@ -343,7 +340,7 @@ export class Viewport {
       if (!this.highlightListenerSet) {
         const rowId = this.getRowIdFromMouseEvent(event);
         if (rowId === null) {return;}
-        document.addEventListener('mousemove', this.drawHighlightZoom, false);
+        document.addEventListener('mousemove', this.drawHighlightZoomCanvas, false);
         this.highlightListenerSet = true;
       }
     }
@@ -438,41 +435,31 @@ export class Viewport {
   }
 
   highlightZoom(abort: boolean) {
+    this.updateOverlayCanvas();
+    if (abort) {return;}
     const timeStart = this.getTimeFromClick(this.highlightStartEvent);
     const timeEnd   = this.getTimeFromClick(this.highlightEndEvent);
     const time      = Math.round((timeStart + timeEnd) / 2);
     const width     = Math.abs((timeEnd - timeStart) * this.zoomRatio);
     const amount    = Math.log2(width / this.viewerWidth);
-
-    if (this.highlightElement) {
-      this.highlightElement.remove();
-      this.highlightElement = null;
-    }
-
-    if (!abort) {
-      this.events.dispatch(ActionType.Zoom, amount, time, this.halfViewerWidth);
-    }
+    this.events.dispatch(ActionType.Zoom, amount, time, this.halfViewerWidth);
   }
 
-  drawHighlightZoom(event: MouseEvent) {
-
+  drawHighlightZoomCanvas(event: MouseEvent) {
+    this.updateOverlayCanvas();
+    const ctx = this.overlayCanvas;
     this.highlightEndEvent = event;
     const width       = Math.abs(this.highlightEndEvent.pageX - this.highlightStartEvent.pageX);
     const left        = Math.min(this.highlightStartEvent.pageX, this.highlightEndEvent.pageX);
     const elementLeft = left - this.scrollAreaBounds.left;
-    const style       = `left: ${elementLeft}px; width: ${width}px; height: ${this.contentArea.clientHeight};`;
-  
-    if (width > 5) {viewerState.mouseupEventType = MouseUpEventType.HighlightZoom;}
-  
-    if (!this.highlightElement) {
-      this.highlightElement = domParser.parseFromString(`<div id="highlight-zoom" style="${style}"></div>`, 'text/html').body.firstChild;
-      this.scrollArea.appendChild(this.highlightElement);
+    ctx.fillStyle     = styles.highlightColor;
+    ctx.globalAlpha   = 0.5;
+    ctx.roundRect(elementLeft, styles.rulerHeight, width, this.contentArea.clientHeight - styles.rulerHeight, 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
 
-    } else {
-      this.highlightElement.style.width = width + 'px';
-      this.highlightElement.style.left  = elementLeft + 'px';
-    }
-  
+    if (width > 5) {viewerState.mouseupEventType = MouseUpEventType.HighlightZoom;}
+
     if (!this.highlightDebounce) {
       this.highlightDebounce = setTimeout(() => {
         viewerState.mouseupEventType  = MouseUpEventType.HighlightZoom;

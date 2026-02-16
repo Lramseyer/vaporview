@@ -587,18 +587,15 @@ class VaporviewWebview {
     } else if (viewerState.mouseupEventType === MouseUpEventType.Scroll) {
       this.viewport.endScrollbarDrag();
     } else if (viewerState.mouseupEventType === MouseUpEventType.HighlightZoom) {
-      document.removeEventListener('mousemove', viewport.drawHighlightZoom, false);
+      document.removeEventListener('mousemove', viewport.drawHighlightZoomCanvas, false);
       viewport.highlightListenerSet = false;
       viewport.highlightZoom(abort);
     } else if (viewerState.mouseupEventType === MouseUpEventType.MarkerSet) {
-      document.removeEventListener('mousemove', viewport.drawHighlightZoom, false);
+      document.removeEventListener('mousemove', viewport.drawHighlightZoomCanvas, false);
       clearTimeout(viewport.highlightDebounce);
       viewport.handleScrollAreaClick(viewport.highlightStartEvent, 0);
       viewport.highlightListenerSet = false;
-      if (viewport.highlightElement) {
-        viewport.highlightElement.remove();
-        viewport.highlightElement = null;
-      }
+      viewport.updateOverlayCanvas();
     } else if (viewerState.mouseupEventType === MouseUpEventType.None && abort) {
       if (!labelsPanel.renameActive) {
         this.events.dispatch(ActionType.SignalSelect, [], null);

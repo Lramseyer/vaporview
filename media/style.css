@@ -465,17 +465,6 @@ body {
   background-color: var(--vscode-scrollbarSlider-activeBackground);
 }
 
-#highlight-zoom {
-  position: absolute;
-  z-index: 100;
-  background-color: var(--vscode-editor-selectionBackground);
-  opacity: 0.5;
-  left: 0px;
-  top: 0px;
-  width: 100%;
-  border-radius: 2px;
-}
-
 #time-ruler {
   display: flex;
   align-items: center;

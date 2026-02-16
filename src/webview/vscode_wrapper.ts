@@ -22,6 +22,7 @@ export class ThemeColors {
   rulerGuideColor: string = 'grey';
   edgeGuideColor: string = 'orange';
   markerColor: string = 'white';
+  highlightColor: string = 'blue';
   backgroundColor: string = 'black';
   dropBackgroundColor: string = 'grey';
   fontSize: string = '12px';
@@ -68,6 +69,8 @@ export class ThemeColors {
 
     // Marker Color
     this.markerColor = style.getPropertyValue('--vscode-editorLineNumber-activeForeground');
+
+    this.highlightColor = style.getPropertyValue('--vscode-editor-selectionBackground');
 
     // I calculated this as 174, 176, 173 @ 10% opacity in the default theme, but there was no CSS color that matched
     this.markerAnnotation = document.documentElement.style.getPropertyValue('--vscode-editorOverviewRuler-selectionHighlightForeground');

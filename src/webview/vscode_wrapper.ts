@@ -1,3 +1,4 @@
+import { createInstancePath } from "../common/functions";
 import { QueueEntry, WindowMessageType, StateChangeType, NetlistId, RowId } from "../common/types";
 import { SignalGroup, NetlistVariable, CustomVariable } from "./signal_item";
 import { viewerState, events, createWebviewContext, viewport, rowHandler, getParentGroupIdList, labelsPanel, EventHandler, ActionType, dataManager, controlBar, styles, unload, init, revealSignal } from "./vaporview";
@@ -232,8 +233,9 @@ export class VscodeWrapper {
     rowIdList.forEach(rowId => {
       const signalItem = rowHandler.rowItems[rowId];
       if (!(signalItem instanceof NetlistVariable)) {return;}
+      const instancePath = createInstancePath(signalItem.scopePath, signalItem.signalName);
       netlistIdList.push(signalItem.netlistId);
-      instancePathList.push(signalItem.scopePath + '.' + signalItem.signalName);
+      instancePathList.push(instancePath);
     });
 
     this.emitRemoveVariableEvent(instancePathList, netlistIdList);
@@ -253,8 +255,7 @@ export class VscodeWrapper {
       if (netlistData === undefined) {return;}
       if (!(netlistData instanceof NetlistVariable)) {return;}
       netlistIdList.push(netlistData.netlistId);
-      let instancePath = netlistData.scopePath + '.' + netlistData.signalName;
-      if (netlistData.scopePath === "") {instancePath = netlistData.signalName;}
+      let instancePath = createInstancePath(netlistData.scopePath, netlistData.signalName);
       instancePathList.push(instancePath);
     });
 

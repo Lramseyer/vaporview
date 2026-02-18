@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { NetlistId, SignalId, VariableEncoding } from '../common/types';
-import { bitRangeString } from '../common/functions';
+import { bitRangeString, createInstancePath } from '../common/functions';
 import type { VaporviewDocument } from './document';
 import { WaveformViewerProvider } from './viewer_provider';
 
@@ -21,7 +21,7 @@ const scopeIcon     = new vscode.ThemeIcon('symbol-module',    scopeColor);
 export function createScope(
   name: string,
   type: string,
-  path: string,
+  path: string[],
   netlistId: number,
   scopeOffsetIdx: number, 
   uri: vscode.Uri
@@ -89,7 +89,7 @@ export function createVar(
   paramValue: string,
   type: string,
   encoding: string,
-  path: string,
+  path: string[],
   netlistId: NetlistId,
   signalId: SignalId,
   width: number,
@@ -169,14 +169,6 @@ export function createVar(
   return variable;
 }
 
-export function getInstancePath(netlistItem: NetlistItem): string {
-  let path = netlistItem.label;
-  if (netlistItem.scopePath !== "") {
-    path = netlistItem.scopePath + "." + path;
-  }
-  return path;
-}
-
 // #region NetlistTreeDataProvider
 export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistItem> {
 
@@ -203,7 +195,7 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
 
       WaveformViewerProvider.signalSelectEventEmitter.fire({
         uri: uri.toString(),
-        instancePath: getInstancePath(netlistData),
+        instancePath: netlistData.instancePath(),
         netlistId: netlistData.netlistId,
         source: "netlistView",
       });
@@ -235,8 +227,8 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
   }
 
   public getParent(element: NetlistItem): vscode.ProviderResult<NetlistItem> {
-    if (this.document && element.scopePath !== "") {
-      return Promise.resolve(this.document.findTreeItem(element.scopePath, undefined, undefined));
+    if (this.document && element.scopePath.length !== 0) {
+      return Promise.resolve(this.document.findTreeItem(element.scopePath.join('.'), undefined, undefined));
     }
     return null;
   }
@@ -257,6 +249,7 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
     }
 
     this.lastClickedTreeItem = newUri;
+    console.log(this.document?.netlistIdTable[netlistId]);
   }
 
   refresh(): void {this._onDidChangeTreeData.fire(undefined);}
@@ -279,7 +272,7 @@ export class NetlistItem extends vscode.TreeItem {
     public readonly signalId:   SignalId, // Signal-specific information
     public readonly netlistId:  NetlistId, // Netlist-specific information
     public readonly name:       string,
-    public readonly scopePath:  string,
+    public readonly scopePath:  string[],
     public readonly msb:        number,
     public readonly lsb:        number,
     public readonly enumType:   string,
@@ -290,7 +283,7 @@ export class NetlistItem extends vscode.TreeItem {
   ) {
 
     super(label, collapsibleState);
-    const fullName = this.getFullName();
+    const fullName = this.instancePath();
     //this.numberFormat = "hexadecimal";
 
     let fragmentId = "";
@@ -303,7 +296,7 @@ export class NetlistItem extends vscode.TreeItem {
     }
 
     this.setParamAndTooltip(paramValue);
-    this.resourceUri = vscode.Uri.parse(`waveform://${uri.fsPath}#${fragmentId}&net=${fullName + name}`);
+    this.resourceUri = vscode.Uri.parse(`waveform://${uri.fsPath}#${fragmentId}&net=${this.instancePath()}`);
 
     // vaporview.clickNetlistItem doesn't need to be registered in package.json, since it's internal
     if (this.contextValue === 'netlistVar') {
@@ -317,12 +310,12 @@ export class NetlistItem extends vscode.TreeItem {
     }
   }
 
-  getFullName(): string {return (this.scopePath !== "") ? this.scopePath + "." + this.label : this.label;}
+  instancePath(): string {return createInstancePath(this.scopePath, this.name);}
 
   setParamAndTooltip(paramValue: string) {
     this.paramValue  = paramValue;
     this.description = (paramValue !== "") ? parseInt(paramValue, 2).toString(10) : "";
-    this.tooltip     = "Name: " + this.getFullName() + "\n" + "Type: " + this.type + "\n";
+    this.tooltip     = "Name: " + this.instancePath() + "\n" + "Type: " + this.type + "\n";
 
     if (this.collapsibleState === vscode.TreeItemCollapsibleState.None) {
       this.tooltip += "Width: " + this.width + "\n" + "Encoding: " + this.encoding;

@@ -1,6 +1,7 @@
 import { NetlistId, SignalId, RowId, EnumData, EnumEntry, type ValueChange, WindowMessageType } from '../common/types';
 import { viewerState, dataManager, rowHandler, vscodeWrapper } from "./vaporview";
 import { NetlistVariable } from "./signal_item";
+import { createInstancePath } from '../common/functions';
 
 // Maximum number of transitions to display
 // Maybe I should make dataManager a user setting in the future...
@@ -24,7 +25,7 @@ export function copyWaveDrom() {
     const netlistItem: any = rowHandler.rowItems[rowId];
     if (netlistItem === undefined || netlistItem instanceof NetlistVariable === false) {return;}
     const netlistId       = netlistItem.netlistId;
-    const signalName      = netlistItem.scopePath + "." + netlistItem.signalName;
+    const signalName      = createInstancePath(netlistItem.scopePath, netlistItem.signalName);
     const signalId        = netlistItem.signalId;
     const transitionData  = dataManager.valueChangeData[signalId].valueChangeData;
     const lowerBound      = dataManager.binarySearch(transitionData, timeWindow[0]) - 1;

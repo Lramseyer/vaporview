@@ -1,3 +1,11 @@
+export function createInstancePath(scopePath: string[], signalName: string): string {
+  if (scopePath.length === 0) {
+    return signalName;
+  } else {
+    return scopePath.join(".") + "." + signalName;
+  }
+}
+
 export function bitRangeString(msb: number, lsb: number): string {
   if (msb < 0 || lsb < 0) {return "";}
   if (msb === lsb) {return "[" + msb + "]";}

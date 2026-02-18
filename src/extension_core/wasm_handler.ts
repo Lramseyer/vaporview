@@ -155,11 +155,11 @@ export class WasmFormatHandler implements WaveformFileParser {
       return BigInt(this.fileReader.fileSize);
     },
     setscopetop: (name: string, id: number, tpe: string) => {
-      const scope = createScope(name, tpe, "", id, -1, this.uri);
+      const scope = createScope(name, tpe, [], id, -1, this.uri);
       this.netlistTop.push(scope);
     },
     setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number, enumtype: string) => {
-      const varItem = createVar(name, "", tpe, encoding, "", id, signalid, width, msb, lsb, enumtype, false /*isFsdb*/, this.uri);
+      const varItem = createVar(name, "", tpe, encoding, [], id, signalid, width, msb, lsb, enumtype, false /*isFsdb*/, this.uri);
       this.netlistTop.push(varItem);
     },
     setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
@@ -283,9 +283,10 @@ export class WasmFormatHandler implements WaveformFileParser {
     if (!this.wasmApi) { return []; }
     if (element.children.length > 0) { return element.children; }
 
-    let scopePath = "";
-    if (element.scopePath !== "") { scopePath += element.scopePath + "."; }
-    scopePath += element.name;
+    //let scopePath = "";
+    //if (element.scopePath !== "") { scopePath += element.scopePath + "."; }
+    //scopePath += element.name;
+    const scopePath = element.scopePath.concat([element.name]); 
     let itemsRemaining = Infinity;
     let startIndex = 0;
     const result: NetlistItem[] = [];

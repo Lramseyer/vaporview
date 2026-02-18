@@ -1,5 +1,5 @@
 import { type NetlistId, SignalId, type RowId, EnumData, EnumEntry, QueueEntry, SignalQueueEntry, type EnumQueueEntry, NameType, StateChangeType, CollapseState, type BitRangeSource } from '../common/types';
-import { bitRangeString } from '../common/functions';
+import { bitRangeString, createInstancePath } from '../common/functions';
 import { ActionType, dataManager, type EventHandler, viewerState, getParentGroupId, updateDisplayedSignalsFlat, labelsPanel, controlBar, getIndexInGroup, getChildrenByGroupId, viewport, vscodeWrapper, styles } from './vaporview';
 import { NetlistVariable, type RowItem, SignalGroup, SignalSeparator, CustomVariable, isAnalogSignal } from './signal_item';
 import { BinaryWaveformRenderer, MultiBitWaveformRenderer, LinearWaveformRenderer } from './renderer';
@@ -88,7 +88,7 @@ export class RowHandler {
       const netlistId = signal.netlistId;
       const signalId  = signal.signalId;
       const enumType  = signal.enumType;
-      const rowId       = this.nextRowId;
+      const rowId     = this.nextRowId;
       lastRowId       = rowId;
       this.nextRowId++;
 
@@ -321,7 +321,7 @@ export class RowHandler {
 
     // Create custom signal
     const source: BitRangeSource = {
-      name: sourceSignalItem.scopePath + "." + sourceSignalItem.signalName,
+      name: createInstancePath(sourceSignalItem.scopePath, sourceSignalItem.signalName),
       netlistId: sourceSignalItem.netlistId,
       signalId: sourceSignalId,
       signalWidth: sourceSignalItem.signalWidth,
@@ -408,7 +408,7 @@ export class RowHandler {
     if (signalItem === undefined) {return;}
     if (!(signalItem instanceof NetlistVariable)) {return;}
     const signalWidth = signalItem.signalWidth;
-    const signalName = signalItem.scopePath + "." + signalItem.signalName + bitRangeString(signalWidth - 1, 0);
+    const signalName = createInstancePath(signalItem.scopePath, signalItem.signalName) + bitRangeString(signalWidth - 1, 0);
 
     this.events.enterBatchMode();
     // Create a group for the bit slices

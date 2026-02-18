@@ -4,7 +4,7 @@ import { logScaleFromUnits, toStringWithCommas } from '../common/functions';
 import { NetlistLinkProvider } from './terminal_links';
 import * as path from 'path';
 import type { VaporviewDocumentCollection, VaporviewDocumentDelegate } from './viewer_provider';
-import { type NetlistItem, getInstancePath } from './tree_view';
+import { type NetlistItem } from './tree_view';
 
 export type WaveformDumpMetadata = {
   timeTableLoaded: boolean;
@@ -160,7 +160,10 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   // #region Webview lifecycle
-  
+
+  // This function requires both the webview panel to be initialized and the
+  // waveform dump file to be loaded. Both of these tasks call this function
+  // upon completion, so we need to check for both conditions.
   public onWebviewReady(webviewPanel: vscode.WebviewPanel) {
     this.webviewPanel = webviewPanel;
     this._handler.postMessageToWebview = webviewPanel.webview.postMessage.bind(webviewPanel.webview);
@@ -247,6 +250,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public async getNetlistItemFromSignalInfo(signalInfo: any, useNetlistId: boolean): Promise<NetlistItem | null> {
     const name = signalInfo.name;
     let metadata: NetlistItem | null = null;
+    console.log('getNetlistItemFromSignalInfo', signalInfo, useNetlistId);
     if (useNetlistId && signalInfo.netlistId !== undefined) {
       metadata = this.netlistIdTable[signalInfo.netlistId];
     } else {
@@ -287,7 +291,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
         return null;
       }
       const source: BitRangeSource = {
-        name: metadata.scopePath + '.' + metadata.name,
+        name: metadata.instancePath(),
         netlistId: metadata.netlistId,
         signalId: metadata.signalId,
         signalWidth: metadata.width,
@@ -318,19 +322,19 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
         missingSignals.push(...childrenSettings.missingSignals);
       } else if (signalInfo.dataType && signalInfo.dataType === 'signal-separator') {
         settings.push(signalInfo);
-      } else if (signalInfo.dataType && signalInfo.dataType === 'netlist-variable') {
-        const signalData = await this.parseNetlistVariableSettings(signalInfo, useNetlistId);
-        if (signalData !== null) {
-          settings.push(signalData);
-        } else if (signalData && signalData.name) {
-          missingSignals.push(signalData.name);
-        }
       } else if (signalInfo.dataType && signalInfo.dataType === 'custom-variable') {
         const result = await this.parseCustomVariableSettings(signalInfo, useNetlistId);
         if (result.dataValid) {
           settings.push(result.signalData);
         } else {
           missingSignals.push(...result.missingSignals);
+        }
+      } else if (signalInfo.dataType === 'netlist-variable' || signalInfo.dataType === undefined) {
+        const signalData = await this.parseNetlistVariableSettings(signalInfo, useNetlistId);
+        if (signalData !== null) {
+          settings.push(signalData);
+        } else if (signalData && signalData.name) {
+          missingSignals.push(signalData.name);
         }
       }
     }
@@ -486,12 +490,10 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public getNameFromNetlistId(netlistId: NetlistId | null) {
     if (netlistId === null) { return null; }
     const netlistData = this.netlistIdTable[netlistId];
-    const scopePath = netlistData?.scopePath;
-    const signalName = netlistData?.name;
     const msb = netlistData?.msb;
     const lsb = netlistData?.lsb;
     return {
-      name: scopePath + '.' + signalName,
+      name: netlistData?.instancePath(),
       msb: msb,
       lsb: lsb,
     };
@@ -541,7 +543,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       this._providerDelegate.emitEvent({
         eventType: 'addVariable',
         uri: this.uri,
-        instancePath: getInstancePath(metadata),
+        instancePath: metadata.instancePath(),
         netlistId: metadata.netlistId,
       });
     });

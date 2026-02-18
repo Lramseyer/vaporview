@@ -8,7 +8,7 @@ import * as fs from 'fs';
 import { scaleFromUnits } from '../common/functions';
 import type { WaveformViewerProvider } from './viewer_provider';
 import type { VaporviewDocument } from './document';
-import { getInstancePath } from './tree_view';
+import {  } from './tree_view';
 
 export interface WCPCommand {
   method: string;
@@ -408,7 +408,7 @@ export class WCPServer {
       }
 
       // Get the full instance path as the name using the helper function
-      const instancePath = getInstancePath(item);
+      const instancePath = item.instancePath();
 
       // Build ItemInfo
       results.push({

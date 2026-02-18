@@ -197,7 +197,7 @@ export class FsdbFormatHandler implements WaveformFileParser {
     this.fsdbCurrentScope = element;
 
     let scopePath = "";
-    if (element.scopePath !== "") { scopePath += element.scopePath + "."; }
+    if (element.scopePath.length !== 0) { scopePath += element.scopePath.join(".") + "."; }
     scopePath += element.name;
 
     await this.callFsdbWorkerTask({
@@ -319,7 +319,8 @@ export class FsdbFormatHandler implements WaveformFileParser {
 
   // FSDB callback methods
   private fsdbScopeCallback(name: string, type: string, path: string, netlistId: number, scopeOffsetIdx: number) {
-    this.netlistTop.push(createScope(name, type, path, netlistId, scopeOffsetIdx, this.uri));
+    const scopePath = path.split('.');
+    this.netlistTop.push(createScope(name, type, scopePath, netlistId, scopeOffsetIdx, this.uri));
   }
 
   private fsdbUpscopeCallback() {
@@ -335,13 +336,15 @@ export class FsdbFormatHandler implements WaveformFileParser {
   private fsdbVarCallback(name: string, type: string, encoding: string, path: string, netlistId: NetlistId, signalId: SignalId, width: number, msb: number, lsb: number) {
     const enumType = "";
     const paramValue = "";
-    const varItem = createVar(name, paramValue, type, encoding, path, netlistId, signalId, width, msb, lsb, enumType, true /*isFsdb*/, this.uri);
+    const scopePath = path.split('.');
+    const varItem = createVar(name, paramValue, type, encoding, scopePath, netlistId, signalId, width, msb, lsb, enumType, true /*isFsdb*/, this.uri);
     this.fsdbCurrentScope!.children.push(varItem);
     //this.delegate.netlistIdTable[varItem.netlistId] = varItem;
   }
 
   private fsdbArrayBeginCallback(name: string, path: string, netlistId: number) {
-    this.fsdbCurrentScope!.children.push(createScope(name, "vhdlarray", path, netlistId, -1, this.uri));
+    const scopePath = path.split('.');
+    this.fsdbCurrentScope!.children.push(createScope(name, "vhdlarray", scopePath, netlistId, -1, this.uri));
   }
 
   private fsdbArrayEndCallback(size: number) {

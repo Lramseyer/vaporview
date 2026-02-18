@@ -5,6 +5,7 @@ import { EnumValueFormat, formatBinary, formatHex, formatString, type ValueForma
 import { type WaveformRenderer, setRenderBounds } from "./renderer";
 import type { WaveformData } from "./data_manager";
 import { labelsPanel } from "./vaporview";
+import { createInstancePath } from '../common/functions';
 
 export function htmlSafe(string: string) {
   return string.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -216,7 +217,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
     public readonly netlistId: number,
     public signalId: number,
     public signalName: string,
-    public scopePath: string,
+    public scopePath: string[],
     public signalWidth: number,
     public variableType: string,
     public encoding: VariableEncoding,
@@ -244,7 +245,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
     let result = "";
     const signalName  = htmlSafe(this.signalName);
     if (this.nameType === NameType.fullPath) {
-      const scopePath = htmlSafe(this.scopePath + '.');
+      const scopePath = htmlSafe(this.scopePath.join('.') + '.');
       result += `<p style="opacity:50%">${scopePath}</p><p>${signalName}</p>`
     } else if (this.nameType === NameType.signalName) {
       result += `<p>${signalName}</p>`;
@@ -259,8 +260,8 @@ export class NetlistVariable extends SignalItem implements RowItem {
 
     const height        = getRowHeightCssClass(this.rowHeight);
     const signalName    = htmlSafe(this.signalName);
-    const scopePath     = htmlSafe(this.scopePath + '.');
-    const fullPath      = htmlAttributeSafe(scopePath + signalName);
+    const instancePath  = htmlSafe(createInstancePath(this.scopePath, signalName));
+    const fullPath      = htmlAttributeSafe(instancePath);
     const isSelectedClass   = this.isSelected ? 'is-selected' : '';
     const lastSelectedClass = viewerState.lastSelectedSignal === this.rowId ? 'last-selected' : '';
     const selectorClass = isSelectedClass + ' ' + lastSelectedClass;
@@ -314,7 +315,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
     const isAnalog = isAnalogSignal(this.renderType);
     const context: NetlistVariableContext = {
       webviewSection: "signal",
-      scopePath: this.scopePath,
+      scopePath: this.scopePath.join('.'),
       signalName: this.signalName,
       type: this.variableType,
       width: this.signalWidth,
@@ -332,7 +333,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
     return {
       dataType:         "netlist-variable",
       netlistId:        this.netlistId,
-      name:             this.scopePath + "." + this.signalName,
+      name:             createInstancePath(this.scopePath, this.signalName),
       numberFormat:     this.valueFormat.id,
       colorIndex:       this.colorIndex,
       rowHeight:        this.rowHeight,

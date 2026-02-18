@@ -9,7 +9,6 @@ import { WasmFormatHandler } from './wasm_handler';
 import { FsdbFormatHandler } from './fsdb_handler';
 import { SurferFormatHandler } from './surfer_handler';
 import { NetlistTreeDataProvider, type NetlistItem, netlistItemDragAndDropController, VaporviewStatusBar } from './tree_view';
-import { getInstancePath } from './tree_view';
 
 
 export interface VaporviewDocumentDelegate {

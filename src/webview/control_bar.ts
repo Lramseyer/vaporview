@@ -89,9 +89,9 @@ export class ControlBar {
     }
 
     // Control bar button event handlers
-    this.zoomInButton.addEventListener( 'click', () => {this.events.dispatch(ActionType.Zoom, -1, (viewport.pseudoScrollLeft + viewport.halfViewerWidth) / viewport.zoomRatio, viewport.halfViewerWidth);});
-    this.zoomOutButton.addEventListener('click', () => {this.events.dispatch(ActionType.Zoom, 1, (viewport.pseudoScrollLeft + viewport.halfViewerWidth) / viewport.zoomRatio, viewport.halfViewerWidth);});
-    this.zoomFitButton.addEventListener('click', () => {this.events.dispatch(ActionType.Zoom, Infinity, 0, 0);});
+    this.zoomInButton.addEventListener( 'click', () => {viewport.handleZoom(-1, (viewport.pseudoScrollLeft + viewport.halfViewerWidth) / viewport.zoomRatio, viewport.halfViewerWidth);});
+    this.zoomOutButton.addEventListener('click', () => {viewport.handleZoom(1, (viewport.pseudoScrollLeft + viewport.halfViewerWidth) / viewport.zoomRatio, viewport.halfViewerWidth);});
+    this.zoomFitButton.addEventListener('click', () => {viewport.animateZoomRange(0, viewport.timeStop);});
     this.prevNegedge.addEventListener(  'click', () => {this.goToNextTransition(-1, ['0']);});
     this.prevPosedge.addEventListener(  'click', () => {this.goToNextTransition(-1, ['1']);});
     this.nextNegedge.addEventListener(  'click', () => {this.goToNextTransition( 1, ['0']);});

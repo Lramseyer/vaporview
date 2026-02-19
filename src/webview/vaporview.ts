@@ -20,7 +20,6 @@ export enum DataType {
 export enum ActionType {
   MarkerSet,
   SignalSelect,
-  Zoom,
   ReorderSignals,
   AddVariable,
   RemoveVariable,
@@ -399,12 +398,12 @@ class VaporviewWebview {
 
       //if (deltaY !== zoomOffset) {console.log('deltaY: ' + deltaY + '; zoomOffset: ' + zoomOffset);}
       // scroll up zooms in (- deltaY), scroll down zooms out (+ deltaY)
-      if      (mouseMode && (deltaY > 0)) {this.events.dispatch(ActionType.Zoom, 1, time, pixelLeft);}
-      else if (mouseMode && (deltaY < 0)) {this.events.dispatch(ActionType.Zoom,-1, time, pixelLeft);}
+      if      (mouseMode && (deltaY > 0)) {viewport.handleZoom( 1, time, pixelLeft);}
+      else if (mouseMode && (deltaY < 0)) {viewport.handleZoom(-1, time, pixelLeft);}
 
       // Handle zooming with touchpad since we apply scroll attenuation
       else {
-        this.events.dispatch(ActionType.Zoom, zoomOffset / touchpadScrollDivisor, time, pixelLeft);
+        viewport.handleZoom(zoomOffset / touchpadScrollDivisor, time, pixelLeft);
       }
 
     } else {

@@ -135,6 +135,12 @@
           "scope": "application",
           "description": "Maximum file size (in MB) to load FST files into memory. This is faster, but consumes more memory. Set to 0 to disable."
         },
+        "vaporview.enableInstancePathTerminalLinks": {
+          "type": "boolean",
+          "default": true,
+          "scope": "application",
+          "description": "Enable terminal links for instance paths"
+        },
         "vaporview.scrollingMode": {
           "type": "string",
           "enum": [

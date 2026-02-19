@@ -13,7 +13,7 @@ Note that Vaporview uses an output log for extra debug information, which may pr
 
 ## Contributing your code
 
-- **No AI slop!** Feel free to use AI to assist your coding, but at the end of the day, I own this code base and I know how it's architected, and I will need ot maintain it moving forward. If you check in a massive PR with a dozen different file edits, you better be ready to explain how it works.
+- **No AI slop!** Feel free to use AI to assist your coding, but I still own this code base and I know how it's architected, so I will need to maintain it moving forward. If you check in a massive PR with a dozen different file edits, you better be ready to explain how it works.
 - Consider small commits to establish a reputation before tackling big things.
 - For larger things, communicate before throwing a massive PR over the wall. Even if it's hand written! Corporate software is planned, architected, and documented, and there's no reason why we can't do the same in the open source world.
 - Consider joining the Vaporview [matrix element chat](https://matrix.to/#/#vaporview:fossi-chat.org) (It's kind of like discord)
@@ -25,7 +25,7 @@ Lloyd Ramseyer
 
 # Basic code layout
 
-The Vaporview codebase has 2 main components to it: The core extension in `src/extension_core` and the webview in `src/webview` however, there are other assets like icons, and HTML/CSS files that are used in the `media` folder. This extension uses a [Custom Editor](https://code.visualstudio.com/api/references/vscode-api#CustomDocument), which is a webpage in a iframe under the hood and a messaging interface to send data back and forth. For the VCD, FST, and GHW parsing, Vaporview uses the wellen library compiled from Rust to webassembly.
+The Vaporview codebase has 2 main components to it: The core extension in `src/extension_core` and the webview in `src/webview`. however, there are other assets like icons, and HTML/CSS files that are used in the `media` folder. This extension uses a [Custom Editor](https://code.visualstudio.com/api/references/vscode-api#CustomDocument), which is a webpage in a iframe under the hood and a messaging interface to send data back and forth. For the VCD, FST, and GHW parsing, Vaporview uses the wellen library compiled from Rust to webassembly.
 
 ## Design philosophy
 
@@ -41,4 +41,4 @@ I believe good software makes the easy things easy, and the hard things possible
 
 ## Interfacing with other extensions
 
-Vaporview is designed to do one thing and do it well. It is intentionally language agnostic and simulator agnostic. However, it does have an API that allows other extensions to interface with Vaporview. See [API_DOCS.md](https://github.com/Lramseyer/vaporview/blob/main/API_DOCS.md) for details. If you need help integrating an extension with the Vaporview, please reach out to me!
+Vaporview is designed to do one thing and do it well. It is intentionally language agnostic and simulator agnostic. However, it does have an API that allows other extensions to interface with Vaporview. See [API_DOCS.md](https://github.com/Lramseyer/vaporview/blob/main/API_DOCS.md) for details. If you need help integrating an extension with the Vaporview API, please reach out to me!

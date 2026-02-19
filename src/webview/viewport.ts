@@ -78,6 +78,8 @@ export class Viewport {
   pixelRatio: number          = 1;
   updatePending: boolean      = false;
   scrollEventPending: boolean = false;
+  enableAnimations: boolean   = true;
+  animationDuration: number   = 50;
 
   constructor(
     private events: EventHandler,
@@ -156,7 +158,6 @@ export class Viewport {
 
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
-    this.events.subscribe(ActionType.Zoom, this.handleZoom);
     this.events.subscribe(ActionType.ReorderSignals, this.handleReorderSignals);
     this.events.subscribe(ActionType.AddVariable, this.handleAddVariable);
     this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
@@ -442,7 +443,9 @@ export class Viewport {
     const time      = Math.round((timeStart + timeEnd) / 2);
     const width     = Math.abs((timeEnd - timeStart) * this.zoomRatio);
     const amount    = Math.log2(width / this.viewerWidth);
-    this.events.dispatch(ActionType.Zoom, amount, time, this.halfViewerWidth);
+    //this.handleZoom(amount, time, this.halfViewerWidth);
+    //this.setViewportRange(timeStart, timeEnd);
+    this.animateZoomRange(timeStart, timeEnd);
   }
 
   drawHighlightZoomCanvas(event: MouseEvent) {
@@ -899,6 +902,65 @@ export class Viewport {
 
     this.updateScrollbarResize();
     this.redrawViewport();
+  }
+
+  async animateZoomRange(t1: number, t2: number) {
+    const timeStart = Math.min(t1, t2);
+    const timeEnd = Math.max(t1, t2);
+
+    if (!this.enableAnimations) {
+      this.setViewportRange(timeStart, timeEnd);
+      return;
+    }
+
+    let progress = 0;
+    const startTime = Date.now();
+    const pixelTimeStart = (timeStart - this.timeScrollLeft) * this.zoomRatio;
+    const pixelTimeEnd = (timeEnd - this.timeScrollLeft) * this.zoomRatio;
+    const pixelDelta = this.viewerWidth - pixelTimeEnd;
+    const deltaTime = timeEnd - timeStart;
+
+
+    while (progress < 1) {
+      await new Promise((resolve) => {
+        requestAnimationFrame(() => {
+          progress = Math.min((Date.now() - startTime) / this.animationDuration, 1);
+
+          const newPixelTimeStart = pixelTimeStart - (pixelTimeStart * progress);
+          const newPixelTimeEnd = pixelTimeEnd + (pixelDelta * progress);
+          const newPixelTime = deltaTime / (newPixelTimeEnd - newPixelTimeStart);
+          const newTimeStart = timeStart - (newPixelTimeStart * newPixelTime);
+          const newTimeEnd = timeEnd + ((this.viewerWidth - newPixelTimeEnd) * newPixelTime);
+          this.setViewportRange(newTimeStart, newTimeEnd);
+          resolve(void 0);
+        });
+      });
+    }
+  }
+
+  async animateZoom(amount: number, zoomOrigin: number, screenPosition: number) {
+    if (!this.enableAnimations) {
+      this.handleZoom(amount, zoomOrigin, screenPosition);
+      return;
+    }
+    
+    const startTime = Date.now();
+    let progress = 0;
+    let totalZoomAmount = 0;
+    let zoomAmount = amount;
+
+    while (progress < 1) {
+      await new Promise((resolve) => {
+        requestAnimationFrame((timestamp) => {
+          console.log('timestamp', timestamp);
+          progress = Math.min((Date.now() - startTime) / this.animationDuration, 1);
+          const partialZoomAmount = (zoomAmount * progress) - totalZoomAmount;
+          totalZoomAmount += partialZoomAmount;
+          this.handleZoom(partialZoomAmount, zoomOrigin, screenPosition);
+          resolve(void 0);
+        });
+      });
+    }
   }
 
   redrawViewport() {

@@ -67,6 +67,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   // Hierarchy
   public treeData: NetlistItem[] = [];
   private _netlistIdTable: NetlistIdTable = [];
+  private terminalLinkDisposable: vscode.Disposable | undefined = undefined;
   private sortNetlist: boolean = vscode.workspace.getConfiguration('vaporview').get('sortNetlist') || false;
   private readonly _providerDelegate: VaporviewDocumentDelegate;
   // Format handler (composition) - always defined
@@ -140,7 +141,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     await this._handler.loadNetlist();
     const netlistTime = (Date.now() - loadTime) / 1000;
     this.treeData     = await this._handler.getChildren(undefined);
-    this.setTerminalLinkProvider();
     this._providerDelegate.updateViews(this.uri);
 
     const scopeCount     = toStringWithCommas(this._handler.metadata.scopeCount);
@@ -196,6 +196,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       fillMultiBitValues: fillMultiBitValues,
       customColors: [color1, color2, color3, color4],
     });
+
+    this.setTerminalLinkProvider();
   }
 
   public onDoneParsingWaveforms() {
@@ -250,7 +252,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public async getNetlistItemFromSignalInfo(signalInfo: any, useNetlistId: boolean): Promise<NetlistItem | null> {
     const name = signalInfo.name;
     let metadata: NetlistItem | null = null;
-    console.log('getNetlistItemFromSignalInfo', signalInfo, useNetlistId);
     if (useNetlistId && signalInfo.netlistId !== undefined) {
       metadata = this.netlistIdTable[signalInfo.netlistId];
     } else {
@@ -453,10 +454,21 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   protected setTerminalLinkProvider() {
-    const scopeTopNames = this.treeData.filter(item => item.contextValue === 'netlistScope').map((item) => item.name);
-    const terminalLinkProvider = new NetlistLinkProvider(this._providerDelegate, scopeTopNames);
-    const disposable = vscode.window.registerTerminalLinkProvider(terminalLinkProvider);
-    this.disposables.push(disposable);
+    const enableTerminalLinks = vscode.workspace.getConfiguration('vaporview').get('enableInstancePathTerminalLinks') || false;
+    if (!enableTerminalLinks) {
+      this.unsetTerminalLinkProvider();
+    } else if (!this.terminalLinkDisposable) {
+      const scopeTopNames = this.treeData.filter(item => item.contextValue === 'netlistScope').map((item) => item.name);
+      const terminalLinkProvider = new NetlistLinkProvider(this._providerDelegate, scopeTopNames);
+      this.terminalLinkDisposable = vscode.window.registerTerminalLinkProvider(terminalLinkProvider);
+    }
+  }
+
+  private unsetTerminalLinkProvider() {
+    if (this.terminalLinkDisposable) {
+      this.terminalLinkDisposable.dispose();
+      this.terminalLinkDisposable = undefined;
+    }
   }
 
   // #region Public API
@@ -651,6 +663,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this._handler.dispose();
     this._providerDelegate.updateViews(this.uri);
     this._providerDelegate.removeFromCollection(this.uri, this);
+    this.unsetTerminalLinkProvider();
     this.disposables.forEach((disposable) => { disposable.dispose(); });
     this.disposables = [];
   }

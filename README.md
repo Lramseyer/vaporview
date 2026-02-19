@@ -215,6 +215,7 @@ This extension requires VScode 1.96.0 or later
 - Added feature to split bit vector into individual bits
 - Updated to wellen 0.20.2
 - Updated License to AGPL-3.0
+- Added vaporview.enableInstancePathTerminalLinks user setting
 - API
   - Added "reveal" option to waveformViewer.addVariable command
 - Fixed
@@ -222,6 +223,7 @@ This extension requires VScode 1.96.0 or later
   - Dragging the scrollbar now works even if the mouse pointer is offscreen
   - Right clicking on marker no longer brings up the wrong menu
   - Highlight zooming at the edge of the viewport now works as expected
+  - Scopes with blank names now save and load properly with save files
 
 ## 1.4.5 - 1/8/2026 - Latest Release
 

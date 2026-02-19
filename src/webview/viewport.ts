@@ -78,7 +78,7 @@ export class Viewport {
   pixelRatio: number          = 1;
   updatePending: boolean      = false;
   scrollEventPending: boolean = false;
-  enableAnimations: boolean   = true;
+  enableAnimations: boolean   = false;
   animationDuration: number   = 50;
 
   constructor(

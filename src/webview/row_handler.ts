@@ -555,9 +555,20 @@ export class RowHandler {
     if (rowId !== undefined) {
       removeList = [rowId];
       if (viewerState.selectedSignal.includes(rowId) && removeAllSelected) {
+        // We don't remove groups with child signals. However, we have to check
+        // if a group with children has all of its children selected, in which
+        // case we can remove the group as well.
         removeList = viewerState.selectedSignal.filter((id) => {
           const signalItem = this.rowItems[id];
-          if ((signalItem instanceof SignalGroup) && signalItem.children.length > 0) {return false;}
+          if ((signalItem instanceof SignalGroup) && signalItem.children.length === 0) {
+            return true;
+          } else if (signalItem instanceof SignalGroup) {
+            // Check if all children of the group are selected
+            const childRowIdList = signalItem.getFlattenedRowIdList(false, -1);
+            return childRowIdList.reduce((acc, childRowId) => {
+              return acc && viewerState.selectedSignal.includes(childRowId);
+            }, true);
+          }
           return true;
         });
       }

@@ -371,7 +371,6 @@ export async function activate(context: vscode.ExtensionContext) {
       value: '0'
     }).then((offset) => {
       if (!offset) {return;}
-      console.log("setting value format");
       viewerProvider.setValueFormat(e.netlistId, undefined, e.rowId, {valueFormat: "fixedpoint_u_" + offset.toString()});
     });
   }));
@@ -382,7 +381,6 @@ export async function activate(context: vscode.ExtensionContext) {
       value: '0'
     }).then((offset) => {
       if (!offset) {return;}
-      console.log("setting value format");
       viewerProvider.setValueFormat(e.netlistId, undefined, e.rowId, {valueFormat: "fixedpoint_s_" + offset.toString()});
     });
   }));

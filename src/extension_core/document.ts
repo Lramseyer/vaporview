@@ -291,13 +291,18 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
         missingSignals.push(item.name);
         return null;
       }
+      if (item.lsb >= metadata.width) {
+        dataValid = false;
+        missingSignals.push(item.name);
+        return null;
+      }
       const source: BitRangeSource = {
         name: metadata.instancePath(),
         netlistId: metadata.netlistId,
         signalId: metadata.signalId,
         signalWidth: metadata.width,
-        msb: item.msb,
-        lsb: item.lsb,
+        msb: Math.min(item.msb, metadata.width - 1),
+        lsb: Math.max(item.lsb, 0),
       };
       return source;
     }));

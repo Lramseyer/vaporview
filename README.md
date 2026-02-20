@@ -74,7 +74,7 @@ Signals may be added or removed through VaporView view container. Click on the V
 
 ![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/add_signals.gif?raw=true)
 
-To Add a signal, click the "+" icon to the right of the netlist variable in the "Netlist" view or double click on the variable.
+To Add a signal, double click on it in the netlist view or click the "+" icon on the right.
 
 Signals can also be added by dragging and dropping them from the netlist view to the viewer. Make sure to hold **Shift** before dropping them into the viewer - note that this is a VScode requirement.
 
@@ -150,6 +150,7 @@ Vaporview can display values in different number formats. To change the value fo
 | Hexadecimal    | ✅ Yes                | Right             |
 | Octal          | ✅ Yes                | Right             |
 | Decimal        | ❌ No                 | Left              |
+| Fixed Point    | ❌ No                 | Left              |
 | Floating Point | ❌ No                 | Left              |
 | ASCII          | ❌ No                 | Left              |
 | Enum           | ❌ No                 | Left              |

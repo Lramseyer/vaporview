@@ -1,6 +1,6 @@
 # How to contribute
 
-While this project doesn't have a large list of contributors (yet) I am more than happy to take on new contributors. For a tutorial on how to get started building Vaporview, eee [GETTING_STARTED.md](https://github.com/Lramseyer/vaporview/blob/main/GETTING_STARTED.md) for details on how to build and debug.
+While this project doesn't have a large list of contributors (yet) I am more than happy to take on new contributors. For a tutorial on how to get started building Vaporview, see [GETTING_STARTED.md](https://github.com/Lramseyer/vaporview/blob/main/GETTING_STARTED.md) for details on how to build and debug.
 
 ## Contributing bug reports and your opinions
 

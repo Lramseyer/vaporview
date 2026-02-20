@@ -18,6 +18,37 @@ const interfaceIcon = new vscode.ThemeIcon('debug-disconnect', scopeColor);
 const packageIcon   = new vscode.ThemeIcon('package',          scopeColor);
 const scopeIcon     = new vscode.ThemeIcon('symbol-module',    scopeColor);
 
+export function getScopeIcon(type: string) {
+  const typeName = type.toLocaleLowerCase()
+  switch (typeName) {
+    case 'module':           {return moduleIcon;}
+    case 'task':             {return taskIcon;}
+    case 'function':         {return funcIcon;}
+    case 'begin':            {return beginIcon;}
+    case 'fork':             {return forkIcon;}
+    case 'generate':         {return scopeIcon;}
+    case 'struct':           {return structIcon;}
+    case 'union':            {return unionIcon;}
+    case 'class':            {return classIcon;}
+    case 'interface':        {return interfaceIcon;}
+    case 'package':          {return packageIcon;}
+    case 'program':          {return scopeIcon;}
+    case 'vhdlarchitecture': {return scopeIcon;}
+    case 'vhdlprocedure':    {return taskIcon;}
+    case 'vhdlfunction':     {return funcIcon;}
+    case 'vhdlrecord':       {return scopeIcon;}
+    case 'vhdlprocess':      {return scopeIcon;}
+    case 'vhdlblock':        {return scopeIcon;}
+    case 'vhdlforgenerate':  {return scopeIcon;}
+    case 'vhdlifgenerate':   {return scopeIcon;}
+    case 'vhdlgenerate':     {return scopeIcon;}
+    case 'vhdlpackage':      {return packageIcon;}
+    case 'ghwgeneric':       {return scopeIcon;}
+    case 'vhdlarray':        {return scopeIcon;}
+  }
+  return scopeIcon;
+}
+
 export function createScope(
   name: string,
   type: string,
@@ -27,42 +58,16 @@ export function createScope(
   uri: vscode.Uri
 ) {
 
-  let icon = scopeIcon;
-  const typename = type.toLocaleLowerCase();
-  switch (typename) {
-    case 'module':           {icon = moduleIcon; break;}
-    case 'task':             {icon = taskIcon; break;}
-    case 'function':         {icon = funcIcon; break;}
-    case 'begin':            {icon = beginIcon; break;}
-    case 'fork':             {icon = forkIcon; break;}
-    case 'generate':         {icon = scopeIcon; break;}
-    case 'struct':           {icon = structIcon; break;}
-    case 'union':            {icon = unionIcon; break;}
-    case 'class':            {icon = classIcon; break;}
-    case 'interface':        {icon = interfaceIcon; break;}
-    case 'package':          {icon = packageIcon; break;}
-    case 'program':          {icon = scopeIcon; break;}
-    case 'vhdlarchitecture': {icon = scopeIcon; break;}
-    case 'vhdlprocedure':    {icon = taskIcon; break;}
-    case 'vhdlfunction':     {icon = funcIcon; break;}
-    case 'vhdlrecord':       {icon = scopeIcon; break;}
-    case 'vhdlprocess':      {icon = scopeIcon; break;}
-    case 'vhdlblock':        {icon = scopeIcon; break;}
-    case 'vhdlforgenerate':  {icon = scopeIcon; break;}
-    case 'vhdlifgenerate':   {icon = scopeIcon; break;}
-    case 'vhdlgenerate':     {icon = scopeIcon; break;}
-    case 'vhdlpackage':      {icon = packageIcon; break;}
-    case 'ghwgeneric':       {icon = scopeIcon; break;}
-    case 'vhdlarray':        {icon = scopeIcon; break;}
-  }
+  let icon = getScopeIcon(type);
+  const typeName = type.toLocaleLowerCase();
 
   // fsdb vhdlarray might contain feild, remove it to align with wellen
-  if (typename === 'vhdlarray') {
+  if (typeName === 'vhdlarray') {
     const regex  = /\[(\d+:)?(\d+)\]$/;
     name = name.replace(regex, '');
   }
 
-  const module    = new NetlistItem(name, "", typename, VariableEncoding.none, 0, 0, netlistId, name, path, 0, 0, "", scopeOffsetIdx, [], vscode.TreeItemCollapsibleState.Collapsed, uri);
+  const module    = new NetlistItem(name, "", typeName, VariableEncoding.none, 0, 0, netlistId, name, path, 0, 0, "", scopeOffsetIdx, [], vscode.TreeItemCollapsibleState.Collapsed, uri);
   module.iconPath = icon;
 
   return module;
@@ -73,16 +78,58 @@ const chartsGreen  = new vscode.ThemeColor('charts.green');
 const chartsOrange = new vscode.ThemeColor('charts.orange');
 const chartsYellow = new vscode.ThemeColor('charts.yellow');
 const chartsBlue   = new vscode.ThemeColor('charts.blue');
-const regIcon     = new vscode.ThemeIcon('symbol-array',     chartsGreen);
-const wireIcon    = new vscode.ThemeIcon('symbol-interface', chartsGreen);
-const intIcon     = new vscode.ThemeIcon('symbol-variable',  chartsGreen);
-const paramIcon   = new vscode.ThemeIcon('settings',         chartsBlue);
-const realIcon    = new vscode.ThemeIcon('pulse',            chartsOrange);
-const defaultIcon = new vscode.ThemeIcon('file-binary',      chartsGreen);
-const stringIcon  = new vscode.ThemeIcon('symbol-key',       chartsYellow);
-const portIcon    = new vscode.ThemeIcon('plug',             chartsGreen);
-const timeIcon    = new vscode.ThemeIcon('watch',            chartsGreen);
-const enumIcon    = new vscode.ThemeIcon('symbol-parameter', chartsGreen);
+const regIcon      = new vscode.ThemeIcon('symbol-array',     chartsGreen);
+const wireIcon     = new vscode.ThemeIcon('symbol-interface', chartsGreen);
+const intIcon      = new vscode.ThemeIcon('symbol-variable',  chartsGreen);
+const paramIcon    = new vscode.ThemeIcon('settings',         chartsBlue);
+const realIcon     = new vscode.ThemeIcon('pulse',            chartsOrange);
+const defaultIcon  = new vscode.ThemeIcon('file-binary',      chartsGreen);
+const stringIcon   = new vscode.ThemeIcon('symbol-key',       chartsYellow);
+const portIcon     = new vscode.ThemeIcon('plug',             chartsGreen);
+const timeIcon     = new vscode.ThemeIcon('watch',            chartsGreen);
+const enumIcon     = new vscode.ThemeIcon('symbol-parameter', chartsGreen);
+
+export function getVarIcon(type: string) {
+  const typeName = type.toLocaleLowerCase()
+  switch (typeName) {
+    case 'event':           {return defaultIcon;}
+    case 'integer':         {return intIcon;}
+    case 'parameter':       {return paramIcon;}
+    case 'real':            {return realIcon;}
+    case 'reg':             {return defaultIcon;}
+    case 'supply0':         {return defaultIcon;}
+    case 'supply1':         {return defaultIcon;}
+    case 'time':            {return timeIcon;}
+    case 'tri':             {return defaultIcon;}
+    case 'triand':          {return defaultIcon;}
+    case 'trior':           {return defaultIcon;}
+    case 'trireg':          {return defaultIcon;}
+    case 'tri0':            {return defaultIcon;}
+    case 'tri1':            {return defaultIcon;}
+    case 'wand':            {return defaultIcon;}
+    case 'wire':            {return wireIcon;}
+    case 'wor':             {return defaultIcon;}
+    case 'string':          {return stringIcon;}
+    case 'port':            {return portIcon;}
+    case 'sparsearray':     {return defaultIcon;}
+    case 'realtime':        {return timeIcon;}
+    case 'bit':             {return defaultIcon;}
+    case 'logic':           {return defaultIcon;}
+    case 'int':             {return intIcon;}
+    case 'shortint':        {return intIcon;}
+    case 'longint':         {return intIcon;}
+    case 'byte':            {return defaultIcon;}
+    case 'enum':            {return enumIcon;}
+    case 'shortreal':       {return defaultIcon;}
+    case 'boolean':         {return defaultIcon;}
+    case 'bitvector':       {return defaultIcon;}
+    case 'stdlogic':        {return defaultIcon;}
+    case 'stdlogicvector':  {return defaultIcon;}
+    case 'stdulogic':       {return defaultIcon;}
+    case 'stdulogicvector': {return defaultIcon;}
+  }
+  return defaultIcon;
+}
 
 export function createVar(
   name: string,
@@ -119,49 +166,10 @@ export function createVar(
   }
 
   const variable = new NetlistItem(label, paramValue, type, variableEncoding, width, signalId, netlistId, name, path, msb, lsb, enumType, -1, [], vscode.TreeItemCollapsibleState.None, uri);
-  const typename = type.toLocaleLowerCase();
-  let icon;
-
-  switch (typename) {
-    case 'event':           {icon = defaultIcon; break;}
-    case 'integer':         {icon = intIcon; break;}
-    case 'parameter':       {icon = paramIcon; break;}
-    case 'real':            {icon = realIcon; break;}
-    case 'reg':             {icon = defaultIcon; break;}
-    case 'supply0':         {icon = defaultIcon; break;}
-    case 'supply1':         {icon = defaultIcon; break;}
-    case 'time':            {icon = timeIcon; break;}
-    case 'tri':             {icon = defaultIcon; break;}
-    case 'triand':          {icon = defaultIcon; break;}
-    case 'trior':           {icon = defaultIcon; break;}
-    case 'trireg':          {icon = defaultIcon; break;}
-    case 'tri0':            {icon = defaultIcon; break;}
-    case 'tri1':            {icon = defaultIcon; break;}
-    case 'wand':            {icon = defaultIcon; break;}
-    case 'wire':            {icon = wireIcon; break;}
-    case 'wor':             {icon = defaultIcon; break;}
-    case 'string':          {icon = stringIcon; break;}
-    case 'port':            {icon = portIcon; break;}
-    case 'sparsearray':     {icon = defaultIcon; break;}
-    case 'realtime':        {icon = timeIcon; break;}
-    case 'bit':             {icon = defaultIcon; break;}
-    case 'logic':           {icon = defaultIcon; break;}
-    case 'int':             {icon = intIcon; break;}
-    case 'shortint':        {icon = intIcon; break;}
-    case 'longint':         {icon = intIcon; break;}
-    case 'byte':            {icon = defaultIcon; break;}
-    case 'enum':            {icon = enumIcon; break;}
-    case 'shortreal':       {icon = defaultIcon; break;}
-    case 'boolean':         {icon = defaultIcon; break;}
-    case 'bitvector':       {icon = defaultIcon; break;}
-    case 'stdlogic':        {icon = defaultIcon; break;}
-    case 'stdlogicvector':  {icon = defaultIcon; break;}
-    case 'stdulogic':       {icon = defaultIcon; break;}
-    case 'stdulogicvector': {icon = defaultIcon; break;}
-  }
-
+  const typeName = type.toLocaleLowerCase();
+  const icon     = getVarIcon(type);
   variable.iconPath = icon;
-  if ((typename === 'wire') || (typename === 'reg') || (icon === defaultIcon)) {
+  if ((typeName === 'wire') || (typeName === 'reg') || (icon === defaultIcon)) {
     if (width > 1) {variable.iconPath = regIcon;}
     else           {variable.iconPath = wireIcon;}
   }

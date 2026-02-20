@@ -1,16 +1,19 @@
 # Vaporview
 
-VaporView is an open source waveform viewer extension for Visual Studio Code - [download](https://marketplace.visualstudio.com/items?itemName=lramseyer.vaporview)
+Vaporview is an open source waveform viewer extension for VScode
+
+[Github](https://github.com/Lramseyer/vaporview) | [VScode Marketplace](https://marketplace.visualstudio.com/items?itemName=lramseyer.vaporview) | [Open VSX](https://open-vsx.org/extension/lramseyer/vaporview)
 
 ![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/overview.png?raw=true)
 
 # Waveform Viewer Features
 
 - Native support for VCD, FST, and GHW files
-- Smooth panning and zooming using touchpad gestures or a scroll wheel
+- Smooth panning and zooming using touchpad gestures or mouse scroll
 - Add, remove, rearrange, and grouping of signals in the viewer
-- Place and move markers
+- Time markers - main and alt marker
 - Search for values within a waveform dump
+- Custom signals from bit range
 - Terminal Links for timestamps and instance paths
 - Remote waveform viewing via VScode SSH and surfer surver
 - IDE integration with other language extensions
@@ -58,6 +61,9 @@ Vaporview allows you to connect to a remote machine and open up waveforms remote
 - **Alt + Click or Middle Click** - Set Alt-Marker
 - **Home** and **End** - Scroll to the beginning and end (respectively) of the waveform
 - **Delete** or **Backspace** - Remove Selected Signal
+- **Ctrl/Cmd + Z** or **Ctrl/Cmd + Shift + Z** - Undo or Redo action
+- **F2** - Rename selected item
+- **G** - Create new group from selected items
 - **Escape** - Abort click and drag event (Rearranging signals, zoom, scrolling)
 
 ## Adding and Removing Signals
@@ -68,13 +74,13 @@ Signals may be added or removed through VaporView view container. Click on the V
 
 ![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/add_signals.gif?raw=true)
 
-To Add a signal, click the "+" icon to the right of the netlist variable in the "Netlist" view or double click on the variable. It will also show in the "Displayed Signals" view.
+To Add a signal, click the "+" icon to the right of the netlist variable in the "Netlist" view or double click on the variable.
 
 Signals can also be added by dragging and dropping them from the netlist view to the viewer. Make sure to hold **Shift** before dropping them into the viewer - note that this is a VScode requirement.
 
 ### Removing Signals
 
-To remove a signal, that signal can be un-checked from either the "Netlist" view or the "Displayed Signals" view. From the viewer, you can either select the signal you would like to remove and hit **Delete**, or right click on a signal in the viewer and select **remove signal** from the menu.
+To remove a signal, you can either select the signal you would like to remove and hit **Delete** or **Backspace**, or right click on a signal in the viewer and select **remove signal** from the menu.
 
 ### Other less common ways
 
@@ -206,7 +212,7 @@ This extension requires VScode 1.96.0 or later
 
 # Development Roadmap
 
-# 1.5.0 - Upcoming Release
+## 1.5.0 - Upcoming Release
 
 - VScode now tracks save files, and will prompt you before closing with unsaved changes
 - Added Undo/Redo Support
@@ -236,18 +242,13 @@ This extension requires VScode 1.96.0 or later
 - Fixed Decimal number formats to work beyond 32 bit numbers
 - Updated to wellen 0.20.1
 
-# Upcoming Release
-
-- VScode now tracks save files and will prompt user before closing with unsaved changes
-- Added Undo/Redo Support
-
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 
 # About This Extension
 
-I originally built this extension when I worked for an FPGA company. I wanted a good _free_ waveform viewer extension, and I always thought it would be cool to make my own extension.
+I originally built this extension when I worked for an FPGA company. I wanted a good _free_ waveform viewer extension (which didn't exist when I first started this project) and I always thought it would be cool to make my own extension. If you like this extension, share it with your classmates or coworkers.
 
-This is and always will be open source. It's free to use for personal and professional use. There never will be feature regression in favor of a premium tier. In other words, every feature that is currently included, or on the roadmap will be free and open source. Adaptations of the source code completely or even in part for other projects is only allowed _if_ the project is also free and open source. Adaptations of the source code completely or in part for distribution in enterprise software is not allowed _unless_ prior written permission is given by the owner of this project.
+This is and always will be open source. It's free to use for personal and professional use. There never will be feature regression in favor of a premium tier. In other words, every feature that is currently included, or on the roadmap will be free and open source. Vaporview is licensed as AGPL-3.0, which means that redistribution of unmodified release versions of Vaporview for personal and commercial products _is_ allowed. Any adaptations of the source code for the purposes of redistribution in commercial software is also allowed provided that that all commercially available adapted versions are made open source. See [license](https://github.com/Lramseyer/vaporview?tab=AGPL-3.0-1-ov-file#readme) for details.
 
 This extension was originally written by one person, with a full time job that doesn't involve anything to do with writing javascript or typescript. If you would like to see a feature added or functionality changed, or better yet, if you would like to help contribute please visit the [github repository](https://github.com/Lramseyer/VaporView) and discuss there!
 

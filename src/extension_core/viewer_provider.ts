@@ -4,7 +4,7 @@ import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
 import { Worker } from 'worker_threads';
 import * as fs from 'fs';
 import { getTokenColorsForTheme } from './extension';
-import { VaporviewDocument, type WaveformFileParser } from './document';
+import { VaporviewDocument, NetlistSearchQuickPick, type WaveformFileParser } from './document';
 import { WasmFormatHandler } from './wasm_handler';
 import { FsdbFormatHandler } from './fsdb_handler';
 import { SurferFormatHandler } from './surfer_handler';
@@ -122,6 +122,9 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   private readonly _onDidChangeCustomDocument = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<VaporviewDocument>>();
   public readonly onDidChangeCustomDocument = this._onDidChangeCustomDocument.event;
 
+  // Quick Pick Menu
+  private quickPick: NetlistSearchQuickPick;
+
   constructor(
     private readonly _context: vscode.ExtensionContext, 
     private readonly wasmModule: WebAssembly.Module
@@ -153,6 +156,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     this.netlistView.onDidChangeSelection(this.handleNetlistViewSelectionChanged, this, this._context.subscriptions);
 
     this.wasmWorkerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
+    this.quickPick = new NetlistSearchQuickPick();
   }
 
   async openCustomDocument(
@@ -636,6 +640,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     this.lastActiveWebview  = webviewPanel;
     this.lastActiveDocument = document;
     this.netlistTreeDataProvider.loadDocument(document);
+    document.setSearchCommandContext();
   }
 
   onDidChangeViewStateInactive() {
@@ -643,6 +648,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     this.activeDocument = undefined;
     this.netlistTreeDataProvider.hide();
     this.statusBar.hide();
+    vscode.commands.executeCommand('setContext', 'vaporview.netlistSearchable', false);
   }
 
   async showInNetlistViewByName(signalName: string) {
@@ -952,6 +958,12 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       return;
     }
     this.addSignalByNameToDocument(e.instancePath);
+  }
+
+  public searchNetlist() {
+    const document = this.activeDocument;
+    if (!document) {return;}
+    this.quickPick.show(document);
   }
 
   public async addAllInScopeToDocument(e: NetlistItem, recursive: boolean, maxChildren: number) {

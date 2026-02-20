@@ -5,7 +5,7 @@ import type { EnumQueueEntry, SignalId, ValueChangeDataChunk, CompressedValueCha
 import type { VaporviewDocumentDelegate } from './viewer_provider';
 import { filehandler } from './filehandler';
 import { type NetlistItem, createScope, createVar } from './tree_view';
-import type { WaveformFileParser, WaveformDumpMetadata } from './document';
+import type { WaveformFileParser, WaveformDumpMetadata, NetlistSearchResult } from './document';
 
 
 export class SurferFormatHandler implements WaveformFileParser {
@@ -19,6 +19,7 @@ export class SurferFormatHandler implements WaveformFileParser {
 
   // Top level netlist items
   private netlistTop: NetlistItem[] = [];
+  public netlistSearchable: boolean = false;
   private parametersLoaded: boolean = false;
 
   public postMessageToWebview = (message: any) => {};
@@ -171,6 +172,7 @@ export class SurferFormatHandler implements WaveformFileParser {
         throw error;
       }
     });
+    this.netlistSearchable = true;
   }
 
   async loadBody(): Promise<void> {
@@ -306,8 +308,8 @@ export class SurferFormatHandler implements WaveformFileParser {
   }
 
   async getEnumData(enumList: EnumQueueEntry[]): Promise<void> {
-    // Not implemented for Surfer
-    return;
+    const netlistIdList = enumList.map((entry) => entry.netlistId);
+    this.wasmApi.getenumdata(netlistIdList);
   }
 
   async getValuesAtTime(time: number, instancePaths: string[]): Promise<any> {
@@ -318,6 +320,15 @@ export class SurferFormatHandler implements WaveformFileParser {
     } catch (error) {
       this.providerDelegate.logOutputChannel("Failed to get values at time from remote server: " + error);
       return [];
+    }
+  }
+
+  public async searchNetlist(searchString: string): Promise<NetlistSearchResult> {
+    const resultJson = await this.wasmApi.searchnetlist(searchString);
+    try {
+      return JSON.parse(resultJson) as NetlistSearchResult;
+    } catch {
+      return { totalResults: 0, searchResults: [] };
     }
   }
 

@@ -5,7 +5,7 @@ import * as path from 'path';
 
 import type { VaporviewDocumentDelegate } from './viewer_provider';
 import { type NetlistItem, createScope, createVar } from './tree_view';
-import type { WaveformFileParser, WaveformDumpMetadata } from './document';
+import type { WaveformFileParser, WaveformDumpMetadata, NetlistSearchResult, NetlistSearchEntry } from './document';
 
 type FsdbWorkerMessage = {
   id: string;
@@ -28,6 +28,7 @@ export class FsdbFormatHandler implements WaveformFileParser {
   private findTreeItemFn: (scopePath: string, msb: number | undefined, lsb: number | undefined) => Promise<NetlistItem | null>;
 
   // Top level netlist items
+  public netlistSearchable: boolean = false;
   private netlistTop: NetlistItem[] = [];
   private parametersLoaded: boolean = false;
 
@@ -357,5 +358,10 @@ export class FsdbFormatHandler implements WaveformFileParser {
     array.children.push(...arrayElements.reverse());
     array.fsdbVarLoaded = true;
     this.fsdbCurrentScope!.children.unshift(array);
+  }
+
+  // TODO: @heyfey - implement netlist search
+  public searchNetlist(searchString: string): Promise<NetlistSearchResult> {
+    return Promise.resolve({totalResults: 0, searchResults: []});
   }
 }

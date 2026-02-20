@@ -127,6 +127,10 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.netlistTreeDataProvider.clickNetlistItem(e.uri, e.netlistId);
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.searchNetlist', () => {
+    viewerProvider.searchNetlist();
+  }));
+
   // Add or remove signal commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.addVariableByInstancePath', (e) => {
     viewerProvider.addVariableByInstancePathToDocument(e);

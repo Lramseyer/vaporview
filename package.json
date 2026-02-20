@@ -338,6 +338,13 @@
           "when": "activeCustomEditorId == 'vaporview.waveformViewer' && (resourceExtname == '.vcd' || resourceExtname == '.fst' || resourceExtname == '.ghw' || resourceExtname == '.fsdb')"
         }
       ],
+      "view/title": [
+        {
+          "command": "vaporview.searchNetlist",
+          "when": "view == 'waveformViewerNetlistView' && vaporview.netlistSearchable",
+          "group": "navigation"
+        }
+      ],
       "view/item/context": [
         {
           "command": "vaporview.addVariable",
@@ -872,6 +879,12 @@
         "command": "vaporview.addVariable",
         "title": "Add Variable",
         "icon": "$(add)"
+      },
+      {
+        "command": "vaporview.searchNetlist",
+        "title": "Search Netlist",
+        "icon": "$(search)",
+        "category": "VaporView"
       },
       {
         "command": "vaporview.addVariableByInstancePath",

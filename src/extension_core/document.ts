@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type EnumQueueEntry, type DocumentId, type SavedRowItem, VariableEncoding, type BitRangeSource } from '../common/types';
-import { logScaleFromUnits, toStringWithCommas } from '../common/functions';
+import { bitRangeString, logScaleFromUnits, toStringWithCommas } from '../common/functions';
 import { NetlistLinkProvider } from './terminal_links';
 import * as path from 'path';
 import type { VaporviewDocumentCollection, VaporviewDocumentDelegate } from './viewer_provider';
-import { type NetlistItem } from './tree_view';
+import { getVarIcon, getScopeIcon, type NetlistItem } from './tree_view';
 
 export type WaveformDumpMetadata = {
   timeTableLoaded: boolean;
@@ -28,6 +28,7 @@ export interface WaveformFileParser {
 
   // Properties
   metadata: WaveformDumpMetadata;
+  netlistSearchable: boolean;
 
   // Methods
   loadNetlist(): Promise<void>;
@@ -38,6 +39,7 @@ export interface WaveformFileParser {
   getSignalData(signalIdList: SignalId[]): Promise<void>;
   getEnumData(enumList: EnumQueueEntry[]): Promise<void>;
   getValuesAtTime(time: number, instancePaths: string[]): Promise<any>;
+  searchNetlist(searchString: string): Promise<NetlistSearchResult>
 
   // Callbacks
   postMessageToWebview(message: any): void;
@@ -142,6 +144,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     const netlistTime = (Date.now() - loadTime) / 1000;
     this.treeData     = await this._handler.getChildren(undefined);
     this._providerDelegate.updateViews(this.uri);
+    this.setSearchCommandContext();
 
     const scopeCount     = toStringWithCommas(this._handler.metadata.scopeCount);
     const netlistIdCount = toStringWithCommas(this._handler.metadata.netlistIdCount);
@@ -198,6 +201,10 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     });
 
     this.setTerminalLinkProvider();
+  }
+
+  public setSearchCommandContext() {
+    vscode.commands.executeCommand('setContext', 'vaporview.netlistSearchable', this._handler.netlistSearchable);
   }
 
   public onDoneParsingWaveforms() {
@@ -656,6 +663,10 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     return this._handler.getValuesAtTime(time, e.instancePaths);
   }
 
+  public searchNetlist(searchQuery: string): Promise<NetlistSearchResult> {
+    return this._handler.searchNetlist(searchQuery)
+  }
+
   public async unload(): Promise<void> {
     this.metadata.timeTableLoaded = false;
     this.unloadWebview();
@@ -670,5 +681,95 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this.unsetTerminalLinkProvider();
     this.disposables.forEach((disposable) => { disposable.dispose(); });
     this.disposables = [];
+  }
+}
+
+export type NetlistSearchResult = {
+  totalResults: number
+  searchResults: NetlistSearchEntry[]
+}
+
+export type NetlistSearchEntry = {
+  instancePath: string
+  type: string
+  isVar: boolean
+  paramValue: string
+  msb: number
+  lsb: number
+}
+
+interface NetlistQuickPickItem extends vscode.QuickPickItem {
+  instancePath: string;
+  isVar: boolean;
+  msb: number;
+  lsb: number;
+}
+
+export class NetlistSearchQuickPick {
+
+  private readonly quickPick: vscode.QuickPick<NetlistQuickPickItem>;
+  private readonly _allItems: NetlistQuickPickItem[] = [];
+  private static readonly BATCH_SIZE = 100;
+  private document: VaporviewDocument | undefined;
+
+  constructor() {
+    this.quickPick = vscode.window.createQuickPick<NetlistQuickPickItem>();
+    this.quickPick.placeholder = 'Search netlist by instance path...';
+    this.quickPick.busy = false;
+    this.quickPick.onDidHide(() => {this.quickPick.value = ""});
+
+    this.quickPick.onDidChangeValue((value) => this.applyFilter(value));
+    this.quickPick.onDidAccept(() => this.onAccept());
+  }
+
+  public show(document: VaporviewDocument) {
+    this.document = document;
+    this.quickPick.show();
+  }
+
+  private async applyFilter(query: string) {
+    if (!this.document) {return;}
+    if (!query) {
+      this.quickPick.items = [];
+      this.quickPick.title = undefined;
+      this.quickPick.busy  = false;
+      return;
+    }
+
+    this.quickPick.busy    = true;
+    const searchResult     = await this.document.searchNetlist(query);
+    const totalResults     = searchResult.totalResults;
+    const displayedResults = searchResult.searchResults.length;
+    this.quickPick.title   = `Showing ${displayedResults} of ${totalResults} results`;
+
+    this.quickPick.items = searchResult.searchResults.map(result => {
+      const icon       = result.isVar ? getVarIcon(result.type) : getScopeIcon(result.type);
+      const bitRange   = result.isVar ? bitRangeString(result.msb, result.lsb) : "";
+      const paramValue = result.paramValue ? ` = ${result.paramValue}` : "";
+      return {
+        label: result.instancePath + bitRange,
+        description: result.type + paramValue,
+        instancePath: result.instancePath,
+        isVar: result.isVar,
+        msb: result.msb || 0,
+        lsb: result.lsb || 0,
+        iconPath: icon,
+      }
+    });
+    this.quickPick.busy    = false;
+  }
+
+  private async onAccept() {
+    if (!this.document) {return;}
+    const selected = this.quickPick.selectedItems[0];
+    if (!selected) {return;}
+
+    if (selected.isVar) {
+      const metadata = await this.document.findTreeItem(selected.instancePath, selected.msb, selected.lsb);
+      if (metadata) {this.document.renderSignals([metadata.netlistId], [], undefined);}
+      this.quickPick.hide();
+    } else {
+      this.quickPick.value = selected.instancePath + ".";
+    }
   }
 }

@@ -7,7 +7,7 @@ import type { EnumQueueEntry, SignalId, ValueChangeDataChunk, CompressedValueCha
 import type { VaporviewDocumentDelegate } from './viewer_provider';
 import { filehandler } from './filehandler';
 import { type NetlistItem, createScope, createVar } from './tree_view';
-import type { WaveformFileParser, WaveformDumpMetadata } from './document';
+import type { WaveformFileParser, WaveformDumpMetadata, NetlistSearchResult } from './document';
 
 // #region fsWrapper
 interface fsWrapper {
@@ -94,6 +94,7 @@ export class WasmFormatHandler implements WaveformFileParser {
 
   // Top level netlist items
   private netlistTop: NetlistItem[] = [];
+  public netlistSearchable: boolean = false;
 
   public postMessageToWebview = (message: any) => {};
   public metadata: WaveformDumpMetadata = {
@@ -227,6 +228,7 @@ export class WasmFormatHandler implements WaveformFileParser {
     }, async () => {
       await this.wasmApi.loadfile(BigInt(this.fileReader.fileSize), this.fileReader.fd, this.fileReader.loadStatic, this.fileReader.bufferSize);
     });
+    this.netlistSearchable = true;
   }
 
   async loadBody() {
@@ -365,6 +367,15 @@ export class WasmFormatHandler implements WaveformFileParser {
   async getValuesAtTime(time: number, instancePaths: string[]): Promise<any> {
     const result = await this.wasmApi.getvaluesattime(BigInt(time), instancePaths.join(" "));
     return JSON.parse(result);
+  }
+
+  public async searchNetlist(searchString: string): Promise<NetlistSearchResult> {
+    const resultJson = await this.wasmApi.searchnetlist(searchString);
+    try {
+      return JSON.parse(resultJson) as NetlistSearchResult;
+    } catch {
+      return { totalResults: 0, searchResults: [] };
+    }
   }
 
   async unload(): Promise<void> {

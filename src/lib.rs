@@ -12,6 +12,7 @@ use lazy_static::lazy_static;
 use std::sync::Mutex;
 use std::sync::Arc;
 use std::cmp::max;
+use std::collections::HashSet;
 use wellen::{FileFormat, Hierarchy, ScopeRef, Signal, SignalRef, SignalSource, TimeTable, TimescaleUnit, WellenError, VarRef};
 use wellen::viewers::{read_body, read_header, ReadBodyContinuation, HeaderResult};
 use wellen::LoadOptions;
@@ -367,6 +368,97 @@ impl Seek for WasmFileReader {
     }
     self.cursor = std::cmp::min(new_cursor, self.file_size as i64) as u64;
     Ok(())
+  }
+}
+
+#[derive(serde::Serialize, Clone)]
+struct SearchEntry {
+  #[serde(rename = "instancePath")]
+  instance_path: String,
+  #[serde(rename = "type")]
+  item_type: String,
+  #[serde(rename = "isVar")]
+  is_var: bool,
+  #[serde(rename = "paramValue")]
+  param_value: String,
+  msb: i32,
+  lsb: i32,
+}
+
+#[derive(serde::Serialize)]
+struct SearchResult {
+  #[serde(rename = "totalResults")]
+  total_results: usize,
+  #[serde(rename = "searchResults")]
+  search_results: Vec<SearchEntry>,
+}
+
+// Recursively traverses the hierarchy, applying the same filter+ancestor-pruning logic as the
+// TypeScript applyFilter: if a scope matches the query, all of its descendants are suppressed
+// from the results (since the scope entry already represents the whole subtree).
+fn search_hierarchy(
+  hierarchy: &Hierarchy,
+  scope_refs: Vec<ScopeRef>,
+  var_refs: Vec<VarRef>,
+  scope_path: &[String],
+  lower_query: &str,
+  matched_scope_paths: &mut HashSet<String>,
+  results: &mut Vec<SearchEntry>,
+) {
+  // If any ancestor scope has already matched, skip this entire subtree.
+  // scope_path holds the path segments of the parent, so checking all its prefixes
+  // (including the full path) mirrors the TypeScript scopePath.some(...) check.
+  let in_matched_subtree = (0..scope_path.len()).any(|i| {
+    matched_scope_paths.contains(&scope_path[..=i].join("."))
+  });
+  if in_matched_subtree { return; }
+
+  for scope_ref in scope_refs {
+    let scope = hierarchy.index(scope_ref);
+    let name = scope.name(hierarchy).to_string();
+    let scope_type = format!("{:?}", scope.scope_type());
+
+    let mut current_path = scope_path.to_vec();
+    current_path.push(name.clone());
+    let instance_path = current_path.join(".");
+
+    if name.to_lowercase().contains(lower_query) || instance_path.to_lowercase().contains(lower_query) {
+      matched_scope_paths.insert(instance_path.clone());
+      results.push(SearchEntry {
+        instance_path,
+        item_type: scope_type,
+        is_var: false,
+        param_value: String::new(),
+        msb: -1,
+        lsb: -1,
+      });
+    }
+
+    // Collect before recursing to avoid overlapping borrows of hierarchy
+    let child_scopes: Vec<ScopeRef> = scope.scopes(hierarchy).collect();
+    let child_vars: Vec<VarRef> = scope.vars(hierarchy).collect();
+    search_hierarchy(hierarchy, child_scopes, child_vars, &current_path, lower_query, matched_scope_paths, results);
+  }
+
+  for var_ref in var_refs {
+    let var_data = get_var_data(hierarchy, var_ref);
+    let instance_path = if scope_path.is_empty() {
+      var_data.name.clone()
+    } else {
+      format!("{}.{}", scope_path.join("."), var_data.name)
+    };
+
+    if var_data.name.to_lowercase().contains(lower_query) || instance_path.to_lowercase().contains(lower_query) {
+      let param_value = var_data.param_value.unwrap_or_default();
+      results.push(SearchEntry {
+        instance_path,
+        item_type: var_data.var_type,
+        is_var: true,
+        param_value,
+        msb: var_data.msb,
+        lsb: var_data.lsb,
+      });
+    }
   }
 }
 
@@ -821,6 +913,41 @@ impl Guest for Filecontext {
     result.push_str("]");
     return result;
 
+  }
+
+
+  // TODO: This is a vibe coded placeholder for the searchnetlist function
+  fn searchnetlist(searchquery: String) -> String {
+    let global_hierarchy = _hierarchy.lock().unwrap();
+    let hierarchy = global_hierarchy.as_ref().unwrap();
+    let empty_result = "{\"totalResults\":0,\"searchResults\":[]}".to_string();
+
+    if searchquery.is_empty() {
+      return empty_result;
+    }
+
+    let lower_query = searchquery.to_lowercase();
+    let mut matched_scope_paths: HashSet<String> = HashSet::new();
+    let mut search_results: Vec<SearchEntry> = Vec::new();
+
+    let top_scopes: Vec<ScopeRef> = hierarchy.scopes().collect();
+    let top_vars: Vec<VarRef> = hierarchy.vars().collect();
+
+    search_hierarchy(
+      hierarchy,
+      top_scopes,
+      top_vars,
+      &[],
+      &lower_query,
+      &mut matched_scope_paths,
+      &mut search_results,
+    );
+
+    let total = search_results.len();
+    let return_amount = std::cmp::min(total, 100);
+    let results_slice = search_results[0..return_amount].to_vec();
+    let result: SearchResult = SearchResult { total_results: total, search_results: results_slice };
+    serde_json::to_string(&result).unwrap_or_else(|_| empty_result)
   }
 
   fn unload() {

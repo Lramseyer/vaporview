@@ -139,7 +139,7 @@
           "type": "boolean",
           "default": true,
           "scope": "application",
-          "description": "Enable terminal links for instance paths"
+          "description": "Enable terminal links for instance paths - This may conflict with other extensions that use terminal links for instance paths"
         },
         "vaporview.scrollingMode": {
           "type": "string",
@@ -160,7 +160,7 @@
         },
         "vaporview.fillMultiBitValues": {
           "type": "boolean",
-          "default": "true",
+          "default": "false",
           "scope": "application",
           "description": "Multi-bit renderer style - If checked, fills the value box with color. If unchecked, only the outline is drawn."
         },

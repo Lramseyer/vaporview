@@ -188,6 +188,20 @@ export class RowHandler {
     return rowIdList;
   }
 
+  createUniquGroupName(name: string, parentGroupId: number): string {
+    let groupName = name;
+    let n = 1;
+    if (this.findGroupIdByName(groupName, parentGroupId) == -1) {
+      return groupName;
+    }
+
+    while (this.findGroupIdByName(groupName, parentGroupId) !== -1) {
+      groupName = name + ` (${n})`;
+      n++;
+    }
+    return groupName;
+  }
+
   addSignalGroup(name: string | undefined, groupPath: string[] | undefined, inputParentGroupId: number | undefined, eventRowId: number | undefined, moveSelected: boolean, showRenameInput: boolean): number | undefined {
     if (controlBar.searchInFocus || labelsPanel.renameActive) {return;}
 
@@ -217,19 +231,12 @@ export class RowHandler {
       reorder = true;
     }
 
-    let groupName = "Group " + groupId;
+    let groupName = name || "";
     if (name === undefined || name === "") {
-      let n = 1;
-      while (this.findGroupIdByName(groupName, parentGroupId) !== -1) {
-        groupName = "Group " + groupId + ` (${n})`;
-        n++;
-      }
-    } else {
-      groupName = name;
-      const isTaken = this.groupNameExists(groupName, parentGroupId);
-      if (isTaken) {return;}
+      groupName = "Group " + groupId;
     }
 
+    groupName = this.createUniquGroupName(groupName, parentGroupId);
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowId);
     const groupItem = new SignalGroup(rowId, groupName, groupId);
     this.groupIdTable[groupId] = rowId;
@@ -412,23 +419,29 @@ export class RowHandler {
     const signalWidth = signalItem.signalWidth;
     const signalName = createInstancePath(signalItem.scopePath, signalItem.signalName) + bitRangeString(signalWidth - 1, 0);
 
-    this.events.enterBatchMode();
     // Create a group for the bit slices
+    this.events.enterBatchMode();
     const groupRowId = this.addSignalGroup(signalName, groupPath, parentGroupId, eventRowId, false, false);
     let groupId = parentGroupId;
-    if (groupRowId === undefined) {return;}
+
+    if (groupRowId === undefined) {
+      this.events.exitBatchMode();
+      return;
+    }
+
     const groupItem = this.rowItems[groupRowId];
     if (groupItem instanceof SignalGroup) {
       groupId = groupItem.groupId;
     }
 
-    for (let i = 0; i < signalWidth; i++) {
+    for (let i = signalWidth - 1; i >= 0; i--) {
       this.addCustomVariable(undefined, groupPath, groupId, eventRowId, undefined, i, i, undefined);
     }
 
     const eventGroupId = getParentGroupId(eventRowId);
     const eventIndex = getIndexInGroup(eventRowId, eventGroupId);
     this.events.dispatch(ActionType.ReorderSignals, [groupRowId], eventGroupId, eventIndex + 1);
+
     this.events.exitBatchMode();
     console.log('addAllBitSlices');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
@@ -496,10 +509,12 @@ export class RowHandler {
       if (rowIdList.length === 0) {lastSelectedSignal = null;}
       this.events.dispatch(ActionType.SignalSelect, rowIdList, lastSelectedSignal);
     }
+
     if (settings.zoomRatio !== undefined && settings.scrollLeft !== undefined) {
-      if (viewport.updatePending) {return;}
-      const endTime = settings.scrollLeft + (viewport.viewerWidth / settings.zoomRatio);
-      viewport.setViewportRange(settings.scrollLeft, endTime);
+      if (!viewport.updatePending) {
+        const endTime = settings.scrollLeft + (viewport.viewerWidth / settings.zoomRatio);
+        viewport.setViewportRange(settings.scrollLeft, endTime);
+      }
     }
 
     this.events.exitBatchMode();

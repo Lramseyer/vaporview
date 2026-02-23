@@ -1,8 +1,8 @@
 # Vaporview
 
-Vaporview is an open source waveform viewer extension for VScode
+Vaporview is an open source waveform viewer extension for VScode.
 
-[Github](https://github.com/Lramseyer/vaporview) | [VScode Marketplace](https://marketplace.visualstudio.com/items?itemName=lramseyer.vaporview) | [Open VSX](https://open-vsx.org/extension/lramseyer/vaporview)
+ [VScode Marketplace](https://marketplace.visualstudio.com/items?itemName=lramseyer.vaporview) | [Open VSX](https://open-vsx.org/extension/lramseyer/vaporview) | [Github](https://github.com/Lramseyer/vaporview)
 
 ![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/overview.png?raw=true)
 
@@ -175,6 +175,12 @@ Vaporview supports analog waveforms for Real and Bit Vector data types. For Bit 
 
 To adjust the row height, right click on the signal, and select your desired row height. To vertically zoom, select the signal and press **Alt +/-** to vertically zoom
 
+## Custom Signals
+
+Vaporview allows users to create custom signals from a subset of bits from a multi-bit signal. To create a custom signal, right click on a multi-bit variable, and select **New Signal From Bit Range...**. This will prompt the user in the command bar for a bit range. This allows for single bit or multi bit inputs, and will create a new custom signal that can be moved and displayed independently of the original signal.
+
+Alternatively, signals can be automatically split into all individual bits. To do this, right click on the multi-bit variable, and select **Create Signals From Bits**. This will create a group with all of the individual bits in the group.
+
 ## Time Units
 
 You can change the Time Units in one of 2 ways: clicking the Time Status Bar in the lower right hand corner of the window, or by right clicking on the time ruler and selecting units from the **Time Unit** menu.
@@ -225,6 +231,8 @@ This extension requires VScode 1.96.0 or later
 - Added vaporview.enableInstancePathTerminalLinks user setting
 - API
   - Added "reveal" option to waveformViewer.addVariable command
+  - Added vaporview.enableInstancePathTerminalLinks user setting
+  - Finalized onDidDropInWaveformViewer event emitter
 - Fixed
   - Selecting multiple signals no longer moves the time marker
   - Dragging the scrollbar now works even if the mouse pointer is offscreen

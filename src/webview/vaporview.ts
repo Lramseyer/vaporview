@@ -89,6 +89,7 @@ export class EventHandler {
   }
 
   exitBatchMode() {
+    console.log("exiting batch mode");
     this.batchMode = false;
     this.dispatch(ActionType.SignalSelect, ...this.signalSelectArgs);
     this.dispatch(ActionType.ExitBatchMode);

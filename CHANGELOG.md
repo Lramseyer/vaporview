@@ -12,6 +12,8 @@
 - Added vaporview.enableInstancePathTerminalLinks user setting
 - API
   - Added "reveal" option to waveformViewer.addVariable command
+  - Added vaporview.enableInstancePathTerminalLinks user setting
+  - Finalized onDidDropInWaveformViewer event emitter
 - Fixed
   - Selecting multiple signals no longer moves the time marker
   - Dragging the scrollbar now works even if the mouse pointer is offscreen

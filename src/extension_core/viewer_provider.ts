@@ -9,6 +9,7 @@ import { WasmFormatHandler } from './wasm_handler';
 import { FsdbFormatHandler } from './fsdb_handler';
 import { SurferFormatHandler } from './surfer_handler';
 import { NetlistTreeDataProvider, type NetlistItem, netlistItemDragAndDropController, VaporviewStatusBar } from './tree_view';
+import path from 'path';
 
 
 export interface VaporviewDocumentDelegate {
@@ -370,9 +371,13 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     let uri = saveFileUri;
     if (!saveFileUri) {
+      const filePath = document.uri.fsPath;
+      const fileName = path.basename(filePath);
+      const saveFileName = fileName.replace(/\.[^/.]+$/, '') + '.json' || 'untitled.json';
       uri = await vscode.window.showSaveDialog({
         saveLabel: 'Save settings',
-        filters: {JSON: ['json']}
+        filters: {JSON: ['json']},
+        defaultUri: vscode.Uri.file(path.join(filePath, saveFileName)),
       });
     }
 
@@ -1114,8 +1119,8 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         groupPath: groupPath,
         parentGroupId: parentGroupId,
         eventRowId: eventRowId,
-        msb: msb,
-        lsb: lsb,
+        msb: Math.max(msb, lsb),
+        lsb: Math.min(msb, lsb),
       });
     }
   }

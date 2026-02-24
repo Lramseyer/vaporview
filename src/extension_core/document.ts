@@ -708,9 +708,9 @@ interface NetlistQuickPickItem extends vscode.QuickPickItem {
 export class NetlistSearchQuickPick {
 
   private readonly quickPick: vscode.QuickPick<NetlistQuickPickItem>;
-  private readonly _allItems: NetlistQuickPickItem[] = [];
-  private static readonly BATCH_SIZE = 100;
   private document: VaporviewDocument | undefined;
+  private searchInProgress = false;
+  private pendingQuery: string | undefined;
 
   constructor() {
     this.quickPick = vscode.window.createQuickPick<NetlistQuickPickItem>();
@@ -724,6 +724,8 @@ export class NetlistSearchQuickPick {
 
   public show(document: VaporviewDocument) {
     this.document = document;
+    this.pendingQuery = undefined;
+    this.searchInProgress = false;
     this.quickPick.show();
   }
 
@@ -736,8 +738,16 @@ export class NetlistSearchQuickPick {
       return;
     }
 
+    if (this.searchInProgress) {
+      this.pendingQuery = query;
+      return;
+    }
+
+    this.searchInProgress  = true;
     this.quickPick.busy    = true;
     const searchResult     = await this.document.searchNetlist(query);
+    this.searchInProgress  = false;
+
     const totalResults     = searchResult.totalResults;
     const displayedResults = searchResult.searchResults.length;
     this.quickPick.title   = `Showing ${displayedResults} of ${totalResults} results`;
@@ -756,7 +766,15 @@ export class NetlistSearchQuickPick {
         iconPath: icon,
       }
     });
-    this.quickPick.busy    = false;
+    this.quickPick.busy = false;
+
+    if (this.pendingQuery !== undefined) {
+      const next = this.pendingQuery;
+      this.pendingQuery = undefined;
+      if (next !== query) {
+        this.applyFilter(next);
+      }
+    }
   }
 
   private async onAccept() {

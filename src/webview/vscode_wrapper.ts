@@ -34,7 +34,7 @@ export class ThemeColors {
   markerAnnotation: string = '';
   rowHeight: number = 28;
   rulerHeight: number = 36;
-  fillMultiBitValues: boolean = true;
+  fillMultiBitValues: boolean = false;
 
   constructor(
     private events: EventHandler
@@ -200,12 +200,12 @@ export class VscodeWrapper {
     const rowIdList = rowHandler.getRowIdsFromNetlistId(netlistId);
     if (rowIdList.length === 0) {return;}
     this.events.dispatch(ActionType.SignalSelect, rowIdList, rowIdList[0]);
-    console.log('handleSetSelectedSignal');
+    //console.log('handleSetSelectedSignal');
     this.sendWebviewContext(StateChangeType.User);
   }
 
   setMarker(time: number, markerType: number) {
-    console.log('handleMessage - setMarker');
+    //console.log('handleMessage - setMarker');
     this.events.dispatch(ActionType.MarkerSet, time, markerType);
     this.sendWebviewContext(StateChangeType.User);
   }
@@ -314,7 +314,7 @@ export class VscodeWrapper {
   }
 
   fetchData(requestList: QueueEntry[]) {
-    console.log('fetchData', requestList);
+    //console.log('fetchData', requestList);
     vscode.postMessage({
       command: 'fetchDataFromFile',
       requestList: requestList,

@@ -1,15 +1,14 @@
 # Change Log
 
-# 1.5.0 - Upcoming Release
+# 1.5.0 - 2/25/2026 - Latest Release
 
-- VScode now tracks save files, and will prompt you before closing with unsaved changes
 - Added Undo/Redo Support
-- Added Fixed Point number formats
-- Added feature to create custom signals as bit range
+- Added feature to create custom signals from bit range
 - Added feature to split bit vector into individual bits
-- Updated to wellen 0.20.2
+- VScode now tracks save files, and will prompt you before closing with unsaved changes
+- Added Fixed Point number formats
 - Updated License to AGPL-3.0
-- Added vaporview.enableInstancePathTerminalLinks user setting
+- Updated to wellen 0.20.2
 - API
   - Added "reveal" option to waveformViewer.addVariable command
   - Added vaporview.enableInstancePathTerminalLinks user setting
@@ -21,7 +20,7 @@
   - Highlight zooming at the edge of the viewport now works as expected
   - Scopes with blank names now save and load properly with save files
 
-## 1.4.5 - 1/8/2026 - Latest Release
+## 1.4.5 - 1/8/2026
 
 - Added Ctrl/Cmd+R hotkey for "Show in Netlist View"
 - Changed marker placement behavior - Ctrl/Alt is no longer required to move to next value change

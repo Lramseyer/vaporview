@@ -219,16 +219,15 @@ This extension requires VScode 1.96.0 or later
 
 # Development Roadmap
 
-## 1.5.0 - Upcoming Release
+## 1.5.0 - 2/25/2026 - Latest Release
 
-- VScode now tracks save files, and will prompt you before closing with unsaved changes
 - Added Undo/Redo Support
-- Added Fixed Point number formats
-- Added feature to create custom signals as bit range
+- Added feature to create custom signals from bit range
 - Added feature to split bit vector into individual bits
-- Updated to wellen 0.20.2
+- VScode now tracks save files, and will prompt you before closing with unsaved changes
+- Added Fixed Point number formats
 - Updated License to AGPL-3.0
-- Added vaporview.enableInstancePathTerminalLinks user setting
+- Updated to wellen 0.20.2
 - API
   - Added "reveal" option to waveformViewer.addVariable command
   - Added vaporview.enableInstancePathTerminalLinks user setting
@@ -239,17 +238,6 @@ This extension requires VScode 1.96.0 or later
   - Right clicking on marker no longer brings up the wrong menu
   - Highlight zooming at the edge of the viewport now works as expected
   - Scopes with blank names now save and load properly with save files
-
-## 1.4.5 - 1/8/2026 - Latest Release
-
-- Added Ctrl/Cmd+R hotkey for "Show in Netlist View"
-- Changed marker placement behavior - Ctrl/Alt is no longer required to move to next value change
-- Fix G hotkey in cursor chat bug where it erroneously creates a new group
-- G hotkey will no longer add only one signal to a group if it's selected
-- Fixed file loading errors with group placement
-- Fixed scroll de-sync when adding new groups
-- Fixed Decimal number formats to work beyond 32 bit numbers
-- Updated to wellen 0.20.1
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

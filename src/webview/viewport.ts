@@ -661,7 +661,7 @@ export class Viewport {
     }
     this.updateRuler();
     if (updateContext) {
-      console.log('updateUnits');
+      //console.log('updateUnits');
       vscodeWrapper.sendWebviewContext(StateChangeType.User);
     }
   }
@@ -952,7 +952,7 @@ export class Viewport {
     while (progress < 1) {
       await new Promise((resolve) => {
         requestAnimationFrame((timestamp) => {
-          console.log('timestamp', timestamp);
+          //console.log('timestamp', timestamp);
           progress = Math.min((Date.now() - startTime) / this.animationDuration, 1);
           const partialZoomAmount = (zoomAmount * progress) - totalZoomAmount;
           totalZoomAmount += partialZoomAmount;

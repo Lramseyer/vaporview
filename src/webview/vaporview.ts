@@ -84,12 +84,12 @@ export class EventHandler {
   private signalSelectArgs: any[] = [[], null];
 
   enterBatchMode() {
-    console.log("entering batch mode");
+    //console.log("entering batch mode");
     this.batchMode = true;
   }
 
   exitBatchMode() {
-    console.log("exiting batch mode");
+    //console.log("exiting batch mode");
     this.batchMode = false;
     this.dispatch(ActionType.SignalSelect, ...this.signalSelectArgs);
     this.dispatch(ActionType.ExitBatchMode);
@@ -228,7 +228,7 @@ export function handleClickSelection(event: MouseEvent, rowId: RowId) {
     newSelection = [rowId];
   }
   events.dispatch(ActionType.SignalSelect, newSelection, rowId);
-  console.log('handleClickSelection');
+  //console.log('handleClickSelection');
   vscodeWrapper.sendWebviewContext(StateChangeType.User);
 }
 
@@ -505,7 +505,7 @@ class VaporviewWebview {
     else if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(true);}
 
     if (updateState) {
-      console.log('keyDownHandler');
+      //console.log('keyDownHandler');
       vscodeWrapper.sendWebviewContext(StateChangeType.User);
     }
   }
@@ -561,7 +561,7 @@ class VaporviewWebview {
     }
 
     this.events.dispatch(ActionType.ReorderSignals, [rowId], parentGroupId, newIndex);
-    console.log('handleReorderArrowKeys');
+    //console.log('handleReorderArrowKeys');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }
 
@@ -599,7 +599,7 @@ class VaporviewWebview {
     } else if (viewerState.mouseupEventType === MouseUpEventType.None && abort) {
       if (!labelsPanel.renameActive) {
         this.events.dispatch(ActionType.SignalSelect, [], null);
-        console.log('handleMouseUp');
+        //console.log('handleMouseUp');
         vscodeWrapper.sendWebviewContext(StateChangeType.User);
       }
     }

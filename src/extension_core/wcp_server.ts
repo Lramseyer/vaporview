@@ -354,8 +354,8 @@ export class WCPServer {
     // Greeting command - initial handshake
     // Returns server information, protocol version, and capabilities
     return {
-      name: 'VaporView',
-      version: '1.4.5',
+      name: 'Vaporview',
+      version: '1.5.0',
       protocol: 'WCP',
       protocol_version: '0',
       capabilities: await this.getCapabilitiesList()

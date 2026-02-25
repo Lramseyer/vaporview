@@ -152,7 +152,7 @@ export class ControlBar {
     });
 
     this.events.dispatch(ActionType.MarkerSet, nearestTime, 0);
-    console.log('goToNextTransition');
+    //console.log('goToNextTransition');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }
 
@@ -374,7 +374,7 @@ export class ControlBar {
       }
     }
     if (updateState) {
-      console.log('handleSearchGoTo');
+      //console.log('handleSearchGoTo');
       vscodeWrapper.sendWebviewContext(StateChangeType.User);
     }
   }

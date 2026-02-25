@@ -826,7 +826,7 @@ export class SignalGroup extends SignalItem implements RowItem {
       if (rowId === this.rowId) {return;} // Skip the group row itself
       const viewportRow = document.getElementById(`waveform-${rowId}`);
       if (!viewportRow) {return;}
-      console.log('style', style);
+      //console.log('style', style);
       viewportRow.style.display = style;
       const signalItem = rowHandler.rowItems[rowId];
       if (signalItem instanceof NetlistVariable || signalItem instanceof CustomVariable) {

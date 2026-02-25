@@ -483,7 +483,7 @@ export class LabelsPanels {
 
     if (!abort) {
       this.events.dispatch(ActionType.ReorderSignals, rowIdList, newGroupId, newIndex);
-      console.log('dragEnd');
+      //console.log('dragEnd');
       vscodeWrapper.sendWebviewContext(StateChangeType.User);
     } else {
       this.renderLabelsPanels();
@@ -551,7 +551,7 @@ export class LabelsPanels {
     if (viewerState.selectedSignal.includes(rowId)) {
       waveformRow.classList.add('is-selected');
     }
-    console.log('finishRename');
+    //console.log('finishRename');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }
 

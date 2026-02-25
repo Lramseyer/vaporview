@@ -330,13 +330,13 @@ export class WaveformDataManager {
         if (customSignal.source[i].signalId === source[i].signalId && 
             customSignal.source[i].msb === source[i].msb && 
             customSignal.source[i].lsb === source[i].lsb) {
-          console.log('custom signal found', customSignalId);
+          //console.log('custom signal found', customSignalId);
           return customSignalId;
         }
       }
     }
 
-    console.log('new custom signal', source);
+    //console.log('new custom signal', source);
     const customSignalId = this.nextCustomSignalId;
     this.nextCustomSignalId++;
     const customSignal: CustomWaveformData = {
@@ -353,7 +353,7 @@ export class WaveformDataManager {
   }
 
   updateCustomSignal(customSignalId: number): void {
-    console.log('updateCustomSignal', customSignalId);
+    //console.log('updateCustomSignal', customSignalId);
     const data = this.customValueChangeData[customSignalId];
     if (data === undefined) {return;}
     const source = data.source;

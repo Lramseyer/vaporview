@@ -257,7 +257,6 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
     }
 
     this.lastClickedTreeItem = newUri;
-    console.log(this.document?.netlistIdTable[netlistId]);
   }
 
   refresh(): void {this._onDidChangeTreeData.fire(undefined);}

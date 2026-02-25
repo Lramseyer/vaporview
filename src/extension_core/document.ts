@@ -210,7 +210,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public captureWebviewState(event: any): boolean {
 
     let isDirty = false;
-    console.log(event.stateChangeType);
+    //console.log(event.stateChangeType);
     if (event.stateChangeType === StateChangeType.User || event.stateChangeType === StateChangeType.File) {
       this.captureStateForUndo();
       this.redoStack = [];
@@ -354,9 +354,9 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public async applySettings(settings: any, stateChangeType: StateChangeType, useNetlistId: boolean) {
 
     //this.netlistTreeDataProvider.loadDocument(document);
-    console.log('applySettings', settings);
+    //console.log('applySettings', settings);
     const signalListSettings = await this.convertSignalListToSettings(settings.displayedSignals, useNetlistId);
-    console.log('signalListSettings', signalListSettings);
+    //console.log('signalListSettings', signalListSettings);
     const documentSettings: any = {
       displayedSignals: signalListSettings.signalList,
       markerTime: settings.markerTime,
@@ -367,7 +367,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       autoReload: settings.autoReload,
     };
 
-    console.log(stateChangeType);
+    //console.log(stateChangeType);
 
     const color1 = vscode.workspace.getConfiguration('vaporview').get('customColor1');
     const color2 = vscode.workspace.getConfiguration('vaporview').get('customColor2');

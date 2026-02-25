@@ -183,7 +183,7 @@ export class RowHandler {
 
     this.events.dispatch(ActionType.SignalSelect, rowIdList, lastRowId);
 
-    console.log('addVariable');
+    //console.log('addVariable');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
     return rowIdList;
   }
@@ -269,7 +269,7 @@ export class RowHandler {
 
     if (showRenameInput) {labelsPanel.showRenameInput(rowId);}
 
-    console.log('addSignalGroup');
+    //('addSignalGroup');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
 
     this.nextGroupId++;
@@ -307,7 +307,7 @@ export class RowHandler {
     }
 
     this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
-    console.log('addSeparator');
+    //console.log('addSeparator');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
     return rowId;
   }
@@ -341,7 +341,7 @@ export class RowHandler {
   }
 
   addCustomVariable(name: string | undefined, groupPath: string[] | undefined, parentGroupId: number | undefined, eventRowId: number | undefined, netlistId: NetlistId | undefined, msb: number, lsb: number, inputSource: BitRangeSource | undefined) {
-    console.log('addCustomVariable', name, groupPath, parentGroupId, eventRowId, netlistId, msb, lsb);
+    //console.log('addCustomVariable', name, groupPath, parentGroupId, eventRowId, netlistId, msb, lsb);
     if (controlBar.searchInFocus || labelsPanel.renameActive) {return;}
     const rowId = this.nextRowId;
     this.nextRowId++;
@@ -361,7 +361,7 @@ export class RowHandler {
 
     let drawFlag = false;
     if (customSignalData.dataLoaded) {
-      console.log('custom signal found and loaded', customSignalId);
+      //console.log('custom signal found and loaded', customSignalId);
       drawFlag = true;
     } else if (dataManager.valueChangeData[sourceSignalId] !== undefined) {
       dataManager.updateCustomSignal(customSignalId);
@@ -405,7 +405,7 @@ export class RowHandler {
     }
 
     this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
-    console.log('addCustomVariable');
+    //console.log('addCustomVariable');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
     return rowId;
   }
@@ -443,7 +443,7 @@ export class RowHandler {
     this.events.dispatch(ActionType.ReorderSignals, [groupRowId], eventGroupId, eventIndex + 1);
 
     this.events.exitBatchMode();
-    console.log('addAllBitSlices');
+    //console.log('addAllBitSlices');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }
 
@@ -470,7 +470,7 @@ export class RowHandler {
         const displayFormat = Object.assign({rowId: rowId}, signal);
         this.setDisplayFormat(displayFormat);
       } else if (signal.dataType === 'custom-variable') {
-        console.log('addCustomVariable', signal);
+        //console.log('addCustomVariable', signal);
         const bitRange = signal.source[0];
         const msb      = bitRange.msb;
         const lsb      = bitRange.lsb;
@@ -487,7 +487,6 @@ export class RowHandler {
     //this.flushRowCache(true);
     //console.log('applyState()', settings);
 
-    console.log('applyState', settings);
     this.events.enterBatchMode();
     try {
       if (viewerState.displayedSignals.length > 0) {
@@ -518,7 +517,7 @@ export class RowHandler {
     }
 
     this.events.exitBatchMode();
-    console.log('applyState', stateChangeType);
+    //console.log('applyState', stateChangeType);
     vscodeWrapper.sendWebviewContext(stateChangeType);
   }
 
@@ -607,7 +606,7 @@ export class RowHandler {
       const newSelected = viewerState.selectedSignal.filter((id) => removeList.includes(id) === false);
       this.events.dispatch(ActionType.SignalSelect, newSelected, viewerState.lastSelectedSignal);
     }
-    console.log('removeVariable');
+    //console.log('removeVariable');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }
 
@@ -646,7 +645,7 @@ export class RowHandler {
     } else {
       this.events.dispatch(ActionType.SignalSelect, newSelected, viewerState.lastSelectedSignal);
     }
-    console.log('removeSignalGroup');
+    //console.log('removeSignalGroup');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }
 
@@ -705,7 +704,7 @@ export class RowHandler {
       }
       this.updateValueFormatCache(data, valueFormat, force);
     }
-    console.log("formatCached:", data.formattedValues[valueFormat.id].formatCached, "users:", data.formattedValues[valueFormat.id].users);
+    //console.log("formatCached:", data.formattedValues[valueFormat.id].formatCached, "users:", data.formattedValues[valueFormat.id].users);
 
     data.formattedValues[valueFormat.id].users++;
   }
@@ -949,7 +948,7 @@ export class RowHandler {
       viewport.updateOverlayCanvas();
     }
 
-    console.log('setDisplayFormat');
+    //console.log('setDisplayFormat');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
     netlistData.setSignalContextAttribute();
 

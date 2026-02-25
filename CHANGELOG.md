@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.5.1 - Upcoming Release
+
+- Added Zoom animations for highlight zoom (configurable in settings)
+
 # 1.5.0 - 2/25/2026 - Latest Release
 
 - Added Undo/Redo Support

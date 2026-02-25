@@ -1,5 +1,5 @@
 import { EnumQueueEntry, SignalId, type RowId, StateChangeType } from '../common/types';
-import { vscodeWrapper, ActionType, type EventHandler, viewerState, viewport, dataManager, rowHandler} from './vaporview';
+import { vscodeWrapper, ActionType, type EventHandler, viewerState, viewport, dataManager, rowHandler, config} from './vaporview';
 import { CustomVariable, NetlistVariable } from './signal_item';
 
 enum ButtonState {
@@ -169,8 +169,8 @@ export class ControlBar {
   }
 
   handleTouchScroll(state: boolean) {
-    viewerState.touchpadScrolling = state;
-    viewerState.autoTouchpadScrolling = false;
+    config.touchpadScrolling = state;
+    config.autoTouchpadScrolling = false;
     if (state) {
       this.setButtonState(this.mouseScroll, ButtonState.Enabled);
       this.setButtonState(this.touchScroll, ButtonState.Selected);
@@ -182,7 +182,7 @@ export class ControlBar {
   }
 
   handleAutoScroll() {
-    viewerState.autoTouchpadScrolling = true;
+    config.autoTouchpadScrolling = true;
     this.setButtonState(this.mouseScroll, ButtonState.Enabled);
     this.setButtonState(this.touchScroll, ButtonState.Enabled);
     this.setButtonState(this.autoScroll, ButtonState.Selected);

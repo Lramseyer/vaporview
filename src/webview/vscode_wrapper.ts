@@ -1,7 +1,7 @@
 import { createInstancePath } from "../common/functions";
 import { QueueEntry, WindowMessageType, StateChangeType, NetlistId, RowId } from "../common/types";
 import { SignalGroup, NetlistVariable, CustomVariable } from "./signal_item";
-import { viewerState, events, createWebviewContext, viewport, rowHandler, getParentGroupIdList, labelsPanel, EventHandler, ActionType, dataManager, controlBar, styles, unload, init, revealSignal } from "./vaporview";
+import { viewerState, events, createWebviewContext, viewport, rowHandler, getParentGroupIdList, labelsPanel, EventHandler, ActionType, dataManager, controlBar, styles, unload, init, revealSignal, config } from "./vaporview";
 import { copyWaveDrom } from "./wavedrom";
 
 declare function acquireVsCodeApi(): VsCodeApi;
@@ -10,6 +10,47 @@ interface VsCodeApi {
   postMessage(message: any): void;
   setState(newState: any): void;
   getState(): any;
+}
+
+
+// This object tracks extension settings that pertain to the webview
+// Settings are registered in the following places:
+// - package.json in contributes.configuration
+// - extension_core/document.ts - setConfigurationSettings()
+// - here - setConfigSettings()
+export class Configuration {
+  touchpadScrolling: boolean     = false;
+  autoTouchpadScrolling: boolean = false;
+  rulerLines: boolean            = true;
+  fillMultiBitValues: boolean    = false;
+  enableAnimations: boolean      = true;
+  animationDuration: number      = 50;
+
+  setConfigSettings(settings: any) {
+    if (settings.scrollingMode !== undefined) {
+      controlBar.setScrollMode(settings.scrollingMode);
+    }
+    if (settings.rulerLines !== undefined) {
+      if (this.rulerLines !== settings.rulerLines) {
+        this.rulerLines = settings.rulerLines;
+        viewport.updateBackgroundCanvas(false);
+      }
+    }
+    if (settings.fillMultiBitValues !== undefined) {
+      this.fillMultiBitValues = settings.fillMultiBitValues;
+      viewport.renderAllWaveforms(true);
+    }
+    if (settings.enableAnimations !== undefined) {
+      this.enableAnimations = settings.enableAnimations;
+    }
+    if (settings.animationDuration !== undefined) {
+      this.animationDuration = settings.animationDuration;
+    }
+    if (settings.customColors !== undefined) {
+      styles.customColorKey = settings.customColors;
+    }
+    viewport.setRulerVscodeContext();
+  }
 }
 
 export class ThemeColors {
@@ -34,7 +75,6 @@ export class ThemeColors {
   markerAnnotation: string = '';
   rowHeight: number = 28;
   rulerHeight: number = 36;
-  fillMultiBitValues: boolean = false;
 
   constructor(
     private events: EventHandler
@@ -136,8 +176,8 @@ export class VscodeWrapper {
     switch (message.command) {
       case 'initViewport':          {init(message.metadata, message.uri, message.documentId); break;}
       case 'unload':                {unload(); break;}
-      case 'setConfigSettings':     {this.handleSetConfigSettings(message); break;}
       case 'getContext':            {this.sendWebviewContext(StateChangeType.None); break;}
+      case 'setConfigSettings':     {config.setConfigSettings(message); break;}
       case 'apply-state':           {rowHandler.applyState(message.settings, message.stateChangeType); break;}
       case 'add-variable':          {rowHandler.addVariable(message.signalList, message.groupPath, undefined, message.index); break;}
       case 'add-separator':         {rowHandler.addSeparator(message.name, message.groupPath, message.parentGroupId, message.eventRowId, message.moveSelected); break;}
@@ -175,23 +215,6 @@ export class VscodeWrapper {
       case 'increaseVerticalScale': {this.handleUpdateVerticalScale(e.event, 2); break;}
       case 'decreaseVerticalScale': {this.handleUpdateVerticalScale(e.event, 0.5); break;}
       case 'resetVerticalScale':    {this.handleUpdateVerticalScale(e.event, 0); break;}
-    }
-  }
-
-  handleSetConfigSettings(settings: any) {
-    if (settings.scrollingMode !== undefined) {
-      controlBar.setScrollMode(settings.scrollingMode);
-    }
-    if (settings.rulerLines !== undefined) {
-      viewport.setRulerLines(settings.rulerLines);
-    }
-    if (settings.fillMultiBitValues !== undefined) {
-      styles.fillMultiBitValues = settings.fillMultiBitValues;
-      viewport.renderAllWaveforms(true);
-      viewport.setRulerVscodeContext();
-    }
-    if (settings.customColors !== undefined) {
-      styles.customColorKey = settings.customColors;
     }
   }
 

@@ -498,6 +498,14 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.workspace.getConfiguration('vaporview').update('fillMultiBitValues', false, vscode.ConfigurationTarget.Global);
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.enableAnimations', (e) => {
+    vscode.workspace.getConfiguration('vaporview').update('enableAnimations', true, vscode.ConfigurationTarget.Global);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.disableAnimations', (e) => {
+    vscode.workspace.getConfiguration('vaporview').update('enableAnimations', false, vscode.ConfigurationTarget.Global);
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.setMouseScrollingMode', (e) => {
     vscode.workspace.getConfiguration('vaporview').update('scrollingMode', "Mouse", vscode.ConfigurationTarget.Global);
   }));

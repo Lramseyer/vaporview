@@ -1,6 +1,6 @@
 //import { NetlistData } from './vaporview';
 import { NetlistVariable, type CustomVariable } from './signal_item';
-import { dataManager, viewport, styles } from './vaporview';
+import { dataManager, viewport, styles, config } from './vaporview';
 import type { WaveformData } from './data_manager';
 
 export interface WaveformRenderer {
@@ -154,7 +154,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     const minDrawWidth  = viewport.pixelTime / viewport.pixelRatio;
     const drawColor     = netlistData.color;
     const xzColor       = styles.xzColor;
-    const fillShape     = styles.fillMultiBitValues;
+    const fillShape     = config.fillMultiBitValues;
     //const minYPosition  = halfCanvasHeight / viewport.zoomRatio;
     let lastDrawTime    = 0;
     let parsedValue;

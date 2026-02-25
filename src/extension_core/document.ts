@@ -183,9 +183,11 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   public setConfigurationSettings() {
-    const scrollingMode = vscode.workspace.getConfiguration('vaporview').get('scrollingMode');
-    const rulerLines = vscode.workspace.getConfiguration('vaporview').get('showRulerLines');
+    const scrollingMode      = vscode.workspace.getConfiguration('vaporview').get('scrollingMode');
+    const rulerLines         = vscode.workspace.getConfiguration('vaporview').get('showRulerLines');
     const fillMultiBitValues = vscode.workspace.getConfiguration('vaporview').get('fillMultiBitValues');
+    const enableAnimations   = vscode.workspace.getConfiguration('vaporview').get('enableAnimations');
+    const animationDuration  = vscode.workspace.getConfiguration('vaporview').get('animationDuration');
 
     const color1 = vscode.workspace.getConfiguration('vaporview').get('customColor1');
     const color2 = vscode.workspace.getConfiguration('vaporview').get('customColor2');
@@ -197,6 +199,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       scrollingMode: scrollingMode,
       rulerLines: rulerLines,
       fillMultiBitValues: fillMultiBitValues,
+      enableAnimations: enableAnimations,
+      animationDuration: animationDuration,
       customColors: [color1, color2, color3, color4],
     });
 

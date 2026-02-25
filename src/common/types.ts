@@ -176,6 +176,7 @@ export type RulerContext = {
   preventDefaultContextMenuItems: boolean;
   rulerLines: boolean;
   fillBitVector: boolean;
+  enableAnimations: boolean;
   fs: boolean;
   ps: boolean;
   ns: boolean;

@@ -135,6 +135,20 @@
           "scope": "application",
           "description": "Maximum file size (in MB) to load FST files into memory. This is faster, but consumes more memory. Set to 0 to disable."
         },
+        "vaporview.enableAnimations": {
+          "type": "boolean",
+          "default": true,
+          "scope": "application",
+          "description": "Enable animations for the waveform viewer."
+        },
+        "vaporview.animationDuration": {
+          "type": "number",
+          "default": 50,
+          "minimum": 5,
+          "maximum": 500,
+          "scope": "application",
+          "description": "Animation duration in milliseconds."
+        },
         "vaporview.enableInstancePathTerminalLinks": {
           "type": "boolean",
           "default": true,
@@ -443,9 +457,19 @@
           "group": "1_default@4"
         },
         {
+          "command": "vaporview.enableAnimations",
+          "when": "webviewSection == 'ruler' && activeCustomEditorId == 'vaporview.waveformViewer' && enableAnimations == false",
+          "group": "1_default@5"
+        },
+        {
+          "command": "vaporview.disableAnimations",
+          "when": "webviewSection == 'ruler' && activeCustomEditorId == 'vaporview.waveformViewer' && enableAnimations == true",
+          "group": "1_default@5"
+        },
+        {
           "command": "vaporview.viewVaporViewSettings",
           "when": "webviewSection == 'ruler' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "1_default@5"
+          "group": "1_default@6"
         },
         {
           "submenu": "vaporview.valueFormat",
@@ -1158,6 +1182,14 @@
       {
         "command": "vaporview.outlineBitVector",
         "title": "Outline Bit Vectors"
+      },
+      {
+        "command": "vaporview.enableAnimations",
+        "title": "Enable Animations"
+      },
+      {
+        "command": "vaporview.disableAnimations",
+        "title": "Disable Animations"
       },
       {
         "command": "vaporview.setMouseScrollingMode",

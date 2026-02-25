@@ -3,7 +3,7 @@ import { logScaleFromUnits } from '../common/functions';
 import { ActionType, type EventHandler, viewerState, dataManager, updateDisplayedSignalsFlat, handleClickSelection, controlBar, MouseUpEventType } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer } from './renderer';
-import { labelsPanel, rowHandler, vscodeWrapper, styles } from "./vaporview";
+import { labelsPanel, rowHandler, vscodeWrapper, styles, config } from "./vaporview";
 import { CustomVariable, NetlistVariable, VariableItem } from "./signal_item";
 
 export class Viewport {
@@ -71,15 +71,12 @@ export class Viewport {
   rulerNumberIncrement: number = 100;
   minNumberSpacing: number   = 100;
   minTickSpacing: number     = 20;
-  rulerLines: boolean        = true;
   rulerLineX: [number, number][] = [];
   annotateTime: number[]     = [];
 
   pixelRatio: number          = 1;
   updatePending: boolean      = false;
   scrollEventPending: boolean = false;
-  enableAnimations: boolean   = false;
-  animationDuration: number   = 50;
 
   constructor(
     private events: EventHandler,
@@ -199,20 +196,14 @@ export class Viewport {
     this.redrawViewport();
   }
 
-  setRulerLines(state: boolean) {
-    if (this.rulerLines === state) {return;}
-    this.rulerLines = state;
-    this.setRulerVscodeContext();
-    this.updateBackgroundCanvas(false);
-  }
-
   setRulerVscodeContext() {
     const maxTime   = (10 ** logScaleFromUnits(this.timeUnit)) * this.timeScale * this.timeStop;
     const context: RulerContext = {
       webviewSection: 'ruler',
       preventDefaultContextMenuItems: true,
-      rulerLines: this.rulerLines,
-      fillBitVector: styles.fillMultiBitValues,
+      rulerLines: config.rulerLines,
+      fillBitVector: config.fillMultiBitValues,
+      enableAnimations: config.enableAnimations,
       fs: maxTime >= (10 ** logScaleFromUnits('fs')),
       ps: maxTime >= (10 ** logScaleFromUnits('ps')),
       ns: maxTime >= (10 ** logScaleFromUnits('ns')),
@@ -755,7 +746,7 @@ export class Viewport {
     ctx.clearRect(0, 0, this.viewerWidth, this.viewerHeight);
 
     // Ruler Lines
-    if (this.rulerLines) {
+    if (config.rulerLines) {
       this.rulerLineX.forEach(([x, alpha]) => {
         ctx.globalAlpha = alpha;
         ctx.beginPath();
@@ -904,63 +895,63 @@ export class Viewport {
     this.redrawViewport();
   }
 
+  private animate(callback: (progress: number) => void): Promise<void> {
+    return new Promise((resolve) => {
+      let startTime: number | null = null;
+  
+      const frame = (timestamp: number) => {
+        if (startTime === null) startTime = timestamp;
+        const progress = Math.min((timestamp - startTime) / config.animationDuration, 1);
+  
+        callback(progress);
+  
+        if (progress < 1) {
+          requestAnimationFrame(frame);
+        } else {
+          resolve();
+        }
+      };
+  
+      requestAnimationFrame(frame);
+    });
+  }
+
   async animateZoomRange(t1: number, t2: number) {
     const timeStart = Math.min(t1, t2);
-    const timeEnd = Math.max(t1, t2);
-
-    if (!this.enableAnimations) {
+    const timeEnd   = Math.max(t1, t2);
+  
+    if (!config.enableAnimations) {
       this.setViewportRange(timeStart, timeEnd);
       return;
     }
-
-    let progress = 0;
-    const startTime = Date.now();
+  
     const pixelTimeStart = (timeStart - this.timeScrollLeft) * this.zoomRatio;
-    const pixelTimeEnd = (timeEnd - this.timeScrollLeft) * this.zoomRatio;
-    const pixelDelta = this.viewerWidth - pixelTimeEnd;
-    const deltaTime = timeEnd - timeStart;
-
-
-    while (progress < 1) {
-      await new Promise((resolve) => {
-        requestAnimationFrame(() => {
-          progress = Math.min((Date.now() - startTime) / this.animationDuration, 1);
-
-          const newPixelTimeStart = pixelTimeStart - (pixelTimeStart * progress);
-          const newPixelTimeEnd = pixelTimeEnd + (pixelDelta * progress);
-          const newPixelTime = deltaTime / (newPixelTimeEnd - newPixelTimeStart);
-          const newTimeStart = timeStart - (newPixelTimeStart * newPixelTime);
-          const newTimeEnd = timeEnd + ((this.viewerWidth - newPixelTimeEnd) * newPixelTime);
-          this.setViewportRange(newTimeStart, newTimeEnd);
-          resolve(void 0);
-        });
-      });
-    }
+    const pixelTimeEnd   = (timeEnd   - this.timeScrollLeft) * this.zoomRatio;
+    const pixelDelta     = this.viewerWidth - pixelTimeEnd;
+    const deltaTime      = timeEnd - timeStart;
+  
+    await this.animate((progress) => {
+      const newPixelTimeStart = pixelTimeStart - (pixelTimeStart * progress);
+      const newPixelTimeEnd   = pixelTimeEnd   + (pixelDelta * progress);
+      const newPixelTime      = deltaTime / (newPixelTimeEnd   - newPixelTimeStart);
+      const newTimeStart      = timeStart - (newPixelTimeStart * newPixelTime);
+      const newTimeEnd        = timeEnd + ((this.viewerWidth - newPixelTimeEnd) * newPixelTime);
+      this.setViewportRange(newTimeStart, newTimeEnd);
+    });
   }
 
   async animateZoom(amount: number, zoomOrigin: number, screenPosition: number) {
-    if (!this.enableAnimations) {
+    if (!config.enableAnimations) {
       this.handleZoom(amount, zoomOrigin, screenPosition);
       return;
     }
-    
-    const startTime = Date.now();
-    let progress = 0;
+  
     let totalZoomAmount = 0;
-    let zoomAmount = amount;
-
-    while (progress < 1) {
-      await new Promise((resolve) => {
-        requestAnimationFrame((timestamp) => {
-          //console.log('timestamp', timestamp);
-          progress = Math.min((Date.now() - startTime) / this.animationDuration, 1);
-          const partialZoomAmount = (zoomAmount * progress) - totalZoomAmount;
-          totalZoomAmount += partialZoomAmount;
-          this.handleZoom(partialZoomAmount, zoomOrigin, screenPosition);
-          resolve(void 0);
-        });
-      });
-    }
+    await this.animate((progress) => {
+      const partialZoomAmount = (amount * progress) - totalZoomAmount;
+      totalZoomAmount += partialZoomAmount;
+      this.handleZoom(partialZoomAmount, zoomOrigin, screenPosition);
+    });
   }
 
   redrawViewport() {

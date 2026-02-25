@@ -7,7 +7,7 @@ import { RowHandler } from './row_handler';
 import { WaveformDataManager } from './data_manager';
 import { NetlistVariable, CustomVariable, SignalGroup, SignalSeparator, type RowItem } from './signal_item';
 import { copyWaveDrom } from './wavedrom';
-import { ThemeColors, VscodeWrapper } from './vscode_wrapper';
+import { Configuration, ThemeColors, VscodeWrapper } from './vscode_wrapper';
 
 export enum DataType {
   None,
@@ -53,8 +53,6 @@ export interface ViewerState {
   visibleSignalsFlat: RowId[]
   zoomRatio: number;
   scrollLeft: number;
-  touchpadScrolling: boolean;
-  autoTouchpadScrolling: boolean;
   mouseupEventType: MouseUpEventType;
   autoReload: boolean;
 }
@@ -71,8 +69,6 @@ export const viewerState: ViewerState = {
   visibleSignalsFlat: [],
   zoomRatio: 1,
   scrollLeft: 0,
-  touchpadScrolling: false,
-  autoTouchpadScrolling: false,
   mouseupEventType: MouseUpEventType.None,
   autoReload: false,
 };
@@ -381,7 +377,7 @@ class VaporviewWebview {
     const deltaY = e.deltaY;
     const deltaX = e.deltaX;
     const touchpadScrollDivisor = 18;
-    const mouseMode = !viewerState.autoTouchpadScrolling && !viewerState.touchpadScrolling;
+    const mouseMode = !config.autoTouchpadScrolling && !config.touchpadScrolling;
 
     if (e.shiftKey) {
       e.stopPropagation();
@@ -417,7 +413,7 @@ class VaporviewWebview {
       //  this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + deltaY);
       //}
 
-      const isTouchpad = viewerState.autoTouchpadScrolling ? this.isTouchpad(e) : viewerState.touchpadScrolling;
+      const isTouchpad = config.autoTouchpadScrolling ? this.isTouchpad(e) : config.touchpadScrolling;
       this.touchpadCheckTimer = performance.now() + 100;
 
       if (e.deltaX !== 0 || isTouchpad) {
@@ -682,6 +678,7 @@ export function unload() {
 
 export const events        = new EventHandler();
 export const styles        = new ThemeColors(events);
+export const config        = new Configuration();
 export const vscodeWrapper = new VscodeWrapper(events);
 export const dataManager   = new WaveformDataManager(events);
 export const rowHandler    = new RowHandler(events);

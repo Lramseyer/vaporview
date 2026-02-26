@@ -155,10 +155,11 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     const drawColor     = netlistData.color;
     const xzColor       = styles.xzColor;
     const fillShape     = config.fillMultiBitValues;
-    //const minYPosition  = halfCanvasHeight / viewport.zoomRatio;
+    const fixedHeight   = config.multiBitFixedHeight;
+    const minYPosition  = fixedHeight ? halfCanvasHeight / viewport.zoomRatio : 0;
     let lastDrawTime    = 0;
     let parsedValue;
-    //const noDrawRanges: any[] = [];
+    const noDrawRanges: any[] = [];
 
     for (let i = startIndex; i < endIndex; i++) {
 
@@ -174,13 +175,13 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
           points.push([adjustedTime, 0]);
           endPoints.push([adjustedTime, 0]);
           moveCursor = false;
-          //noDrawRanges.push([lastDrawTime, adjustedTime]);
+          noDrawRanges.push([lastDrawTime, adjustedTime]);
         }
 
         is4State  = valueIs9State(value);
         xPosition = (elementWidth / 2) + adjustedTime;
-        yPosition =  elementWidth * 2;
-        //yPosition =  Math.max(elementWidth * 2, minYPosition);
+        //yPosition =  elementWidth * 2;
+        yPosition =  Math.max(elementWidth * 2, minYPosition);
         if (is4State) {
           xzPoints.push([[adjustedTime, 0], [xPosition, yPosition], [adjustedTimeEnd, 0], [xPosition, -yPosition]]);
         } else {
@@ -228,17 +229,18 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
         points.push([adjustedTime, 0]);
         endPoints.push([adjustedTime, 0]);
         moveCursor = false;
-        //noDrawRanges.push([lastDrawTime, adjustedTime]);
+        noDrawRanges.push([lastDrawTime, adjustedTime]);
       }
 
       xPosition = (elementWidth / 2) + adjustedTime;
+      yPosition =  Math.max(elementWidth * 2, minYPosition);
       is4State  = valueIs9State(value);
       if (is4State) {
-        xzPoints.push([[adjustedTime, 0], [xPosition, elementWidth * 2], [adjustedTimeEnd, 0], [xPosition, -elementWidth * 2]]);
+        xzPoints.push([[adjustedTime, 0], [xPosition, yPosition], [adjustedTimeEnd, 0], [xPosition, -yPosition]]);
       } else {
-        points.push([xPosition, elementWidth * 2]);
+        points.push([xPosition, yPosition]);
         points.push([adjustedTimeEnd, 0]);
-        endPoints.push([xPosition, -elementWidth * 2]);
+        endPoints.push([xPosition, -yPosition]);
       }
     }
 
@@ -256,15 +258,17 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     ctx.translate(0, halfCanvasHeight);
 
     // No Draw Line
-    ctx.strokeStyle = drawColor;
-    //if (fillShape) {
-    //  this.busValueNoDraw(ctx, 0.4, 3, viewport.viewerWidth);
-    //  this.busValueNoDraw(ctx, 0.8, 1, viewport.viewerWidth);
-    //} else {
-      this.busValueNoDraw(ctx, 0.5, 6, viewport.viewerWidth);
-      this.busValueNoDraw(ctx, 1, 5, viewport.viewerWidth);
-    //}
-    ctx.moveTo(0, 0);
+    if (!fixedHeight) {
+      ctx.strokeStyle = drawColor;
+      //if (fillShape) {
+      //  this.busValueNoDraw(ctx, 0.4, 3, viewport.viewerWidth);
+      //  this.busValueNoDraw(ctx, 0.8, 1, viewport.viewerWidth);
+      //} else {
+        this.busValueNoDraw(ctx, 0.5, 6, viewport.viewerWidth);
+        this.busValueNoDraw(ctx, 1, 5, viewport.viewerWidth);
+      //}
+      ctx.moveTo(0, 0);
+    }
 
     // Draw diamonds
     ctx.restore();
@@ -280,25 +284,29 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     if (fillShape) {
       ctx.fillStyle = drawColor;
       ctx.fill();
+      ctx.restore();
+      ctx.save();
+      ctx.strokeStyle = drawColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
     } else {
       this.outlineBusValue(ctx, drawColor, canvasHeight);
-      ctx.translate(0.5, halfCanvasHeight);
-      ctx.transform(viewport.zoomRatio, 0, 0, viewport.zoomRatio, 0, 0);
     }
 
-    //const gradient = ctx.createLinearGradient(0, 2 * minYPosition, 0, -2 * minYPosition);
-    //gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
-    //gradient.addColorStop(0.5, drawColor);
-    //gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-    //ctx.fillStyle = gradient;
-    //ctx.beginPath();
-    //noDrawRanges.forEach(([start, end]) => {
-    //  ctx.moveTo(start, minYPosition);
-    //  ctx.lineTo(end, minYPosition);
-    //  ctx.lineTo(end, -minYPosition);
-    //  ctx.lineTo(start, -minYPosition);
-    //});
-    //ctx.fill();
+    ctx.translate(0.5, halfCanvasHeight);
+    ctx.transform(viewport.zoomRatio, 0, 0, viewport.zoomRatio, 0, 0);
+
+    if (fixedHeight) {
+      ctx.fillStyle = drawColor;
+      ctx.beginPath();
+      noDrawRanges.forEach(([start, end]) => {
+        ctx.moveTo(start, minYPosition);
+        ctx.lineTo(end, minYPosition);
+        ctx.lineTo(end, -minYPosition);
+        ctx.lineTo(start, -minYPosition);
+      });
+      ctx.fill();
+    }
 
     // Draw non-2-state values
     ctx.beginPath();
@@ -314,6 +322,9 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
       ctx.fillStyle = xzColor;
       ctx.fill();
       ctx.restore();
+      ctx.strokeStyle = xzColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
     } else {
       this.outlineBusValue(ctx, xzColor, canvasHeight);
     }
@@ -562,7 +573,8 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariabl
   let initialValue2state = initialValue;
   let initialTime        = initialState[0];
   let initialTimeOrStart = Math.max(initialState[0], -10);
-  const minDrawWidth     = viewport.pixelTime / (viewport.pixelRatio * 4);
+  const minFeatureSize   = viewport.pixelTime / (viewport.pixelRatio * 4);
+  const minDrawWidth     = config.disableAnalogRendererOptimizations ? 0 : minFeatureSize;
   const timeScrollLeft   = viewport.timeScrollLeft;
   const timeScrollRight  = viewport.timeScrollRight - timeScrollLeft;
   const xzPath: any[]    = [];

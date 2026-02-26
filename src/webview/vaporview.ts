@@ -7,7 +7,7 @@ import { RowHandler } from './row_handler';
 import { WaveformDataManager } from './data_manager';
 import { NetlistVariable, CustomVariable, SignalGroup, SignalSeparator, type RowItem } from './signal_item';
 import { copyWaveDrom } from './wavedrom';
-import { Configuration, ThemeColors, VscodeWrapper } from './vscode_wrapper';
+import { Configuration, OS, ThemeColors, VscodeWrapper } from './vscode_wrapper';
 
 export enum DataType {
   None,
@@ -384,11 +384,11 @@ class VaporviewWebview {
       this.scrollArea.scrollTop      += deltaY || deltaX;
       this.labelsScroll.scrollTop     = this.scrollArea.scrollTop;
       this.valuesScroll.scrollTop = this.scrollArea.scrollTop;
-    } else if (e.ctrlKey) {
+    } else if (e.ctrlKey || (e.metaKey && config.os === OS.Mac)) {
       if      (this.viewport.updatePending) {return;}
       // Touchpad mode detection returns false positives with pinches, so we
       // just clamp the deltaY value to prevent zooming in/out too fast
-      const bounds      = this.scrollArea.getBoundingClientRect();
+      const bounds      = viewport.scrollAreaBounds;
       const pixelLeft   = Math.round(e.pageX - bounds.left);
       const time        = Math.round((pixelLeft + this.viewport.pseudoScrollLeft) * this.viewport.pixelTime);
       const zoomOffset  = Math.min(touchpadScrollDivisor, Math.max(-touchpadScrollDivisor, deltaY));

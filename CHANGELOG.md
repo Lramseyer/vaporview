@@ -2,7 +2,9 @@
 
 ## 1.5.1 - Upcoming Release
 
+- Added Netlist search functionality to search by instance path
 - Added Zoom animations for highlight zoom (configurable in settings)
+- Added Cmd + Scroll to zoom on Mac OS
 
 # 1.5.0 - 2/25/2026 - Latest Release
 

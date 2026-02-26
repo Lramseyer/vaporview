@@ -12,6 +12,12 @@ interface VsCodeApi {
   getState(): any;
 }
 
+export enum OS {
+  Mac,
+  Windows,
+  Linux,
+  Unknown
+}
 
 // This object tracks extension settings that pertain to the webview
 // Settings are registered in the following places:
@@ -25,6 +31,11 @@ export class Configuration {
   fillMultiBitValues: boolean    = false;
   enableAnimations: boolean      = true;
   animationDuration: number      = 50;
+  os: OS                         = OS.Unknown;
+
+  constructor() {
+    this.os = this.getOS();
+  }
 
   setConfigSettings(settings: any) {
     if (settings.scrollingMode !== undefined) {
@@ -50,6 +61,15 @@ export class Configuration {
       styles.customColorKey = settings.customColors;
     }
     viewport.setRulerVscodeContext();
+  }
+
+  getOS(): OS {
+    const platform = navigator.userAgent ?? "";
+    console.log('platform', platform);
+    if (/mac/i.test(platform))     return OS.Mac;
+    if (/win/i.test(platform))     return OS.Windows;
+    if (/linux/i.test(platform))   return OS.Linux;
+    return OS.Unknown;
   }
 }
 

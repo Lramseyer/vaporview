@@ -183,24 +183,34 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   public setConfigurationSettings() {
-    const scrollingMode      = vscode.workspace.getConfiguration('vaporview').get('scrollingMode');
-    const rulerLines         = vscode.workspace.getConfiguration('vaporview').get('showRulerLines');
-    const fillMultiBitValues = vscode.workspace.getConfiguration('vaporview').get('fillMultiBitValues');
-    const enableAnimations   = vscode.workspace.getConfiguration('vaporview').get('enableAnimations');
-    const animationDuration  = vscode.workspace.getConfiguration('vaporview').get('animationDuration');
+    const config = vscode.workspace.getConfiguration('vaporview');
 
-    const color1 = vscode.workspace.getConfiguration('vaporview').get('customColor1');
-    const color2 = vscode.workspace.getConfiguration('vaporview').get('customColor2');
-    const color3 = vscode.workspace.getConfiguration('vaporview').get('customColor3');
-    const color4 = vscode.workspace.getConfiguration('vaporview').get('customColor4');
+    const scrollingMode            = config.get('scrollingMode');
+    const rulerLines               = config.get('showRulerLines');
+    const fillMultiBitValues       = config.get('fillMultiBitValues');
+    const multiBitFixedHeight      = config.get('multiBitFixedHeight');
+    const enableAnimations         = config.get('enableAnimations');
+    const animationDuration        = config.get('animationDuration');
+    const overrideDevicePixelRatio = config.get('overrideDevicePixelRatio');
+    const disableOptimizations     = config.get('disableAnalogRendererOptimizations');
+    const userPixelRatio           = config.get('userPixelRatio');
+
+    const color1 = config.get('customColor1');
+    const color2 = config.get('customColor2');
+    const color3 = config.get('customColor3');
+    const color4 = config.get('customColor4');
 
     this.webviewPanel?.webview.postMessage({
       command: 'setConfigSettings',
       scrollingMode: scrollingMode,
       rulerLines: rulerLines,
+      overrideDevicePixelRatio: overrideDevicePixelRatio,
+      userPixelRatio: userPixelRatio,
       fillMultiBitValues: fillMultiBitValues,
+      multiBitFixedHeight: multiBitFixedHeight,
       enableAnimations: enableAnimations,
       animationDuration: animationDuration,
+      disableAnalogRendererOptimizations: disableOptimizations,
       customColors: [color1, color2, color3, color4],
     });
 

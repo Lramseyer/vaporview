@@ -135,6 +135,24 @@
           "scope": "application",
           "description": "Maximum file size (in MB) to load FST files into memory. This is faster, but consumes more memory. Set to 0 to disable."
         },
+        "vaporview.showRulerLines": {
+          "type": "boolean",
+          "default": "true",
+          "scope": "application",
+          "description": "Vertical ruler lines in the waveform viewer."
+        },
+        "vaporview.fillMultiBitValues": {
+          "type": "boolean",
+          "default": "false",
+          "scope": "application",
+          "description": "Multi-bit renderer style - If checked, fills the value box with color. If unchecked, only the outline is drawn."
+        },
+        "vaporview.multiBitFixedHeight": {
+          "type": "boolean",
+          "default": "true",
+          "scope": "application",
+          "description": "Bit vector renderer style - If checked, multi-bit signals are drawn with a fixed height. If unchecked, short transitions are drawn with a smaller height."
+        },
         "vaporview.enableAnimations": {
           "type": "boolean",
           "default": true,
@@ -148,6 +166,26 @@
           "maximum": 500,
           "scope": "application",
           "description": "Animation duration in milliseconds."
+        },
+        "vaporview.overrideDevicePixelRatio": {
+          "type": "boolean",
+          "default": false,
+          "scope": "application",
+          "description": "Recommended: false (unchecked) - Override the device pixel ratio for the waveform viewer. This can be used to improve performance on high-DPI displays, or correct for incorrect device pixel ratio detection."
+        },
+        "vaporview.userPixelRatio": {
+          "type": "number",
+          "default": 1,
+          "minimum": 0.1,
+          "maximum": 10,
+          "scope": "application",
+          "description": "Device pixel ratio for the waveform viewer. This is only used if 'Override Device Pixel Ratio' is enabled."
+        },
+        "vaporview.disableAnalogRendererOptimizations": {
+          "type": "boolean",
+          "default": false,
+          "scope": "application",
+          "description": "Recommended: false (unchecked) - Disable optimizations for the analog renderer. This may reduce rendering performance."
         },
         "vaporview.enableInstancePathTerminalLinks": {
           "type": "boolean",
@@ -165,18 +203,6 @@
           "default": "Mouse",
           "scope": "application",
           "description": "Scrolling mode for the waveform viewer. Options: 'mouse' (default), 'touch'."
-        },
-        "vaporview.showRulerLines": {
-          "type": "boolean",
-          "default": "true",
-          "scope": "application",
-          "description": "Vertical ruler lines in the waveform viewer."
-        },
-        "vaporview.fillMultiBitValues": {
-          "type": "boolean",
-          "default": "false",
-          "scope": "application",
-          "description": "Multi-bit renderer style - If checked, fills the value box with color. If unchecked, only the outline is drawn."
         },
         "vaporview.sortNetlist": {
           "type": "boolean",

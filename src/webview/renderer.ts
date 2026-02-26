@@ -257,13 +257,13 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
 
     // No Draw Line
     ctx.strokeStyle = drawColor;
-    if (fillShape) {
-      this.busValueNoDraw(ctx, 0.4, 3, viewport.viewerWidth);
-      this.busValueNoDraw(ctx, 0.8, 1, viewport.viewerWidth);
-    } else {
+    //if (fillShape) {
+    //  this.busValueNoDraw(ctx, 0.4, 3, viewport.viewerWidth);
+    //  this.busValueNoDraw(ctx, 0.8, 1, viewport.viewerWidth);
+    //} else {
       this.busValueNoDraw(ctx, 0.5, 6, viewport.viewerWidth);
       this.busValueNoDraw(ctx, 1, 5, viewport.viewerWidth);
-    }
+    //}
     ctx.moveTo(0, 0);
 
     // Draw diamonds

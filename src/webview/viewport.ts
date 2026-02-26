@@ -172,7 +172,7 @@ export class Viewport {
   }
 
   initViewport(metadata: any) {
-    this.pixelRatio      = window.devicePixelRatio || 1;
+    this.setPixelRatio();
     this.defaultZoom     = metadata.defaultZoom;
     this.zoomRatio       = metadata.defaultZoom;
     this.pixelTime       = 1 / this.zoomRatio;
@@ -194,6 +194,14 @@ export class Viewport {
 
   async handleColorChange() {
     this.redrawViewport();
+  }
+
+  setPixelRatio() {
+    if (config.overrideDevicePixelRatio) {
+      this.pixelRatio = config.userPixelRatio || 1;
+    } else {
+      this.pixelRatio = window.devicePixelRatio || 1;
+    }
   }
 
   setRulerVscodeContext() {
@@ -990,7 +998,7 @@ export class Viewport {
 
   updateViewportWidth() {
 
-    this.pixelRatio       = window.devicePixelRatio || 1;
+    this.setPixelRatio();
     this.scrollbarCanvasElement.setAttribute("width",  `0`);
     this.scrollbarCanvasElement.style.width  = `0px`;
     this.scrollAreaBounds = this.scrollArea.getBoundingClientRect();;

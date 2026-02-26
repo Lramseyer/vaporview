@@ -25,13 +25,17 @@ export enum OS {
 // - extension_core/document.ts - setConfigurationSettings()
 // - here - setConfigSettings()
 export class Configuration {
-  touchpadScrolling: boolean     = false;
-  autoTouchpadScrolling: boolean = false;
-  rulerLines: boolean            = true;
-  fillMultiBitValues: boolean    = false;
-  enableAnimations: boolean      = true;
-  animationDuration: number      = 50;
-  os: OS                         = OS.Unknown;
+  touchpadScrolling: boolean        = false;
+  autoTouchpadScrolling: boolean    = false;
+  rulerLines: boolean               = true;
+  fillMultiBitValues: boolean       = false;
+  multiBitFixedHeight: boolean      = true;
+  enableAnimations: boolean         = true;
+  animationDuration: number         = 50;
+  overrideDevicePixelRatio: boolean = false;
+  userPixelRatio: number            = 1;
+  disableAnalogRendererOptimizations: boolean = false;
+  os: OS                            = OS.Unknown;
 
   constructor() {
     this.os = this.getOS();
@@ -47,18 +51,48 @@ export class Configuration {
         viewport.updateBackgroundCanvas(false);
       }
     }
+
+    // Renderer Settings
     if (settings.fillMultiBitValues !== undefined) {
       this.fillMultiBitValues = settings.fillMultiBitValues;
       viewport.renderAllWaveforms(true);
     }
+
+    if (settings.multiBitFixedHeight !== undefined) {
+      this.multiBitFixedHeight = settings.multiBitFixedHeight;
+      viewport.renderAllWaveforms(true);
+    }
+
+    if (settings.disableAnalogRendererOptimizations !== undefined) {
+      this.disableAnalogRendererOptimizations = settings.disableAnalogRendererOptimizations;
+    }
+
+    // Animation Settings
     if (settings.enableAnimations !== undefined) {
       this.enableAnimations = settings.enableAnimations;
     }
     if (settings.animationDuration !== undefined) {
       this.animationDuration = settings.animationDuration;
     }
+
+    // Custom Colors
     if (settings.customColors !== undefined) {
       styles.customColorKey = settings.customColors;
+    }
+
+    // Pixel Ratio
+    const oldPixelRatio = viewport.pixelRatio;
+    if (settings.overrideDevicePixelRatio !== undefined) {
+      config.overrideDevicePixelRatio = settings.overrideDevicePixelRatio;
+      viewport.setPixelRatio();
+    }
+    if (settings.userPixelRatio !== undefined) {
+      config.userPixelRatio = settings.userPixelRatio;
+      viewport.setPixelRatio();
+    }
+    if (oldPixelRatio !== viewport.pixelRatio) {
+      // this is an expensive operation, so only do it if the pixel ratio changed
+      viewport.updateViewportWidth();
     }
     viewport.setRulerVscodeContext();
   }

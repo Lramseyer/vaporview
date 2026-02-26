@@ -188,7 +188,7 @@ export class RowHandler {
     return rowIdList;
   }
 
-  createUniquGroupName(name: string, parentGroupId: number): string {
+  createUniqueGroupName(name: string, parentGroupId: number): string {
     let groupName = name;
     let n = 1;
     if (this.findGroupIdByName(groupName, parentGroupId) == -1) {
@@ -236,7 +236,7 @@ export class RowHandler {
       groupName = "Group " + groupId;
     }
 
-    groupName = this.createUniquGroupName(groupName, parentGroupId);
+    groupName = this.createUniqueGroupName(groupName, parentGroupId);
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowId);
     const groupItem = new SignalGroup(rowId, groupName, groupId);
     this.groupIdTable[groupId] = rowId;
@@ -468,7 +468,7 @@ export class RowHandler {
         const rowIdList = this.addVariable([signal], undefined, parentGroupId, undefined);
         const rowId     = rowIdList[0];
         const displayFormat = Object.assign({rowId: rowId}, signal);
-        this.setDisplayFormat(displayFormat);
+        this.setDisplayFormat(displayFormat, true);
       } else if (signal.dataType === 'custom-variable') {
         //console.log('addCustomVariable', signal);
         const bitRange = signal.source[0];
@@ -478,7 +478,7 @@ export class RowHandler {
         const rowId    = this.addCustomVariable(name, undefined, parentGroupId, undefined, undefined, msb, lsb, bitRange);
         if (rowId === undefined) {return;}
         const displayFormat = Object.assign({rowId: rowId}, signal);
-        this.setDisplayFormat(displayFormat);
+        this.setDisplayFormat(displayFormat, true);
       }
     });
   }
@@ -839,7 +839,7 @@ export class RowHandler {
     //console.log(filteredRowIdList);
   }
 
-  setDisplayFormat(message: any) {
+  setDisplayFormat(message: any, ignoreSelection: boolean) {
 
     const netlistId = message.netlistId;
     let rowId = message.rowId;
@@ -858,7 +858,7 @@ export class RowHandler {
     let updateSelected = false;
     let rowIdList = [rowId];
     let redrawList = [rowId];
-    if (viewerState.selectedSignal.includes(rowId)) {
+    if (viewerState.selectedSignal.includes(rowId) && !ignoreSelection) {
       rowIdList = viewerState.selectedSignal;
       updateSelected = true;
     }

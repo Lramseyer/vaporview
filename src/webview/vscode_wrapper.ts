@@ -238,7 +238,7 @@ export class VscodeWrapper {
       case 'add-bit-slice':         {rowHandler.addCustomVariable(message.name, message.groupPath, message.parentGroupId, message.eventRowId, undefined, message.msb, message.lsb, undefined); break;}
       case 'add-all-bit-slices':    {rowHandler.addAllBitSlices(message.name, message.groupPath, message.parentGroupId, message.eventRowId); break;}
       case 'newSignalGroup':        {rowHandler.addSignalGroup(message.groupName, message.groupPath, message.parentGroupId, message.eventRowId, message.moveSelected, message.showRenameInput); break;}
-      case 'setDisplayFormat':      {rowHandler.setDisplayFormat(message); break;}
+      case 'setDisplayFormat':      {rowHandler.setDisplayFormat(message, false); break;}
       case 'renameSignalGroup':     {rowHandler.renameSignalGroup(message.rowId, message.groupName); break;}
       case 'editSignalGroup':       {rowHandler.editSignalGroup(message); break;}
       case 'remove-signal':         {rowHandler.removeVariable(message.netlistId, message.rowId, message.removeAllSelected); break;}

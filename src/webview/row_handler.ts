@@ -326,6 +326,7 @@ export class RowHandler {
 
     if (!(sourceSignalItem instanceof NetlistVariable)) {return;}
     if (lsb >= sourceSignalItem.signalWidth) {return;}
+    if (msb >= sourceSignalItem.signalWidth) {return;}
     const sourceSignalId = sourceSignalItem.signalId;
 
     // Create custom signal

@@ -1131,8 +1131,8 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         groupPath: groupPath,
         parentGroupId: parentGroupId,
         eventRowId: eventRowId,
-        msb: Math.max(msb, lsb),
-        lsb: Math.min(msb, lsb),
+        msb: msb,
+        lsb: lsb,
       });
     }
   }

@@ -10,6 +10,7 @@
   - Disable Analog Renderer optimizations
   - Override window.devicePixelRatio
   - Multi bit - preserve height vs preserve shape
+- Allow for bit slices to be reversed
 
 # 1.5.0 - 2/25/2026 - Latest Release
 

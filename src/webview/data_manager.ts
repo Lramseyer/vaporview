@@ -391,9 +391,12 @@ export class WaveformDataManager {
     }
     const signalWidth = this.valueChangeData[signalId].signalWidth;
     const valueChangeData = this.valueChangeData[signalId].valueChangeData;
-    let sliceStart = signalWidth - source.msb - 1;
-    const sliceEnd = signalWidth - source.lsb;
-    let nullValue   = "";
+    const upperBit = Math.max(source.msb, source.lsb);
+    const lowerBit = Math.min(source.msb, source.lsb);
+    const reverse  = source.msb < source.lsb;
+    let sliceStart = signalWidth - upperBit - 1;
+    const sliceEnd = signalWidth - lowerBit;
+    let nullValue  = "";
     if (sliceStart < 0) {
       nullValue = "x".repeat(-sliceStart);
       sliceStart = 0;
@@ -404,7 +407,10 @@ export class WaveformDataManager {
     let previousValue = nullValue;
     valueChangeData.forEach((valueChange) => {
       const time = valueChange[0];
-      const value = nullValue + valueChange[1].slice(sliceStart, sliceEnd);
+      let value  = nullValue + valueChange[1].slice(sliceStart, sliceEnd);
+      if (reverse) {
+        value = value.split("").reverse().join("");
+      }
       if (value !== previousValue) {
         result.push([time, value]);
         previousValue = value;

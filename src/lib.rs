@@ -12,8 +12,7 @@ use lazy_static::lazy_static;
 use std::sync::Mutex;
 use std::sync::Arc;
 use std::cmp::max;
-use std::collections::HashSet;
-use wellen::{FileFormat, Hierarchy, ScopeRef, Signal, SignalRef, SignalSource, TimeTable, TimescaleUnit, WellenError, VarRef, Var, Scope};
+use wellen::{FileFormat, Hierarchy, ScopeOrVar, ScopeRef, Signal, SignalRef, SignalSource, TimeTable, TimescaleUnit, WellenError, VarRef, Var, Scope};
 use wellen::viewers::{read_body, read_header, ReadBodyContinuation, HeaderResult};
 use wellen::LoadOptions;
 use core::ops::Index;
@@ -428,7 +427,7 @@ fn search<'h>(
   scope_path: Vec<&str>,
   iter_scopes: impl Iterator<Item = &'h Scope>,
   iter_vars: Option<impl Iterator<Item = &'h Var>>,
-  results: &mut Vec<SearchEntry>,
+  search_results: &mut Vec<ScopeOrVar<'h>>,
 ) {
 
   if scope_path.is_empty() { return; }
@@ -440,7 +439,7 @@ fn search<'h>(
     let name = scope_data.name(hierarchy).to_string().to_lowercase();
     if name.contains(&search_string) {
       if search_depth == 0 {
-        results.push(scope_search_entry(scope_data, hierarchy));
+        search_results.push(ScopeOrVar::Scope(scope_data));
       } else {
         // Collect children before recursing to avoid overlapping borrows
         let search_scope_path = new_scope_path.clone();
@@ -454,7 +453,7 @@ fn search<'h>(
             .collect();
           child_vars = Some(var_iter);
         }
-        search(hierarchy, search_scope_path, child_scopes.into_iter(), child_vars.map(|v| v.into_iter()), results);
+        search(hierarchy, search_scope_path, child_scopes.into_iter(), child_vars.map(|v| v.into_iter()), search_results);
       }
     }
   }
@@ -464,7 +463,7 @@ fn search<'h>(
     for var_data in iter_vars {
       let name = var_data.name(hierarchy).to_string().to_lowercase();
       if name.contains(&search_string) {
-        results.push(var_search_entry(var_data, hierarchy));
+        search_results.push(ScopeOrVar::Var(var_data));
       }
     }
   }
@@ -923,8 +922,6 @@ impl Guest for Filecontext {
 
   }
 
-
-  // TODO: This is a vibe coded placeholder for the searchnetlist function
   fn searchnetlist(searchquery: String) -> String {
     let global_hierarchy = _hierarchy.lock().unwrap();
     let hierarchy = global_hierarchy.as_ref().unwrap();
@@ -934,7 +931,7 @@ impl Guest for Filecontext {
       return empty_result;
     }
 
-    let mut search_results: Vec<SearchEntry> = Vec::new();
+    let mut search_results: Vec<ScopeOrVar> = Vec::new();
     let lower_query = searchquery.to_lowercase();
     let scope_path = lower_query.split(".").collect::<Vec<&str>>();
 
@@ -943,11 +940,19 @@ impl Guest for Filecontext {
     if scope_path.len() == 1 {
       all_vars = Some(hierarchy.iter_vars());
     }
+
     search(hierarchy, scope_path, all_scopes, all_vars, &mut search_results);
 
     let total = search_results.len();
     let return_amount = std::cmp::min(total, 100);
-    let results_slice = search_results[0..return_amount].to_vec();
+    let results_slice = search_results.iter()
+      .take(return_amount)
+      .map(|s| {
+        match s {
+          ScopeOrVar::Scope(s) => {scope_search_entry(s, hierarchy)},
+          ScopeOrVar::Var(v) => {var_search_entry(v, hierarchy)},
+        }
+      }).collect::<Vec<SearchEntry>>();
     let result: SearchResult = SearchResult { total_results: total, search_results: results_slice };
     serde_json::to_string(&result).unwrap_or_else(|_| empty_result)
   }

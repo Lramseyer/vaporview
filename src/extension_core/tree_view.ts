@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { NetlistId, SignalId, VariableEncoding } from '../common/types';
-import { bitRangeString, createInstancePath } from '../common/functions';
+import { bitRangeString, createInstancePath, parseParamValue } from '../common/functions';
 import type { VaporviewDocument } from './document';
 import { WaveformViewerProvider } from './viewer_provider';
 
@@ -321,7 +321,7 @@ export class NetlistItem extends vscode.TreeItem {
 
   setParamAndTooltip(paramValue: string) {
     this.paramValue  = paramValue;
-    this.description = (paramValue !== "") ? parseInt(paramValue, 2).toString(10) : "";
+    this.description = parseParamValue(paramValue);
     this.tooltip     = "Name: " + this.instancePath() + "\n" + "Type: " + this.type + "\n";
 
     if (this.collapsibleState === vscode.TreeItemCollapsibleState.None) {

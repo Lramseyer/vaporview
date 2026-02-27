@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type EnumQueueEntry, type DocumentId, type SavedRowItem, VariableEncoding, type BitRangeSource } from '../common/types';
-import { bitRangeString, logScaleFromUnits, toStringWithCommas } from '../common/functions';
+import { bitRangeString, logScaleFromUnits, parseParamValue, toStringWithCommas } from '../common/functions';
 import { NetlistLinkProvider } from './terminal_links';
 import * as path from 'path';
 import type { VaporviewDocumentCollection, VaporviewDocumentDelegate } from './viewer_provider';
@@ -769,7 +769,7 @@ export class NetlistSearchQuickPick {
     this.quickPick.items = searchResult.searchResults.map(result => {
       const icon       = result.isVar ? getVarIcon(result.type) : getScopeIcon(result.type);
       const bitRange   = result.isVar ? bitRangeString(result.msb, result.lsb) : "";
-      const paramValue = result.paramValue ? ` = ${result.paramValue}` : "";
+      const paramValue = result.paramValue ? ": " + parseParamValue(result.paramValue) : "";
       return {
         label: result.instancePath + bitRange,
         description: result.type + paramValue,

@@ -621,13 +621,10 @@ export class WaveformDataManager {
 
     if (time === null) {return -1;}
   
-    const data            = waveforms.valueChangeData;
-    const transitionIndex = this.binarySearch(data, time);
+    const data  = waveforms.valueChangeData;
+    const index = this.binarySearch(data, time);
   
-    if (transitionIndex >= data.length) {
-      return -1;
-    }
-  
-    return transitionIndex;
+    if (index >= data.length) {return -1;}
+    return index;
   }
 }

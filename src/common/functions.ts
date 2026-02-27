@@ -16,6 +16,12 @@ export function toStringWithCommas(n: number): string {
   return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
+export function parseParamValue(paramValue: string): string {
+  if (paramValue === "") {return "";}
+  if (paramValue.match(/[xXzZ]/)) {return paramValue;}
+  return BigInt('0b' + paramValue).toString(10);
+}
+
 export function scaleFromUnits(unit: string | undefined) {
   switch (unit) {
     case 'zs': return 1e-21;

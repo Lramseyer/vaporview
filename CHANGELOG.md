@@ -4,14 +4,15 @@
 
 - Added Netlist search functionality to search by instance path
 - Added Zoom animations for highlight zoom (configurable in settings)
-- Added Cmd + Scroll to zoom on Mac OS
+- Allow for bit slices to be reversed
 - Added User settings for renderer:
   - Animations enabled and duration
   - Disable Analog Renderer optimizations
   - Override window.devicePixelRatio
   - Multi bit - preserve height vs preserve shape
-- Allow for bit slices to be reversed
+- Added Cmd + Scroll to zoom on Mac OS
 - Removed ->X transition at timeEnd (which was not produced by the simulation)
+- Fixed reload bug with multiple instances of a signal
 
 # 1.5.0 - 2/25/2026 - Latest Release
 

@@ -260,13 +260,13 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     // No Draw Line
     if (!fixedHeight) {
       ctx.strokeStyle = drawColor;
-      //if (fillShape) {
-      //  this.busValueNoDraw(ctx, 0.4, 3, viewport.viewerWidth);
-      //  this.busValueNoDraw(ctx, 0.8, 1, viewport.viewerWidth);
-      //} else {
+      if (fillShape) {
+        this.busValueNoDraw(ctx, 0.4, 3, viewport.viewerWidth);
+        this.busValueNoDraw(ctx, 0.8, 1, viewport.viewerWidth);
+      } else {
         this.busValueNoDraw(ctx, 0.5, 6, viewport.viewerWidth);
         this.busValueNoDraw(ctx, 1, 5, viewport.viewerWidth);
-      //}
+      }
       ctx.moveTo(0, 0);
     }
 
@@ -286,9 +286,11 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
       ctx.fill();
       ctx.restore();
       ctx.save();
-      ctx.strokeStyle = drawColor;
-      ctx.lineWidth = 1;
-      ctx.stroke();
+      if (fixedHeight) {
+        ctx.strokeStyle = drawColor;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
     } else {
       this.outlineBusValue(ctx, drawColor, canvasHeight);
     }
@@ -322,9 +324,11 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
       ctx.fillStyle = xzColor;
       ctx.fill();
       ctx.restore();
-      ctx.strokeStyle = xzColor;
-      ctx.lineWidth = 1;
-      ctx.stroke();
+      if (fixedHeight) {
+        ctx.strokeStyle = xzColor;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
     } else {
       this.outlineBusValue(ctx, xzColor, canvasHeight);
     }

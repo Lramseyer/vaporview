@@ -5,12 +5,13 @@
 - Added Netlist search functionality to search by instance path
 - Added Zoom animations for highlight zoom (configurable in settings)
 - Added Cmd + Scroll to zoom on Mac OS
-- Added User settings for renderer
+- Added User settings for renderer:
   - Animations enabled and duration
   - Disable Analog Renderer optimizations
   - Override window.devicePixelRatio
   - Multi bit - preserve height vs preserve shape
 - Allow for bit slices to be reversed
+- Removed ->X transition at timeEnd (which was not produced by the simulation)
 
 # 1.5.0 - 2/25/2026 - Latest Release
 

@@ -431,7 +431,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
 
     const command        = this.valueLinkCommand;
     const signalId       = this.signalId;
-    const index          = dataManager.getNearestTransitionIndex(data, time) - 1;
+    const index          = dataManager.binarySearch(data.valueChangeData, time) - 1;
     const valueChange    = dataManager.valueChangeData[signalId].valueChangeData[index];
     const timeValue      = valueChange[0];
     const value          = valueChange[1];

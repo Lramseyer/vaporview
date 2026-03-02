@@ -289,9 +289,9 @@ export class WaveformDataManager {
     if (valueChangeData[0][0] !== 0) {
       valueChangeData.unshift([0, nullValue]);
     }
-    if (valueChangeData[valueChangeData.length - 1][0] !== viewport.timeStop) {
-      valueChangeData.push([viewport.timeStop, nullValue]);
-    }
+    //if (valueChangeData[valueChangeData.length - 1][0] !== viewport.timeStop) {
+    //  valueChangeData.push([viewport.timeStop, nullValue]);
+    //}
     this.valueChangeData[signalId] = {
       valueChangeData: valueChangeData,
       formattedValues: {},
@@ -518,50 +518,52 @@ export class WaveformDataManager {
     return r;
   }
 
-  public getValueAtTime(data: WaveformData, time: number | null) {
+  public getValueAtTime(waveforms: WaveformData, time: number | null) {
 
     const result: string[] = [];
 
     if (time === null) {return result;}
-    if (!data) {return result;}
+    if (!waveforms) {return result;}
 
-    const valueChangeData  = data.valueChangeData;
-    const transitionIndex = this.getNearestTransitionIndex(data, time);
+    const data   = waveforms.valueChangeData;
+    const index  = this.binarySearch(data, time);
 
-    if (transitionIndex === -1) {return result;}
-    if (transitionIndex > 0) {
-      result.push(valueChangeData[transitionIndex - 1][1]);
+    if (index < data.length && time === data[index][0]) {
+      if (index > 0) {
+        result.push(data[index - 1][1]);
+      }
+      result.push(data[index][1]);
+    } else {
+      const newIndex = Math.max(0, index - 1);
+      result.push(data[newIndex][1]);
     }
-  
-    if (valueChangeData[transitionIndex][0] === time) {
-      result.push(valueChangeData[transitionIndex][1]);
-    }
-  
+
     return result;
   }
 
-  public getNextEdge(data: WaveformData, time: number, direction: number, valueList: string[]): number | null {
-    if (!data) {return null;}
-    const valueChangeData  = data.valueChangeData;
-    const valueChangeIndex = this.getNearestTransitionIndex(data, time);
+  public getNextEdge(waveforms: WaveformData, time: number, direction: number, valueList: string[]): number | null {
+    if (!waveforms) {return null;}
+    const data  = waveforms.valueChangeData;
+    const index = this.binarySearch(data, time);
     let nextEdge: number | null = null;
 
-    if (valueChangeIndex === -1) {return null;}
+    if (index === -1) {return null;}
 
     const anyEdge = valueList.length === 0;
     if (direction === 1) {
-      for (let i = valueChangeIndex; i < valueChangeData.length; i++) {
-        const valueMatch = anyEdge || valueList.includes(valueChangeData[i][1]);
-        if (valueMatch && valueChangeData[i][0] > time) {
-          nextEdge = valueChangeData[i][0];
+      for (let i = index; i < data.length; i++) {
+        const valueMatch = anyEdge || valueList.includes(data[i][1]);
+        if (valueMatch && data[i][0] > time) {
+          nextEdge = data[i][0];
           break;
         }
       }
     } else {
-      for (let i = valueChangeIndex; i >= 0; i--) {
-        const valueMatch = anyEdge || valueList.includes(valueChangeData[i][1]);
-        if (valueMatch && valueChangeData[i][0] < time) {
-          nextEdge = valueChangeData[i][0];
+      let indexStart = Math.min(Math.max(0, index), data.length - 1);
+      for (let i = indexStart; i >= 0; i--) {
+        const valueMatch = anyEdge || valueList.includes(data[i][1]);
+        if (valueMatch && data[i][0] < time) {
+          nextEdge = data[i][0];
           break;
         }
       }
@@ -599,14 +601,15 @@ export class WaveformDataManager {
     if (time === null) {return result;}
     if (!waveforms) {return result;}
 
-    const data   = waveforms.valueChangeData;
-    const index  = this.getNearestTransitionIndex(waveforms, time);
+    const data  = waveforms.valueChangeData;
+    const index = this.binarySearch(data, time);
 
-    if (index === -1) {return result;}
-    if (data[index][0] === time) {
+    if (index >= data.length) {
+      return data[data.length - 1];
+    } else if (data[index][0] === time) {
       return data[index];
     }
-  
+
     const timeBefore = time - data[index - 1][0];
     const timeAfter  = data[index][0] - time;
   
@@ -615,16 +618,5 @@ export class WaveformDataManager {
     } else {
       return data[index];
     }
-  }
-
-  getNearestTransitionIndex(waveforms: WaveformData, time: number) {
-
-    if (time === null) {return -1;}
-  
-    const data  = waveforms.valueChangeData;
-    const index = this.binarySearch(data, time);
-  
-    if (index >= data.length) {return -1;}
-    return index;
   }
 }

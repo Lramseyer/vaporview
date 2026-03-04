@@ -231,8 +231,20 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.copyValueAtMarker(e);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.saveViewerSettings', (e) => {
-    viewerProvider.saveSettingsToFile(undefined, undefined);
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.saveViewerSettings', async (e) => {
+    const document = viewerProvider.getDocumentFromId(e.documentId);
+    if (!document) {return;}
+    const filePath = document.uri.fsPath;
+    const fileName = path.basename(filePath);
+    const saveFileName = fileName.replace(/\.[^/.]+$/, '') + '.json' || 'untitled.json';
+    const uri = await vscode.window.showSaveDialog({
+      saveLabel: 'Save settings',
+      filters: {JSON: ['json']},
+      defaultUri: vscode.Uri.file(path.join(filePath, saveFileName)),
+    });
+    if (uri) {
+      viewerProvider.saveSettingsToFile(document, uri);
+    }
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.loadViewerSettings', (e) => {

@@ -1266,11 +1266,11 @@
       },
       {
         "command": "vaporview.saveViewerSettings",
-        "title": "Save Vaporview Settings"
+        "title": "Save Vaporview Settings..."
       },
       {
         "command": "vaporview.loadViewerSettings",
-        "title": "Load Vaporview Settings"
+        "title": "Load Vaporview Settings..."
       },
       {
         "command": "vaporview.reloadFile",

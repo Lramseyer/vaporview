@@ -95,6 +95,9 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   public getDocumentFromUri(uri: string): VaporviewDocument | undefined {
     return this.documentCollection.getDocumentFromUri(uri);
   }
+  public getDocumentFromId(documentId: DocumentId): VaporviewDocument | undefined {
+    return this.documentCollection.get(documentId);
+  }
   private readonly remoteConnections = new Map<string, {
     serverUrl: string;
     bearerToken?: string;
@@ -370,11 +373,11 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       throw new Error('No active document to save');
     }
 
-    //const autosave = vscode.workspace.getConfiguration('files').get('autoSave');
-    //const autosaveOff = (autosave === 'off');
+    const autosave = vscode.workspace.getConfiguration('files').get('autoSave');
+    const autosaveOff = (autosave === 'off');
 
     let uri = saveFileUri;
-    if (!saveFileUri) {
+    if (!saveFileUri && autosaveOff) {
       const filePath = document.uri.fsPath;
       const fileName = path.basename(filePath);
       const saveFileName = fileName.replace(/\.[^/.]+$/, '') + '.json' || 'untitled.json';

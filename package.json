@@ -135,6 +135,17 @@
           "scope": "application",
           "description": "Maximum file size (in MB) to load FST files into memory. This is faster, but consumes more memory. Set to 0 to disable."
         },
+        "vaporview.promptLoadSettings": {
+          "type": "string",
+          "default": "Ask",
+          "enum": [
+            "Always",
+            "Ask",
+            "Never"
+          ],
+          "scope": "application",
+          "description": "When opening a waveform dump file, if a .json file with the same name is found in the same directory, should the viewer load the settings from that file?"
+        },
         "vaporview.showRulerLines": {
           "type": "boolean",
           "default": "true",

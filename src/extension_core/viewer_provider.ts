@@ -370,8 +370,8 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       throw new Error('No active document to save');
     }
 
-    const saveData       = document.getSettings();
-    const saveDataString = JSON.stringify(saveData, null, 2);
+    //const autosave = vscode.workspace.getConfiguration('files').get('autoSave');
+    //const autosaveOff = (autosave === 'off');
 
     let uri = saveFileUri;
     if (!saveFileUri) {
@@ -390,6 +390,8 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       throw new Error('Save cancelled, or location was not provided');
     }
 
+    const saveData       = document.getSettings();
+    const saveDataString = JSON.stringify(saveData, null, 2);
     await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(saveDataString));
     document.saveFileUri = uri;
   }
@@ -463,15 +465,27 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       // check the directory for a file with the same name as the document, but with the extension .vaporview.json
       const filePath = uri.fsPath.match(/^(.*)\.[^.]+$/)?.[1] + '.json';
       if (fs.existsSync(filePath)) {
+        const fileUri = vscode.Uri.file(filePath);
+        const promptLoadSettings = vscode.workspace.getConfiguration('vaporview').get('promptLoadSettings');
 
-        // ask the user if they want to restore the state from the file
+        if (promptLoadSettings === 'Never') {
+          return;
+        } else if (promptLoadSettings === 'Always') {
+          this.loadSettingsFromFileUri(document, fileUri);
+          return;
+        }
+
+        // if promptLoadSettings is 'Ask', then we ask the user if they want to restore the state from the file
         vscode.window.showInformationMessage(
-          'Restore state from file: ' + filePath + '?',
-          'Yes', 'No'
+          'Restore state from file: ' + filePath + '?\n' +
+          'You can set a default behavior and disable this prompt in the extension settings.',
+          'Yes', 'No', 'Settings'
         ).then((action) => {
           if (action === 'Yes') {
-            const state = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            document.applySettings(state, StateChangeType.File, false);
+            this.loadSettingsFromFileUri(document, fileUri);
+          } else if (action === 'Settings') {
+            // Open the settings page for the extension
+            vscode.commands.executeCommand('workbench.action.openSettings', 'vaporview.promptLoadSettings');
           }
         });
       }

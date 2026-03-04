@@ -5,7 +5,8 @@
 - Added Netlist search functionality to search by instance path
 - Added Zoom animations for highlight zoom (configurable in settings)
 - Allow for bit slices to be reversed
-- Added User settings for renderer:
+- Added User settings:
+  - Default load settings behavior
   - Animations enabled and duration
   - Disable Analog Renderer optimizations
   - Override window.devicePixelRatio

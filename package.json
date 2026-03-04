@@ -364,6 +364,11 @@
         "when": "webviewSection == 'signal'"
       },
       {
+        "id": "vaporview.createSignals",
+        "label": "Create Signals From",
+        "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus && width > 1"
+      },
+      {
         "id": "vaporview.timeUnit",
         "label": "Time Unit",
         "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
@@ -614,8 +619,8 @@
           "group": "3_groups@8"
         },
         {
-          "command": "vaporview.createSignalsForAllBits",
-          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus && width > 1 && width <= 32",
+          "submenu": "vaporview.createSignals",
+          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus && width > 1",
           "group": "3_groups@9"
         },
         {
@@ -780,6 +785,43 @@
           "command": "vaporview.renameSignalGroup",
           "when": "webviewSection == 'signal'",
           "group": "1_default@4"
+        }
+      ],
+      "vaporview.createSignals": [
+        {
+          "command": "vaporview.createSignalsForAllBits",
+          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus && width > 1 && width <= 32",
+          "group": "1_default@1"
+        },
+        {
+          "command": "vaporview.createSignalsForAllNibbles",
+          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus && width > 4 && width <= 128",
+          "group": "1_default@2"
+        },
+        {
+          "command": "vaporview.createSignalsForAllBytes",
+          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus && width > 8 && width <= 256",
+          "group": "1_default@3"
+        },
+        {
+          "command": "vaporview.createSignalsForAllWords",
+          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus && width > 16 && width <= 512",
+          "group": "1_default@4"
+        },
+        {
+          "command": "vaporview.createSignalsForAllDoubleWords",
+          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus && width > 32 && width <= 1024",
+          "group": "1_default@5"
+        },
+        {
+          "command": "vaporview.createSignalsForAllQuadWords",
+          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus && width > 64 && width <= 2048",
+          "group": "1_default@6"
+        },
+        {
+          "command": "vaporview.createSignalsForAllCustomLength",
+          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus && width > 2 && width <= 256",
+          "group": "1_default@7"
         }
       ],
       "vaporview.timeUnit": [
@@ -1022,7 +1064,31 @@
       },
       {
         "command": "vaporview.createSignalsForAllBits",
-        "title": "Create Signals From Bits"
+        "title": "Bits"
+      },
+      {
+        "command": "vaporview.createSignalsForAllNibbles",
+        "title": "Nibbles"
+      },
+      {
+        "command": "vaporview.createSignalsForAllBytes",
+        "title": "Bytes"
+      },
+      {
+        "command": "vaporview.createSignalsForAllWords",
+        "title": "Words"
+      },
+      {
+        "command": "vaporview.createSignalsForAllDoubleWords",
+        "title": "Double Words"
+      },
+      {
+        "command": "vaporview.createSignalsForAllQuadWords",
+        "title": "Quad Words"
+      },
+      {
+        "command": "vaporview.createSignalsForAllCustomLength",
+        "title": "Custom Length..."
       },
       {
         "command": "vaporview.displayAsBinary",

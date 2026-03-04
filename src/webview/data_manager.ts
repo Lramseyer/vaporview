@@ -518,7 +518,7 @@ export class WaveformDataManager {
     return r;
   }
 
-  public getValueAtTime(waveforms: WaveformData, time: number | null) {
+  public getValueAtTime(waveforms: WaveformData | undefined, time: number | null) {
 
     const result: string[] = [];
 
@@ -527,6 +527,8 @@ export class WaveformDataManager {
 
     const data   = waveforms.valueChangeData;
     const index  = this.binarySearch(data, time);
+
+    if (data.length === 0) {return result;}
 
     if (index < data.length && time === data[index][0]) {
       if (index > 0) {

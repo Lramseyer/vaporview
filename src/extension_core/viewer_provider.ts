@@ -1154,7 +1154,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     }
   }
 
-  public createSignalsForAllBits(name: string | undefined, groupPath: string[] | undefined, parentGroupId: number | undefined, eventRowId: number | undefined) {
+  public createSignalsForAllBits(name: string | undefined, groupPath: string[] | undefined, parentGroupId: number | undefined, eventRowId: number | undefined, bitWidth: number) {
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}
@@ -1166,6 +1166,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       groupPath: groupPath,
       parentGroupId: parentGroupId,
       eventRowId: eventRowId,
+      bitWidth: bitWidth,
     });
   }
 

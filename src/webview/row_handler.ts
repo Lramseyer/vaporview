@@ -411,7 +411,7 @@ export class RowHandler {
     return rowId;
   }
 
-  addAllBitSlices(name: string | undefined, groupPath: string[] | undefined, parentGroupId: number | undefined, eventRowId: number | undefined) {
+  addAllBitSlices(name: string | undefined, groupPath: string[] | undefined, parentGroupId: number | undefined, eventRowId: number | undefined, bitWidth: number) {
 
     if (eventRowId === undefined) {return;}
     const signalItem = this.rowItems[eventRowId];
@@ -435,8 +435,13 @@ export class RowHandler {
       groupId = groupItem.groupId;
     }
 
-    for (let i = signalWidth - 1; i >= 0; i--) {
-      this.addCustomVariable(undefined, groupPath, groupId, eventRowId, undefined, i, i, undefined);
+    const numSlices = Math.ceil(signalWidth / bitWidth);
+
+    for (let i = numSlices; i > 0; i--) {
+      const msb = Math.min(i * bitWidth - 1, signalWidth - 1);
+      const lsb = (i - 1) * bitWidth;
+      console.log('addAllBitSlices - msb:', msb, "lsb:", lsb);
+      this.addCustomVariable(undefined, groupPath, groupId, eventRowId, undefined, msb, lsb, undefined);
     }
 
     const eventGroupId = getParentGroupId(eventRowId);

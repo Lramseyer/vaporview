@@ -182,8 +182,41 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.createSignalsForAllBits', (e) => {
-    // Show input box for offset
-    viewerProvider.createSignalsForAllBits(e.name, e.groupPath, e.parentGroupId, e.rowId);
+    viewerProvider.createSignalsForAllBits(e.name, e.groupPath, e.parentGroupId, e.rowId, 1);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.createSignalsForAllNibbles', (e) => {
+    viewerProvider.createSignalsForAllBits(e.name, e.groupPath, e.parentGroupId, e.rowId, 4);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.createSignalsForAllBytes', (e) => {
+    viewerProvider.createSignalsForAllBits(e.name, e.groupPath, e.parentGroupId, e.rowId, 8);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.createSignalsForAllWords', (e) => {
+    viewerProvider.createSignalsForAllBits(e.name, e.groupPath, e.parentGroupId, e.rowId, 16);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.createSignalsForAllDoubleWords', (e) => {
+    viewerProvider.createSignalsForAllBits(e.name, e.groupPath, e.parentGroupId, e.rowId, 32);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.createSignalsForAllQuadWords', (e) => {
+    viewerProvider.createSignalsForAllBits(e.name, e.groupPath, e.parentGroupId, e.rowId, 64);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.createSignalsForAllCustomLength', (e) => {
+    // Show input box for custom length
+    vscode.window.showInputBox({prompt: 'Enter the custom length in bits', value: '1'
+    }).then((customLength) => {
+      if (!customLength) {return;}
+      const length = parseInt(customLength);
+      if (isNaN(length) || length <= 0) {
+        vscode.window.showErrorMessage('Invalid custom length. Please enter a positive integer.');
+        return;
+      }
+      viewerProvider.createSignalsForAllBits(e.name, e.groupPath, e.parentGroupId, e.rowId, length);
+    });
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.renameSignalGroup', (e) => {

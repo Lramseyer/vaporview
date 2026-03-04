@@ -244,6 +244,7 @@ This extension requires VScode 1.96.0 or later
 - Added Netlist search functionality to search by instance path
 - Added Zoom animations for highlight zoom (configurable in settings)
 - Allow for bit slices to be reversed
+- Added feature to split bit vector into individual nibbles, bytes, words, dwords, qwords, and custom length
 - Added User settings:
   - Default load settings behavior
   - Animations enabled and duration

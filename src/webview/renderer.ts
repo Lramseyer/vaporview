@@ -223,7 +223,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     if (elementWidth > minDrawWidth) {
 
       const adjustedTime = time - viewport.timeScrollLeft;
-      const adjustedTimeEnd = postState[0] + - viewport.timeScrollLeft;
+      const adjustedTimeEnd = postState[0] - viewport.timeScrollLeft;
 
       if (moveCursor) {
         points.push([adjustedTime, 0]);
@@ -242,6 +242,11 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
         points.push([adjustedTimeEnd, 0]);
         endPoints.push([xPosition, -yPosition]);
       }
+    } else {
+      if (moveCursor) {
+        const adjustedTimeEnd = viewport.timeScrollRight - viewport.timeScrollLeft;
+        noDrawRanges.push([lastDrawTime, adjustedTimeEnd]);
+      }
     }
 
     if (elementWidth > minTextWidth) {
@@ -253,7 +258,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
       textElements.push(this.busValue(time, elementWidth, parsedValue, rightJustify));
     }
 
-    ctx.clearRect(0, 0, viewport.viewerWidth * viewport.pixelRatio, canvasHeight * viewport.pixelRatio);
+    ctx.clearRect(0, 0, viewport.viewerWidth, canvasHeight);
     ctx.save();
     ctx.translate(0, halfCanvasHeight);
 
@@ -349,7 +354,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
       if (center) {
         ctx.fillText(text, xValue, textY);
         if (i === netlistData.valueLinkIndex) {ctx.fillText("_".repeat(text.length), xValue, textY);}
-      };
+      }
     });
     ctx.textAlign = justifyDirection;
     textElements.forEach(([text, xValue, center], i) => {
@@ -378,7 +383,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
 
     ctx.restore();
   }
-};
+}
 
 export class BinaryWaveformRenderer implements WaveformRenderer {
   public id: string = "binary";
@@ -412,7 +417,7 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     if (valueIs9State(initialValue)) {
       initialValue2state = 0;
     }
-    const startScreenX  = -10 * viewport.pixelTime
+    const startScreenX  = -10 * viewport.pixelTime;
     const accumulatedPath = [[startScreenX, 0], [startScreenX, initialValue2state]];
     let value2state     = 0;
     // No Draw Code
@@ -787,4 +792,4 @@ export class LinearWaveformRenderer implements WaveformRenderer {
     //const evalCoordinates = getEval(valueChangeChunk.encoding, netlistData.signalWidth, false);
     return createAnalogWaveform(valueChangeChunk, netlistData, this.stepped, this.evalCoordinates);
   }
-};
+}

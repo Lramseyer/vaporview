@@ -635,6 +635,12 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   }));
 
+  vscode.workspace.onDidChangeConfiguration((e) => {
+    const time = Date.now();
+    if (!e.affectsConfiguration('workbench.colorTheme')) { return; }
+    getTokenColorsForTheme();
+  });
+
   return {
     onDidSetMarker: markerSetEvent,
     onDidSelectSignal: signalSelectEvent,
@@ -651,40 +657,125 @@ export function deactivate() {
   // All resources registered with context.subscriptions are automatically disposed
 }
 
-export function getTokenColorsForTheme(themeName: string) {
-  const tokenColors = new Map();
+
+// Build a color palette from the current theme
+// Step 1: Get the theme path, colors, and scopes
+// Step 2: create a set of unique colors
+// Step 3: Use a commonly used scope list to map the colors to a color palette
+//         The scope list has an established order, so we can use it to build a
+//         color palette in that order.
+// Step 4: De-duplicate the colors built from the common scope list.
+//         If a the palatte is full, then we can stop. If it's not, then we can
+//         select from the remaining colors in the unique color set.
+export function getTokenColorsForTheme() {
+  const time = Date.now();
+
   let currentThemePath;
+  const activeTheme = vscode.workspace.getConfiguration().get<string>('workbench.colorTheme') ?? '';
+  const scopeList = [
+    "constant.numeric",
+    "string",
+    "keyword", "constant.language", "storage.type",
+    "keyword.control",
+    "variable",
+    "entity.name.function", "support.function",
+    "entity.name.type", "support.type",
+
+    "comment",
+    "keyword.operator",
+
+    "variable.parameter"
+  ];
+
+  const errorScopes = ["invalid", "token.error-token"];
+  const colorMap: any = {};
+  const scopeMap: any = {};
+  const colorPalette: any = [];
+  const errorColorPalette: any = [];
+  scopeList.forEach((scope: any) => {
+    scopeMap[scope] = [];
+  });
+  console.log(`Theme: ${activeTheme}`);
+
+  // Find the theme path
   for (const extension of vscode.extensions.all) {
     const themes = extension.packageJSON.contributes && extension.packageJSON.contributes.themes;
-    const currentTheme = themes && themes.find((theme: any) => theme.id === themeName);
+    const currentTheme = themes && themes.find((theme: any) => theme.id === activeTheme || theme.label === activeTheme);
+
     if (currentTheme) {
       currentThemePath = path.join(extension.extensionPath, currentTheme.path);
+      console.log(currentThemePath);
       break;
     }
   }
+
+  // Iterate through the theme paths and get the token colors
   const themePaths = [];
   if (currentThemePath) { themePaths.push(currentThemePath); }
   while (themePaths.length > 0) {
     const themePath: any = themePaths.pop();
     const theme: any = require(themePath);
-    if (theme) {
-      if (theme.include) {
-        themePaths.push(path.join(path.dirname(themePath), theme.include));
-      }
-      if (theme.tokenColors) {
-        theme.tokenColors.forEach((rule: any) => {
-          if (typeof rule.scope === "string" && !tokenColors.has(rule.scope)) {
-            tokenColors.set(rule.scope, rule.settings);
-          } else if (rule.scope instanceof Array) {
-            rule.scope.forEach((scope: any) => {
-              if (!tokenColors.has(rule.scope)) {
-                tokenColors.set(scope, rule.settings);
-              }
-            });
-          }
-        });
-      }
+    if (!theme) {continue;}
+    if (theme.include) {
+      themePaths.push(path.join(path.dirname(themePath), theme.include));
     }
+
+    if (!theme.tokenColors) {continue;}
+    theme.tokenColors.forEach((rule: any) => {
+      if (!rule.settings.foreground) {return;}
+      const color = rule.settings.foreground.toLowerCase();
+      if (!colorMap[color]) {
+        colorMap[color] = [];
+      }
+
+      let rulesList = [];
+      if (typeof rule.scope === "string") {
+        rulesList = [rule.scope];
+      } else if (rule.scope instanceof Array) {
+        rulesList = rule.scope;
+      }
+
+      rulesList.forEach((scope: any) => {
+        colorMap[color].push(scope);
+        if (scopeList.includes(scope)) {
+          scopeMap[scope].push(color);
+        }
+      });
+    });
+
   }
-  return tokenColors;
+
+  errorScopes.forEach((scope: any) => {
+    scopeMap[scope].forEach((color: any) => {
+      if (errorColorPalette.includes(color)) {return;}
+      errorColorPalette.push(color);
+    });
+  });
+
+  scopeList.forEach((scope: any) => {
+    scopeMap[scope].forEach((color: any) => {
+      if (colorPalette.includes(color)) {return;}
+      if (errorColorPalette.includes(color)) {return;}
+      colorPalette.push(color);
+    });
+  });
+
+  if (colorPalette.length < 8) {
+    Object.keys(colorMap).forEach((color: any) => {
+      if (colorPalette.length >= 8) {return;}
+      if (colorPalette.includes(color)) {return;}
+      if (errorColorPalette.includes(color)) {return;}
+      colorPalette.push(color);
+    });
+  }
+
+  console.log(colorMap);
+  console.log(scopeMap);
+  console.log(colorPalette);
+
+  const endTime = Date.now();
+  console.log(`Time taken: ${endTime - time} milliseconds`);
+
+
+  return colorPalette;
 }

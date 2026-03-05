@@ -130,7 +130,7 @@ export function getParentGroupId(rowId: RowId | null): number | null {
     if (parentGroupId !== null) {
       return parentGroupId;
     }
-  };
+  }
   return null;
 }
 
@@ -258,7 +258,7 @@ export function createWebviewContext() {
     signalList.push(saveData);
   });
 
-  return  {
+  return {
     markerTime: viewerState.markerTime,
     altMarkerTime: viewerState.altMarkerTime,
     displayTimeUnit: viewport.displayTimeUnit,
@@ -269,7 +269,7 @@ export function createWebviewContext() {
     scrollLeft: Math.round(vaporview.viewport.timeScrollLeft),
     autoReload: viewerState.autoReload,
     displayedSignals: signalList,
-  }
+  };
 }
 
 class VaporviewWebview {
@@ -650,7 +650,7 @@ export function init(metadata: any, uri: string, documentId: DocumentId) {
     webviewSelection: true,
     documentId: documentId,
     uri: uri,
-  }
+  };
   document.body.setAttribute("data-vscode-context", JSON.stringify(context));
   document.title         = metadata.filename;
   viewerState.uri        = uri;

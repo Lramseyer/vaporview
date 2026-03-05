@@ -632,14 +632,14 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       uri: e.uri,
       time: e.time,
       units: e.units,
-    }
+    };
 
     const signalData: signalEvent = {
       uri: e.uri,
       instancePath: e.instancePath,
       netlistId: e.netlistId,
       source: "viewer",
-    }
+    };
 
     //console.log(e);
 
@@ -684,7 +684,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     let netlistId: NetlistId | undefined | null ;
 
     if (e) {
-      netlistId = e.netlistId
+      netlistId = e.netlistId;
     } else {
       netlistId = document.webviewContext.selectedSignal;
     }
@@ -865,7 +865,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     let groupPath: string[] = [];
     let index;
-    if (e.groupPath) {groupPath = e.groupPath}
+    if (e.groupPath) {groupPath = e.groupPath;}
     if (e.dropIndex || e.dropIndex === 0) {index = e.dropIndex;}
 
     if (document !== this.activeDocument) {return;}

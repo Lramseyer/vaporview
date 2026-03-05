@@ -70,9 +70,9 @@ export type VariableItem = NetlistVariable | CustomVariable;
 
 export abstract class SignalItem {
 
-  public labelElement: HTMLElement | null = null
-  public valueDisplayElement: HTMLElement | null = null
-  public viewportElement: HTMLElement | null = null
+  public labelElement: HTMLElement | null = null;
+  public valueDisplayElement: HTMLElement | null = null;
+  public viewportElement: HTMLElement | null = null;
   public vscodeContext: string = "";
   public wasRendered: boolean = false;
   public rowHeight: number = 1;
@@ -178,7 +178,7 @@ export class SignalSeparator extends SignalItem implements RowItem {
       webviewSection: "signal-separator",
       rowId: this.rowId,
       preventDefaultContextMenuItems: true,
-    }
+    };
     this.vscodeContext = `${JSON.stringify(context).replace(/\s/g, '%x20')}`;
   }
 
@@ -187,7 +187,7 @@ export class SignalSeparator extends SignalItem implements RowItem {
       dataType: "signal-separator",
       label: this.label,
       rowHeight: this.rowHeight,
-    }
+    };
   }
 
   getLabelText(): string {return this.label;}
@@ -204,8 +204,8 @@ export class NetlistVariable extends SignalItem implements RowItem {
   public color: string = "";
   public rowHeight: number = 1;
   public wasRendered: boolean = false;
-  public canvas: HTMLCanvasElement | null = null
-  public ctx: CanvasRenderingContext2D | null = null
+  public canvas: HTMLCanvasElement | null = null;
+  public ctx: CanvasRenderingContext2D | null = null;
   public verticalScale: number = 1;
   public nameType: NameType = NameType.fullPath;
   public customName: string = "";
@@ -246,7 +246,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
     const signalName  = htmlSafe(this.signalName);
     if (this.nameType === NameType.fullPath) {
       const scopePath = htmlSafe(this.scopePath.join('.') + '.');
-      result += `<p style="opacity:50%">${scopePath}</p><p>${signalName}</p>`
+      result += `<p style="opacity:50%">${scopePath}</p><p>${signalName}</p>`;
     } else if (this.nameType === NameType.signalName) {
       result += `<p>${signalName}</p>`;
     } else if (this.nameType === NameType.custom) {
@@ -325,7 +325,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
       rowId: this.rowId,
       isAnalog: isAnalog,
       enum: this.enumType !== "",
-    }
+    };
     this.vscodeContext = `${JSON.stringify(context).replace(/\s/g, '%x20')}`;
   }
 
@@ -342,7 +342,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
       customName:       this.customName,
       renderType:       this.renderType.id,
       valueLinkCommand: this.valueLinkCommand
-    }
+    };
   }
 
   public getLabelText(): string {
@@ -448,7 +448,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
       value: value,
       formattedValue: formattedValue,
       time: timeValue,
-    }
+    };
 
     vscodeWrapper.executeCommand(command, [event]);
     return true;
@@ -474,8 +474,8 @@ export class CustomVariable extends SignalItem implements RowItem {
   public color: string = "";
   public rowHeight: number = 1;
   public wasRendered: boolean = false;
-  public canvas: HTMLCanvasElement | null = null
-  public ctx: CanvasRenderingContext2D | null = null
+  public canvas: HTMLCanvasElement | null = null;
+  public ctx: CanvasRenderingContext2D | null = null;
   public verticalScale: number = 1;
   public nameType: NameType = NameType.fullPath;
   public customName: string = "";
@@ -589,7 +589,7 @@ export class CustomVariable extends SignalItem implements RowItem {
       customName:       this.customName,
       renderType:       this.renderType.id,
       valueLinkCommand: this.valueLinkCommand,
-    }
+    };
   }
 
   public getLabelText(): string {
@@ -753,7 +753,7 @@ export class SignalGroup extends SignalItem implements RowItem {
       groupId: this.groupId,
       rowId: this.rowId,
       preventDefaultContextMenuItems: true,
-    }
+    };
     this.vscodeContext = `${JSON.stringify(context).replace(/\s/g, '%x20')}`;
   }
 
@@ -769,7 +769,7 @@ export class SignalGroup extends SignalItem implements RowItem {
       groupName: this.label,
       collapseState: this.collapseState,
       children: children,
-    }
+    };
   }
 
   getLabelText(): string {return this.label;}

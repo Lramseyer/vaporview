@@ -304,7 +304,7 @@ export class LabelsPanels {
 
   setDragDivider() {
     this.dragDivider = this.labels.querySelector('#drag-divider');
-    if (this.dragDivider) {this.dragDivider.style.display = 'block'};
+    if (this.dragDivider) {this.dragDivider.style.display = 'block';}
     this.dragInProgress = true;
   }
 
@@ -448,7 +448,7 @@ export class LabelsPanels {
     this.pointerStartY  = null;
     this.draggableItem  = null;
     this.dragActive     = false;
-    if (this.dragDivider) {this.dragDivider.style.display = 'none'};
+    if (this.dragDivider) {this.dragDivider.style.display = 'none';}
   }
 
   public dragEndExternal(event: MouseEvent | KeyboardEvent | null, abort: boolean) {
@@ -628,7 +628,7 @@ export class LabelsPanels {
   handleSignalSelect(rowIdList: RowId[], lastRowId: RowId | null) {
 
     this.dragActive = false;
-    if (this.dragDivider) {this.dragDivider.style.display = 'none'};
+    if (this.dragDivider) {this.dragDivider.style.display = 'none';}
     //if (rowIdList.length === 0) {return;}
 
     viewerState.displayedSignalsFlat.forEach((rowId) => {

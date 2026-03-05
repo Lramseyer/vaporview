@@ -645,7 +645,7 @@ export class Viewport {
       return time * this.timeScale * scale;
     } else {
       scale = 10 ** -this.adjustedLogTimeScale;
-      return time * this.timeScale / scale
+      return time * this.timeScale / scale;
     }
   }
 
@@ -1001,7 +1001,7 @@ export class Viewport {
     this.setPixelRatio();
     this.scrollbarCanvasElement.setAttribute("width",  `0`);
     this.scrollbarCanvasElement.style.width  = `0px`;
-    this.scrollAreaBounds = this.scrollArea.getBoundingClientRect();;
+    this.scrollAreaBounds = this.scrollArea.getBoundingClientRect();
     this.viewerWidth      = this.scrollAreaBounds.width - 10;
     this.viewerHeight     = this.scrollAreaBounds.height;
     this.halfViewerWidth  = this.viewerWidth / 2;

@@ -16,7 +16,7 @@ export interface WaveformData {
   signalWidth: number;
   min: number;
   max: number;
-};
+}
 
 export class TempWaveformData {
   constructor(public signalWidth: number) {}
@@ -27,7 +27,7 @@ export class TempWaveformData {
   customSignalIdList: number[] = [];
   compressedChunks: Uint8Array[] = [];
   originalSize: number = 0;
-};
+}
 
 export interface CustomWaveformData extends WaveformData {
   valueChangeData: ValueChange[];
@@ -37,7 +37,7 @@ export interface CustomWaveformData extends WaveformData {
   max: number;
   source: BitRangeSource[];
   dataLoaded: boolean;
-};
+}
 
 export class WaveformDataManager {
   private events: EventHandler;
@@ -50,7 +50,7 @@ export class WaveformDataManager {
   valueChangeDataTemp: TempWaveformData[] = [];
   customValueChangeData: CustomWaveformData[] = [];
   enumTable: Record<string, EnumData> = {}; // enum type is the key/index, array of enum values is the value
-  enumTableTemp: any                  = {}
+  enumTableTemp: any                  = {};
 
   private nextCustomSignalId: number = 0;
 
@@ -561,7 +561,7 @@ export class WaveformDataManager {
         }
       }
     } else {
-      let indexStart = Math.min(Math.max(0, index), data.length - 1);
+      const indexStart = Math.min(Math.max(0, index), data.length - 1);
       for (let i = indexStart; i >= 0; i--) {
         const valueMatch = anyEdge || valueList.includes(data[i][1]);
         if (valueMatch && data[i][0] < time) {

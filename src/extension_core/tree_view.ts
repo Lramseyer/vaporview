@@ -19,7 +19,7 @@ const packageIcon   = new vscode.ThemeIcon('package',          scopeColor);
 const scopeIcon     = new vscode.ThemeIcon('symbol-module',    scopeColor);
 
 export function getScopeIcon(type: string) {
-  const typeName = type.toLocaleLowerCase()
+  const typeName = type.toLocaleLowerCase();
   switch (typeName) {
     case 'module':           {return moduleIcon;}
     case 'task':             {return taskIcon;}
@@ -58,7 +58,7 @@ export function createScope(
   uri: vscode.Uri
 ) {
 
-  let icon = getScopeIcon(type);
+  const icon = getScopeIcon(type);
   const typeName = type.toLocaleLowerCase();
 
   // fsdb vhdlarray might contain feild, remove it to align with wellen
@@ -90,7 +90,7 @@ const timeIcon     = new vscode.ThemeIcon('watch',            chartsGreen);
 const enumIcon     = new vscode.ThemeIcon('symbol-parameter', chartsGreen);
 
 export function getVarIcon(type: string) {
-  const typeName = type.toLocaleLowerCase()
+  const typeName = type.toLocaleLowerCase();
   switch (typeName) {
     case 'event':           {return defaultIcon;}
     case 'integer':         {return intIcon;}
@@ -311,7 +311,7 @@ export class NetlistItem extends vscode.TreeItem {
         command: "vaporview.clickNetlistItem",
         title: "Add to viewer",
         arguments: [{uri: this.resourceUri, netlistId: this.netlistId}]
-      }
+      };
     } else {
       this.command = undefined;
     }
@@ -367,9 +367,9 @@ export class NetlistItem extends vscode.TreeItem {
 export const netlistItemDragAndDropController: vscode.TreeDragAndDropController<NetlistItem> = {
   dragMimeTypes: [],
   dropMimeTypes: [],
-  handleDrag: (source: readonly NetlistItem[], dataTransfer: vscode.DataTransfer, token: vscode.CancellationToken) => {return Promise.resolve()},
-  handleDrop: (target: NetlistItem | undefined, dataTransfer: vscode.DataTransfer, token: vscode.CancellationToken) => {return Promise.resolve()},
-}
+  handleDrag: (source: readonly NetlistItem[], dataTransfer: vscode.DataTransfer, token: vscode.CancellationToken) => {return Promise.resolve();},
+  handleDrop: (target: NetlistItem | undefined, dataTransfer: vscode.DataTransfer, token: vscode.CancellationToken) => {return Promise.resolve();},
+};
 
 export class VaporviewStatusBar {
 

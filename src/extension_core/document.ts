@@ -304,7 +304,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
 
   public async parseCustomVariableSettings(signalInfo: any, useNetlistId: boolean): Promise<any> {
     let dataValid = true;
-    let missingSignals: string[] = [];
+    const missingSignals: string[] = [];
     const source = await Promise.all(signalInfo.source.map(async (item: any) => {
       const metadata = await this.getNetlistItemFromSignalInfo(item, useNetlistId);
       if (metadata === null) {
@@ -678,7 +678,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   public searchNetlist(searchQuery: string): Promise<NetlistSearchResult> {
-    return this._handler.searchNetlist(searchQuery)
+    return this._handler.searchNetlist(searchQuery);
   }
 
   public async unload(): Promise<void> {
@@ -730,7 +730,7 @@ export class NetlistSearchQuickPick {
     this.quickPick = vscode.window.createQuickPick<NetlistQuickPickItem>();
     this.quickPick.placeholder = 'Search netlist by instance path...';
     this.quickPick.busy = false;
-    this.quickPick.onDidHide(() => {this.quickPick.value = ""});
+    this.quickPick.onDidHide(() => {this.quickPick.value = "";});
 
     this.quickPick.onDidChangeValue((value) => this.applyFilter(value));
     this.quickPick.onDidAccept(() => this.onAccept());
@@ -778,7 +778,7 @@ export class NetlistSearchQuickPick {
         msb: result.msb || 0,
         lsb: result.lsb || 0,
         iconPath: icon,
-      }
+      };
     });
     this.quickPick.busy = false;
 

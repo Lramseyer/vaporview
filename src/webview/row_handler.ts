@@ -245,7 +245,7 @@ export class RowHandler {
     updateDisplayedSignalsFlat();
     this.events.dispatch(ActionType.AddVariable, [rowId], false);
 
-    let moveValid = true
+    let moveValid = true;
     if (moveSelected && viewerState.selectedSignal.length > 0) {
       //this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignal, groupId, 0);
       const filteredRowIdList = this.removeChildrenFromSignalList(viewerState.selectedSignal);
@@ -629,7 +629,7 @@ export class RowHandler {
     }
 
     const newSelected = viewerState.selectedSignal;
-    const removeList: RowId[] = []
+    const removeList: RowId[] = [];
     rowIdList.forEach((rId) => {
       const groupItem = this.rowItems[rId];
       if (!(groupItem instanceof SignalGroup)) {return;}
@@ -661,7 +661,7 @@ export class RowHandler {
     rowIdList.forEach(rowId => {
       const signalItem = this.rowItems[rowId];
       if (!signalItem) {return;}
-      let children: number[] = []
+      let children: number[] = [];
       disposedRowIdList.push(rowId);
       const parentGroupId = getParentGroupId(rowId);
       const indexInGroup = getIndexInGroup(rowId, parentGroupId);
@@ -707,7 +707,7 @@ export class RowHandler {
         formatCached: false,
         values: [] as string[],
         users: 0,
-      }
+      };
       this.updateValueFormatCache(data, valueFormat, force);
     }
     //console.log("formatCached:", data.formattedValues[valueFormat.id].formatCached, "users:", data.formattedValues[valueFormat.id].users);

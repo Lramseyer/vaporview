@@ -1176,35 +1176,35 @@
       },
       {
         "command": "vaporview.defaultColor1",
-        "title": "Number Token Color"
+        "title": "Color 1"
       },
       {
         "command": "vaporview.defaultColor2",
-        "title": "String Token Color"
+        "title": "Color 2"
       },
       {
         "command": "vaporview.defaultColor3",
-        "title": "Declaration Token Color"
+        "title": "Color 3"
       },
       {
         "command": "vaporview.defaultColor4",
-        "title": "Flow Control Token Color"
+        "title": "Color 4"
       },
       {
         "command": "vaporview.customColor1",
-        "title": "Custom Color 1"
+        "title": "Color 5"
       },
       {
         "command": "vaporview.customColor2",
-        "title": "Custom Color 2"
+        "title": "Color 6"
       },
       {
         "command": "vaporview.customColor3",
-        "title": "Custom Color 3"
+        "title": "Color 7"
       },
       {
         "command": "vaporview.customColor4",
-        "title": "Custom Color 4"
+        "title": "Color 8"
       },
       {
         "command": "vaporview.rowHeight1x",

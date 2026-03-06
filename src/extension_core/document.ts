@@ -172,11 +172,14 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this._handler.postMessageToWebview = webviewPanel.webview.postMessage.bind(webviewPanel.webview);
     if (this._webviewInitialized) { return; }
     if (!this.metadata.timeTableLoaded) { return; }
+    const colorPalette = this._providerDelegate.getColorPalette();
     webviewPanel.webview.postMessage({
       command: 'initViewport',
       metadata: this.metadata,
       documentId: this.documentId,
-      uri: this.uri
+      uri: this.uri,
+      colorPalette: colorPalette.colorPalette,
+      errorColorPalette: colorPalette.errorColorPalette,
     });
     this.setConfigurationSettings();
     this._webviewInitialized = true;

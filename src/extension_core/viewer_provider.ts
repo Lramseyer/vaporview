@@ -3,7 +3,7 @@ import { type DocumentId, type NetlistId, SignalGroupContextMenuEvent, SignalId,
 import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
 import { Worker } from 'worker_threads';
 import * as fs from 'fs';
-import { getTokenColorsForTheme } from './extension';
+import { } from './extension';
 import { VaporviewDocument, NetlistSearchQuickPick, type WaveformFileParser } from './document';
 import { WasmFormatHandler } from './wasm_handler';
 import { FsdbFormatHandler } from './fsdb_handler';
@@ -19,6 +19,7 @@ export interface VaporviewDocumentDelegate {
   emitEvent(e: any): void;
   removeFromCollection(uri: vscode.Uri, document: VaporviewDocument): void;
   createFileParser(uri: vscode.Uri): Promise<WaveformFileParser>;
+  getColorPalette(): {colorPalette: string[], errorColorPalette: string};
 }
 
 class VaporviewDocumentBackup implements vscode.CustomDocumentBackup {
@@ -128,6 +129,10 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   // Quick Pick Menu
   private quickPick: NetlistSearchQuickPick;
 
+  // Color palette
+  public colorPalette: string[] = [];
+  public errorColorPalette: string = '';
+
   constructor(
     private readonly _context: vscode.ExtensionContext, 
     private readonly wasmModule: WebAssembly.Module
@@ -160,6 +165,13 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     this.wasmWorkerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
     this.quickPick = new NetlistSearchQuickPick();
+
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (!e.affectsConfiguration('workbench.colorTheme')) { return; }
+      this.getTokenColorsForTheme();
+    });
+
+    this.getTokenColorsForTheme();
   }
 
   async openCustomDocument(
@@ -205,7 +217,8 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
           }
         }
         return handler;
-      }
+      },
+      getColorPalette: () => {return {colorPalette: this.colorPalette, errorColorPalette: this.errorColorPalette};},
     };
 
     // Create the document and load it using its handler
@@ -531,6 +544,157 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       const webview = document.webviewPanel;
       if (webview) {
         webview.webview.postMessage({command: 'updateColorTheme'});
+      }
+    });
+  }
+
+  // Build a color palette from the current theme
+  // Step 1: Get the theme path, colors, and scopes
+  // Step 2: create a set of unique colors
+  // Step 3: Use a commonly used scope list to map the colors to a color palette
+  //         The scope list has an established order, so we can use it to build a
+  //         color palette in that order.
+  // Step 4: De-duplicate the colors built from the common scope list.
+  //         If a the palatte is full, then we can stop. If it's not, then we can
+  //         select from the remaining colors in the unique color set.
+  async getTokenColorsForTheme() {
+
+    let currentThemePath;
+    const activeTheme = vscode.workspace.getConfiguration().get<string>('workbench.colorTheme') ?? '';
+    const scopeList = [
+      "constant.numeric",
+      "string",
+      "keyword", "constant.language", "storage.type",
+      "keyword.control",
+      "variable",
+      "entity.name.function", "support.function",
+      "entity.name.type", "support.type",
+
+      "comment",
+      "keyword.operator",
+
+      "variable.parameter"
+    ];
+
+    const errorScopes = ["invalid", "token.error-token"];
+    const colorMap: any = {};
+    const scopeMap: any = {};
+    const colorPalette: any = [];
+    const errorColorPalette: any = [];
+    scopeList.forEach((scope: any) => {scopeMap[scope] = [];});
+    errorScopes.forEach((scope: any) => {scopeMap[scope] = [];});
+    console.log(`Theme: ${activeTheme}`);
+
+    // Find the theme path
+    for (const extension of vscode.extensions.all) {
+      const themes = extension.packageJSON.contributes && extension.packageJSON.contributes.themes;
+      const currentTheme = themes && themes.find((theme: any) => theme.id === activeTheme || theme.label === activeTheme);
+
+      if (currentTheme) {
+        currentThemePath = path.join(extension.extensionPath, currentTheme.path);
+        console.log(currentThemePath);
+        break;
+      }
+    }
+
+    const themePaths = [];
+    if (currentThemePath) { themePaths.push(currentThemePath); }
+    while (themePaths.length > 0) {
+      const themePath: any = themePaths.pop();
+
+      const theme = await vscode.workspace.fs.readFile(vscode.Uri.file(themePath)).then((data) => {
+        // parse JSONC (JSON with comments)
+        const raw = new TextDecoder().decode(data);
+        console.log(raw);
+        const stripped = raw
+          .replace(/\/\*[\s\S]*?\*\//g, '')   // block comments
+          .replace(/^\s*\/\/.*$/gm, '')        // line comments
+          .replace(/,(\s*[}\]])/g, '$1');      // trailing commas
+        return JSON.parse(stripped);
+      });
+
+      if (!theme) {continue;}
+      if (theme.include) {
+        themePaths.push(path.join(path.dirname(themePath), theme.include));
+      }
+
+      if (!theme.tokenColors) {continue;}
+      theme.tokenColors.forEach((rule: any) => {
+        if (!rule.settings?.foreground) {return;}
+        const color = rule.settings.foreground.toLowerCase();
+        if (!colorMap[color]) {
+          colorMap[color] = [];
+        }
+
+        let rulesList = [];
+        if (typeof rule.scope === "string") {
+          rulesList = [rule.scope];
+        } else if (rule.scope instanceof Array) {
+          rulesList = rule.scope;
+        }
+
+        rulesList.forEach((scope: any) => {
+          colorMap[color].push(scope);
+          if (scopeList.includes(scope)) {
+            scopeMap[scope].push(color);
+          }
+          if (errorScopes.includes(scope)) {
+            errorColorPalette.push(color);
+          }
+        });
+      });
+    }
+
+
+    const semanticTokens = Object.keys(colorMap);
+    console.log(semanticTokens);
+
+    errorScopes.forEach((scope: any) => {
+      scopeMap[scope].forEach((color: any) => {
+        if (errorColorPalette.includes(color)) {return;}
+        errorColorPalette.push(color);
+      });
+    });
+
+    console.log(errorColorPalette);
+
+    scopeList.forEach((scope: any) => {
+      scopeMap[scope].forEach((color: any) => {
+        if (colorPalette.includes(color)) {return;}
+        if (errorColorPalette.includes(color)) {return;}
+        colorPalette.push(color);
+      });
+    });
+
+    console.log(colorPalette);
+
+    if (colorPalette.length < 8) {
+      semanticTokens.forEach((color: any) => {
+        if (colorPalette.length >= 8) {return;}
+        if (colorPalette.includes(color)) {return;}
+        if (errorColorPalette.includes(color)) {return;}
+        colorPalette.push(color);
+      });
+    }
+
+    this.log.appendLine("Semantic Tokens: " + semanticTokens.join(", "));
+    this.log.appendLine("Color Palette: " + colorPalette.join(", "));
+    this.log.appendLine("Error Color Palette: " + errorColorPalette.join(", "));
+
+    console.log(colorMap);
+    console.log(scopeMap);
+    console.log(colorPalette);
+
+    this.colorPalette = colorPalette;
+    this.errorColorPalette = errorColorPalette;
+    this.documentCollection.broadcast((document) => {
+      const webview = document.webviewPanel;
+      if (webview) {
+        webview.webview.postMessage({
+          command: 'updateColorPalette',
+          colorPalette: this.colorPalette,
+          errorColorPalette: this.errorColorPalette,
+        });
       }
     });
   }

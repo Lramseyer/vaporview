@@ -142,8 +142,6 @@ export class ThemeColors {
 
   getThemeColors() {
 
-    console.log("getThemeColors");
-
     const style = window.getComputedStyle(document.body);
     // Token colors
     //this.colorKey[0] = style.getPropertyValue('--vscode-debugTokenExpression-number');
@@ -210,8 +208,6 @@ export class ThemeColors {
 
   updateColorPalette(colorPalette: string[], errorColorPalette: string[]) {
 
-    console.log("updateColorPalette");
-
     this.colorKey  = colorPalette;
     if (errorColorPalette.length > 0) {
       this.xzColor = errorColorPalette[0];
@@ -220,8 +216,6 @@ export class ThemeColors {
       this.xzColor = style.getPropertyValue('--vscode-debugTokenExpression-error');
     }
 
-    console.log(this.colorKey);
-    console.log(this.xzColor);
     this.events.dispatch(ActionType.UpdateColorTheme)
   }
 }
@@ -274,7 +268,6 @@ export class VscodeWrapper {
       case 'setSelectedSignal':     {this.setSelectedSignal(message.netlistId); break;}
       case 'copyWaveDrom':          {copyWaveDrom(); break;}
       case 'copyValueAtMarker':     {labelsPanel.copyValueAtMarker(message.rowId); break;}
-      case 'updateColorTheme':      {styles.getThemeColors(); break;}
       case 'updateColorPalette':    {styles.updateColorPalette(message.colorPalette, message.errorColorPalette); break;}
       default:                      {this.outputLog('Unknown webview message type: ' + message.command); break;}
     }

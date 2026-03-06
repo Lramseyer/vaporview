@@ -20,14 +20,6 @@ export function isAnalogSignal(renderType: WaveformRenderer) {
          renderType.id === 'stepped' || renderType.id === 'steppedSigned';
 }
 
-function getColorFromColorIndex(colorIndex: number) {
-  if (colorIndex < 4) {
-    return styles.colorKey[colorIndex];
-  } else {
-    return styles.customColorKey[colorIndex - 4];
-  }
-}
-
 function mouseOverHandler(event: MouseEvent, signalItem: NetlistVariable, checkBounds: boolean) {
   if (!event.target) {return;}
 
@@ -392,7 +384,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
   }
 
   public setColorFromColorIndex() {
-    this.color = getColorFromColorIndex(this.colorIndex);
+    this.color = styles.colorKey[this.colorIndex];
   }
 
   public getAllEdges(valueList: string[]): number[] {
@@ -641,7 +633,7 @@ export class CustomVariable extends SignalItem implements RowItem {
   }
 
   public setColorFromColorIndex() {
-    this.color = getColorFromColorIndex(this.colorIndex);
+    this.color = styles.colorKey[this.colorIndex];
   }
 
   public getAllEdges(valueList: string[]): number[] {

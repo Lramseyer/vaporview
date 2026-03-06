@@ -10,6 +10,7 @@ import { FsdbFormatHandler } from './fsdb_handler';
 import { SurferFormatHandler } from './surfer_handler';
 import { NetlistTreeDataProvider, type NetlistItem, netlistItemDragAndDropController, VaporviewStatusBar } from './tree_view';
 import path from 'path';
+import * as plist from 'plist';
 
 
 export interface VaporviewDocumentDelegate {
@@ -165,11 +166,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     this.wasmWorkerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
     this.quickPick = new NetlistSearchQuickPick();
-
-    vscode.workspace.onDidChangeConfiguration((e) => {
-      if (!e.affectsConfiguration('workbench.colorTheme')) { return; }
-      this.getTokenColorsForTheme();
-    });
 
     this.getTokenColorsForTheme();
   }
@@ -537,24 +533,41 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     });
   }
 
-  // Send command to all webviews
-  public updateColorTheme(e: any) {
-    //const themeName = vscode.workspace.getConfiguration("workbench").get("colorTheme");
-    this.documentCollection.broadcast((document) => {
-      const webview = document.webviewPanel;
-      if (webview) {
-        webview.webview.postMessage({command: 'updateColorTheme'});
+  async parseThemeFile(themePath: string) {
+    const raw = new TextDecoder().decode(await vscode.workspace.fs.readFile(vscode.Uri.file(themePath)));
+      let theme: any;
+      if (themePath.endsWith('.tmTheme')) {
+        // .tmTheme files are Apple plist XML; normalize to the JSON theme shape
+        const parsed = plist.parse(raw) as any;
+        theme = { tokenColors: parsed.settings ?? [] };
+        // plist scope strings can be comma-separated — split them into arrays
+        theme.tokenColors = theme.tokenColors.map((rule: any) => {
+          if (typeof rule.scope === 'string' && rule.scope.includes(',')) {
+            return { ...rule, scope: rule.scope.split(',').map((s: string) => s.trim()) };
+          }
+          return rule;
+        });
+      } else {
+        // JSON/JSONC theme file
+        // Strip comments while preserving "//" inside string values
+        const stripped = raw
+          .replace(/("(?:[^"\\]|\\.)*")|\/\/[^\n]*|\/\*[\s\S]*?\*\//g,
+            (match, str) => str ?? '')
+          .replace(/,(\s*[}\]])/g, '$1');      // trailing commas
+        theme = JSON.parse(stripped);
       }
-    });
+    return theme;
   }
 
   // Build a color palette from the current theme
-  // Step 1: Get the theme path, colors, and scopes
-  // Step 2: create a set of unique colors
-  // Step 3: Use a commonly used scope list to map the colors to a color palette
+  // Step 1: Get Configuration Settings to see which theme is active
+  // Step 2: Get the theme path, and parse the file to get the colors, and scopes
+  //         This can be a .tmTheme or a JSON/JSONC file, so we need to handle both.
+  // Step 3: create a set of unique colors
+  // Step 4: Use a commonly used scope list to map the colors to a color palette
   //         The scope list has an established order, so we can use it to build a
   //         color palette in that order.
-  // Step 4: De-duplicate the colors built from the common scope list.
+  // Step 5: De-duplicate the colors built from the common scope list.
   //         If a the palatte is full, then we can stop. If it's not, then we can
   //         select from the remaining colors in the unique color set.
   async getTokenColorsForTheme() {
@@ -569,10 +582,8 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       "variable",
       "entity.name.function", "support.function",
       "entity.name.type", "support.type",
-
       "comment",
       "keyword.operator",
-
       "variable.parameter"
     ];
 
@@ -583,7 +594,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     const errorColorPalette: any = [];
     scopeList.forEach((scope: any) => {scopeMap[scope] = [];});
     errorScopes.forEach((scope: any) => {scopeMap[scope] = [];});
-    console.log(`Theme: ${activeTheme}`);
 
     // Find the theme path
     for (const extension of vscode.extensions.all) {
@@ -592,7 +602,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
       if (currentTheme) {
         currentThemePath = path.join(extension.extensionPath, currentTheme.path);
-        console.log(currentThemePath);
         break;
       }
     }
@@ -601,17 +610,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     if (currentThemePath) { themePaths.push(currentThemePath); }
     while (themePaths.length > 0) {
       const themePath: any = themePaths.pop();
-
-      const theme = await vscode.workspace.fs.readFile(vscode.Uri.file(themePath)).then((data) => {
-        // parse JSONC (JSON with comments)
-        const raw = new TextDecoder().decode(data);
-        console.log(raw);
-        const stripped = raw
-          .replace(/\/\*[\s\S]*?\*\//g, '')   // block comments
-          .replace(/^\s*\/\/.*$/gm, '')        // line comments
-          .replace(/,(\s*[}\]])/g, '$1');      // trailing commas
-        return JSON.parse(stripped);
-      });
+      const theme = await this.parseThemeFile(themePath);
 
       if (!theme) {continue;}
       if (theme.include) {
@@ -645,18 +644,13 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       });
     }
 
-
     const semanticTokens = Object.keys(colorMap);
-    console.log(semanticTokens);
-
     errorScopes.forEach((scope: any) => {
       scopeMap[scope].forEach((color: any) => {
         if (errorColorPalette.includes(color)) {return;}
         errorColorPalette.push(color);
       });
     });
-
-    console.log(errorColorPalette);
 
     scopeList.forEach((scope: any) => {
       scopeMap[scope].forEach((color: any) => {
@@ -665,8 +659,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         colorPalette.push(color);
       });
     });
-
-    console.log(colorPalette);
 
     if (colorPalette.length < 8) {
       semanticTokens.forEach((color: any) => {
@@ -679,11 +671,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     this.log.appendLine("Semantic Tokens: " + semanticTokens.join(", "));
     this.log.appendLine("Color Palette: " + colorPalette.join(", "));
-    this.log.appendLine("Error Color Palette: " + errorColorPalette.join(", "));
-
-    console.log(colorMap);
-    console.log(scopeMap);
-    console.log(colorPalette);
+    this.log.appendLine("Reserved Color Palette: " + errorColorPalette.join(", "));
 
     this.colorPalette = colorPalette;
     this.errorColorPalette = errorColorPalette;

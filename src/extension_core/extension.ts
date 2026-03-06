@@ -50,17 +50,17 @@ export async function activate(context: vscode.ExtensionContext) {
       updateWCPServerFromConfiguration(wcpServer, viewerProvider, context);
     }
 
+    if (e.affectsConfiguration('workbench.colorTheme')) {
+      viewerProvider.getTokenColorsForTheme();
+    }
+
     // TODO: Check if configuration changes affect vaporview
     viewerProvider.updateConfiguration(e);
   }));
 
   vscode.window.registerTerminalLinkProvider(new TimestampLinkProvider(viewerProvider));
 
-  // I want to get semantic tokens for the current theme
-  // The API is not available yet, so I'm just going to log the theme
-  vscode.window.onDidChangeActiveColorTheme((e) => {viewerProvider.updateColorTheme(e);});
   //vscode.workspace.onDidChangeConfiguration((e) => {viewerProvider.updateConfiguration(e);});
-
   const markerSetEvent = WaveformViewerProvider.markerSetEventEmitter.event;
   const signalSelectEvent = WaveformViewerProvider.signalSelectEventEmitter.event;
   const addVariableEvent = WaveformViewerProvider.addVariableEventEmitter.event;
@@ -468,19 +468,19 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.setValueFormat(e.netlistId, undefined, e.rowId, {colorIndex: 3});
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor1', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor5', (e) => {
     viewerProvider.setValueFormat(e.netlistId, undefined, e.rowId, {colorIndex: 4});
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor2', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor6', (e) => {
     viewerProvider.setValueFormat(e.netlistId, undefined, e.rowId, {colorIndex: 5});
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor3', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor7', (e) => {
     viewerProvider.setValueFormat(e.netlistId, undefined, e.rowId, {colorIndex: 6});
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor4', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor8', (e) => {
     viewerProvider.setValueFormat(e.netlistId, undefined, e.rowId, {colorIndex: 7});
   }));
 

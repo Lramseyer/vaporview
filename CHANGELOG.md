@@ -1,6 +1,6 @@
 # Change Log
 
-## 1.5.1 - Upcoming Release
+## 1.5.1 - 3/9/2026 - Latest Release
 
 - Added Netlist search functionality to search by instance path
 - Added Zoom animations for highlight zoom (configurable in settings)
@@ -15,8 +15,9 @@
 - Added Cmd + Scroll to zoom on Mac OS
 - Removed ->X transition at timeEnd (which was not produced by the simulation)
 - Fixed reload bug with multiple instances of a signal
+- Fixed render bugs with devicePixelRatio less than 1
 
-# 1.5.0 - 2/25/2026 - Latest Release
+# 1.5.0 - 2/25/2026
 
 - Added Undo/Redo Support
 - Added feature to create custom signals from bit range

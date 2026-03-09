@@ -99,7 +99,7 @@ export class Configuration {
 
   getOS(): OS {
     const platform = navigator.userAgent ?? "";
-    console.log('platform', platform);
+    //console.log('platform', platform);
     if (/mac/i.test(platform))     return OS.Mac;
     if (/win/i.test(platform))     return OS.Windows;
     if (/linux/i.test(platform))   return OS.Linux;

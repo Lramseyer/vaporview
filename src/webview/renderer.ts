@@ -39,9 +39,9 @@ export function setRenderBounds(netlistData: NetlistVariable | CustomVariable, w
     }
   } else if (waveformData.signalWidth > 1) {
     if (netlistData instanceof NetlistVariable) {
-      console.log(`No cached format found for signalId ${netlistData.signalId} with format ${netlistData.valueFormat.id}`);
+      // console.log(`No cached format found for signalId ${netlistData.signalId} with format ${netlistData.valueFormat.id}`);
     } else {
-      console.log(`No cached format found for customSignalId ${netlistData.customSignalId} with format ${netlistData.valueFormat.id}`);
+      // console.log(`No cached format found for customSignalId ${netlistData.customSignalId} with format ${netlistData.valueFormat.id}`);
     }
   }
 

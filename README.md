@@ -2,7 +2,7 @@
 
 Vaporview is an open source waveform viewer extension for VScode.
 
- [VScode Marketplace](https://marketplace.visualstudio.com/items?itemName=lramseyer.vaporview) | [Open VSX](https://open-vsx.org/extension/lramseyer/vaporview) | [Github](https://github.com/Lramseyer/vaporview)
+[VScode Marketplace](https://marketplace.visualstudio.com/items?itemName=lramseyer.vaporview) | [Open VSX](https://open-vsx.org/extension/lramseyer/vaporview) | [Github](https://github.com/Lramseyer/vaporview)
 
 ![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/overview.png?raw=true)
 
@@ -13,6 +13,7 @@ Vaporview is an open source waveform viewer extension for VScode.
 - Add, remove, rearrange, and grouping of signals in the viewer
 - Time markers - main and alt marker
 - Search for values within a waveform dump
+- Search for variables and scopes in the netlist
 - Custom signals from bit range
 - Terminal Links for timestamps and instance paths
 - Remote waveform viewing via VScode SSH and surfer surver
@@ -219,27 +220,7 @@ This extension requires VScode 1.96.0 or later
 
 # Development Roadmap
 
-## 1.5.0 - 2/25/2026 - Latest Release
-
-- Added Undo/Redo Support
-- Added feature to create custom signals from bit range
-- Added feature to split bit vector into individual bits
-- VScode now tracks save files, and will prompt you before closing with unsaved changes
-- Added Fixed Point number formats
-- Updated License to AGPL-3.0
-- Updated to wellen 0.20.2
-- API
-  - Added "reveal" option to waveformViewer.addVariable command
-  - Added vaporview.enableInstancePathTerminalLinks user setting
-  - Finalized onDidDropInWaveformViewer event emitter
-- Fixed
-  - Selecting multiple signals no longer moves the time marker
-  - Dragging the scrollbar now works even if the mouse pointer is offscreen
-  - Right clicking on marker no longer brings up the wrong menu
-  - Highlight zooming at the edge of the viewport now works as expected
-  - Scopes with blank names now save and load properly with save files
-
-## 1.5.1 - Upcoming Release
+## 1.5.1 - 3/9/2026 - Latest Release
 
 - Added Netlist search functionality to search by instance path
 - Added Zoom animations for highlight zoom (configurable in settings)
@@ -254,6 +235,7 @@ This extension requires VScode 1.96.0 or later
 - Added Cmd + Scroll to zoom on Mac OS
 - Removed ->X transition at timeEnd (which was not produced by the simulation)
 - Fixed reload bug with multiple instances of a signal
+- Fixed render bugs with devicePixelRatio less than 1
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

@@ -440,7 +440,7 @@ export class RowHandler {
     for (let i = numSlices; i > 0; i--) {
       const msb = Math.min(i * bitWidth - 1, signalWidth - 1);
       const lsb = (i - 1) * bitWidth;
-      console.log('addAllBitSlices - msb:', msb, "lsb:", lsb);
+      //console.log('addAllBitSlices - msb:', msb, "lsb:", lsb);
       this.addCustomVariable(undefined, groupPath, groupId, eventRowId, undefined, msb, lsb, undefined);
     }
 

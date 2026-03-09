@@ -13,3 +13,4 @@ wit/**
 *.vsix
 toDo*
 Cargo.*
+.*/**

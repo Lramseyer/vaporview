@@ -289,9 +289,7 @@ export class WaveformDataManager {
     if (valueChangeData[0][0] !== 0) {
       valueChangeData.unshift([0, nullValue]);
     }
-    //if (valueChangeData[valueChangeData.length - 1][0] !== viewport.timeStop) {
-    //  valueChangeData.push([viewport.timeStop, nullValue]);
-    //}
+
     this.valueChangeData[signalId] = {
       valueChangeData: valueChangeData,
       formattedValues: {},

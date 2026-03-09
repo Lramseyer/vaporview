@@ -275,7 +275,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
     const valueIs9State = this.valueFormat.is9State;
     const pElement      = value.map((v: string) => {
       const is9State     = valueIs9State(v);
-      const colorStyle   = is9State ? 'var(--vscode-debugTokenExpression-error)' : this.color;
+      const colorStyle   = is9State ? styles.xzColor : this.color;
       const displayValue = parseValue(v, this.signalWidth, !is9State);
       return `<p style="color:${colorStyle}">${displayValue}</p>`;
     }).join(joinString);
@@ -527,7 +527,7 @@ export class CustomVariable extends SignalItem implements RowItem {
       const valueIs9State = this.valueFormat.is9State;
       const pElement      = value.map((v: string) => {
         const is9State     = valueIs9State(v);
-        const colorStyle   = is9State ? 'var(--vscode-debugTokenExpression-error)' : this.color;
+        const colorStyle   = is9State ? styles.xzColor : this.color;
         const displayValue = parseValue(v, this.signalWidth, !is9State);
         return `<p style="color:${colorStyle}">${displayValue}</p>`;
       }).join(joinString);

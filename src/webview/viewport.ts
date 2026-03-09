@@ -362,7 +362,10 @@ export class Viewport {
 
     // Get the signal id of the click
     const rowId      = this.getRowIdFromMouseEvent(event);
-    if (rowId === null) {return;}
+    if (rowId === null) {
+      rowHandler.deselectAllSignals();
+      return;
+    }
     const signalItem = rowHandler.rowItems[rowId];
     if (!signalItem) {return;}
 

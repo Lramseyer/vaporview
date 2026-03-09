@@ -314,6 +314,7 @@ body {
 }
 
 #waveform-labels-container {
+  position: relative;
   grid-column-start: 1;
   grid-column-end: 2;
   grid-row-start: 2;
@@ -342,6 +343,7 @@ body {
 }
 
 #value-display-container {
+  position: relative;
   grid-column-start: 2;
   grid-column-end: 3;
   grid-row-start: 2;

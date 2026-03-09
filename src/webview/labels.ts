@@ -83,8 +83,10 @@ export class LabelsPanels {
     this.handleUpdateColor     = this.handleUpdateColor.bind(this);
 
     // Event handlers to handle clicking on a waveform label to select a signal
-    labels.addEventListener(      'click', (e) => this.clickLabel(e));
-    valueDisplay.addEventListener('click', (e) => this.clickValueDisplay(e));
+    //labels.addEventListener(      'click', (e) => this.clickLabel(e));
+    //valueDisplay.addEventListener('click', (e) => this.clickValueDisplay(e));
+    labelsScroll.addEventListener('click', (e) => this.clickLabel(e));
+    valuesScroll.addEventListener('click', (e) => this.clickValueDisplay(e));
     // resize handler to handle column resizing
     resize1.addEventListener("mousedown",   (e) => {this.handleResizeMousedown(e, resize1, 1);});
     resize2.addEventListener("mousedown",   (e) => {this.handleResizeMousedown(e, resize2, 2);});
@@ -119,7 +121,10 @@ export class LabelsPanels {
     const labelsList   = Array.from(this.valueDisplay.querySelectorAll('.value-display-item'));
     const clickedLabel = event.target.closest('.value-display-item');
     const itemIndex    = labelsList.indexOf(clickedLabel);
-    if (itemIndex === -1) {return;}
+    if (itemIndex === -1) {
+      rowHandler.deselectAllSignals();
+      return;
+    }
     const rowId = viewerState.displayedSignals[itemIndex];
     //this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
     handleClickSelection(event, rowId);
@@ -130,7 +135,10 @@ export class LabelsPanels {
     if (this.renameActive) {return;}
     const clickedLabel = event.target.closest('.waveform-label');
     const rowId = this.getRowIdFromElement(clickedLabel);
-    if (rowId === null || isNaN(rowId)) {return;}
+    if (rowId === null || isNaN(rowId)) {
+      rowHandler.deselectAllSignals();
+      return;
+    }
 
     if (event.target.classList.contains('codicon-chevron-down') ||
         event.target.classList.contains('codicon-chevron-right')) {

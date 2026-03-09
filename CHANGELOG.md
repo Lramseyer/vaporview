@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.5.2 - Upcoming Release
+
+- Waveform color palette is derived from semantic token colors to better align with color theme
+- Added time units to save files
+- Clicking on an area outside the waveforms de-selects signals
+
 ## 1.5.1 - 3/9/2026 - Latest Release
 
 - Added Netlist search functionality to search by instance path

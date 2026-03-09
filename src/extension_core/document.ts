@@ -270,6 +270,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       fileName: this.uri.fsPath,
       markerTime: this.webviewContext.markerTime,
       altMarkerTime: this.webviewContext.altMarkerTime,
+      displayTimeUnit: this.webviewContext.displayTimeUnit,
       selectedSignal: this.getNameFromNetlistId(this.webviewContext.selectedSignal),
       zoomRatio: this.webviewContext.zoomRatio,
       scrollLeft: this.webviewContext.scrollLeft,

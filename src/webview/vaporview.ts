@@ -594,9 +594,7 @@ class VaporviewWebview {
       viewport.updateOverlayCanvas();
     } else if (viewerState.mouseupEventType === MouseUpEventType.None && abort) {
       if (!labelsPanel.renameActive) {
-        this.events.dispatch(ActionType.SignalSelect, [], null);
-        //console.log('handleMouseUp');
-        vscodeWrapper.sendWebviewContext(StateChangeType.User);
+        rowHandler.deselectAllSignals();
       }
     }
     viewerState.mouseupEventType = MouseUpEventType.None;

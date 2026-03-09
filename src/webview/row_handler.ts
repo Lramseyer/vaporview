@@ -809,6 +809,11 @@ export class RowHandler {
     return filteredRowIdList;
   }
 
+  deselectAllSignals() {
+    this.events.dispatch(ActionType.SignalSelect, [], null);
+    vscodeWrapper.sendWebviewContext(StateChangeType.User);
+  }
+
   handleReorderSignals(rowIdList: number[], newGroupId: number, newIndex: number) {
 
     let dropIndex = newIndex;

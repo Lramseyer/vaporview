@@ -49,6 +49,7 @@ class WebviewState {
   markerTime: number | null = null;
   altMarkerTime: number | null = null;
   selectedSignal: NetlistId | null = null;
+  displayTimeUnit: string = "ns";
   zoomRatio: number = 1;
   scrollLeft: number = 0;
   autoReload: boolean = false;
@@ -250,6 +251,9 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     if (event.altMarkerTime || event.altMarkerTime === 0) {
       this.webviewContext.altMarkerTime = event.altMarkerTime;
     }
+    if (event.displayTimeUnit) {
+      this.webviewContext.displayTimeUnit = event.displayTimeUnit;
+    }
 
     this.webviewContext.selectedSignal   = event.selectedSignal;
     this.webviewContext.displayedSignals = event.displayedSignals || this.webviewContext.displayedSignals;
@@ -385,6 +389,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       displayedSignals: signalListSettings.signalList,
       markerTime: settings.markerTime,
       altMarkerTime: settings.altMarkerTime,
+      displayTimeUnit: settings.displayTimeUnit,
       selectedSignal: settings.selectedSignal,
       zoomRatio: settings.zoomRatio,
       scrollLeft: settings.scrollLeft,

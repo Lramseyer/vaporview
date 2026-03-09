@@ -650,6 +650,11 @@ export class Viewport {
   }
 
   updateUnits(units: string, updateContext: boolean) {
+    const validUnits = ['fs', 'ps', 'ns', 'µs', 'ms', 's'];
+
+    if (!validUnits.includes(units)) {return;}
+    if (units === this.displayTimeUnit) {return;}
+
     this.displayTimeUnit = units;
     this.adjustedLogTimeScale = logScaleFromUnits(this.timeUnit) - logScaleFromUnits(units);
     if (viewerState.markerTime !== null) {

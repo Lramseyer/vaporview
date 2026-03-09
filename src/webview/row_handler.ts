@@ -508,6 +508,9 @@ export class RowHandler {
     if (settings.altMarkerTime !== undefined) {
       this.events.dispatch(ActionType.MarkerSet, settings.altMarkerTime, 1);
     }
+    if (settings.displayTimeUnit !== undefined) {
+      viewport.updateUnits(settings.displayTimeUnit, false);
+    }
     if (settings.selectedSignal) {
       const rowIdList = this.getRowIdsFromNetlistId(settings.selectedSignal);
       let lastSelectedSignal: RowId | null = rowIdList[0];

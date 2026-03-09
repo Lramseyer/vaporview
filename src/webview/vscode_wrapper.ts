@@ -109,9 +109,8 @@ export class Configuration {
 
 export class ThemeColors {
 
-  colorKey: string[] = ['#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC'];
-  customColorKey: string[] = ['#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC'];
-
+  colorKey: string[] = ['#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC'];
+  customColorKey: string[] = ['#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC'];
   xzColor: string = 'red';
   textColor: string = 'white';
   rulerTextColor: string = 'grey';
@@ -145,13 +144,13 @@ export class ThemeColors {
 
     const style = window.getComputedStyle(document.body);
     // Token colors
-    this.colorKey[0] = style.getPropertyValue('--vscode-debugTokenExpression-number');
-    this.colorKey[1] = style.getPropertyValue('--vscode-debugTokenExpression-string');
-    this.colorKey[2] = style.getPropertyValue('--vscode-debugTokenExpression-type');
-    this.colorKey[3] = style.getPropertyValue('--vscode-debugTokenExpression-name');
+    //this.colorKey[0] = style.getPropertyValue('--vscode-debugTokenExpression-number');
+    //this.colorKey[1] = style.getPropertyValue('--vscode-debugTokenExpression-string');
+    //this.colorKey[2] = style.getPropertyValue('--vscode-debugTokenExpression-type');
+    //this.colorKey[3] = style.getPropertyValue('--vscode-debugTokenExpression-name');
 
     // Non-2-State Signal Color
-    this.xzColor = style.getPropertyValue('--vscode-debugTokenExpression-error');
+    //this.xzColor = style.getPropertyValue('--vscode-debugTokenExpression-error');
 
     // Text Color
     this.textColor = style.getPropertyValue('--vscode-editor-foreground');
@@ -206,6 +205,19 @@ export class ThemeColors {
     this.rowHeight   = parseInt(style.getPropertyValue('--waveform-height'));
     this.rulerHeight = parseInt(style.getPropertyValue('--ruler-height'));
   }
+
+  updateColorPalette(colorPalette: string[], errorColorPalette: string[]) {
+
+    this.colorKey  = colorPalette;
+    if (errorColorPalette.length > 0) {
+      this.xzColor = errorColorPalette[0];
+    } else {
+      const style  = window.getComputedStyle(document.body);
+      this.xzColor = style.getPropertyValue('--vscode-debugTokenExpression-error');
+    }
+
+    this.events.dispatch(ActionType.UpdateColorTheme)
+  }
 }
 
 export class VscodeWrapper {
@@ -228,7 +240,7 @@ export class VscodeWrapper {
     const message = e.data;
 
     switch (message.command) {
-      case 'initViewport':          {init(message.metadata, message.uri, message.documentId); break;}
+      case 'initViewport':          {init(message); break;}
       case 'unload':                {unload(); break;}
       case 'getContext':            {this.sendWebviewContext(StateChangeType.None); break;}
       case 'setConfigSettings':     {config.setConfigSettings(message); break;}
@@ -256,7 +268,7 @@ export class VscodeWrapper {
       case 'setSelectedSignal':     {this.setSelectedSignal(message.netlistId); break;}
       case 'copyWaveDrom':          {copyWaveDrom(); break;}
       case 'copyValueAtMarker':     {labelsPanel.copyValueAtMarker(message.rowId); break;}
-      case 'updateColorTheme':      {this.events.dispatch(ActionType.UpdateColorTheme); break;}
+      case 'updateColorPalette':    {styles.updateColorPalette(message.colorPalette, message.errorColorPalette); break;}
       default:                      {this.outputLog('Unknown webview message type: ' + message.command); break;}
     }
   }

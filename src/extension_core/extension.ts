@@ -50,17 +50,17 @@ export async function activate(context: vscode.ExtensionContext) {
       updateWCPServerFromConfiguration(wcpServer, viewerProvider, context);
     }
 
+    if (e.affectsConfiguration('workbench.colorTheme')) {
+      viewerProvider.getTokenColorsForTheme();
+    }
+
     // TODO: Check if configuration changes affect vaporview
     viewerProvider.updateConfiguration(e);
   }));
 
   vscode.window.registerTerminalLinkProvider(new TimestampLinkProvider(viewerProvider));
 
-  // I want to get semantic tokens for the current theme
-  // The API is not available yet, so I'm just going to log the theme
-  vscode.window.onDidChangeActiveColorTheme((e) => {viewerProvider.updateColorTheme(e);});
   //vscode.workspace.onDidChangeConfiguration((e) => {viewerProvider.updateConfiguration(e);});
-
   const markerSetEvent = WaveformViewerProvider.markerSetEventEmitter.event;
   const signalSelectEvent = WaveformViewerProvider.signalSelectEventEmitter.event;
   const addVariableEvent = WaveformViewerProvider.addVariableEventEmitter.event;
@@ -468,19 +468,19 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.setValueFormat(e.netlistId, undefined, e.rowId, {colorIndex: 3});
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor1', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor5', (e) => {
     viewerProvider.setValueFormat(e.netlistId, undefined, e.rowId, {colorIndex: 4});
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor2', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor6', (e) => {
     viewerProvider.setValueFormat(e.netlistId, undefined, e.rowId, {colorIndex: 5});
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor3', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor7', (e) => {
     viewerProvider.setValueFormat(e.netlistId, undefined, e.rowId, {colorIndex: 6});
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.customColor4', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.defaultColor8', (e) => {
     viewerProvider.setValueFormat(e.netlistId, undefined, e.rowId, {colorIndex: 7});
   }));
 
@@ -649,42 +649,4 @@ export default WaveformViewerProvider;
 export function deactivate() {
   // WCP server cleanup is handled by context subscriptions
   // All resources registered with context.subscriptions are automatically disposed
-}
-
-export function getTokenColorsForTheme(themeName: string) {
-  const tokenColors = new Map();
-  let currentThemePath;
-  for (const extension of vscode.extensions.all) {
-    const themes = extension.packageJSON.contributes && extension.packageJSON.contributes.themes;
-    const currentTheme = themes && themes.find((theme: any) => theme.id === themeName);
-    if (currentTheme) {
-      currentThemePath = path.join(extension.extensionPath, currentTheme.path);
-      break;
-    }
-  }
-  const themePaths = [];
-  if (currentThemePath) { themePaths.push(currentThemePath); }
-  while (themePaths.length > 0) {
-    const themePath: any = themePaths.pop();
-    const theme: any = require(themePath);
-    if (theme) {
-      if (theme.include) {
-        themePaths.push(path.join(path.dirname(themePath), theme.include));
-      }
-      if (theme.tokenColors) {
-        theme.tokenColors.forEach((rule: any) => {
-          if (typeof rule.scope === "string" && !tokenColors.has(rule.scope)) {
-            tokenColors.set(rule.scope, rule.settings);
-          } else if (rule.scope instanceof Array) {
-            rule.scope.forEach((scope: any) => {
-              if (!tokenColors.has(rule.scope)) {
-                tokenColors.set(scope, rule.settings);
-              }
-            });
-          }
-        });
-      }
-    }
-  }
-  return tokenColors;
 }

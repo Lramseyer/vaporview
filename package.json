@@ -36,7 +36,9 @@
   "main": "./dist/extension",
   "browser": "./dist/extension",
   "activationEvents": [],
-  "extensionKind": ["workspace"],
+  "extensionKind": [
+    "workspace"
+  ],
   "contributes": {
     "resourceLabelFormatters": [
       {
@@ -723,24 +725,24 @@
           "group": "0_default@4"
         },
         {
-          "command": "vaporview.customColor1",
+          "command": "vaporview.defaultColor5",
           "when": "webviewSection == 'signal'",
-          "group": "1_custom@1"
+          "group": "0_default@5"
         },
         {
-          "command": "vaporview.customColor2",
+          "command": "vaporview.defaultColor6",
           "when": "webviewSection == 'signal'",
-          "group": "1_custom@2"
+          "group": "0_default@6"
         },
         {
-          "command": "vaporview.customColor3",
+          "command": "vaporview.defaultColor7",
           "when": "webviewSection == 'signal'",
-          "group": "1_custom@3"
+          "group": "0_default@7"
         },
         {
-          "command": "vaporview.customColor4",
+          "command": "vaporview.defaultColor8",
           "when": "webviewSection == 'signal'",
-          "group": "1_custom@4"
+          "group": "0_default@8"
         }
       ],
       "vaporview.rowHeight": [
@@ -1176,35 +1178,35 @@
       },
       {
         "command": "vaporview.defaultColor1",
-        "title": "Number Token Color"
+        "title": "Color 1"
       },
       {
         "command": "vaporview.defaultColor2",
-        "title": "String Token Color"
+        "title": "Color 2"
       },
       {
         "command": "vaporview.defaultColor3",
-        "title": "Declaration Token Color"
+        "title": "Color 3"
       },
       {
         "command": "vaporview.defaultColor4",
-        "title": "Flow Control Token Color"
+        "title": "Color 4"
       },
       {
-        "command": "vaporview.customColor1",
-        "title": "Custom Color 1"
+        "command": "vaporview.defaultColor5",
+        "title": "Color 5"
       },
       {
-        "command": "vaporview.customColor2",
-        "title": "Custom Color 2"
+        "command": "vaporview.defaultColor6",
+        "title": "Color 6"
       },
       {
-        "command": "vaporview.customColor3",
-        "title": "Custom Color 3"
+        "command": "vaporview.defaultColor7",
+        "title": "Color 7"
       },
       {
-        "command": "vaporview.customColor4",
-        "title": "Custom Color 4"
+        "command": "vaporview.defaultColor8",
+        "title": "Color 8"
       },
       {
         "command": "vaporview.rowHeight1x",
@@ -1380,10 +1382,12 @@
     "@vscode/codicons": "0.0.35",
     "@vscode/wasm-component-model": "1.0.2",
     "lz4js": "^0.2.0",
-    "node-addon-api": "^8.3.1"
+    "node-addon-api": "^8.3.1",
+    "plist": "^3.1.0"
   },
   "devDependencies": {
     "@types/node": "^18.14.6",
+    "@types/plist": "^3.0.5",
     "@types/vscode": "1.89.0",
     "@typescript-eslint/eslint-plugin": "^7.6.0",
     "@typescript-eslint/parser": "^7.6.0",

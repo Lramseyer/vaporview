@@ -644,19 +644,20 @@ class VaporviewWebview {
   }
 }
 
-export function init(metadata: any, uri: string, documentId: DocumentId) {
+export function init(message: any) {
   const context: DefaultWebviewContext = {
     preventDefaultContextMenuItems: true,
     webviewSelection: true,
-    documentId: documentId,
-    uri: uri,
+    documentId: message.documentId,
+    uri: message.uri,
   };
   document.body.setAttribute("data-vscode-context", JSON.stringify(context));
-  document.title         = metadata.filename;
-  viewerState.uri        = uri;
-  viewerState.documentId = documentId;
+  document.title         = message.metadata.filename;
+  viewerState.uri        = message.uri;
+  viewerState.documentId = message.documentId;
   styles.getThemeColors();
-  viewport.initViewport(metadata);
+  styles.updateColorPalette(message.colorPalette, message.errorColorPalette);
+  viewport.initViewport(message.metadata);
   vscodeWrapper.restoreState();
   //this.updateRuler();
   //this.updatePending = false;

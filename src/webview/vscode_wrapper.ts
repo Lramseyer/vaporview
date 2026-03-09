@@ -35,6 +35,14 @@ export class Configuration {
   overrideDevicePixelRatio: boolean = false;
   userPixelRatio: number            = 1;
   disableAnalogRendererOptimizations: boolean = false;
+
+  defaultSingleBitColor: number     = 0;
+  defaultMultiBitColor: number      = 0;
+  defaultParamColor: number         = 0;
+  defaultStringColor: number        = 0;
+  defaultEnumColor: number          = 0;
+  defaultCustomSignalColor: number  = 0;
+
   os: OS                            = OS.Unknown;
 
   constructor() {
@@ -73,6 +81,26 @@ export class Configuration {
     }
     if (settings.animationDuration !== undefined) {
       this.animationDuration = settings.animationDuration;
+    }
+
+    // Default Colors
+    if (settings.defaultSingleBitColor !== undefined) {
+      this.defaultSingleBitColor = Math.floor(settings.defaultSingleBitColor - 1);
+    }
+    if (settings.defaultMultiBitColor !== undefined) {
+      this.defaultMultiBitColor = Math.floor(settings.defaultMultiBitColor - 1);
+    }
+    if (settings.defaultParamColor !== undefined) {
+      this.defaultParamColor = Math.floor(settings.defaultParamColor - 1);
+    }
+    if (settings.defaultStringColor !== undefined) {
+      this.defaultStringColor = Math.floor(settings.defaultStringColor - 1);
+    }
+    if (settings.defaultEnumColor !== undefined) {
+      this.defaultEnumColor = Math.floor(settings.defaultEnumColor - 1);
+    }
+    if (settings.defaultCustomSignalColor !== undefined) {
+      this.defaultCustomSignalColor = Math.floor(settings.defaultCustomSignalColor - 1);
     }
 
     // Custom Colors

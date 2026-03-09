@@ -188,17 +188,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
 
   public setConfigurationSettings() {
     const config = vscode.workspace.getConfiguration('vaporview');
-
-    const scrollingMode            = config.get('scrollingMode');
-    const rulerLines               = config.get('showRulerLines');
-    const fillMultiBitValues       = config.get('fillMultiBitValues');
-    const multiBitFixedHeight      = config.get('multiBitFixedHeight');
-    const enableAnimations         = config.get('enableAnimations');
-    const animationDuration        = config.get('animationDuration');
-    const overrideDevicePixelRatio = config.get('overrideDevicePixelRatio');
-    const disableOptimizations     = config.get('disableAnalogRendererOptimizations');
-    const userPixelRatio           = config.get('userPixelRatio');
-
     const color1 = config.get('customColor1');
     const color2 = config.get('customColor2');
     const color3 = config.get('customColor3');
@@ -206,15 +195,21 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
 
     this.webviewPanel?.webview.postMessage({
       command: 'setConfigSettings',
-      scrollingMode: scrollingMode,
-      rulerLines: rulerLines,
-      overrideDevicePixelRatio: overrideDevicePixelRatio,
-      userPixelRatio: userPixelRatio,
-      fillMultiBitValues: fillMultiBitValues,
-      multiBitFixedHeight: multiBitFixedHeight,
-      enableAnimations: enableAnimations,
-      animationDuration: animationDuration,
-      disableAnalogRendererOptimizations: disableOptimizations,
+      scrollingMode:                      config.get('scrollingMode'),
+      rulerLines:                         config.get('showRulerLines'),
+      overrideDevicePixelRatio:           config.get('overrideDevicePixelRatio'),
+      userPixelRatio:                     config.get('userPixelRatio'),
+      fillMultiBitValues:                 config.get('fillMultiBitValues'),
+      multiBitFixedHeight:                config.get('multiBitFixedHeight'),
+      enableAnimations:                   config.get('enableAnimations'),
+      animationDuration:                  config.get('animationDuration'),
+      disableAnalogRendererOptimizations: config.get('disableAnalogRendererOptimizations'),
+      defaultSingleBitColor:              config.get('defaultSingleBitColor'),
+      defaultMultiBitColor:               config.get('defaultMultiBitColor'),
+      defaultParamColor:                  config.get('defaultParamColor'),
+      defaultStringColor:                 config.get('defaultStringColor'),
+      defaultEnumColor:                   config.get('defaultEnumColor'),
+      defaultCustomSignalColor:           config.get('defaultCustomSignalColor'),
       customColors: [color1, color2, color3, color4],
     });
 

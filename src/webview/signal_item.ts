@@ -1,6 +1,6 @@
 import { type NetlistId, type RowId, type ValueChange, EnumData, EnumEntry, NameType, VariableEncoding, CollapseState, type BitRangeSource, type SignalSeparatorContext, type NetlistVariableContext, CustomVariableContext, SignalGroupContext, SavedRowItem, SavedSignalSeparator, SavedNetlistVariable, SavedCustomVariable, SavedSignalGroup } from '../common/types';
 
-import { dataManager, viewport, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, rowHandler, vscodeWrapper, styles } from "./vaporview";
+import { dataManager, viewport, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, rowHandler, vscodeWrapper, styles, config } from "./vaporview";
 import { EnumValueFormat, formatBinary, formatHex, formatString, type ValueFormat } from "./value_format";
 import { type WaveformRenderer, setRenderBounds } from "./renderer";
 import type { WaveformData } from "./data_manager";
@@ -219,16 +219,31 @@ export class NetlistVariable extends SignalItem implements RowItem {
     super();
 
     this.customName = this.signalName;
+
+    this.colorIndex = 1;
+    if (this.signalWidth === 1) {
+      this.colorIndex = config.defaultSingleBitColor;
+    } else {
+      this.colorIndex = config.defaultMultiBitColor;
+    }
+
     if (this.encoding === VariableEncoding.String) {
       this.valueFormat = formatString;
-      this.colorIndex  = 1;
+      this.colorIndex  = config.defaultStringColor;
     } else if (this.encoding === VariableEncoding.Real) {
       this.valueFormat = formatString;
+      this.colorIndex  = config.defaultMultiBitColor;
     } else if (this.enumType !== "") {
       this.valueFormat = new EnumValueFormat(this.enumType);
+      this.colorIndex  = config.defaultEnumColor;
     } else {
       this.valueFormat = this.signalWidth === 1 ? formatBinary : formatHex;
     }
+
+    if (this.variableType === 'Parameter') {
+      this.colorIndex = config.defaultParamColor;
+    }
+
     this.setSignalContextAttribute();
     this.setColorFromColorIndex();
   }
@@ -462,7 +477,7 @@ export class CustomVariable extends SignalItem implements RowItem {
   public valueLinkCommand: string = "";
   public valueLinkBounds: [number, number][] = [];
   public valueLinkIndex: number = -1;
-  public colorIndex: number = 0;
+  public colorIndex: number = config.defaultCustomSignalColor;
   public color: string = "";
   public rowHeight: number = 1;
   public wasRendered: boolean = false;

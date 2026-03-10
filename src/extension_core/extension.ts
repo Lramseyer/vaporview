@@ -15,9 +15,12 @@ export async function activate(context: vscode.ExtensionContext) {
   const binaryData = await vscode.workspace.fs.readFile(binaryFile);
   const wasmModule = await WebAssembly.compile(new Uint8Array(binaryData));
 
+  // Import the vscode-shiki-bridge package
+  const { getUserTheme } = await import('vscode-shiki-bridge');
+
   // Register Custom Editor Provider (The viewer window)
   // See package.json for more details
-  const viewerProvider = new WaveformViewerProvider(context, wasmModule);
+  const viewerProvider = new WaveformViewerProvider(context, wasmModule, getUserTheme);
 
   vscode.window.registerCustomEditorProvider(
     'vaporview.waveformViewer',

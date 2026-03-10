@@ -37,6 +37,15 @@ const extensionConfig = {
   platform: 'node',
   outfile: 'dist/extension.js',
   external: ['vscode'], // Only external we actually need
+  alias: {
+    // vscode-shiki-bridge ships ESM as its default export, which can't be
+    // bundled into a CJS output. Point esbuild at the CJS build instead.
+    'vscode-shiki-bridge': './node_modules/vscode-shiki-bridge/dist/index.cjs',
+    // jsonc-parser's UMD entry passes the real Node require() into its factory,
+    // so internal require('./impl/format') calls escape esbuild's module system
+    // and fail at runtime. Use the ESM entry so esbuild can bundle it statically.
+    'jsonc-parser': './node_modules/jsonc-parser/lib/esm/main.js',
+  },
   plugins: [esbuildProblemMatcherPlugin],
 };
 

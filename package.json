@@ -31,7 +31,7 @@
     "VHDL"
   ],
   "engines": {
-    "vscode": "^1.96.0"
+    "vscode": "^1.102.0"
   },
   "main": "./dist/extension",
   "browser": "./dist/extension",
@@ -1448,12 +1448,14 @@
     "@vscode/wasm-component-model": "1.0.2",
     "lz4js": "^0.2.0",
     "node-addon-api": "^8.3.1",
-    "plist": "^3.1.0"
+    "plist": "^3.1.0",
+    "shiki": "^3.23.0",
+    "vscode-shiki-bridge": "^0.5.1"
   },
   "devDependencies": {
     "@types/node": "^18.14.6",
     "@types/plist": "^3.0.5",
-    "@types/vscode": "1.89.0",
+    "@types/vscode": "^1.102.0",
     "@typescript-eslint/eslint-plugin": "^7.6.0",
     "@typescript-eslint/parser": "^7.6.0",
     "concurrently": "^9.1.0",

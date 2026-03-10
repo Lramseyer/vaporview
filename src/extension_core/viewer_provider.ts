@@ -12,7 +12,6 @@ import { NetlistTreeDataProvider, type NetlistItem, netlistItemDragAndDropContro
 import path from 'path';
 import * as plist from 'plist';
 
-
 export interface VaporviewDocumentDelegate {
   addSignalByNameToDocument(signalName: string): void;
   logOutputChannel(message: string): void;
@@ -136,7 +135,8 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
   constructor(
     private readonly _context: vscode.ExtensionContext, 
-    private readonly wasmModule: WebAssembly.Module
+    private readonly wasmModule: WebAssembly.Module,
+    private readonly getUserTheme: () => Promise<[string, unknown[]]>
   ) {
 
     // The channel for printing the log.
@@ -533,12 +533,30 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     });
   }
 
-  async parseThemeFile(themePath: string) {
-    const raw = new TextDecoder().decode(await vscode.workspace.fs.readFile(vscode.Uri.file(themePath)));
-      let theme: any;
+  async parseThemeFile(activeTheme: string) {
+
+    let currentThemePath: string | undefined;
+    const themePaths = [];
+    for (const extension of vscode.extensions.all) {
+      const themes = extension.packageJSON.contributes && extension.packageJSON.contributes.themes;
+      const currentTheme = themes && themes.find((theme: any) => theme.id === activeTheme || theme.label === activeTheme);
+
+      if (currentTheme) {
+        currentThemePath = path.join(extension.extensionPath, currentTheme.path);
+        break;
+      }
+    }
+    if (currentThemePath) { themePaths.push(currentThemePath); }
+    let result: any[] = [];
+
+    while (themePaths.length > 0) {
+      let theme: any = {};
+      const themePath: any = themePaths.pop();
+      const raw = new TextDecoder().decode(await vscode.workspace.fs.readFile(vscode.Uri.file(themePath)));
       if (themePath.endsWith('.tmTheme')) {
         // .tmTheme files are Apple plist XML; normalize to the JSON theme shape
         const parsed = plist.parse(raw) as any;
+
         theme = { tokenColors: parsed.settings ?? [] };
         // plist scope strings can be comma-separated — split them into arrays
         theme.tokenColors = theme.tokenColors.map((rule: any) => {
@@ -556,24 +574,38 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
           .replace(/,(\s*[}\]])/g, '$1');      // trailing commas
         theme = JSON.parse(stripped);
       }
-    return theme;
+      theme.settings = theme.tokenColors;
+      delete theme.tokenColors;
+      result.push(theme);
+
+    }
+    return result;
   }
 
   // Build a color palette from the current theme
-  // Step 1: Get Configuration Settings to see which theme is active
-  // Step 2: Get the theme path, and parse the file to get the colors, and scopes
-  //         This can be a .tmTheme or a JSON/JSONC file, so we need to handle both.
-  // Step 3: create a set of unique colors
-  // Step 4: Use a commonly used scope list to map the colors to a color palette
+  // Step 1: Get the color theme and settings from the user's theme (handled by vscode-shiki-bridge)
+  // Step 2: create a set of unique colors
+  // Step 3: Use a commonly used scope list to map the colors to a color palette
   //         The scope list has an established order, so we can use it to build a
   //         color palette in that order.
-  // Step 5: De-duplicate the colors built from the common scope list.
+  // Step 4: De-duplicate the colors built from the common scope list.
   //         If a the palatte is full, then we can stop. If it's not, then we can
   //         select from the remaining colors in the unique color set.
   async getTokenColorsForTheme() {
 
-    let currentThemePath;
-    const activeTheme = vscode.workspace.getConfiguration().get<string>('workbench.colorTheme') ?? '';
+    let [themeName, themeData] = await this.getUserTheme();
+
+    let backupParser = true;
+    themeData.forEach((theme: any) => {
+      if (theme.settings) {
+        backupParser = false;
+      }
+    });
+
+    if (backupParser) {
+      themeData = await this.parseThemeFile(themeName);
+    }
+
     const scopeList = [
       "constant.numeric",
       "string",
@@ -586,39 +618,17 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       "keyword.operator",
       "variable.parameter"
     ];
-
-    const errorScopes = ["invalid", "token.error-token"];
+    const errorScopes = ["token.error-token", "invalid"];
     const colorMap: any = {};
     const scopeMap: any = {};
     const colorPalette: any = [];
     const errorColorPalette: any = [];
     scopeList.forEach((scope: any) => {scopeMap[scope] = [];});
     errorScopes.forEach((scope: any) => {scopeMap[scope] = [];});
+    themeData.forEach((theme: any) => {
+      const settings = theme.settings;
 
-    // Find the theme path
-    for (const extension of vscode.extensions.all) {
-      const themes = extension.packageJSON.contributes && extension.packageJSON.contributes.themes;
-      const currentTheme = themes && themes.find((theme: any) => theme.id === activeTheme || theme.label === activeTheme);
-
-      if (currentTheme) {
-        currentThemePath = path.join(extension.extensionPath, currentTheme.path);
-        break;
-      }
-    }
-
-    const themePaths = [];
-    if (currentThemePath) { themePaths.push(currentThemePath); }
-    while (themePaths.length > 0) {
-      const themePath: any = themePaths.pop();
-      const theme = await this.parseThemeFile(themePath);
-
-      if (!theme) {continue;}
-      if (theme.include) {
-        themePaths.push(path.join(path.dirname(themePath), theme.include));
-      }
-
-      if (!theme.tokenColors) {continue;}
-      theme.tokenColors.forEach((rule: any) => {
+      settings.forEach((rule: any) => {
         if (!rule.settings?.foreground) {return;}
         const color = rule.settings.foreground.toLowerCase();
         if (!colorMap[color]) {
@@ -642,7 +652,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
           }
         });
       });
-    }
+    });
 
     const semanticTokens = Object.keys(colorMap);
     errorScopes.forEach((scope: any) => {

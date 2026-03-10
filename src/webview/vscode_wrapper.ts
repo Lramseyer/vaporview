@@ -178,7 +178,8 @@ export class ThemeColors {
     //this.colorKey[3] = style.getPropertyValue('--vscode-debugTokenExpression-name');
 
     // Non-2-State Signal Color
-    //this.xzColor = style.getPropertyValue('--vscode-debugTokenExpression-error');
+    this.xzColor = style.getPropertyValue('--vscode-debugTokenExpression-error');
+    //this.xzColor = style.getPropertyValue('--vscode-list-errorForeground');
 
     // Text Color
     this.textColor = style.getPropertyValue('--vscode-editor-foreground');
@@ -237,12 +238,12 @@ export class ThemeColors {
   updateColorPalette(colorPalette: string[], errorColorPalette: string[]) {
 
     this.colorKey  = colorPalette;
-    if (errorColorPalette.length > 0) {
-      this.xzColor = errorColorPalette[0];
-    } else {
-      const style  = window.getComputedStyle(document.body);
-      this.xzColor = style.getPropertyValue('--vscode-debugTokenExpression-error');
-    }
+    //if (errorColorPalette.length > 0) {
+    //  this.xzColor = errorColorPalette[0];
+    //} else {
+    //  const style  = window.getComputedStyle(document.body);
+    //  this.xzColor = style.getPropertyValue('--vscode-debugTokenExpression-error');
+    //}
 
     this.events.dispatch(ActionType.UpdateColorTheme)
   }

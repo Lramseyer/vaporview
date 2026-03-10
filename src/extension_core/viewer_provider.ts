@@ -535,6 +535,8 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
   async parseThemeFile(activeTheme: string) {
 
+    console.log('Using backup theme parser for theme: ' + activeTheme);
+
     let currentThemePath: string | undefined;
     const themePaths = [];
     for (const extension of vscode.extensions.all) {
@@ -589,7 +591,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   //         The scope list has an established order, so we can use it to build a
   //         color palette in that order.
   // Step 4: De-duplicate the colors built from the common scope list.
-  //         If a the palatte is full, then we can stop. If it's not, then we can
+  //         If a the palette is full, then we can stop. If it's not, then we can
   //         select from the remaining colors in the unique color set.
   async getTokenColorsForTheme() {
 
@@ -681,7 +683,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     this.log.appendLine("Semantic Tokens: " + semanticTokens.join(", "));
     this.log.appendLine("Color Palette: " + colorPalette.join(", "));
-    this.log.appendLine("Reserved Color Palette: " + errorColorPalette.join(", "));
 
     this.colorPalette = colorPalette;
     this.errorColorPalette = errorColorPalette;

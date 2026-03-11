@@ -4,6 +4,8 @@ import { SignalGroup, NetlistVariable, CustomVariable } from "./signal_item";
 import { viewerState, events, createWebviewContext, viewport, rowHandler, getParentGroupIdList, labelsPanel, EventHandler, ActionType, dataManager, controlBar, styles, unload, init, revealSignal, config } from "./vaporview";
 import { copyWaveDrom } from "./wavedrom";
 
+import { differenceCiede2000, rgb } from "culori";
+
 declare function acquireVsCodeApi(): VsCodeApi;
 const vscode = acquireVsCodeApi();
 interface VsCodeApi {
@@ -235,16 +237,65 @@ export class ThemeColors {
     this.rulerHeight = parseInt(style.getPropertyValue('--ruler-height'));
   }
 
+  // We're not done selecting a color palette here! We need to filter out
+  // colors that are too close to the background color or the non-2-state color
+  // Step 5: Compare the colors in the palette to the background color and the
+  //         non-2-state color, and bin them based on how close they are
+  // Step 6: Select from all of our top tier colors, and if we don't have
+  //         enough colors, then select from the next tier, etc.
   updateColorPalette(colorPalette: string[], errorColorPalette: string[]) {
 
-    this.colorKey  = colorPalette;
-    //if (errorColorPalette.length > 0) {
-    //  this.xzColor = errorColorPalette[0];
-    //} else {
-    //  const style  = window.getComputedStyle(document.body);
-    //  this.xzColor = style.getPropertyValue('--vscode-debugTokenExpression-error');
-    //}
+    const style = window.getComputedStyle(document.body);
+    this.backgroundColor = style.getPropertyValue('--vscode-editor-background');
+    this.xzColor = style.getPropertyValue('--vscode-debugTokenExpression-error');
 
+    if (this.backgroundColor === undefined) {return;}
+    if (this.xzColor === undefined) {return;}
+    const rgbBackground = rgb(this.backgroundColor);
+    const rgbXZ = rgb(this.xzColor);
+    if (rgbBackground === undefined) {return;}
+    if (rgbXZ === undefined) {return;}
+
+    console.log(`--- Background color: ${this.backgroundColor} rgb(${rgbBackground.r}, ${rgbBackground.g}, ${rgbBackground.b})`);
+    console.log(`--- XZ color: ${this.xzColor} rgb(${rgbXZ.r}, ${rgbXZ.g}, ${rgbXZ.b})`);
+
+    const deltaE = differenceCiede2000();
+    let colorIndex = 1;
+
+    const topTierColors: string[] = [];
+    const midTierColors: string[] = [];
+    const lowTierColors: string[] = [];
+    const bottomTierColors: string[] = [];
+
+    colorPalette.forEach((color, index) => {
+      if (topTierColors.length >= 8) {return;}
+      const rgbColor = rgb(color);
+      if (rgbColor === undefined) {return;}
+
+      // round to 2 decimal places for logging
+      const deltaBackground = Math.round(deltaE(rgbBackground, rgbColor) * 100) / 100;
+      const deltaXZ         = Math.round(deltaE(rgbColor,      rgbXZ)    * 100) / 100;
+
+      let tier = '';
+      if (deltaBackground >= 35 && deltaXZ > 20) {
+        topTierColors.push(color);
+        tier = 'top';
+      } else if (deltaBackground >= 30 && deltaXZ > 15) {
+        midTierColors.push(color);
+        tier = 'mid';
+      } else if (deltaBackground >= 25 && deltaXZ > 10) {
+        lowTierColors.push(color);
+        tier = 'low';
+      } else {
+        bottomTierColors.push(color);
+        tier = 'bottom';
+      }
+
+      console.log(`Color ${colorIndex} ${color} has deltaE of ${deltaBackground} from background color and deltaE of ${deltaXZ} from XZ color - tier: ${tier}`);
+      colorIndex++;
+    });
+
+    this.colorKey = topTierColors.concat(midTierColors).concat(lowTierColors).concat(bottomTierColors);
     this.events.dispatch(ActionType.UpdateColorTheme)
   }
 }

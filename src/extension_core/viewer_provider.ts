@@ -672,14 +672,11 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       });
     });
 
-    if (colorPalette.length < 8) {
-      semanticTokens.forEach((color: any) => {
-        if (colorPalette.length >= 8) {return;}
-        if (colorPalette.includes(color)) {return;}
-        if (errorColorPalette.includes(color)) {return;}
-        colorPalette.push(color);
-      });
-    }
+    semanticTokens.forEach((color: any) => {
+      if (colorPalette.includes(color)) {return;}
+      if (errorColorPalette.includes(color)) {return;}
+      colorPalette.push(color);
+    });
 
     this.log.appendLine("Semantic Tokens: " + semanticTokens.join(", "));
     this.log.appendLine("Color Palette: " + colorPalette.join(", "));

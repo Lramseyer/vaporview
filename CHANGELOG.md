@@ -7,6 +7,7 @@
 - Clicking on an area outside the waveforms de-selects signals
 - Organized user settings into categories
 - Added user settings for default waveform colors
+- Fixed status bar not updating when setting alt marker, or selecting the last value change
 
 ## 1.5.1 - 3/9/2026 - Latest Release
 

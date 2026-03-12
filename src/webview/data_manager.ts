@@ -498,18 +498,20 @@ export class WaveformDataManager {
     const vcData = this.valueChangeData[signalId].valueChangeData;
     if (vcData === undefined || vcData.length === 0) {return result;}
 
+    const maxIndex  = vcData.length - 1;
+    const maxTime   = vcData[maxIndex][0];
     const startTime = Math.min(viewerState.markerTime, viewerState.altMarkerTime);
     const endTime   = Math.max(viewerState.markerTime, viewerState.altMarkerTime);
-    let startIndex = this.binarySearch(vcData, startTime);
-    let endIndex   = this.binarySearch(vcData, endTime);
-    let additional = 0;
+    let startIndex  = this.binarySearch(vcData, startTime);
+    let endIndex    = this.binarySearch(vcData, endTime);
+    let additional  = 0;
 
-    if (vcData[endIndex][0] === endTime) {additional = 1;}
-    while (vcData[startIndex][0] < startTime && vcData[startIndex][0] < endTime) {
-      startIndex++;
-    }
-    while (vcData[endIndex][0] < endTime && endIndex < vcData.length) {
-      endIndex++;
+    if (endTime === maxTime) {
+      additional = 1;
+    } else if (endTime > maxTime) {
+      additional = 0;
+    } else if (endTime === vcData[endIndex][0]) {
+      additional = 1;
     }
 
     const r = Math.max(0, (endIndex - startIndex) + additional);

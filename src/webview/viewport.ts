@@ -361,7 +361,7 @@ export class Viewport {
     let snapToTime = time;
 
     // Get the signal id of the click
-    const rowId      = this.getRowIdFromMouseEvent(event);
+    const rowId    = this.getRowIdFromMouseEvent(event);
     if (rowId === null) {
       rowHandler.deselectAllSignals();
       return;
@@ -369,6 +369,7 @@ export class Viewport {
     const signalItem = rowHandler.rowItems[rowId];
     if (!signalItem) {return;}
 
+    let updateContext = false;
     if (signalItem instanceof NetlistVariable || signalItem instanceof CustomVariable) {
       // Snap to the nearest transition if the click is close enough
       const nearestTransition = signalItem.getNearestTransition(time);
@@ -386,11 +387,18 @@ export class Viewport {
       }
       if (!(event.ctrlKey || event.shiftKey || event.metaKey)) {
         this.events.dispatch(ActionType.MarkerSet, snapToTime, button);
+        updateContext = true;
       }
     }
 
     if (button === 0) {
+      // This will call sendWebviewContext(), so we don't need to call it again below
       handleClickSelection(event, rowId);
+      updateContext = false;
+    }
+
+    if (updateContext) {
+      vscodeWrapper.sendWebviewContext(StateChangeType.User);
     }
   }
 
@@ -653,12 +661,15 @@ export class Viewport {
   }
 
   updateUnits(units: string, updateContext: boolean) {
-    const validUnits = ['fs', 'ps', 'ns', 'µs', 'ms', 's'];
+    const validUnits = ['fs', 'ps', 'ns', 'µs', 'us', 'ms', 's'];
 
     if (!validUnits.includes(units)) {return;}
     if (units === this.displayTimeUnit) {return;}
 
-    this.displayTimeUnit = units;
+    let newUnits = units;
+    if (units === 'us') {newUnits = 'µs';}
+
+    this.displayTimeUnit = newUnits;
     this.adjustedLogTimeScale = logScaleFromUnits(this.timeUnit) - logScaleFromUnits(units);
     if (viewerState.markerTime !== null) {
       this.markerLabelElement.innerText = this.scaleTime(viewerState.markerTime) + ' ' + this.displayTimeUnit;
@@ -846,6 +857,9 @@ export class Viewport {
 
     ctx.setLineDash([6, 2, 2, 2]);
     if (viewerState.altMarkerTime !== null) {
+      if (viewerState.altMarkerTime === viewerState.markerTime) {
+        ctx.setLineDash([]);
+      }
     const altMarkerX = this.getViewportLeft(viewerState.altMarkerTime, 100);
       ctx.beginPath();
       ctx.moveTo(altMarkerX, styles.rulerHeight);

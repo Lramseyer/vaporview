@@ -17,6 +17,7 @@ const classIcon     = new vscode.ThemeIcon('symbol-misc',      scopeColor);
 const interfaceIcon = new vscode.ThemeIcon('debug-disconnect', scopeColor);
 const packageIcon   = new vscode.ThemeIcon('package',          scopeColor);
 const scopeIcon     = new vscode.ThemeIcon('symbol-module',    scopeColor);
+const unknownIcon   = new vscode.ThemeIcon('symbol-misc',      scopeColor);
 
 export function getScopeIcon(type: string) {
   const typeName = type.toLocaleLowerCase();
@@ -45,8 +46,11 @@ export function getScopeIcon(type: string) {
     case 'vhdlpackage':      {return packageIcon;}
     case 'ghwgeneric':       {return scopeIcon;}
     case 'vhdlarray':        {return scopeIcon;}
+    case 'unknown':          {return unknownIcon;}
+    case 'clocking':         {return scopeIcon;}
+    case 'svarray':          {return scopeIcon;}
   }
-  return scopeIcon;
+  return unknownIcon;
 }
 
 export function createScope(
@@ -113,6 +117,7 @@ export function getVarIcon(type: string) {
     case 'port':            {return portIcon;}
     case 'sparsearray':     {return defaultIcon;}
     case 'realtime':        {return timeIcon;}
+    case 'realparameter':   {return paramIcon;}
     case 'bit':             {return defaultIcon;}
     case 'logic':           {return defaultIcon;}
     case 'int':             {return intIcon;}

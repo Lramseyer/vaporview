@@ -8,6 +8,7 @@
 - Organized user settings into categories
 - Added user settings for default waveform colors
 - Fixed status bar not updating when setting alt marker, or selecting the last value change
+- Update wellen to 0.20.3
 
 ## 1.5.1 - 3/9/2026 - Latest Release
 

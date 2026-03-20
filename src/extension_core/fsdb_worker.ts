@@ -39,8 +39,19 @@ function handleMessage(message: any) {
         case 'getValueChanges': { return fsdbAddon.getValueChanges(message.signalId); }
         case 'getValuesAtTime': { return fsdbAddon.getValuesAtTime(message.signalId, message.time); }
         case 'unloadSignal': { fsdbAddon.unloadSignal(message.signalId); break; }
+        case 'searchNetlist': { 
+            fsdbAddon.searchNetlist(message.searchString, searchResultCallback); 
+            break; 
+        }
         case 'unload': { fsdbAddon.unload(); break; }
     }
+}
+
+function searchResultCallback(result: any) {
+    process.send!({
+        command: 'search-result',
+        result: result
+    });
 }
 
 function fsdbScopeCallback(name: string, type: string, path: string, netlistId: number, scopeOffsetIdx: number) {

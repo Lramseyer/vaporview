@@ -1,5 +1,6 @@
 #include <napi.h>
 
+#include <algorithm>
 #include <sstream>
 #include <stack>
 #include <string>
@@ -987,6 +988,134 @@ Napi::Array getValuesAtTime(const Napi::CallbackInfo &info) {
   return reversedResult;
 }
 
+// Search result storage
+static std::vector<Napi::Object> search_results;
+static Napi::Function searchCallback;
+
+void clearSearchResults() {
+  search_results.clear();
+}
+
+void addSearchResult(Napi::Env env, std::string instancePath, std::string itemType, bool isVar, std::string paramValue, int msb, int lsb) {
+  Napi::Object result = Napi::Object::New(env);
+  result.Set("instancePath", Napi::String::New(env, instancePath));
+  result.Set("type", Napi::String::New(env, itemType));
+  result.Set("isVar", Napi::Boolean::New(env, isVar));
+  result.Set("paramValue", Napi::String::New(env, paramValue));
+  result.Set("msb", Napi::Number::New(env, msb));
+  result.Set("lsb", Napi::Number::New(env, lsb));
+  search_results.push_back(result);
+}
+
+// Callback function for tree traversal during search
+static bool_T MySearchTreeCB(fsdbTreeCBType cb_type, void *client_data,
+                             void *tree_cb_data) {
+  Napi::Env env = env_global;
+  
+  switch (cb_type) {
+    case FSDB_TREE_CBT_SCOPE: {
+      fsdbTreeCBDataScope *pScope = (fsdbTreeCBDataScope *)tree_cb_data;
+      std::string path = joinScopePath(scope_path_stack);
+      if (!path.empty()) {
+        path += ".";
+      }
+      path += pScope->name;
+      
+      std::string type;
+      switch (pScope->type) {
+        case FSDB_ST_VCD_MODULE: type = "module"; break;
+        case FSDB_ST_VCD_TASK: type = "task"; break;
+        case FSDB_ST_VCD_FUNCTION: type = "function"; break;
+        case FSDB_ST_VCD_BEGIN: type = "begin"; break;
+        case FSDB_ST_VCD_FORK: type = "fork"; break;
+        default: type = "unknown_scope_type"; break;
+      }
+      
+      addSearchResult(env, path, type, false, "", -1, -1);
+      scope_path_stack.push_back(pScope->name);
+      break;
+    }
+    case FSDB_TREE_CBT_UPSCOPE: {
+      if (!scope_path_stack.empty()) {
+        scope_path_stack.pop_back();
+      }
+      break;
+    }
+    case FSDB_TREE_CBT_VAR: {
+      fsdbTreeCBDataVar *pVar = (fsdbTreeCBDataVar *)tree_cb_data;
+      std::string path = joinScopePath(scope_path_stack);
+      if (!path.empty()) {
+        path += ".";
+      }
+      path += pVar->name;
+      
+      std::string type;
+      switch (pVar->type) {
+        case FSDB_VT_VCD_PARAMETER: type = "parameter"; break;
+        case FSDB_VT_VCD_REG: type = "reg"; break;
+        case FSDB_VT_VCD_WIRE: type = "wire"; break;
+        case FSDB_VT_VCD_INTEGER: type = "integer"; break;
+        case FSDB_VT_VCD_REAL: type = "real"; break;
+        default: type = "var"; break;
+      }
+      
+      addSearchResult(env, path, type, true, "", 
+                      pVar->lbitnum, pVar->rbitnum);
+      break;
+    }
+    default:
+      break;
+  }
+  
+  return TRUE;
+}
+
+void searchNetlist(const Napi::CallbackInfo &info) {
+  Napi::Env env = info.Env();
+  if (!CHECK_LENGTH(env, info, 2)) return;
+  if (!CHECK_STRING(env, info[0])) return;
+  if (!CHECK_FUNCTION(env, info[1])) return;
+
+  Napi::String searchQuery = info[0].As<Napi::String>();
+  searchCallback = info[1].As<Napi::Function>();
+  std::string query = searchQuery;
+  
+  // Convert query to lowercase for case-insensitive search
+  std::transform(query.begin(), query.end(), query.begin(), ::tolower);
+  
+  // Clear previous results
+  clearSearchResults();
+  scope_path_stack.clear();
+  
+  // Traverse the entire tree
+  fsdb_obj->ffrSetTreeCBFunc(MySearchTreeCB, NULL);
+  fsdb_obj->ffrReadScopeTree();
+  
+  // Filter results and send matching ones
+  Napi::Array resultArray = Napi::Array::New(env, 0);
+  uint32_t resultIndex = 0;
+  uint32_t totalResults = 0;
+  
+  for (const auto& result : search_results) {
+    std::string instancePath = result.Get("instancePath").As<Napi::String>().Utf8Value();
+    std::string lowerPath = instancePath;
+    std::transform(lowerPath.begin(), lowerPath.end(), lowerPath.begin(), ::tolower);
+    
+    if (lowerPath.find(query) != std::string::npos) {
+      resultArray.Set(resultIndex, result);
+      resultIndex++;
+    }
+    totalResults++;
+  }
+  
+  // Send results via callback
+  Napi::Object resultObj = Napi::Object::New(env);
+  resultObj.Set("totalResults", Napi::Number::New(env, resultIndex));
+  resultObj.Set("searchResults", resultArray);
+  
+  searchCallback.Call({resultObj});
+}
+
 void unload(const Napi::CallbackInfo &info) {
   scope_offset.clear();
   scope_path_stack.clear();
@@ -994,6 +1123,7 @@ void unload(const Napi::CallbackInfo &info) {
   arraysize_stack.swap(s);  // clear the stack
   env_global = nullptr;
   netlistId = 0;
+  clearSearchResults();
 
   fsdb_obj->ffrResetSignalList();
   fsdb_obj->ffrUnloadSignals();
@@ -1018,6 +1148,8 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
               Napi::Function::New(env, getValueChanges));
   exports.Set(Napi::String::New(env, "getValuesAtTime"),
               Napi::Function::New(env, getValuesAtTime));
+  exports.Set(Napi::String::New(env, "searchNetlist"),
+              Napi::Function::New(env, searchNetlist));
   exports.Set(Napi::String::New(env, "unload"),
               Napi::Function::New(env, unload));
   return exports;

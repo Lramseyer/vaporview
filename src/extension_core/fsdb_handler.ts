@@ -31,6 +31,13 @@ export class FsdbFormatHandler implements WaveformFileParser {
   public netlistSearchable: boolean = false;
   private netlistTop: NetlistItem[] = [];
   private parametersLoaded: boolean = false;
+  
+  // Search support - cache all netlist data for searching
+  private netlistCacheLoaded: boolean = false;
+  private netlistCacheTotal: number = 0;
+  private netlistCacheLoadedCount: number = 0;
+  private netlistCache: Map<number, NetlistItem> = new Map();
+  private searchLoadingPromise: Promise<void> | null = null;
 
   public postMessageToWebview = (message: any) => {};
   public metadata: WaveformDumpMetadata = {
@@ -97,6 +104,9 @@ export class FsdbFormatHandler implements WaveformFileParser {
         command: 'readMetadata'
       });
     });
+
+    // Enable search UI after netlist is loaded
+    this.netlistSearchable = true;
   }
 
   async loadBody(): Promise<void> {
@@ -312,6 +322,9 @@ export class FsdbFormatHandler implements WaveformFileParser {
     this.fsdbCurrentScope = undefined;
     this.parametersLoaded = false;
     this.netlistTop = [];
+    this.netlistSearchable = false;
+    this.netlistCacheLoaded = false;
+    this.searchLoadingPromise = null;
   }
 
   dispose(): void {
@@ -360,8 +373,116 @@ export class FsdbFormatHandler implements WaveformFileParser {
     this.fsdbCurrentScope!.children.unshift(array);
   }
 
-  // TODO: @heyfey - implement netlist search
-  public searchNetlist(searchString: string): Promise<NetlistSearchResult> {
-    return Promise.resolve({totalResults: 0, searchResults: []});
+  // Search implementation with preloading netlist
+  public async searchNetlist(searchString: string): Promise<NetlistSearchResult> {
+    // If netlist cache not loaded, start loading all netlist data
+    if (!this.netlistCacheLoaded) {
+      // Start preloading in background if not already loading
+      if (!this.searchLoadingPromise) {
+        this.searchLoadingPromise = this.preloadAllNetlist();
+      }
+      
+      // Wait for preloading to complete
+      await this.searchLoadingPromise;
+      this.netlistCacheLoaded = true;
+    }
+    
+    // Now perform search on cached data
+    return this.performSearch(searchString);
+  }
+  
+  // Preload all netlist data by traversing all scopes
+  private async preloadAllNetlist(): Promise<void> {
+    const scopesToLoad: NetlistItem[] = [...this.netlistTop];
+    this.netlistCacheTotal = this.metadata.scopeCount + this.metadata.netlistIdCount;
+    this.netlistCacheLoadedCount = 0;
+    
+    // Use progress indicator
+    await vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: "Loading netlist for search: ",
+      cancellable: true
+    }, async (progress, cancellationToken) => {
+      // BFS to load all scopes
+      while (scopesToLoad.length > 0) {
+        if (cancellationToken.isCancellationRequested) {
+          break;
+        }
+        
+        const scope = scopesToLoad.shift()!;
+        
+        // Load vars for this scope if not already loaded
+        if (!scope.fsdbVarLoaded) {
+          await this.fsdbReadVars(scope);
+          scope.fsdbVarLoaded = true;
+        }
+        
+        this.netlistCacheLoadedCount++;
+        
+        // Update progress
+        progress.report({
+          message: `${this.netlistCacheLoadedCount}/${this.netlistCacheTotal}`
+        });
+        
+        // Add children scopes to queue
+        for (const child of scope.children) {
+          if (child.contextValue === 'netlistScope') {
+            scopesToLoad.push(child);
+          }
+        }
+      }
+    });
+  }
+  
+  // Perform search on loaded netlist data
+  private performSearch(searchString: string): NetlistSearchResult {
+    const results: NetlistSearchEntry[] = [];
+    const searchLower = searchString.toLowerCase();
+    
+    // Recursively search through all loaded scopes
+    const searchScope = (scope: NetlistItem) => {
+      // Check if scope name matches
+      const fullPath = scope.instancePath();
+      if (fullPath.toLowerCase().includes(searchLower)) {
+        results.push({
+          instancePath: fullPath,
+          type: scope.type || 'module',
+          isVar: false,
+          paramValue: '',
+          msb: -1,
+          lsb: -1
+        });
+      }
+      
+      // Check all variables in this scope
+      for (const child of scope.children) {
+        if (child.contextValue === 'netlistVariable') {
+          const varPath = child.instancePath();
+          if (varPath.toLowerCase().includes(searchLower)) {
+            results.push({
+              instancePath: varPath,
+              type: child.type || 'var',
+              isVar: true,
+              paramValue: child.paramValue || '',
+              msb: child.msb ?? -1,
+              lsb: child.lsb ?? -1
+            });
+          }
+        } else if (child.contextValue === 'netlistScope') {
+          // Recurse into child scopes
+          searchScope(child);
+        }
+      }
+    };
+    
+    // Search all top-level scopes
+    for (const scope of this.netlistTop) {
+      searchScope(scope);
+    }
+    
+    return {
+      totalResults: results.length,
+      searchResults: results.slice(0, 100)  // Limit to 100 results
+    };
   }
 }

@@ -134,22 +134,25 @@ export class ControlBar {
   goToNextTransition(direction: number, edge: string[]) {
     //console.log("Go to next transition: " + direction + ' ' + edge);
     if (viewerState.markerTime === null) {return;}
+    if (viewerState.selectedSignal.length === 0) {return;}
 
-    if (viewerState.selectedSignal.length === 0) {
-      this.events.dispatch(ActionType.MarkerSet, viewerState.markerTime + direction, 0);
-      return;
-    }
-
-    let nearestTime: number = viewport.timeStop;
-    if (direction === -1) {nearestTime = 0;}
+    let nearestTime = viewerState.markerTime;
+    const nextTransitionTime: number[] = [];
     viewerState.selectedSignal.forEach((rowId) => {
       if (viewerState.markerTime === null) {return;}
       const data  = rowHandler.rowItems[rowId];
       const time  = data.getNextEdge(viewerState.markerTime, direction, edge);
       if (time === null) {return;}
-      if (direction === 1)       {nearestTime = Math.min(nearestTime, time);}
-      else if (direction === -1) {nearestTime = Math.max(nearestTime, time);}
+      nextTransitionTime.push(time);
     });
+
+    if (nextTransitionTime.length === 0) {return;}
+
+    if (direction === 1) {
+      nearestTime = Math.min(...nextTransitionTime);
+    } else {
+      nearestTime = Math.max(...nextTransitionTime);
+    }
 
     this.events.dispatch(ActionType.MarkerSet, nearestTime, 0);
     //console.log('goToNextTransition');

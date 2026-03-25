@@ -25,8 +25,10 @@ export function copyWaveDrom() {
     const netlistItem: any = rowHandler.rowItems[rowId];
     if (netlistItem === undefined || netlistItem instanceof NetlistVariable === false) {return;}
     const netlistId       = netlistItem.netlistId;
-    const signalName      = createInstancePath(netlistItem.scopePath, netlistItem.signalName);
     const signalId        = netlistItem.signalId;
+    if (signalId === undefined) {return;}
+    if (netlistId === undefined) {return;}
+    const signalName      = createInstancePath(netlistItem.scopePath, netlistItem.signalName);
     const transitionData  = dataManager.valueChangeData[signalId].valueChangeData;
     const lowerBound      = dataManager.binarySearch(transitionData, timeWindow[0]) - 1;
     const upperBound      = dataManager.binarySearch(transitionData, timeWindow[1]) + 2;
@@ -97,6 +99,7 @@ export function copyWaveDrom() {
 
         const varItem = rowHandler.rowItems[rowId];
         if (varItem instanceof NetlistVariable === false) {return;}
+        if (varItem.netlistId === undefined) {return;}
         const n = varItem.netlistId;
         const signal = waveDromData[n];
         const signalData = signal.signalData;

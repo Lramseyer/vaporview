@@ -480,6 +480,10 @@ body {
   position: relative;
 }
 
+.missing-signal {
+  color: var(--vscode-list-errorForeground);
+}
+
 .waveform-row {
   /*min-height:  var(--waveform-height);
   max-height:  var(--waveform-height);*/

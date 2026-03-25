@@ -77,7 +77,7 @@ export type SavedRowItem = SavedNetlistVariable | SavedSignalGroup | SavedSignal
 
 export type SavedNetlistVariable = {
   dataType: 'netlist-variable';
-  netlistId: NetlistId;
+  netlistId: NetlistId | undefined;
   name: string;
   numberFormat: string;
   colorIndex: number;
@@ -110,8 +110,8 @@ export enum CollapseState {
 
 export type BitRangeSource = {
   name: string;
-  netlistId: NetlistId;
-  signalId: SignalId;
+  netlistId: NetlistId | undefined;
+  signalId: SignalId | undefined;
   signalWidth: number;
   msb: number;
   lsb: number;
@@ -199,7 +199,7 @@ export type NetlistVariableContext = {
   width: number;
   preventDefaultContextMenuItems: boolean;
   commandValid: boolean;
-  netlistId: NetlistId;
+  netlistId: NetlistId | undefined;
   rowId: RowId;
   isAnalog: boolean;
   enum: boolean;

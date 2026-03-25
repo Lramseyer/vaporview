@@ -320,7 +320,10 @@ export class WaveformDataManager {
     });
   }
 
-  newCustomSignal(source: BitRangeSource[]): number {
+  newCustomSignal(source: BitRangeSource[]): number | undefined {
+    if (source.some((s) => s.signalId === undefined || s.netlistId === undefined)) {
+      return undefined;
+    }
     for (let customSignalId = 0; customSignalId < this.customValueChangeData.length; customSignalId++) {
       const customSignal = this.customValueChangeData[customSignalId];
       if (customSignal.source.length !== source.length) {continue;}
@@ -354,12 +357,14 @@ export class WaveformDataManager {
     //console.log('updateCustomSignal', customSignalId);
     const data = this.customValueChangeData[customSignalId];
     if (data === undefined) {return;}
+
     const source = data.source;
 
     // create new custom signal
     let signalWidth = 0;
     const signalIdList: SignalQueueEntry[] = [];
     source.forEach((s) => {
+      if (s.signalId === undefined) {return;}
       signalWidth += s.msb - s.lsb + 1;
       if (this.valueChangeData[s.signalId] === undefined) {
         const signalQueueEntry: SignalQueueEntry = {
@@ -384,6 +389,7 @@ export class WaveformDataManager {
   createCustomSignalData(source: BitRangeSource): ValueChange[] | undefined {
     const result: ValueChange[] = [];
     const signalId = source.signalId;
+    if (signalId === undefined) {return undefined;}
     if (this.valueChangeData[signalId] === undefined) {
       return undefined;
     }
@@ -425,6 +431,7 @@ export class WaveformDataManager {
       const netlistData = rowHandler.rowItems[rowId];
       if (netlistData instanceof NetlistVariable === false) {return;}
       if (netlistData.enumType !== enumName) {return;}
+      if (netlistData.signalId === undefined) {return;}
       const data = this.valueChangeData[netlistData.signalId];
       if (data === undefined) {return;}
       rowHandler.setValueFormat(data, netlistData.valueFormat, true);
@@ -446,6 +453,7 @@ export class WaveformDataManager {
       if (netlistData instanceof NetlistVariable === false) {return;}
       const signalId = netlistData.signalId;
       const valueFormat = netlistData.valueFormat;
+      if (signalId === undefined) {return;}
       const data = this.valueChangeData[signalId];
       if (data === undefined) {return;}
       const formatData = data.formattedValues[valueFormat.id];
@@ -494,22 +502,25 @@ export class WaveformDataManager {
     const netlistData = rowHandler.rowItems[rowId];
     if (netlistData instanceof NetlistVariable === false) {return result;}
     const signalId = netlistData.signalId;
+    if (signalId === undefined) {return result;}
     if (this.valueChangeData[signalId] === undefined) {return result;}
     const vcData = this.valueChangeData[signalId].valueChangeData;
     if (vcData === undefined || vcData.length === 0) {return result;}
 
+    const maxIndex  = vcData.length - 1;
+    const maxTime   = vcData[maxIndex][0];
     const startTime = Math.min(viewerState.markerTime, viewerState.altMarkerTime);
     const endTime   = Math.max(viewerState.markerTime, viewerState.altMarkerTime);
-    let startIndex = this.binarySearch(vcData, startTime);
-    let endIndex   = this.binarySearch(vcData, endTime);
-    let additional = 0;
+    const startIndex  = this.binarySearch(vcData, startTime);
+    const endIndex    = this.binarySearch(vcData, endTime);
+    let additional  = 0;
 
-    if (vcData[endIndex][0] === endTime) {additional = 1;}
-    while (vcData[startIndex][0] < startTime && vcData[startIndex][0] < endTime) {
-      startIndex++;
-    }
-    while (vcData[endIndex][0] < endTime && endIndex < vcData.length) {
-      endIndex++;
+    if (endTime === maxTime) {
+      additional = 1;
+    } else if (endTime > maxTime) {
+      additional = 0;
+    } else if (endTime === vcData[endIndex][0]) {
+      additional = 1;
     }
 
     const r = Math.max(0, (endIndex - startIndex) + additional);

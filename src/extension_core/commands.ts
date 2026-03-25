@@ -1,7 +1,15 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 
-import { SignalGroupContextMenuEvent } from '../common/types';
+import { SignalGroupWebviewContext } from '../common/types';
+import type {
+  OpenFileArgs,
+  VariableActionArgs,
+  SetMarkerArgs,
+  GetViewerStateArgs,
+  GetValuesAtTimeArgs,
+  AddVariableByPathArgs,
+} from '../../packages/vaporview-api/types';
 import { VaporviewDocumentCollection, WaveformViewerProvider } from './viewer_provider';
 import { wcpDefaultPort, WCPServer } from './wcp_server';
 import { dirname } from 'path';
@@ -15,51 +23,51 @@ export function registerVaporviewCommands(
 ) {
 
   // #region External Commands
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.openFile', async (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.openFile', async (e: OpenFileArgs) => {
     outputLog.appendLine("Command called: 'vaporview.openFile ' + " + e.uri.toString());
     if (!e.uri) {return;}
     await vscode.commands.executeCommand('vscode.openWith', e.uri, 'vaporview.waveformViewer');
     if (e.loadAll) {viewerProvider.loadAllVariablesFromFile(e.uri.toString(), e.maxSignals || 64);}
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.addVariable', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.addVariable', (e: VariableActionArgs) => {
     outputLog.appendLine("Command called: 'waveformViewer.addVariable' " + JSON.stringify(e));
     viewerProvider.variableActionCommandHandler(e, "add");
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.removeVariable', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.removeVariable', (e: VariableActionArgs) => {
     outputLog.appendLine("Command called: 'waveformViewer.removeVariable' " + JSON.stringify(e));
     viewerProvider.variableActionCommandHandler(e, "remove");
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.revealInNetlistView', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.revealInNetlistView', (e: VariableActionArgs) => {
     outputLog.appendLine("Command called: 'waveformViewer.revealInNetlistView' " + JSON.stringify(e));
     viewerProvider.variableActionCommandHandler(e, "reveal");
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.addSignalValueLink', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.addSignalValueLink', (e: VariableActionArgs) => {
     outputLog.appendLine("Command called: 'waveformViewer.addSignalValueLink' " + JSON.stringify(e));
     viewerProvider.variableActionCommandHandler(e, "addLink");
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.setMarker', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.setMarker', (e: SetMarkerArgs) => {
     outputLog.appendLine("Command called: 'waveformViewer.setMarker' " + JSON.stringify(e));
     viewerProvider.markerCommandHandler(e);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.getOpenDocuments', (e) => {
-    outputLog.appendLine("Command called: 'waveformViewer.getOpenDocuments' " + JSON.stringify(e));
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.getOpenDocuments', () => {
+    outputLog.appendLine("Command called: 'waveformViewer.getOpenDocuments'");
     return viewerProvider.getAllDocumentUris();
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.getViewerState', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.getViewerState', (e: GetViewerStateArgs) => {
     outputLog.appendLine("Command called: 'waveformViewer.getViewerState' " + JSON.stringify(e));
     const document = viewerProvider.getDocumentFromOptionalUri(e.uri);
     if (!document) {return;}
     return document.getSettings();
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.getValuesAtTime', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.getValuesAtTime', (e: GetValuesAtTimeArgs) => {
     outputLog.appendLine("Command called: 'waveformViewer.getValuesAtTime' " + JSON.stringify(e));
     const document = viewerProvider.getDocumentFromOptionalUri(e.uri);
     if (!document) {return;}
@@ -79,7 +87,7 @@ export function registerVaporviewCommands(
   }));
 
   // Add or remove signal commands
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.addVariableByInstancePath', (e) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.addVariableByInstancePath', (e: AddVariableByPathArgs) => {
     viewerProvider.addVariableByInstancePathToDocument(e);
   }));
 
@@ -102,11 +110,11 @@ export function registerVaporviewCommands(
     viewerProvider.newSignalGroup(e?.name, e?.groupPath, e?.parentGroupId, e?.rowId, true);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.ungroupSignals', (e: SignalGroupContextMenuEvent) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.ungroupSignals', (e: SignalGroupWebviewContext) => {
     viewerProvider.deleteSignalGroup(e, false);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.deleteGroup', (e: SignalGroupContextMenuEvent) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.deleteGroup', (e: SignalGroupWebviewContext) => {
     viewerProvider.deleteSignalGroup(e, true);
   }));
 

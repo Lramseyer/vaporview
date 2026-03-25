@@ -2,7 +2,7 @@ import { type EventHandler, viewport, ActionType, viewerState, dataManager, getC
 import { ValueFormat } from './value_format';
 import { getParentGroupId } from './vaporview';
 import { SignalGroup, NetlistVariable, SignalItem, RowItem, htmlSafe, CustomVariable, SignalSeparator } from './signal_item';
-import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType, NetlistVariableContext, NetlistVariableContextMenuEvent } from '../common/types';
+import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType, NetlistVariableContext } from '../common/types';
 
 export class LabelsPanels {
 

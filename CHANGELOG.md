@@ -9,6 +9,7 @@
 - Left/Right arrow no longer moves the marker if rows with no value change data are selected
 - Organized user settings into categories
 - Added user settings for default waveform colors
+- Added Epoch time (ns) number format
 - Fixed status bar not updating when setting alt marker, or selecting the last value change
 - Update wellen to 0.20.3
 

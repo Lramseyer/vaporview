@@ -413,6 +413,10 @@ export async function activate(context: vscode.ExtensionContext) {
     viewerProvider.setValueFormat(e.netlistId, undefined, e.rowId, {valueFormat: "ascii"});
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsEpochTimeNs', (e) => {
+    viewerProvider.setValueFormat(e.netlistId, undefined, e.rowId, {valueFormat: "nsepoch"});
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsEnum', (e) => {
     viewerProvider.setValueFormat(e.netlistId, undefined, e.rowId,  {valueFormat: "enum"});
   }));

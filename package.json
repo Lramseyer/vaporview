@@ -766,6 +766,11 @@
           "command": "vaporview.displayAsAscii",
           "group": "0_default@12",
           "when": "webviewSection == 'signal' && width > '1'"
+        },
+        {
+          "command": "vaporview.displayAsEpochTimeNs",
+          "group": "0_default@13",
+          "when": "webviewSection == 'signal' && width >= '64'"
         }
       ],
       "vaporview.valueColor": [
@@ -1194,6 +1199,10 @@
         "title": "ASCII"
       },
       {
+        "command": "vaporview.displayAsEpochTimeNs",
+        "title": "Epoch Time (ns)"
+      },
+      {
         "command": "vaporview.displayAsEnum",
         "title": "Enum"
       },
@@ -1444,15 +1453,18 @@
     ]
   },
   "dependencies": {
+    "@js-temporal/polyfill": "^0.5.1",
     "@vscode/codicons": "0.0.35",
     "@vscode/wasm-component-model": "1.0.2",
+    "culori": "^4.0.2",
     "lz4js": "^0.2.0",
     "node-addon-api": "^8.3.1",
     "plist": "^3.1.0",
     "shiki": "^3.23.0",
-    "vscode-shiki-bridge": "^0.5.1"
+    "vscode-shiki-bridge": "^0.5.2"
   },
   "devDependencies": {
+    "@types/culori": "^4.0.1",
     "@types/node": "^18.14.6",
     "@types/plist": "^3.0.5",
     "@types/vscode": "^1.102.0",

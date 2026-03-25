@@ -595,18 +595,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   //         select from the remaining colors in the unique color set.
   async getTokenColorsForTheme() {
 
-    let [themeName, themeData] = await this.getUserTheme();
-
-    let backupParser = true;
-    themeData.forEach((theme: any) => {
-      if (theme.settings) {
-        backupParser = false;
-      }
-    });
-
-    if (backupParser) {
-      themeData = await this.parseThemeFile(themeName);
-    }
+    const [_themeName, themeData] = await this.getUserTheme();
 
     const scopeList = [
       "constant.numeric",
@@ -672,14 +661,11 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       });
     });
 
-    if (colorPalette.length < 8) {
-      semanticTokens.forEach((color: any) => {
-        if (colorPalette.length >= 8) {return;}
-        if (colorPalette.includes(color)) {return;}
-        if (errorColorPalette.includes(color)) {return;}
-        colorPalette.push(color);
-      });
-    }
+    semanticTokens.forEach((color: any) => {
+      if (colorPalette.includes(color)) {return;}
+      if (errorColorPalette.includes(color)) {return;}
+      colorPalette.push(color);
+    });
 
     this.log.appendLine("Semantic Tokens: " + semanticTokens.join(", "));
     this.log.appendLine("Color Palette: " + colorPalette.join(", "));

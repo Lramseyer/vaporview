@@ -533,57 +533,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     });
   }
 
-  async parseThemeFile(activeTheme: string) {
-
-    console.log('Using backup theme parser for theme: ' + activeTheme);
-
-    let currentThemePath: string | undefined;
-    const themePaths = [];
-    for (const extension of vscode.extensions.all) {
-      const themes = extension.packageJSON.contributes && extension.packageJSON.contributes.themes;
-      const currentTheme = themes && themes.find((theme: any) => theme.id === activeTheme || theme.label === activeTheme);
-
-      if (currentTheme) {
-        currentThemePath = path.join(extension.extensionPath, currentTheme.path);
-        break;
-      }
-    }
-    if (currentThemePath) { themePaths.push(currentThemePath); }
-    let result: any[] = [];
-
-    while (themePaths.length > 0) {
-      let theme: any = {};
-      const themePath: any = themePaths.pop();
-      const raw = new TextDecoder().decode(await vscode.workspace.fs.readFile(vscode.Uri.file(themePath)));
-      if (themePath.endsWith('.tmTheme')) {
-        // .tmTheme files are Apple plist XML; normalize to the JSON theme shape
-        const parsed = plist.parse(raw) as any;
-
-        theme = { tokenColors: parsed.settings ?? [] };
-        // plist scope strings can be comma-separated — split them into arrays
-        theme.tokenColors = theme.tokenColors.map((rule: any) => {
-          if (typeof rule.scope === 'string' && rule.scope.includes(',')) {
-            return { ...rule, scope: rule.scope.split(',').map((s: string) => s.trim()) };
-          }
-          return rule;
-        });
-      } else {
-        // JSON/JSONC theme file
-        // Strip comments while preserving "//" inside string values
-        const stripped = raw
-          .replace(/("(?:[^"\\]|\\.)*")|\/\/[^\n]*|\/\*[\s\S]*?\*\//g,
-            (match, str) => str ?? '')
-          .replace(/,(\s*[}\]])/g, '$1');      // trailing commas
-        theme = JSON.parse(stripped);
-      }
-      theme.settings = theme.tokenColors;
-      delete theme.tokenColors;
-      result.push(theme);
-
-    }
-    return result;
-  }
-
   // Build a color palette from the current theme
   // Step 1: Get the color theme and settings from the user's theme (handled by vscode-shiki-bridge)
   // Step 2: create a set of unique colors
@@ -595,18 +544,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   //         select from the remaining colors in the unique color set.
   async getTokenColorsForTheme() {
 
-    let [themeName, themeData] = await this.getUserTheme();
-
-    let backupParser = true;
-    themeData.forEach((theme: any) => {
-      if (theme.settings) {
-        backupParser = false;
-      }
-    });
-
-    if (backupParser) {
-      themeData = await this.parseThemeFile(themeName);
-    }
+    const [_themeName, themeData] = await this.getUserTheme();
 
     const scopeList = [
       "constant.numeric",

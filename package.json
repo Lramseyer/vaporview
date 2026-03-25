@@ -1451,7 +1451,7 @@
     "node-addon-api": "^8.3.1",
     "plist": "^3.1.0",
     "shiki": "^3.23.0",
-    "vscode-shiki-bridge": "^0.5.1"
+    "vscode-shiki-bridge": "^0.5.2"
   },
   "devDependencies": {
     "@types/culori": "^4.0.1",

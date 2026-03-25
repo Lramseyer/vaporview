@@ -782,12 +782,16 @@ export class NetlistSearchQuickPick {
 
     const totalResults     = searchResult.totalResults;
     const displayedResults = searchResult.searchResults.length;
-    let message = `${totalResults} items found`;
-    if (displayedResults !== totalResults) {
-      message = `Showing ${displayedResults} of ${totalResults} items`;
+    const resultString     = totalResults === 1 ? "result" : "results";
+
+    if (totalResults === 0) {
+      this.quickPick.title = "No results found";
+    } else if (displayedResults !== totalResults) {
+      this.quickPick.title = `Showing ${displayedResults} of ${totalResults} ${resultString}`;
+    } else {
+      this.quickPick.title = `${totalResults} ${resultString}`;
     }
 
-    this.quickPick.title = message;
     this.quickPick.items = searchResult.searchResults.map(result => {
       const icon       = result.isVar ? getVarIcon(result.type) : getScopeIcon(result.type);
       const bitRange   = result.isVar ? bitRangeString(result.msb, result.lsb) : "";

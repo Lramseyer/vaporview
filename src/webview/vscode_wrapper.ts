@@ -245,7 +245,7 @@ export class ThemeColors {
     //  this.xzColor = style.getPropertyValue('--vscode-debugTokenExpression-error');
     //}
 
-    this.events.dispatch(ActionType.UpdateColorTheme)
+    this.events.dispatch(ActionType.UpdateColorTheme);
   }
 }
 
@@ -305,8 +305,8 @@ export class VscodeWrapper {
   externalKeyDownHandler(e: any) {
     switch (e.keyCommand) {
       case 'nextEdge': {controlBar.goToNextTransition(1, []); break;}
-      case 'previousEdge': {controlBar.goToNextTransition(-1, []); break}
-      case 'zoomToFit': {viewport.animateZoomRange(0, viewport.timeStop); break}
+      case 'previousEdge': {controlBar.goToNextTransition(-1, []); break;}
+      case 'zoomToFit': {viewport.animateZoomRange(0, viewport.timeStop); break;}
       case 'increaseVerticalScale': {this.handleUpdateVerticalScale(e.event, 2); break;}
       case 'decreaseVerticalScale': {this.handleUpdateVerticalScale(e.event, 0.5); break;}
       case 'resetVerticalScale':    {this.handleUpdateVerticalScale(e.event, 0); break;}
@@ -347,12 +347,14 @@ export class VscodeWrapper {
 
   handleRemoveVariable(rowIdList: RowId[], recursive: boolean) {
     const instancePathList: string[] = [];
-    const netlistIdList: number[] = []
+    const netlistIdList: number[] = [];
     rowIdList.forEach(rowId => {
       const signalItem = rowHandler.rowItems[rowId];
       if (!(signalItem instanceof NetlistVariable)) {return;}
       const instancePath = createInstancePath(signalItem.scopePath, signalItem.signalName);
-      netlistIdList.push(signalItem.netlistId);
+      if (signalItem.netlistId !== undefined) {
+        netlistIdList.push(signalItem.netlistId);
+      }
       instancePathList.push(instancePath);
     });
 
@@ -372,8 +374,10 @@ export class VscodeWrapper {
       const netlistData = rowHandler.rowItems[rowId];
       if (netlistData === undefined) {return;}
       if (!(netlistData instanceof NetlistVariable)) {return;}
-      netlistIdList.push(netlistData.netlistId);
-      let instancePath = createInstancePath(netlistData.scopePath, netlistData.signalName);
+      if (netlistData.netlistId !== undefined) {
+        netlistIdList.push(netlistData.netlistId);
+      }
+      const instancePath = createInstancePath(netlistData.scopePath, netlistData.signalName);
       instancePathList.push(instancePath);
     });
 

@@ -374,20 +374,22 @@ export class Viewport {
       // Snap to the nearest transition if the click is close enough
       const nearestTransition = signalItem.getNearestTransition(time);
 
-      if (nearestTransition === null) {return;}
+      // only set the marker if we're actually clicking on a waveform
+      if (nearestTransition !== null) {
 
-      const nearestTime   = nearestTransition[0];
-      const pixelDistance = Math.abs(nearestTime - time) * this.zoomRatio;
+        const nearestTime   = nearestTransition[0];
+        const pixelDistance = Math.abs(nearestTime - time) * this.zoomRatio;
 
-      if (pixelDistance < snapToDistance) {snapToTime = nearestTime;}
+        if (pixelDistance < snapToDistance) {snapToTime = nearestTime;}
 
-      if (button === 0 && (event.ctrlKey || event.metaKey)) {
-        const linkClicked = signalItem.handleValueLink(time, snapToTime);
-        if (linkClicked) {return;}
-      }
-      if (!(event.ctrlKey || event.shiftKey || event.metaKey)) {
-        this.events.dispatch(ActionType.MarkerSet, snapToTime, button);
-        updateContext = true;
+        if (button === 0 && (event.ctrlKey || event.metaKey)) {
+          const linkClicked = signalItem.handleValueLink(time, snapToTime);
+          if (linkClicked) {return;}
+        }
+        if (!(event.ctrlKey || event.shiftKey || event.metaKey)) {
+          this.events.dispatch(ActionType.MarkerSet, snapToTime, button);
+          updateContext = true;
+        }
       }
     }
 

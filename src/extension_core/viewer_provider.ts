@@ -549,7 +549,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       }
     }
     if (currentThemePath) { themePaths.push(currentThemePath); }
-    let result: any[] = [];
+    const result: any[] = [];
 
     while (themePaths.length > 0) {
       let theme: any = {};

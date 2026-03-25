@@ -301,7 +301,14 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       });
       return signalData;
     } else {
-      return null;
+      //return null;
+      const signalData = Object.assign(signalInfo, {
+        netlistId: undefined,
+        signalId: undefined,
+        signalName: signalInfo.name.split(".").pop() || "",
+        scopePath:  signalInfo.name.split(".").slice(0, -1),
+      });
+      return signalData;
     }
   }
 
@@ -310,15 +317,23 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     const missingSignals: string[] = [];
     const source = await Promise.all(signalInfo.source.map(async (item: any) => {
       const metadata = await this.getNetlistItemFromSignalInfo(item, useNetlistId);
+      const defaultSource: BitRangeSource = {
+        name: item.name,
+        netlistId: undefined,
+        signalId: undefined,
+        signalWidth: item.signalWidth,
+        msb: item.msb,
+        lsb: Math.max(item.lsb, 0),
+      };
       if (metadata === null) {
         dataValid = false;
         missingSignals.push(item.name);
-        return null;
+        return defaultSource;
       }
       if (item.lsb >= metadata.width) {
         dataValid = false;
         missingSignals.push(item.name);
-        return null;
+        return defaultSource;
       }
       const source: BitRangeSource = {
         name: metadata.instancePath(),
@@ -354,9 +369,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
         settings.push(signalInfo);
       } else if (signalInfo.dataType && signalInfo.dataType === 'custom-variable') {
         const result = await this.parseCustomVariableSettings(signalInfo, useNetlistId);
-        if (result.dataValid) {
-          settings.push(result.signalData);
-        } else {
+        settings.push(result.signalData);
+        if (!result.dataValid) {
           missingSignals.push(...result.missingSignals);
         }
       } else if (signalInfo.dataType === 'netlist-variable' || signalInfo.dataType === undefined) {

@@ -206,8 +206,8 @@ export class NetlistVariable extends SignalItem implements RowItem {
 
   constructor(
     public readonly rowId: RowId,
-    public readonly netlistId: number,
-    public signalId: number,
+    public readonly netlistId: number | undefined,
+    public signalId: number | undefined,
     public signalName: string,
     public scopePath: string[],
     public signalWidth: number,
@@ -265,13 +265,15 @@ export class NetlistVariable extends SignalItem implements RowItem {
 
   public createLabelElement() {
 
+    let missingSignalClass = "";
+    if (this.signalId === undefined) {missingSignalClass = 'missing-signal';}
     const height        = getRowHeightCssClass(this.rowHeight);
     const signalName    = htmlSafe(this.signalName);
     const instancePath  = htmlSafe(createInstancePath(this.scopePath, signalName));
     const fullPath      = htmlAttributeSafe(instancePath);
     const isSelectedClass   = this.isSelected ? 'is-selected' : '';
     const lastSelectedClass = viewerState.lastSelectedSignal === this.rowId ? 'last-selected' : '';
-    const selectorClass = isSelectedClass + ' ' + lastSelectedClass;
+    const selectorClass = isSelectedClass + ' ' + lastSelectedClass + ' ' + missingSignalClass;
     const tooltip       = "Name: " + fullPath + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
     return `<div class="waveform-label is-idle" id="label-${this.rowId}" title="${tooltip}" data-vscode-context=${this.vscodeContext}>
               <div class='waveform-row ${selectorClass} ${height}'>${this.createWaveformRowContent()}</div>
@@ -374,6 +376,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
 
   public renderWaveform() {
 
+    if (this.signalId === undefined) {return;}
     const data = dataManager.valueChangeData[this.signalId];
 
     if (!data) {return;}
@@ -385,16 +388,19 @@ export class NetlistVariable extends SignalItem implements RowItem {
   }
 
   public getValueAtTime(time: number | null) {
+    if (this.signalId === undefined) {return [];}
     const data = dataManager.valueChangeData[this.signalId];
     return dataManager.getValueAtTime(data, time);
   }
 
   public getNearestTransition(time: number | null): ValueChange | null {
+    if (this.signalId === undefined) {return null;}
     const data = dataManager.valueChangeData[this.signalId];
     return dataManager.getNearestTransition(data, time);
   }
 
   public getWaveformData(): WaveformData | undefined {
+    if (this.signalId === undefined) {return undefined;}
     return dataManager.valueChangeData[this.signalId];
   }
 
@@ -403,11 +409,13 @@ export class NetlistVariable extends SignalItem implements RowItem {
   }
 
   public getAllEdges(valueList: string[]): number[] {
+    if (this.signalId === undefined) {return [];}
     const data = dataManager.valueChangeData[this.signalId];
     return dataManager.getAllEdges(valueList, data, this.signalWidth);
   }
 
   public getNextEdge(time: number, direction: number, valueList: string[]): number | null {
+    if (this.signalId === undefined) {return null;}
     const data = dataManager.valueChangeData[this.signalId];
     return dataManager.getNextEdge(data, time, direction, valueList);
   }
@@ -428,6 +436,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
 
   handleValueLink(time: number, snapToTime: number): boolean {
 
+    if (this.signalId === undefined) {return false;}
     const data = dataManager.valueChangeData[this.signalId];
 
     if (!data) {return false;}
@@ -495,7 +504,7 @@ export class CustomVariable extends SignalItem implements RowItem {
   constructor(
     public rowId: number,
     public source: BitRangeSource[],
-    public customSignalId: number,
+    public customSignalId: number | undefined,
     public signalName: string,
     public signalWidth: number,
     public renderType: WaveformRenderer,
@@ -518,11 +527,13 @@ export class CustomVariable extends SignalItem implements RowItem {
 
   public createLabelElement() {
 
+    let missingSignalClass = "";
+    if (this.customSignalId === undefined) {missingSignalClass = 'missing-signal';}
     const height        = getRowHeightCssClass(this.rowHeight);
     const signalName    = htmlSafe(this.signalName);
     const isSelectedClass   = this.isSelected ? 'is-selected' : '';
     const lastSelectedClass = viewerState.lastSelectedSignal === this.rowId ? 'last-selected' : '';
-    const selectorClass = isSelectedClass + ' ' + lastSelectedClass;
+    const selectorClass = isSelectedClass + ' ' + lastSelectedClass + ' ' + missingSignalClass;
     const tooltip       = "Name: " + signalName + "\nType: " + this.variableType + "\nWidth: " + this.signalWidth + "\nEncoding: " + this.encoding;
     return `<div class="waveform-label is-idle" id="label-${this.rowId}" title="${tooltip}" data-vscode-context=${this.vscodeContext}>
               <div class='waveform-row ${selectorClass} ${height}'>${this.createWaveformRowContent()}</div>
@@ -621,6 +632,7 @@ export class CustomVariable extends SignalItem implements RowItem {
 
   public renderWaveform() {
 
+    if (this.customSignalId === undefined) {return;}
     const data = dataManager.customValueChangeData[this.customSignalId];
 
     if (!data) {return;}
@@ -634,16 +646,19 @@ export class CustomVariable extends SignalItem implements RowItem {
   }
 
   public getValueAtTime(time: number | null) {
+    if (this.customSignalId === undefined) {return [];}
     const data = dataManager.customValueChangeData[this.customSignalId];
     return dataManager.getValueAtTime(data, time);
   }
 
   public getNearestTransition(time: number | null): ValueChange | null {
+    if (this.customSignalId === undefined) {return null;}
     const data = dataManager.customValueChangeData[this.customSignalId];
     return dataManager.getNearestTransition(data, time);
   }
 
   public getWaveformData(): WaveformData | undefined {
+    if (this.customSignalId === undefined) {return undefined;}
     return dataManager.customValueChangeData[this.customSignalId];
   }
 
@@ -652,11 +667,13 @@ export class CustomVariable extends SignalItem implements RowItem {
   }
 
   public getAllEdges(valueList: string[]): number[] {
+    if (this.customSignalId === undefined) {return [];}
     const data = dataManager.customValueChangeData[this.customSignalId];
     return dataManager.getAllEdges(valueList, data, this.signalWidth);
   }
 
   public getNextEdge(time: number, direction: number, valueList: string[]): number | null {
+    if (this.customSignalId === undefined) {return null;}
     const data = dataManager.customValueChangeData[this.customSignalId];
     return dataManager.getNextEdge(data, time, direction, valueList);
   }

@@ -114,15 +114,19 @@ export class RowHandler {
       );
 
       this.rowItems[rowId] = varItem;
-      netlistIdList.push(netlistId);
+      if (netlistId !== undefined) {
+        netlistIdList.push(netlistId);
+      }
 
       // Check for value change data
-      if (dataManager.valueChangeData[signalId] !== undefined) {
+      if (signalId === undefined) {
+        //do nothing
+      } else if (dataManager.valueChangeData[signalId] !== undefined) {
         //selectedSignal = [rowId];
         if (!this.events.isBatchMode) {
           updateFlag     = true;
         }
-        const data = dataManager.valueChangeData[varItem.signalId];
+        const data = varItem.getWaveformData();
         this.setValueFormat(data, varItem.valueFormat, false);
         labelsPanel.valueAtMarker[rowId] = varItem.getValueAtTime(viewerState.markerTime);
       } else {
@@ -357,30 +361,32 @@ export class RowHandler {
     const renderType     = width === 1 ? new BinaryWaveformRenderer() : new MultiBitWaveformRenderer();
     const customVariable = new CustomVariable(rowId, [source], customSignalId, signalName, width, renderType);
     this.rowItems[rowId] = customVariable;
-    const customSignalData = dataManager.customValueChangeData[customSignalId];
-    if (!customSignalData) {return;}
 
-    let drawFlag = false;
-    if (customSignalData.dataLoaded) {
-      //console.log('custom signal found and loaded', customSignalId);
-      drawFlag = true;
-    } else if (dataManager.valueChangeData[sourceSignalId] !== undefined) {
-      dataManager.updateCustomSignal(customSignalId);
-      drawFlag = true;
-    } else {
-      const signalQueueEntry: SignalQueueEntry = {
-        type: 'signal',
-        signalWidth: source.signalWidth,
-        signalId: sourceSignalId,
-        rowId: rowId,
-        customSignalId: customSignalId,
-      };
-      dataManager.requestData([signalQueueEntry], []);
-    }
+    if (customSignalId !== undefined && sourceSignalId !== undefined) {
+      const customSignalData = dataManager.customValueChangeData[customSignalId];
+      if (!customSignalData) {return;}
+      let drawFlag = false;
+      if (customSignalData.dataLoaded) {
+        //console.log('custom signal found and loaded', customSignalId);
+        drawFlag = true;
+      } else if (dataManager.valueChangeData[sourceSignalId] !== undefined) {
+        dataManager.updateCustomSignal(customSignalId);
+        drawFlag = true;
+      } else {
+        const signalQueueEntry: SignalQueueEntry = {
+          type: 'signal',
+          signalWidth: source.signalWidth,
+          signalId: sourceSignalId,
+          rowId: rowId,
+          customSignalId: customSignalId,
+        };
+        dataManager.requestData([signalQueueEntry], []);
+      }
 
-    if (drawFlag) {
-      this.setValueFormat(customVariable.getWaveformData(), customVariable.valueFormat, false);
-      labelsPanel.valueAtMarker[rowId] = customVariable.getValueAtTime(viewerState.markerTime);
+      if (drawFlag) {
+        this.setValueFormat(customVariable.getWaveformData(), customVariable.valueFormat, false);
+        labelsPanel.valueAtMarker[rowId] = customVariable.getValueAtTime(viewerState.markerTime);
+      }
     }
 
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowId);

@@ -7,6 +7,7 @@
 - Clicking on an area outside the waveforms de-selects signals
 - Organized user settings into categories
 - Added user settings for default waveform colors
+- Added Epoch time (ns) number format
 
 ## 1.5.1 - 3/9/2026 - Latest Release
 

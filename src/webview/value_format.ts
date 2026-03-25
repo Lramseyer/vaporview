@@ -9,6 +9,7 @@
 // contributes.menus.vaporview.valueFormat.
 // 3. Register the new command in the extension.ts (which has examples)
 
+import { Temporal } from '@js-temporal/polyfill';
 import { WindowMessageType } from "../common/types";
 import { htmlSafe, type NetlistVariable, type CustomVariable } from "./signal_item";
 import { dataManager, vscodeWrapper } from "./vaporview";
@@ -457,6 +458,26 @@ export const formatAscii: ValueFormat = {
   checkWidth: (width: number) => {return width > 1;},
 };
 
+//region Format epoch time nanoseconds
+export const formatEpochTime: ValueFormat = {
+  id: "nsepoch",
+  rightJustify: false,
+  symbolText: "time",
+
+  formatString: (binaryString: string, width: number, is2State: boolean) => {
+    if (!is2State) {return formatBinaryString(binaryString);}
+    const intValue = BigInt('0b' + binaryString);
+    const instant  = Temporal.Instant.fromEpochNanoseconds(intValue);
+    return instant.toString();
+  },
+
+  checkValidSearch: (searchString: string) => {return true;},
+  parseSearchValue: (searchString: string) => {return searchString;},
+  checkSearchValue: regexMatchString,
+  is9State: valueIs9State,
+  checkWidth: (width: number) => {return width >= 64;},
+};
+
 // #region Format String
 export const formatString: ValueFormat = {
   id: "string",
@@ -556,12 +577,15 @@ export const valueFormatList: ValueFormat[] = [
   formatBFloat16,
   formatTensorFloat32,
   formatAscii,
+  formatEpochTime,
   formatString
 ];
 
 export function getNumberFormatById(netlistData: NetlistVariable | CustomVariable, numberFormatId: string): ValueFormat {
   const valueFormat = valueFormatList.find((format) => format.id === numberFormatId);
   if (valueFormat !== undefined) {return valueFormat;}
+
+  // special handling for enum and fixed point
   if (numberFormatId === "enum") {
     const enumType = netlistData.enumType;
     if (enumType !== undefined && enumType !== "") {

@@ -1,0 +1,39 @@
+{
+  "name": "vaporview-api",
+  "version": "0.1.0",
+  "description": "Type definitions for the VaporView VS Code extension API",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./types": {
+      "types": "./types.d.ts",
+      "default": "./types.js"
+    }
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "types.js",
+    "types.d.ts"
+  ],
+  "peerDependencies": {
+    "vscode": "*"
+  },
+  "keywords": [
+    "vaporview",
+    "vscode",
+    "waveform",
+    "vcd",
+    "fst",
+    "types"
+  ],
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Lramseyer/vaporview"
+  }
+}

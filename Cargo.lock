@@ -91,7 +91,7 @@ dependencies = [
  "bincode",
  "lazy_static",
  "leb128",
- "lz4_flex 0.11.5",
+ "lz4_flex",
  "serde",
  "serde_json",
  "wellen",
@@ -104,7 +104,7 @@ version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac147a69de9e58c89a19243c8d128ef54e991f01d1d898ffdf7f9aa1cfd03f06"
 dependencies = [
- "lz4_flex 0.12.0",
+ "lz4_flex",
  "miniz_oxide",
  "num_enum",
  "thiserror",
@@ -178,15 +178,6 @@ name = "log"
 version = "0.4.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
-
-[[package]]
-name = "lz4_flex"
-version = "0.11.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08ab2867e3eeeca90e844d1940eab391c9dc5228783db2ed999acbc0a9ed375a"
-dependencies = [
- "twox-hash",
-]
 
 [[package]]
 name = "lz4_flex"
@@ -508,7 +499,7 @@ dependencies = [
  "fst-reader",
  "indexmap",
  "leb128",
- "lz4_flex 0.12.0",
+ "lz4_flex",
  "memmap2",
  "miniz_oxide",
  "num_enum",

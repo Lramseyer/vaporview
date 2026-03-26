@@ -10,8 +10,9 @@ Vaporview is an open source waveform viewer extension for VScode.
 
 - Native support for VCD, FST, and GHW files
 - Smooth panning and zooming using touchpad gestures or mouse scroll
-- Add, remove, rearrange, and grouping of signals in the viewer
+- Signal customization, grouping, and reordering in the viewer
 - Time markers - main and alt marker
+- Color theme responsive waveform color palette
 - Search for values within a waveform dump
 - Search for variables and scopes in the netlist
 - Custom signals from bit range
@@ -219,6 +220,8 @@ To set which signal will be the WaveDrom Clock, right click on the signal you wi
 
 This extension requires VScode 1.96.0 or later
 
+Version 1.5.2 (Upcoming release) will require VScode 1.102.0 or later 
+
 # Development Roadmap
 
 ## 1.5.1 - 3/9/2026 - Latest Release
@@ -237,6 +240,19 @@ This extension requires VScode 1.96.0 or later
 - Removed ->X transition at timeEnd (which was not produced by the simulation)
 - Fixed reload bug with multiple instances of a signal
 - Fixed render bugs with devicePixelRatio less than 1
+
+## 1.5.2 - Upcoming Release
+
+- Waveform color palette is derived from semantic token colors to better align with color theme
+- Added time units to save files
+- Viewer will show missing signals from save files not found in netlist
+- Clicking on an area outside the waveforms de-selects signals
+- Left/Right arrow no longer moves the marker if rows with no value change data are selected
+- Organized user settings into categories
+- Added user settings for default waveform colors
+- Added Epoch time (ns) number format
+- Fixed status bar not updating when setting alt marker, or selecting the last value change
+- Update wellen to 0.20.3
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

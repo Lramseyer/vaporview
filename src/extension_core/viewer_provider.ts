@@ -33,6 +33,17 @@ export class VaporviewDocumentCollection {
   private _numDocuments = 0;
   public get numDocuments() {return this._numDocuments;}
 
+  // Color palette
+  public colorPalette: string[] = [];
+  public errorColorPalette: string = '';
+
+  constructor(
+    private readonly log: vscode.OutputChannel,
+    private readonly getUserTheme: () => Promise<[string, unknown[]]>
+  ) {
+    this.getTokenColorsForTheme();
+  }
+
   private randomString() {return Math.random().toString(36).substring(2, 15);}
 
   public createUniqueDocumentId(): DocumentId {
@@ -83,6 +94,118 @@ export class VaporviewDocumentCollection {
       }
     }
   }
+
+  updateConfiguration(e: any) {
+    this.broadcast((document) => {
+      document.setConfigurationSettings();
+    });
+  }
+
+  // Build a color palette from the current theme
+  // Step 1: Get the color theme and settings from the user's theme (handled by vscode-shiki-bridge)
+  // Step 2: create a set of unique colors
+  // Step 3: Use a commonly used scope list to map the colors to a color palette
+  //         The scope list has an established order, so we can use it to build a
+  //         color palette in that order.
+  // Step 4: De-duplicate the colors built from the common scope list.
+  //         If a the palette is full, then we can stop. If it's not, then we can
+  //         select from the remaining colors in the unique color set.
+  async getTokenColorsForTheme() {
+
+    const [_themeName, themeData] = await this.getUserTheme();
+
+    const scopeList = [
+      "constant.numeric",
+      "string",
+      "keyword", "constant.language", "storage.type",
+      "keyword.control",
+      "variable",
+      "entity.name.function", "support.function",
+      "entity.name.type", "support.type",
+      "comment",
+      "keyword.operator",
+      "variable.parameter"
+    ];
+    const errorScopes = ["token.error-token", "invalid"];
+    const colorMap: any = {};
+    const scopeMap: any = {};
+    const colorPalette: any = [];
+    const errorColorPalette: any = [];
+    scopeList.forEach((scope: any) => {scopeMap[scope] = [];});
+    errorScopes.forEach((scope: any) => {scopeMap[scope] = [];});
+    themeData.forEach((theme: any) => {
+      const settings = theme.settings;
+
+      settings.forEach((rule: any) => {
+        if (!rule.settings?.foreground) {return;}
+        const color = rule.settings.foreground.toLowerCase();
+        if (!colorMap[color]) {
+          colorMap[color] = [];
+        }
+
+        let rulesList = [];
+        if (typeof rule.scope === "string") {
+          rulesList = [rule.scope];
+        } else if (rule.scope instanceof Array) {
+          rulesList = rule.scope;
+        }
+
+        rulesList.forEach((scope: any) => {
+          colorMap[color].push(scope);
+          if (scopeList.includes(scope)) {
+            scopeMap[scope].push(color);
+          }
+          if (errorScopes.includes(scope)) {
+            errorColorPalette.push(color);
+          }
+        });
+      });
+    });
+
+    const semanticTokens = Object.keys(colorMap);
+    errorScopes.forEach((scope: any) => {
+      scopeMap[scope].forEach((color: any) => {
+        if (errorColorPalette.includes(color)) {return;}
+        errorColorPalette.push(color);
+      });
+    });
+
+    scopeList.forEach((scope: any) => {
+      scopeMap[scope].forEach((color: any) => {
+        if (colorPalette.includes(color)) {return;}
+        if (errorColorPalette.includes(color)) {return;}
+        colorPalette.push(color);
+      });
+    });
+
+    semanticTokens.forEach((color: any) => {
+      if (colorPalette.includes(color)) {return;}
+      if (errorColorPalette.includes(color)) {return;}
+      colorPalette.push(color);
+    });
+
+    this.log.appendLine("Color palette from semantic token colors: " + colorPalette.join(", ") + ", " + errorColorPalette.join(", "));
+
+    this.colorPalette = colorPalette;
+    this.errorColorPalette = errorColorPalette;
+    this.broadcast((document) => {
+      const webview = document.webviewPanel;
+      if (webview) {
+        webview.webview.postMessage({
+          command: 'updateColorPalette',
+          colorPalette: this.colorPalette,
+          errorColorPalette: this.errorColorPalette,
+        });
+      }
+    });
+  }
+
+  getColorPalette() {
+    return {
+      colorPalette: this.colorPalette,
+      errorColorPalette: this.errorColorPalette
+    };
+  }
 }
 
 // #region WaveformViewerProvider
@@ -92,7 +215,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   public themeColors = new Map<string, string>();
   private wasmWorkerFile: string;
 
-  private readonly documentCollection = new VaporviewDocumentCollection();
+  //private readonly documentCollection = new VaporviewDocumentCollection();
   public getDocumentFromUri(uri: string): VaporviewDocument | undefined {
     return this.documentCollection.getDocumentFromUri(uri);
   }
@@ -115,7 +238,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   public netlistTreeDataProvider: NetlistTreeDataProvider;
   public netlistView: vscode.TreeView<NetlistItem>;
   public statusBar: VaporviewStatusBar;
-  public log: vscode.OutputChannel;
 
   // Event emitters
   public static readonly markerSetEventEmitter = new vscode.EventEmitter<markerSetEvent>();
@@ -129,21 +251,12 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   // Quick Pick Menu
   private quickPick: NetlistSearchQuickPick;
 
-  // Color palette
-  public colorPalette: string[] = [];
-  public errorColorPalette: string = '';
-
   constructor(
-    private readonly _context: vscode.ExtensionContext, 
+    private readonly _context: vscode.ExtensionContext,
+    public  readonly log: vscode.OutputChannel,
     private readonly wasmModule: WebAssembly.Module,
-    private readonly getUserTheme: () => Promise<[string, unknown[]]>
+    private readonly documentCollection: VaporviewDocumentCollection
   ) {
-
-    // The channel for printing the log.
-    this.log = vscode.window.createOutputChannel('Vaporview', { log: true });
-    _context.subscriptions.push(this.log);
-
-    this.log.appendLine('Vaporview Activated');
 
     // Create and register the Netlist and Displayed Signals view container
     this.netlistTreeDataProvider = new NetlistTreeDataProvider();
@@ -166,8 +279,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     this.wasmWorkerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
     this.quickPick = new NetlistSearchQuickPick();
-
-    this.getTokenColorsForTheme();
   }
 
   async openCustomDocument(
@@ -214,7 +325,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         }
         return handler;
       },
-      getColorPalette: () => {return {colorPalette: this.colorPalette, errorColorPalette: this.errorColorPalette};},
+      getColorPalette: () => {return this.documentCollection.getColorPalette();},
     };
 
     // Create the document and load it using its handler
@@ -530,112 +641,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       command: 'setWaveDromClock',
       edge: edge,
       netlistId: netlistId,
-    });
-  }
-
-  // Build a color palette from the current theme
-  // Step 1: Get the color theme and settings from the user's theme (handled by vscode-shiki-bridge)
-  // Step 2: create a set of unique colors
-  // Step 3: Use a commonly used scope list to map the colors to a color palette
-  //         The scope list has an established order, so we can use it to build a
-  //         color palette in that order.
-  // Step 4: De-duplicate the colors built from the common scope list.
-  //         If a the palette is full, then we can stop. If it's not, then we can
-  //         select from the remaining colors in the unique color set.
-  async getTokenColorsForTheme() {
-
-    const [_themeName, themeData] = await this.getUserTheme();
-
-    const scopeList = [
-      "constant.numeric",
-      "string",
-      "keyword", "constant.language", "storage.type",
-      "keyword.control",
-      "variable",
-      "entity.name.function", "support.function",
-      "entity.name.type", "support.type",
-      "comment",
-      "keyword.operator",
-      "variable.parameter"
-    ];
-    const errorScopes = ["token.error-token", "invalid"];
-    const colorMap: any = {};
-    const scopeMap: any = {};
-    const colorPalette: any = [];
-    const errorColorPalette: any = [];
-    scopeList.forEach((scope: any) => {scopeMap[scope] = [];});
-    errorScopes.forEach((scope: any) => {scopeMap[scope] = [];});
-    themeData.forEach((theme: any) => {
-      const settings = theme.settings;
-
-      settings.forEach((rule: any) => {
-        if (!rule.settings?.foreground) {return;}
-        const color = rule.settings.foreground.toLowerCase();
-        if (!colorMap[color]) {
-          colorMap[color] = [];
-        }
-
-        let rulesList = [];
-        if (typeof rule.scope === "string") {
-          rulesList = [rule.scope];
-        } else if (rule.scope instanceof Array) {
-          rulesList = rule.scope;
-        }
-
-        rulesList.forEach((scope: any) => {
-          colorMap[color].push(scope);
-          if (scopeList.includes(scope)) {
-            scopeMap[scope].push(color);
-          }
-          if (errorScopes.includes(scope)) {
-            errorColorPalette.push(color);
-          }
-        });
-      });
-    });
-
-    const semanticTokens = Object.keys(colorMap);
-    errorScopes.forEach((scope: any) => {
-      scopeMap[scope].forEach((color: any) => {
-        if (errorColorPalette.includes(color)) {return;}
-        errorColorPalette.push(color);
-      });
-    });
-
-    scopeList.forEach((scope: any) => {
-      scopeMap[scope].forEach((color: any) => {
-        if (colorPalette.includes(color)) {return;}
-        if (errorColorPalette.includes(color)) {return;}
-        colorPalette.push(color);
-      });
-    });
-
-    semanticTokens.forEach((color: any) => {
-      if (colorPalette.includes(color)) {return;}
-      if (errorColorPalette.includes(color)) {return;}
-      colorPalette.push(color);
-    });
-
-    this.log.appendLine("Semantic Tokens: " + semanticTokens.join(", "));
-    this.log.appendLine("Color Palette: " + colorPalette.join(", "));
-
-    this.colorPalette = colorPalette;
-    this.errorColorPalette = errorColorPalette;
-    this.documentCollection.broadcast((document) => {
-      const webview = document.webviewPanel;
-      if (webview) {
-        webview.webview.postMessage({
-          command: 'updateColorPalette',
-          colorPalette: this.colorPalette,
-          errorColorPalette: this.errorColorPalette,
-        });
-      }
-    });
-  }
-
-  updateConfiguration(e: any) {
-    this.documentCollection.broadcast((document) => {
-      document.setConfigurationSettings();
     });
   }
 

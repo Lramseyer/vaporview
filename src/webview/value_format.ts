@@ -7,7 +7,7 @@
 // 2. Define a new command in the package.json file (which has examples)
 // under contributes.commands and create the context menus entries under 
 // contributes.menus.vaporview.valueFormat.
-// 3. Register the new command in the extension.ts (which has examples)
+// 3. Register the new command in the commands.ts (which has examples)
 
 import { Temporal } from '@js-temporal/polyfill';
 import { WindowMessageType } from "../common/types";

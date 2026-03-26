@@ -468,7 +468,18 @@ export const formatEpochTime: ValueFormat = {
     if (!is2State) {return formatBinaryString(binaryString);}
     const intValue = BigInt('0b' + binaryString);
     const instant  = Temporal.Instant.fromEpochNanoseconds(intValue);
-    return instant.toString();
+    const dateTime = instant.toZonedDateTimeISO('UTC');
+    const year     = dateTime.year.toString().padStart(4, '0');
+    const month    = dateTime.month.toString().padStart(2, '0');
+    const day      = dateTime.day.toString().padStart(2, '0');
+    const hour     = dateTime.hour.toString().padStart(2, '0');
+    const minute   = dateTime.minute.toString().padStart(2, '0');
+    const second   = dateTime.second.toString().padStart(2, '0');
+    const ms       = dateTime.millisecond.toString().padStart(3, '0');
+    const mus      = dateTime.microsecond.toString().padStart(3, '0');
+    const ns       = dateTime.nanosecond.toString().padStart(3, '0');
+
+    return `${year}-${month}-${day} ${hour}:${minute}:${second}.${ms},${mus},${ns}`;
   },
 
   checkValidSearch: (searchString: string) => {return true;},

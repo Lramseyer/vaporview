@@ -154,6 +154,7 @@ Vaporview can display values in different number formats. To change the value fo
 | Fixed Point    | ❌ No                 | Left              |
 | Floating Point | ❌ No                 | Left              |
 | ASCII          | ❌ No                 | Left              |
+| Epoch Time (ns)| ❌ No                 | Left              |
 | Enum           | ❌ No                 | Left              |
 
 ## Waveform Color

@@ -8,6 +8,7 @@ import type { VaporviewDocumentDelegate } from './viewer_provider';
 import { filehandler } from './filehandler';
 import { type NetlistItem, createScope, createVar } from './tree_view';
 import type { WaveformFileParser, WaveformDumpMetadata, NetlistSearchResult } from './document';
+import type { ValuesAtTimeResult } from '../../packages/vaporview-api/types';
 
 // #region fsWrapper
 interface fsWrapper {
@@ -87,7 +88,7 @@ export class WasmFormatHandler implements WaveformFileParser {
   private fileReader: fsWrapper;
   private wasmWorker: Worker;
   private wasmModule: WebAssembly.Module;
-  private wasmApi: any;
+  private wasmApi: filehandler.Exports.Promisified | undefined;
   private fileBuffer: Uint8Array = new Uint8Array(65536);
 
   private parametersLoaded: boolean = false;
@@ -96,7 +97,7 @@ export class WasmFormatHandler implements WaveformFileParser {
   private netlistTop: NetlistItem[] = [];
   public netlistSearchable: boolean = false;
 
-  public postMessageToWebview = (message: any) => {};
+  public postMessageToWebview = (_message: Record<string, unknown>) => {};
   public metadata: WaveformDumpMetadata = {
     timeTableLoaded: false,
     scopeCount: 0,
@@ -226,7 +227,7 @@ export class WasmFormatHandler implements WaveformFileParser {
       title: "Parsing Netlist for " + this.uri.fsPath,
       cancellable: false
     }, async () => {
-      await this.wasmApi.loadfile(BigInt(this.fileReader.fileSize), this.fileReader.fd, this.fileReader.loadStatic, this.fileReader.bufferSize);
+      await this.wasmApi!.loadfile(BigInt(this.fileReader.fileSize), this.fileReader.fd, this.fileReader.loadStatic, this.fileReader.bufferSize);
     });
     this.netlistSearchable = true;
   }
@@ -238,10 +239,10 @@ export class WasmFormatHandler implements WaveformFileParser {
         title: "Parsing Waveforms for " + this.uri.fsPath,
         cancellable: false
       }, async () => {
-        await this.wasmApi.readbody();
+        await this.wasmApi!.readbody();
       });
     } else {
-      await this.wasmApi.readbody();
+      await this.wasmApi!.readbody();
     }
 
     if (this.fileType !== 'fst') {
@@ -268,10 +269,10 @@ export class WasmFormatHandler implements WaveformFileParser {
 
     const parameterItems = this.getParametersInTreeData(this.netlistTop);
     const signalIdList = parameterItems.map((param) => param.signalId);
-    const params = await this.wasmApi.getparametervalues(signalIdList);
+    const params = await this.wasmApi!.getparametervalues(new Uint32Array(signalIdList));
     const parameterValues = JSON.parse(params);
     parameterItems.forEach((param) => {
-      const paramValue = parameterValues.find((entry: any) => entry[0] === param.signalId);
+      const paramValue = parameterValues.find((entry: [number, string]) => entry[0] === param.signalId);
       if (paramValue) {
         param.setParamAndTooltip(paramValue[1]);
       }
@@ -294,17 +295,17 @@ export class WasmFormatHandler implements WaveformFileParser {
     const result: NetlistItem[] = [];
 
     let callLimit = 255;
-    const varTable: any = {};
+    const varTable: Record<string, NetlistItem[]> = {};
     while (itemsRemaining > 0) {
-      const children = await this.wasmApi.getchildren(element.netlistId, startIndex);
+      const children = await this.wasmApi!.getchildren(element.netlistId, startIndex);
       const childItems = JSON.parse(children);
       itemsRemaining = childItems.remainingItems;
       startIndex += childItems.totalReturned;
 
-      const scopes: NetlistItem[] = childItems.scopes?.map((child: any) => {
+      const scopes: NetlistItem[] = childItems.scopes?.map((child: { name: string; type: string; id: number }) => {
         return createScope(child.name, child.type, scopePath, child.id, -1, this.uri);
       }) || [];
-      const vars: NetlistItem[] = childItems.vars?.map((child: any) => {
+      const vars: NetlistItem[] = childItems.vars?.map((child: { name: string; paramValue: string; type: string; encoding: string; netlistId: number; signalId: number; width: number; msb: number; lsb: number; enumType: string }) => {
         return createVar(child.name, child.paramValue, child.type, child.encoding.split('(')[0], scopePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, child.enumType, false /*isFsdb*/, this.uri);
       }) || [];
 
@@ -322,15 +323,15 @@ export class WasmFormatHandler implements WaveformFileParser {
       if (callLimit <= 0) { break; }
     }
 
-    for (const [key, value] of Object.entries(varTable)) {
-      if ((value as NetlistItem[]).length === 1) {
-        result.push((value as NetlistItem[])[0]);
+    for (const [_key, value] of Object.entries(varTable)) {
+      if (value.length === 1) {
+        result.push(value[0]);
       } else {
-        const varList = value as NetlistItem[];
+        const varList = value;
         const bitList: NetlistItem[] = [];
         const busList: NetlistItem[] = [];
         let maxWidth = 0;
-        let parent: any ;
+        let parent: NetlistItem | undefined;
         varList.forEach((varItem) => {
           if (varItem.width === 1) { bitList.push(varItem); }
           else { busList.push(varItem); }
@@ -355,22 +356,22 @@ export class WasmFormatHandler implements WaveformFileParser {
   }
 
   async getSignalData(signalIdList: SignalId[]): Promise<void> {
-    this.wasmApi.getsignaldata(signalIdList);
+    this.wasmApi!.getsignaldata(new Uint32Array(signalIdList));
     this.loadTopLevelParameters();
   }
 
   async getEnumData(enumList: EnumQueueEntry[]): Promise<void> {
     const netlistIdList = enumList.map((entry) => entry.netlistId);
-    this.wasmApi.getenumdata(netlistIdList);
+    this.wasmApi!.getenumdata(new Uint32Array(netlistIdList));
   }
 
-  async getValuesAtTime(time: number, instancePaths: string[]): Promise<any> {
-    const result = await this.wasmApi.getvaluesattime(BigInt(time), instancePaths.join(" "));
+  async getValuesAtTime(time: number, instancePaths: string[]): Promise<ValuesAtTimeResult[]> {
+    const result = await this.wasmApi!.getvaluesattime(BigInt(time), instancePaths.join(" "));
     return JSON.parse(result);
   }
 
   public async searchNetlist(searchString: string): Promise<NetlistSearchResult> {
-    const resultJson = await this.wasmApi.searchnetlist(searchString);
+    const resultJson = await this.wasmApi!.searchnetlist(searchString);
     try {
       return JSON.parse(resultJson) as NetlistSearchResult;
     } catch {

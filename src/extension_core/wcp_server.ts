@@ -9,19 +9,122 @@ import { scaleFromUnits } from '../common/functions';
 import type { WaveformViewerProvider } from './viewer_provider';
 import type { VaporviewDocument } from './document';
 import {  } from './tree_view';
+import type { VariableActionArgs, ViewerState, SetMarkerArgs, GetValuesAtTimeArgs, SavedRowItem } from '../../packages/vaporview-api/types';
+
+// #region WCP param interfaces
+interface WCPParamsWithUri {
+  uri?: string | { toString(): string };
+}
+
+interface WCPAddItemsParams extends WCPParamsWithUri {
+  items: string[];
+  recursive?: boolean;
+}
+
+interface WCPItemIdsParams extends WCPParamsWithUri {
+  ids: number[];
+}
+
+interface WCPItemIdParams extends WCPParamsWithUri {
+  id: number;
+  color?: string;
+}
+
+interface WCPSetValueFormatParams extends WCPParamsWithUri {
+  id: number;
+  format: string;
+}
+
+interface WCPViewportToParams extends WCPParamsWithUri {
+  timestamp: number;
+  units?: string;
+}
+
+interface WCPViewportRangeParams extends WCPParamsWithUri {
+  start: number;
+  end: number;
+  units?: string;
+}
+
+interface WCPLoadParams extends WCPParamsWithUri {
+  uri: string | { toString(): string };
+  load_all?: boolean;
+  max_signals?: number;
+}
+
+interface WCPAddVariablesParams extends WCPParamsWithUri {
+  variables: WCPVariableSpec[];
+  recursive?: boolean;
+}
+
+interface WCPVariableSpec {
+  netlist_id?: number;
+  instance_path?: string;
+  scope_path?: string;
+  name?: string;
+  msb?: number;
+  lsb?: number;
+  recursive?: boolean;
+}
+
+interface WCPSignalParams extends WCPParamsWithUri, WCPVariableSpec {}
+
+interface WCPSetMarkerParams extends WCPParamsWithUri {
+  time: number;
+  units?: string;
+  marker_type?: number;
+}
+
+interface WCPGetMarkerParams extends WCPParamsWithUri {
+  marker_type?: number;
+}
+
+interface WCPGetValuesAtTimeParams extends WCPParamsWithUri {
+  time?: number;
+  instance_paths: string[];
+}
+
+class WCPValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'WCPValidationError';
+  }
+}
+
+function validateParams<T>(params: Record<string, unknown> | undefined, required: (keyof T & string)[]): asserts params is Record<string, unknown> & T {
+  if (!params) {
+    throw new WCPValidationError(`Missing required parameters: ${required.join(', ')}`);
+  }
+  for (const key of required) {
+    if (params[key] === undefined) {
+      throw new WCPValidationError(`Missing required parameter: ${key}`);
+    }
+  }
+}
+
+interface WCPAckResponse {
+  type: string;
+  command: string;
+  uri: string;
+}
+
+interface WCPValueResult {
+  instancePath: string;
+  value: string | string[];
+}
 
 export interface WCPCommand {
   method: string;
-  params?: any;
+  params?: Record<string, unknown>;
   id?: string | number;
 }
 
 export interface WCPResponse {
-  result?: any;
+  result?: unknown;
   error?: {
     code: number;
     message: string;
-    data?: any;
+    data?: unknown;
   };
   id?: string | number;
 }
@@ -186,8 +289,9 @@ export class WCPServer {
       const command: WCPCommand = JSON.parse(message);
       const response = await this.handleCommand(command);
       this.sendResponse(connection, response);
-    } catch (error: any) {
-      this.viewerProvider.log.appendLine(`WCP server error parsing message from ${connection.remoteAddress}: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.viewerProvider.log.appendLine(`WCP server error parsing message from ${connection.remoteAddress}: ${errorMessage}`);
       this.viewerProvider.log.appendLine(`Message: ${message}`);
 
       // Send error response if we can parse the ID
@@ -197,7 +301,7 @@ export class WCPServer {
           error: {
             code: -32700,
             message: 'Parse error',
-            data: error.message
+            data: errorMessage
           },
           id: parsed.id
         });
@@ -207,7 +311,7 @@ export class WCPServer {
           error: {
             code: -32700,
             message: 'Parse error',
-            data: error.message
+            data: errorMessage
           }
         });
       }
@@ -217,27 +321,35 @@ export class WCPServer {
   // #region handleCommand
   private async handleCommand(command: WCPCommand): Promise<WCPResponse> {
     try {
-      let result: any = null;
+      let result: unknown = null;
+
+      // params comes from JSON.parse, so we cast to specific types per command.
+      // Each handler validates its own params before use.
+      const params = command.params;
 
       switch (command.method) {
         // Standard WCP commands
         case 'greeting':
-          result = await this.handleGreeting(command.params);
+          result = await this.handleGreeting();
           break;
         case 'add_items':
-          result = await this.handleAddItems(command.params);
+          validateParams<WCPAddItemsParams>(params, ['items']);
+          result = await this.handleAddItems(params as WCPAddItemsParams);
           break;
         case 'get_item_info':
-          result = await this.handleGetItemInfo(command.params);
+          validateParams<WCPItemIdsParams>(params, ['ids']);
+          result = await this.handleGetItemInfo(params as WCPItemIdsParams);
           break;
         case 'get_item_list':
-          result = await this.handleGetItemList(command.params);
+          result = await this.handleGetItemList(params as WCPParamsWithUri | undefined);
           break;
         case 'set_item_color':
-          result = await this.handleSetItemColor(command.params);
+          validateParams<WCPItemIdParams>(params, ['id', 'color']);
+          result = await this.handleSetItemColor(params as WCPItemIdParams);
           break;
         case 'set_value_format':
-          result = await this.handleSetValueFormat(command.params);
+          validateParams<WCPSetValueFormatParams>(params, ['id', 'format']);
+          result = await this.handleSetValueFormat(params as WCPSetValueFormatParams);
           break;
         case 'add_markers':
           this.viewerProvider.log.appendLine('WCP: add_markers command requested but not yet implemented');
@@ -249,25 +361,30 @@ export class WCPServer {
             id: command.id
           };
         case 'remove_items':
-          result = await this.handleRemoveItems(command.params);
+          validateParams<WCPItemIdsParams>(params, ['ids']);
+          result = await this.handleRemoveItems(params as WCPItemIdsParams);
           break;
         case 'focus_item':
-          result = await this.handleFocusItem(command.params);
+          validateParams<WCPItemIdParams>(params, ['id']);
+          result = await this.handleFocusItem(params as WCPItemIdParams);
           break;
         case 'set_viewport_to':
-          result = await this.handleSetViewportTo(command.params);
+          validateParams<WCPViewportToParams>(params, ['timestamp']);
+          result = await this.handleSetViewportTo(params as WCPViewportToParams);
           break;
         case 'set_viewport_range':
-          result = await this.handleSetViewportRange(command.params);
+          validateParams<WCPViewportRangeParams>(params, ['start', 'end']);
+          result = await this.handleSetViewportRange(params as WCPViewportRangeParams);
           break;
         case 'zoom_to_fit':
-          result = await this.handleZoomToFit(command.params);
+          result = await this.handleZoomToFit(params as WCPParamsWithUri | undefined);
           break;
         case 'load':
-          result = await this.handleLoad(command.params);
+          validateParams<WCPLoadParams>(params, ['uri']);
+          result = await this.handleLoad(params as WCPLoadParams);
           break;
         case 'reload':
-          result = await this.handleReload(command.params);
+          result = await this.handleReload(params as WCPParamsWithUri | undefined);
           break;
         case 'clear':
           this.viewerProvider.log.appendLine('WCP: clear command requested but not yet implemented');
@@ -279,12 +396,13 @@ export class WCPServer {
             id: command.id
           };
         case 'shutdown':
-          result = await this.handleShutdown(command.params);
+          result = await this.handleShutdown(params as WCPParamsWithUri | undefined);
           break;
 
         // Deprecated WCP commands
         case 'add_variables':
-          result = await this.handleAddVariables(command.params);
+          validateParams<WCPAddVariablesParams>(params, ['variables']);
+          result = await this.handleAddVariables(params as WCPAddVariablesParams);
           break;
         case 'add_scope':
           this.viewerProvider.log.appendLine('WCP: add_scope command requested but not yet implemented');
@@ -301,25 +419,28 @@ export class WCPServer {
           result = await this.handleGetCapabilities();
           break;
         case 'open_document':
-          result = await this.handleOpenDocument(command.params);
+          validateParams<WCPLoadParams>(params, ['uri']);
+          result = await this.handleOpenDocument(params as WCPLoadParams);
           break;
         case 'add_signal':
-          result = await this.handleAddSignal(command.params);
+          result = await this.handleAddSignal(params as WCPSignalParams | undefined);
           break;
         case 'remove_signal':
-          result = await this.handleRemoveSignal(command.params);
+          result = await this.handleRemoveSignal(params as WCPSignalParams | undefined);
           break;
         case 'set_marker':
-          result = await this.handleSetMarker(command.params);
+          validateParams<WCPSetMarkerParams>(params, ['time']);
+          result = await this.handleSetMarker(params as WCPSetMarkerParams);
           break;
         case 'get_marker':
-          result = await this.handleGetMarker(command.params);
+          result = await this.handleGetMarker(params as WCPGetMarkerParams | undefined);
           break;
         case 'get_viewer_state':
-          result = await this.handleGetViewerState(command.params);
+          result = await this.handleGetViewerState(params as WCPParamsWithUri | undefined);
           break;
         case 'get_values_at_time':
-          result = await this.handleGetValuesAtTime(command.params);
+          validateParams<WCPGetValuesAtTimeParams>(params, ['instance_paths']);
+          result = await this.handleGetValuesAtTime(params as WCPGetValuesAtTimeParams);
           break;
         case 'get_open_documents':
           result = await this.handleGetOpenDocuments();
@@ -338,11 +459,20 @@ export class WCPServer {
         result: result,
         id: command.id
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      if (error instanceof WCPValidationError) {
+        return {
+          error: {
+            code: -32602,
+            message: `Invalid params: ${error.message}`
+          },
+          id: command.id
+        };
+      }
       return {
         error: {
           code: -32000,
-          message: error.message || 'Internal error'
+          message: error instanceof Error ? error.message : 'Internal error'
         },
         id: command.id
       };
@@ -350,7 +480,7 @@ export class WCPServer {
   }
 
   // #region Standard WCP command handlers
-  private async handleGreeting(params: any): Promise<any> {
+  private async handleGreeting(): Promise<Record<string, unknown>> {
     // Greeting command - initial handshake
     // Returns server information, protocol version, and capabilities
     return {
@@ -362,45 +492,32 @@ export class WCPServer {
     };
   }
 
-  private async handleAddItems(params: any): Promise<any> {
+  private async handleAddItems(params: WCPAddItemsParams): Promise<{ ids: number[] }> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
-    }
-
-    if (!params.items || !Array.isArray(params.items)) {
-      throw new Error('items array is required');
     }
 
     if (params.items.length === 0) {
       return { ids: [] };
     }
 
-    await this.viewerProvider.addItemsToDocument(document, params);
+    await this.viewerProvider.addItemsToDocument(document, { items: params.items, recursive: params.recursive });
 
     // TODO(heyfey): Return the IDs for added items
     return { ids: [] };
   }
 
-  private async handleGetItemInfo(params: any): Promise<any> {
+  private async handleGetItemInfo(params: WCPItemIdsParams): Promise<Record<string, unknown>> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
     }
 
-    if (!params.ids || !Array.isArray(params.ids)) {
-      throw new Error('ids array is required');
-    }
-
     // Process each ID in order and build results array
-    const results: any[] = [];
+    const results: { name: string; type: string; id: number }[] = [];
 
     for (const netlistId of params.ids) {
-      // Validate netlist ID
-      if (netlistId === undefined || netlistId === null || typeof netlistId !== 'number') {
-        throw new Error(`Invalid netlist ID: ${netlistId}`);
-      }
-
       // Get the item from netlistIdTable
       const item = document.netlistIdTable[netlistId];
       if (!item) {
@@ -426,7 +543,7 @@ export class WCPServer {
     };
   }
 
-  private async handleGetItemList(params: any): Promise<any> {
+  private async handleGetItemList(params: WCPParamsWithUri | undefined): Promise<Record<string, unknown>> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
@@ -443,23 +560,10 @@ export class WCPServer {
     };
   }
 
-  private async handleSetItemColor(params: any): Promise<any> {
+  private async handleSetItemColor(params: WCPItemIdParams): Promise<WCPAckResponse> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
-    }
-
-    if (params.id === undefined || params.id === null) {
-      throw new Error('id (netlist ID) parameter is required');
-    }
-
-    if (!params.color) {
-      throw new Error('color parameter is required');
-    }
-
-    // Validate id is a number (netlist ID)
-    if (typeof params.id !== 'number') {
-      throw new Error('id must be a number (netlist ID)');
     }
 
     const netlistId = params.id;
@@ -495,7 +599,7 @@ export class WCPServer {
       'custom4': 7
     };
 
-    const colorIndex = colorMap[params.color.toLowerCase()];
+    const colorIndex = colorMap[params.color!.toLowerCase()];
 
     // If color is invalid, do nothing (no error, just return ack)
     if (colorIndex === undefined) {
@@ -518,23 +622,10 @@ export class WCPServer {
     };
   }
 
-  private async handleSetValueFormat(params: any): Promise<any> {
+  private async handleSetValueFormat(params: WCPSetValueFormatParams): Promise<WCPAckResponse> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
-    }
-
-    if (params.id === undefined || params.id === null) {
-      throw new Error('id (netlist ID) parameter is required');
-    }
-
-    if (!params.format) {
-      throw new Error('format parameter is required');
-    }
-
-    // Validate id is a number (netlist ID)
-    if (typeof params.id !== 'number') {
-      throw new Error('id must be a number (netlist ID)');
     }
 
     const netlistId = params.id;
@@ -596,14 +687,10 @@ export class WCPServer {
     };
   }
 
-  private async handleRemoveItems(params: any): Promise<any> {
+  private async handleRemoveItems(params: WCPItemIdsParams): Promise<WCPAckResponse> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
-    }
-
-    if (!params.ids || !Array.isArray(params.ids)) {
-      throw new Error('ids array is required');
     }
 
     const uri = document.uri;
@@ -619,11 +706,6 @@ export class WCPServer {
 
     // Remove each item by netlist ID - process sequentially to ensure proper state tracking
     for (const netlistId of params.ids) {
-      // Skip invalid IDs (don't throw error, just continue)
-      if (netlistId === undefined || netlistId === null || typeof netlistId !== 'number') {
-        continue;
-      }
-
       // Check if the signal is displayed before trying to remove it
       if (!document.isSignalDisplayed(netlistId)) {
         // Signal not displayed, skip it (don't throw error)
@@ -631,7 +713,7 @@ export class WCPServer {
       }
 
       // Remove the signal using the document's uri
-      const args: any = {
+      const args: VariableActionArgs = {
         uri: uri.toString(),
         netlistId: netlistId
       };
@@ -647,19 +729,10 @@ export class WCPServer {
     };
   }
 
-  private async handleFocusItem(params: any): Promise<any> {
+  private async handleFocusItem(params: WCPItemIdParams): Promise<WCPAckResponse> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
-    }
-
-    if (params.id === undefined || params.id === null) {
-      throw new Error('id (netlist ID) parameter is required');
-    }
-
-    // Validate id is a number (netlist ID)
-    if (typeof params.id !== 'number') {
-      throw new Error('id must be a number (netlist ID)');
     }
 
     const netlistId = params.id;
@@ -687,14 +760,10 @@ export class WCPServer {
     };
   }
 
-  private async handleSetViewportTo(params: any): Promise<any> {
+  private async handleSetViewportTo(params: WCPViewportToParams): Promise<WCPAckResponse> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
-    }
-
-    if (params.timestamp === undefined) {
-      throw new Error('time parameter is required');
     }
 
     const uri = document.uri;
@@ -738,14 +807,10 @@ export class WCPServer {
     };
   }
 
-  private async handleSetViewportRange(params: any): Promise<any> {
+  private async handleSetViewportRange(params: WCPViewportRangeParams): Promise<WCPAckResponse> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
-    }
-
-    if (params.start === undefined || params.end === undefined) {
-      throw new Error('start and end parameters are required');
     }
 
     const uri = document.uri;
@@ -793,7 +858,7 @@ export class WCPServer {
     };
   }
 
-  private async handleZoomToFit(params: any): Promise<any> {
+  private async handleZoomToFit(params: WCPParamsWithUri | undefined): Promise<WCPAckResponse> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
@@ -812,12 +877,12 @@ export class WCPServer {
     };
   }
 
-  private async handleLoad(params: any): Promise<any> {
+  private async handleLoad(params: WCPLoadParams): Promise<WCPAckResponse> {
     // load is an alias for open_document - both return ack response
     return this.loadDocumentAndReturnAck(params);
   }
 
-  private async handleReload(params: any): Promise<any> {
+  private async handleReload(params: WCPParamsWithUri | undefined): Promise<WCPAckResponse> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document to reload');
@@ -833,8 +898,9 @@ export class WCPServer {
     await vscode.commands.executeCommand('vaporview.reloadFile', uri);
 
     // Wait for reload to complete and send waveform_loaded event asynchronously
-    this.waitForDocumentAndSendEvent(normalizedUriString, originalUriString).catch((error: any) => {
-      this.viewerProvider.log.appendLine(`WCP: Error waiting for reloaded document ${originalUriString}: ${error.message}`);
+    this.waitForDocumentAndSendEvent(normalizedUriString, originalUriString).catch((error: unknown) => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.viewerProvider.log.appendLine(`WCP: Error waiting for reloaded document ${originalUriString}: ${errorMessage}`);
     });
 
     // Return ack response with original URI format (WCP spec format)
@@ -845,7 +911,7 @@ export class WCPServer {
     };
   }
 
-  private async handleShutdown(params: any): Promise<any> {
+  private async handleShutdown(params: WCPParamsWithUri | undefined): Promise<WCPAckResponse> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
@@ -860,7 +926,7 @@ export class WCPServer {
       .filter(tab => {
         const input = tab.input;
         if (input instanceof vscode.TabInputCustom) {
-          return (input as any).uri?.toString() === uri.toString();
+          return input.uri?.toString() === uri.toString();
         }
         return false;
       });
@@ -879,15 +945,11 @@ export class WCPServer {
   }
 
   // #region Deprecated WCP command handlers
-  private async handleAddVariables(params: any): Promise<any> {
+  private async handleAddVariables(params: WCPAddVariablesParams): Promise<{ success: boolean; added_count: number }> {
     // Deprecated command - maps to add_items functionality
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
-    }
-
-    if (!params.variables || !Array.isArray(params.variables)) {
-      throw new Error('variables array is required');
     }
 
     if (params.variables.length === 0) {
@@ -898,7 +960,7 @@ export class WCPServer {
     let addedCount = 0;
     for (const variable of params.variables) {
       // Apply recursive flag from params if not specified in variable
-      const variableWithRecursive = { ...variable };
+      const variableWithRecursive: WCPVariableSpec = { ...variable };
       if (params.recursive !== undefined && variableWithRecursive.recursive === undefined) {
         variableWithRecursive.recursive = params.recursive;
       }
@@ -912,9 +974,10 @@ export class WCPServer {
       try {
         await vscode.commands.executeCommand('waveformViewer.addVariable', args);
         addedCount++;
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Log error but continue processing other variables
-        this.viewerProvider.log.appendLine(`WCP: Error adding variable: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.viewerProvider.log.appendLine(`WCP: Error adding variable: ${errorMessage}`);
       }
     }
 
@@ -922,18 +985,18 @@ export class WCPServer {
   }
 
   // #region VaporView-specific command handlers
-  private async handleGetCapabilities(): Promise<any> {
+  private async handleGetCapabilities(): Promise<{ capabilities: string[] }> {
     // Get server capabilities
     return {
       capabilities: await this.getCapabilitiesList()
     };
   }
 
-  private async handleOpenDocument(params: any): Promise<any> {
+  private async handleOpenDocument(params: WCPLoadParams): Promise<WCPAckResponse> {
     return this.loadDocumentAndReturnAck(params);
   }
 
-  private async handleAddSignal(params: any): Promise<any> {
+  private async handleAddSignal(params: WCPSignalParams | undefined): Promise<{ success: boolean }> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
@@ -950,21 +1013,21 @@ export class WCPServer {
     return { success: true };
   }
 
-  private async handleRemoveSignal(params: any): Promise<any> {
+  private async handleRemoveSignal(params: WCPSignalParams | undefined): Promise<{ success: boolean }> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
     }
 
-    const args: any = {
+    const args: VariableActionArgs = {
       uri: document.uri.toString()
     };
 
-    if (params.netlist_id !== undefined) {
+    if (params?.netlist_id !== undefined) {
       args.netlistId = params.netlist_id;
-    } else if (params.instance_path) {
+    } else if (params?.instance_path) {
       args.instancePath = params.instance_path;
-    } else if (params.scope_path && params.name) {
+    } else if (params?.scope_path && params?.name) {
       args.scopePath = params.scope_path;
       args.name = params.name;
     } else {
@@ -976,17 +1039,13 @@ export class WCPServer {
     return { success: true };
   }
 
-  private async handleSetMarker(params: any): Promise<any> {
+  private async handleSetMarker(params: WCPSetMarkerParams): Promise<{ success: boolean }> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
     }
 
-    if (params.time === undefined) {
-      throw new Error('Time parameter is required');
-    }
-
-    const args: any = {
+    const args: SetMarkerArgs = {
       uri: document.uri.toString(),
       time: params.time,
       units: params.units,
@@ -998,13 +1057,13 @@ export class WCPServer {
     return { success: true };
   }
 
-  private async handleGetMarker(params: any): Promise<any> {
+  private async handleGetMarker(params: WCPGetMarkerParams | undefined): Promise<{ time: number | null; units: string; marker_type: number }> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
     }
 
-    const state: any = await vscode.commands.executeCommand('waveformViewer.getViewerState', {
+    const state = await vscode.commands.executeCommand<ViewerState | undefined>('waveformViewer.getViewerState', {
       uri: document.uri.toString()
     });
 
@@ -1012,7 +1071,7 @@ export class WCPServer {
       throw new Error('Could not get viewer state');
     }
 
-    const markerType = params.marker_type || 0;
+    const markerType = params?.marker_type || 0;
     const markerTime = markerType === 0 ? state.markerTime : state.altMarkerTime;
     const timeUnit = state.displayTimeUnit || document.metadata.timeUnit;
 
@@ -1023,13 +1082,13 @@ export class WCPServer {
     };
   }
 
-  private async handleGetViewerState(params: any): Promise<any> {
+  private async handleGetViewerState(params: WCPParamsWithUri | undefined): Promise<Record<string, unknown>> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
     }
 
-    const state: any = await vscode.commands.executeCommand('waveformViewer.getViewerState', {
+    const state = await vscode.commands.executeCommand<ViewerState | undefined>('waveformViewer.getViewerState', {
       uri: document.uri.toString()
     });
 
@@ -1045,58 +1104,62 @@ export class WCPServer {
       time_unit: state.displayTimeUnit || document.metadata.timeUnit,
       zoom_ratio: state.zoomRatio,
       scroll_left: state.scrollLeft,
-      displayed_signals: state.displayedSignals?.map((sig: any) => ({
-        name: sig.name,
-        id: sig.netlistId
-      })) || []
+      displayed_signals: state.displayedSignals?.map((sig: SavedRowItem) => {
+        const name = 'name' in sig ? sig.name
+          : 'groupName' in sig ? sig.groupName
+          : 'label' in sig ? sig.label
+          : '';
+        const id = 'netlistId' in sig ? sig.netlistId : undefined;
+        return { name, id };
+      }) || []
     };
   }
 
-  private async handleGetValuesAtTime(params: any): Promise<any> {
+  private async handleGetValuesAtTime(params: WCPGetValuesAtTimeParams): Promise<{ instance_path: string; value: string | string[] }[]> {
     const document = this.getDocumentFromParams(params);
     if (!document) {
       throw new Error('No active document');
     }
 
-    if (!params.instance_paths || !Array.isArray(params.instance_paths)) {
-      throw new Error('instance_paths array is required');
-    }
-
-    const args: any = {
+    const args: GetValuesAtTimeArgs = {
       uri: document.uri.toString(),
       time: params.time,
       instancePaths: params.instance_paths
     };
 
-    const values: any = await vscode.commands.executeCommand('waveformViewer.getValuesAtTime', args);
+    const values = await vscode.commands.executeCommand<WCPValueResult[] | undefined>('waveformViewer.getValuesAtTime', args);
 
     if (!values || !Array.isArray(values)) {
       return [];
     }
 
-    return values.map((v: any) => ({
+    return values.map((v: WCPValueResult) => ({
       instance_path: v.instancePath,
       value: v.value,
     }));
   }
 
-  private async handleGetOpenDocuments(): Promise<any> {
-    const docs: any = await vscode.commands.executeCommand('waveformViewer.getOpenDocuments');
+  private async handleGetOpenDocuments(): Promise<{ documents: string[]; last_active_document: string | null }> {
+    const docs = await vscode.commands.executeCommand<string[] | undefined>('waveformViewer.getOpenDocuments');
 
     if (!docs) {
       return { documents: [], last_active_document: null };
     }
 
     return {
-      documents: docs.documents?.map((uri: vscode.Uri) => uri.toString()) || [],
-      last_active_document: docs.lastActiveDocument?.toString() || null
+      documents: docs,
+      last_active_document: null
     };
   }
 
   // #region Helper functions
-  private buildAddVariableArgs(variable: any, uri: string): any {
+  private buildAddVariableArgs(variable: WCPVariableSpec | undefined, uri: string): VariableActionArgs | null {
     // Helper function to build args for addVariable command from a variable/signal object
-    const args: any = {
+    if (!variable) {
+      return null;
+    }
+
+    const args: VariableActionArgs = {
       uri: uri
     };
 
@@ -1118,11 +1181,7 @@ export class WCPServer {
     return args;
   }
 
-  private async loadDocumentAndReturnAck(params: any): Promise<any> {
-    if (!params || !params.uri) {
-      throw new Error('uri parameter is required');
-    }
-
+  private async loadDocumentAndReturnAck(params: WCPLoadParams): Promise<WCPAckResponse> {
     // Preserve the original URI format from input
     const originalUriString = typeof params.uri === 'string' ? params.uri : params.uri.toString();
     const parsed = vscode.Uri.parse(originalUriString);
@@ -1131,15 +1190,16 @@ export class WCPServer {
     // Check if file exists (WCP spec: respond instantly if file is found)
     try {
       await fs.promises.access(uri.fsPath, fs.constants.F_OK);
-    } catch (error: any) {
+    } catch {
       throw new Error(`File not found: ${uri.fsPath}`);
     }
 
     // Start loading the document asynchronously (don't wait for it)
     // Use original URI format for event, but normalized URI for document lookup
     const normalizedUriString = uri.toString();
-    this.loadDocumentAndSendEvent(uri, normalizedUriString, originalUriString, params).catch((error: any) => {
-      this.viewerProvider.log.appendLine(`WCP: Error loading document ${originalUriString}: ${error.message}`);
+    this.loadDocumentAndSendEvent(uri, normalizedUriString, originalUriString, params).catch((error: unknown) => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.viewerProvider.log.appendLine(`WCP: Error loading document ${originalUriString}: ${errorMessage}`);
     });
 
     // Return ack response immediately with original URI format (WCP spec: respond instantly if file is found)
@@ -1150,7 +1210,7 @@ export class WCPServer {
     };
   }
 
-  private async loadDocumentAndSendEvent(uri: vscode.Uri, normalizedUriString: string, originalUriString: string, params: any): Promise<void> {
+  private async loadDocumentAndSendEvent(uri: vscode.Uri, normalizedUriString: string, originalUriString: string, params: WCPLoadParams): Promise<void> {
     // Open the document with VaporView
     await vscode.commands.executeCommand('vaporview.openFile', {
       uri: uri,
@@ -1220,7 +1280,7 @@ export class WCPServer {
     ];
   }
 
-  private getDocumentFromParams(params: any): VaporviewDocument | undefined {
+  private getDocumentFromParams(params: WCPParamsWithUri | undefined): VaporviewDocument | undefined {
     if (params?.uri) {
       const path = typeof params.uri === 'string' ? params.uri : params.uri.toString();
       const parsed = vscode.Uri.parse(path);
@@ -1234,19 +1294,21 @@ export class WCPServer {
     try {
       const jsonResponse = JSON.stringify(response) + '\n';
       connection.socket.write(jsonResponse, 'utf8');
-    } catch (error: any) {
-      this.viewerProvider.log.appendLine(`WCP server error sending response to ${connection.remoteAddress}: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.viewerProvider.log.appendLine(`WCP server error sending response to ${connection.remoteAddress}: ${errorMessage}`);
     }
   }
 
-  private broadcastEvent(event: { type: string;[key: string]: any }): void {
+  private broadcastEvent(event: { type: string;[key: string]: unknown }): void {
     // Broadcast event to all connected clients (events don't have an id)
     const eventMessage = JSON.stringify(event) + '\n';
     for (const connection of this.connections) {
       try {
         connection.socket.write(eventMessage, 'utf8');
-      } catch (error: any) {
-        this.viewerProvider.log.appendLine(`WCP server error broadcasting event to ${connection.remoteAddress}: ${error.message}`);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.viewerProvider.log.appendLine(`WCP server error broadcasting event to ${connection.remoteAddress}: ${errorMessage}`);
       }
     }
   }

@@ -341,6 +341,12 @@
         "when": "activeCustomEditorId == 'vaporview.waveformViewer' && vaporview.waveformViewerFocused"
       },
       {
+        "command": "vaporview.searchNetlist",
+        "key": "ctrl+f",
+        "mac": "cmd+f",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer' && vaporview.netlistSearchable && vaporview.waveformViewerFocused"
+      },
+      {
         "command": "vaporview.previousEdge",
         "key": "ctrl+Left",
         "mac": "alt+Left",

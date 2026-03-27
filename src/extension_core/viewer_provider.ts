@@ -10,7 +10,8 @@ import { FsdbFormatHandler } from './fsdb_handler';
 import { SurferFormatHandler } from './surfer_handler';
 import { NetlistTreeDataProvider, type NetlistItem, netlistItemDragAndDropController, VaporviewStatusBar } from './tree_view';
 import path from 'path';
-import * as plist from 'plist';
+import { dirname } from 'path';
+
 
 export interface VaporviewDocumentDelegate {
   addSignalByNameToDocument(signalName: string): void;
@@ -504,7 +505,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       uri = await vscode.window.showSaveDialog({
         saveLabel: 'Save settings',
         filters: {JSON: ['json']},
-        defaultUri: vscode.Uri.file(path.join(filePath, saveFileName)),
+        defaultUri: vscode.Uri.file(path.join(dirname(filePath), saveFileName)),
       });
     }
 

@@ -4,6 +4,7 @@ import * as path from 'path';
 import { SignalGroupContextMenuEvent } from '../common/types';
 import { VaporviewDocumentCollection, WaveformViewerProvider } from './viewer_provider';
 import { wcpDefaultPort, WCPServer } from './wcp_server';
+import { dirname } from 'path';
 
 export function registerVaporviewCommands(
   context: vscode.ExtensionContext,
@@ -219,7 +220,7 @@ export function registerVaporviewCommands(
     const uri = await vscode.window.showSaveDialog({
       saveLabel: 'Save settings',
       filters: {JSON: ['json']},
-      defaultUri: vscode.Uri.file(path.join(filePath, saveFileName)),
+      defaultUri: vscode.Uri.file(path.join(dirname(filePath), saveFileName)),
     });
     if (uri) {
       viewerProvider.saveSettingsToFile(document, uri);

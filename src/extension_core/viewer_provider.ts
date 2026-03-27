@@ -289,8 +289,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   ): Promise<VaporviewDocument> {
 
     // Declare document first so delegate closures can reference it
-    let document: VaporviewDocument;
-
     const delegate: VaporviewDocumentDelegate = {
       addSignalByNameToDocument: this.addSignalByNameToDocument.bind(this),
       logOutputChannel: (message: string) => {this.log.appendLine(message);},
@@ -330,7 +328,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     };
 
     // Create the document and load it using its handler
-    document = await VaporviewDocument.create(uri, delegate, this.documentCollection);
+    const document = await VaporviewDocument.create(uri, delegate, this.documentCollection);
     await document.load();
     return document;
   }

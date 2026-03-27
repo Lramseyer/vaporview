@@ -102,8 +102,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this.setupFileWatcher();
   }
 
-  static async create(uri: vscode.Uri, providerDelegate: VaporviewDocumentDelegate, documentCollection: VaporviewDocumentCollection): Promise<VaporviewDocument> {
-    const handler  = await providerDelegate.createFileParser(uri);
+  static async create(uri: vscode.Uri, handler: WaveformFileParser, providerDelegate: VaporviewDocumentDelegate, documentCollection: VaporviewDocumentCollection): Promise<VaporviewDocument> {
     const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
     const documentId = documentCollection.createUniqueDocumentId();
     const document = new VaporviewDocument(uri, providerDelegate, handler, documentId);

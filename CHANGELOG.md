@@ -10,6 +10,7 @@
 - Organized user settings into categories
 - Added user settings for default waveform colors
 - Added Epoch time (ns) number format
+- Netlist search better displays variable or scope name and instance path @DGGua
 - Fixed status bar not updating when setting alt marker, or selecting the last value change
 - Update wellen to 0.20.3
 

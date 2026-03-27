@@ -915,7 +915,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       }
       case "addLink": {
         if (metadata.contextValue !== 'netlistScope') {
-          this.setValueFormat(metadata.netlistId, 0, undefined, {command: e.command});
+          this.setValueFormat({netlistId: metadata.netlistId}, 0, {command: e.command});
         }
         break;
       }
@@ -1335,8 +1335,8 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     });
   }
 
-  public setValueFormat(netlistId: NetlistId | undefined, index: number | undefined, rowId: number | undefined, properties: any) {
-    if (netlistId === undefined && rowId === undefined) {return;}
+  public setValueFormat(commandArgs: any, index: number | undefined, properties: any) {
+    //if (netlistId === undefined && rowId === undefined) {return;}
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}
@@ -1355,6 +1355,9 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     const color2 = vscode.workspace.getConfiguration('vaporview').get('customColor2');
     const color3 = vscode.workspace.getConfiguration('vaporview').get('customColor3');
     const color4 = vscode.workspace.getConfiguration('vaporview').get('customColor4');
+
+    const netlistId = commandArgs === undefined ? undefined : commandArgs.netlistId;
+    const rowId     = commandArgs === undefined ? undefined : commandArgs.rowId;
 
     panel.webview.postMessage({
       command: 'setDisplayFormat',

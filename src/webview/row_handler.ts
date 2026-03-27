@@ -863,8 +863,10 @@ export class RowHandler {
 
     const netlistId = message.netlistId;
     let rowId = message.rowId;
-    if (netlistId === undefined && rowId === undefined) {return;}
-    if (rowId === undefined) {
+    if (netlistId === undefined && rowId === undefined) {
+      if (viewerState.selectedSignal.length === 0) {return;}
+      rowId = viewerState.selectedSignal[0];
+    } else if (rowId === undefined) {
       const matchingRows = this.getRowIdsFromNetlistId(netlistId);
       if (matchingRows.length === 0) {return;}
       const index = message.index || 0;

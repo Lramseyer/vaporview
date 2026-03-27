@@ -392,6 +392,46 @@
         "command": "vaporview.newGroupFromSelection",
         "key": "g",
         "when": "activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus && !textInputFocus && vaporview.waveformViewerFocused"
+      },
+      {
+        "command": "vaporview.defaultColor1",
+        "key": "1",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus && !textInputFocus && vaporview.waveformViewerFocused"
+      },
+      {
+        "command": "vaporview.defaultColor2",
+        "key": "2",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus && !textInputFocus && vaporview.waveformViewerFocused"
+      },
+      {
+        "command": "vaporview.defaultColor3",
+        "key": "3",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus && !textInputFocus && vaporview.waveformViewerFocused"
+      },
+      {
+        "command": "vaporview.defaultColor4",
+        "key": "4",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus && !textInputFocus && vaporview.waveformViewerFocused"
+      },
+      {
+        "command": "vaporview.defaultColor5",
+        "key": "5",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus && !textInputFocus && vaporview.waveformViewerFocused"
+      },
+      {
+        "command": "vaporview.defaultColor6",
+        "key": "6",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus && !textInputFocus && vaporview.waveformViewerFocused"
+      },
+      {
+        "command": "vaporview.defaultColor7",
+        "key": "7",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus && !textInputFocus && vaporview.waveformViewerFocused"
+      },
+      {
+        "command": "vaporview.defaultColor8",
+        "key": "8",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus && !textInputFocus && vaporview.waveformViewerFocused"
       }
     ],
     "submenus": [

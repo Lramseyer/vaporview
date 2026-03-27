@@ -508,7 +508,7 @@ export class WCPServer {
     }
 
     // Set the color using setValueFormat
-    this.viewerProvider.setValueFormat(netlistId, 0, undefined, { colorIndex: colorIndex });
+    this.viewerProvider.setValueFormat({netlistId: netlistId}, 0, { colorIndex: colorIndex });
 
     // Return ack response with uri (WCP spec format)
     return {
@@ -586,7 +586,7 @@ export class WCPServer {
     }
 
     // Set the format using setValueFormat
-    this.viewerProvider.setValueFormat(netlistId, 0, undefined, { valueFormat: format });
+    this.viewerProvider.setValueFormat({netlistId: netlistId}, 0, { valueFormat: format });
 
     // Return ack response with uri (WCP spec format)
     return {

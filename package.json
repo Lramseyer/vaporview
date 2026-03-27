@@ -344,7 +344,7 @@
         "command": "vaporview.searchNetlist",
         "key": "ctrl+f",
         "mac": "cmd+f",
-        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer' && vaporview.netlistSearchable && vaporview.waveformViewerFocused"
       },
       {
         "command": "vaporview.previousEdge",

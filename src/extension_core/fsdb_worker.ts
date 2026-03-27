@@ -1,32 +1,35 @@
 import type { NetlistId, SignalId } from '../common/types';
+import type { FsdbWaveformData, FsdbWorkerIpcMessage } from './fsdb_types';
 
-let fsdbAddon: any = null;
+interface FsdbAddon {
+    openFsdb(fsdbPath: string): void;
+    readScopes(scopeCallback: (name: string, type: string, path: string, netlistId: number, scopeOffsetIdx: number) => void, upscopeCallback: () => void): void;
+    readMetadata(setMetadataFn: (scopecount: number, varcount: number, timescale: number, timeunit: string) => void, setChunkSizeFn: (chunksize: number, timeend: number) => void): void;
+    readVars(scopePath: string, scopeOffsetIdx: number, varCallback: (...args: Parameters<typeof fsdbVarCallback>) => void, arrayBeginCallback: (name: string, path: string, netlistId: number) => void, arrayEndCallback: (size: number) => void): void;
+    loadSignals(signalIdList: number[]): void;
+    getValueChanges(signalId: number): FsdbWaveformData;
+    getValuesAtTime(signalId: number, time: number): string | string[];
+    unloadSignal(signalId: number): void;
+    unload(): void;
+}
+
+let fsdbAddon: FsdbAddon | null = null;
 try {
     fsdbAddon = require('../build/Release/fsdb_reader.node');
-    // fsdbAddon = require('../build/Debug/fsdb_reader.node');
-    // To debug node module:
-    // 1. Build the addon with debug symbols: `node-gyp rebuild --debug`
-    // 2. Run the extension and find PID for fsdb_worker.js: `ps aux | grep fsdb_worker`
-    // 3. Attach gdb to the worker process: `gdb -p <PID>`
-} catch (error) {
+} catch (error: unknown) {
     process.send!({ command: 'require-failed', error: error });
 }
 
 console.log("Start FSDB worker");
 
 // Listen for messages from the main process.
-process.on('message', (message: any) => {
-    // try {
-    //     console.log("Worker received message: " + JSON.stringify(message, null, 2));
-    // } catch (e) {
-    //     console.error('Data is not serializable:', e);
-    // }
+process.on('message', (message: FsdbWorkerIpcMessage) => {
     const result = handleMessage(message);
-
     process.send!({ id: message.id, result: result });
 });
 
-function handleMessage(message: any) {
+function handleMessage(message: FsdbWorkerIpcMessage): FsdbWaveformData | string | string[] | undefined {
+    if (!fsdbAddon) { return undefined; }
     switch (message.command) {
         case 'openFsdb': { fsdbAddon.openFsdb(message.fsdbPath); break; }
         case 'readScopes': { fsdbAddon.readScopes(fsdbScopeCallback, fsdbUpscopeCallback); break; }
@@ -41,6 +44,7 @@ function handleMessage(message: any) {
         case 'unloadSignal': { fsdbAddon.unloadSignal(message.signalId); break; }
         case 'unload': { fsdbAddon.unload(); break; }
     }
+    return undefined;
 }
 
 function fsdbScopeCallback(name: string, type: string, path: string, netlistId: number, scopeOffsetIdx: number) {

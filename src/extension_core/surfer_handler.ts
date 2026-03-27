@@ -6,6 +6,7 @@ import type { VaporviewDocumentDelegate } from './viewer_provider';
 import { filehandler } from './filehandler';
 import { type NetlistItem, createScope, createVar } from './tree_view';
 import type { WaveformFileParser, WaveformDumpMetadata, NetlistSearchResult } from './document';
+import type { ValuesAtTimeResult } from '../../packages/vaporview-api/types';
 
 
 export class SurferFormatHandler implements WaveformFileParser {
@@ -15,14 +16,14 @@ export class SurferFormatHandler implements WaveformFileParser {
   private bearerToken?: string;
   private wasmWorker: Worker;
   private wasmModule: WebAssembly.Module;
-  private wasmApi: any;
+  private wasmApi: filehandler.Exports.Promisified | undefined;
 
   // Top level netlist items
   private netlistTop: NetlistItem[] = [];
   public netlistSearchable: boolean = false;
   private parametersLoaded: boolean = false;
 
-  public postMessageToWebview = (message: any) => {};
+  public postMessageToWebview = (_message: Record<string, unknown>) => {};
   public metadata: WaveformDumpMetadata = {
     timeTableLoaded: false,
     scopeCount: 0,
@@ -146,8 +147,8 @@ export class SurferFormatHandler implements WaveformFileParser {
       cancellable: false
     }, async () => {
       try {
-        await loadRemoteHierarchy(this.serverUrl, this.wasmApi, this.bearerToken);
-        await loadRemoteTimeTable(this.serverUrl, this.wasmApi, this.bearerToken);
+        await loadRemoteHierarchy(this.serverUrl, this.wasmApi!, this.bearerToken);
+        await loadRemoteTimeTable(this.serverUrl, this.wasmApi!, this.bearerToken);
       } catch (error) {
         this.providerDelegate.logOutputChannel("Failed to connect to remote server: " + error);
         throw error;
@@ -166,7 +167,7 @@ export class SurferFormatHandler implements WaveformFileParser {
       cancellable: false
     }, async () => {
       try {
-        await loadRemoteHierarchy(this.serverUrl, this.wasmApi, this.bearerToken);
+        await loadRemoteHierarchy(this.serverUrl, this.wasmApi!, this.bearerToken);
       } catch (error) {
         this.providerDelegate.logOutputChannel("Failed to connect to remote server: " + error);
         throw error;
@@ -178,7 +179,7 @@ export class SurferFormatHandler implements WaveformFileParser {
   async loadBody(): Promise<void> {
 
     try {
-      await loadRemoteTimeTable(this.serverUrl, this.wasmApi, this.bearerToken);
+      await loadRemoteTimeTable(this.serverUrl, this.wasmApi!, this.bearerToken);
     } catch (error) {
       this.providerDelegate.logOutputChannel("Failed to connect to remote server: " + error);
       throw error;
@@ -206,10 +207,10 @@ export class SurferFormatHandler implements WaveformFileParser {
 
     const parameterItems = this.getParametersInTreeData(this.netlistTop);
     const signalIdList = parameterItems.map((param) => param.signalId);
-    const params = await this.wasmApi.getparametervalues(signalIdList);
+    const params = await this.wasmApi!.getparametervalues(new Uint32Array(signalIdList));
     const parameterValues = JSON.parse(params);
     parameterItems.forEach((param) => {
-      const paramValue = parameterValues.find((entry: any) => entry[0] === param.signalId);
+      const paramValue = parameterValues.find((entry: [number, string]) => entry[0] === param.signalId);
       if (paramValue) {
         param.setParamAndTooltip(paramValue[1]);
       }
@@ -231,17 +232,17 @@ export class SurferFormatHandler implements WaveformFileParser {
     const result: NetlistItem[] = [];
 
     let callLimit = 255;
-    const varTable: any = {};
+    const varTable: Record<string, NetlistItem[]> = {};
     while (itemsRemaining > 0) {
-      const children = await this.wasmApi.getchildren(element.netlistId, startIndex);
+      const children = await this.wasmApi!.getchildren(element.netlistId, startIndex);
       const childItems = JSON.parse(children);
       itemsRemaining = childItems.remainingItems;
       startIndex += childItems.totalReturned;
 
-      childItems.scopes.forEach((child: any) => {
+      childItems.scopes.forEach((child: { name: string; type: string; id: number }) => {
         result.push(createScope(child.name, child.type, scopePath, child.id, -1, this.uri));
       });
-      childItems.vars.forEach((child: any) => {
+      childItems.vars.forEach((child: { name: string; paramValue: string; type: string; encoding: string; netlistId: number; signalId: number; width: number; msb: number; lsb: number; enumType: string }) => {
         const encoding = child.encoding.split('(')[0];
         const varItem = createVar(child.name, child.paramValue, child.type, encoding, scopePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, child.enumType, false /*isFsdb*/, this.uri);
         if (varTable[child.name] === undefined) {
@@ -255,15 +256,15 @@ export class SurferFormatHandler implements WaveformFileParser {
       if (callLimit <= 0) { break; }
     }
 
-    for (const [key, value] of Object.entries(varTable)) {
-      if ((value as NetlistItem[]).length === 1) {
-        result.push((value as NetlistItem[])[0]);
+    for (const [_key, value] of Object.entries(varTable)) {
+      if (value.length === 1) {
+        result.push(value[0]);
       } else {
-        const varList = value as NetlistItem[];
+        const varList = value;
         const bitList: NetlistItem[] = [];
         const busList: NetlistItem[] = [];
         let maxWidth = 0;
-        let parent: any ;
+        let parent: NetlistItem | undefined;
         varList.forEach((varItem) => {
           if (varItem.width === 1) { bitList.push(varItem); }
           else { busList.push(varItem); }
@@ -289,7 +290,7 @@ export class SurferFormatHandler implements WaveformFileParser {
 
   async getSignalData(signalIdList: SignalId[]): Promise<void> {
     try {
-      await loadRemoteSignals(this.serverUrl, this.wasmApi, this.bearerToken, signalIdList);
+      await loadRemoteSignals(this.serverUrl, this.wasmApi!, this.bearerToken, signalIdList);
     } catch (error) {
       this.providerDelegate.logOutputChannel("Failed to get signal data from remote server: " + error);
       // Send empty signal data for failed signals
@@ -309,13 +310,13 @@ export class SurferFormatHandler implements WaveformFileParser {
 
   async getEnumData(enumList: EnumQueueEntry[]): Promise<void> {
     const netlistIdList = enumList.map((entry) => entry.netlistId);
-    this.wasmApi.getenumdata(netlistIdList);
+    this.wasmApi!.getenumdata(new Uint32Array(netlistIdList));
   }
 
-  async getValuesAtTime(time: number, instancePaths: string[]): Promise<any> {
+  async getValuesAtTime(time: number, instancePaths: string[]): Promise<ValuesAtTimeResult[]> {
     if (!this.wasmApi) { return []; }
     try {
-      const result = await this.wasmApi.getvaluesattime(BigInt(time), instancePaths.join(" "));
+      const result = await this.wasmApi!.getvaluesattime(BigInt(time), instancePaths.join(" "));
       return JSON.parse(result);
     } catch (error) {
       this.providerDelegate.logOutputChannel("Failed to get values at time from remote server: " + error);
@@ -324,7 +325,7 @@ export class SurferFormatHandler implements WaveformFileParser {
   }
 
   public async searchNetlist(searchString: string): Promise<NetlistSearchResult> {
-    const resultJson = await this.wasmApi.searchnetlist(searchString);
+    const resultJson = await this.wasmApi!.searchnetlist(searchString);
     try {
       return JSON.parse(resultJson) as NetlistSearchResult;
     } catch {
@@ -334,7 +335,7 @@ export class SurferFormatHandler implements WaveformFileParser {
 
   async unload(): Promise<void> {
     if (this.wasmApi) {
-      await this.wasmApi.unload();
+      await this.wasmApi!.unload();
     }
     this.parametersLoaded = false;
     this.netlistTop = [];
@@ -371,7 +372,7 @@ async function sendDataInChunks(
     }
 }
 
-async function httpFetch(server: string, path: string, bearerToken?: string): Promise<any> {
+async function httpFetch(server: string, path: string, bearerToken?: string): Promise<Response> {
     const headers: Record<string, string> = {};
     if (bearerToken) {
         headers['Authorization'] = `Bearer ${bearerToken}`;
@@ -384,7 +385,7 @@ async function httpFetch(server: string, path: string, bearerToken?: string): Pr
 }
 
 // get_status does have real use in the extension but is here for completeness
-export async function loadRemoteStatus(server: string, wasmApi: filehandler.Exports, bearerToken?: string): Promise<any> {
+export async function loadRemoteStatus(server: string, wasmApi: filehandler.Exports | filehandler.Exports.Promisified, bearerToken?: string): Promise<string> {
     const status = await httpFetch(server, 'get_status', bearerToken);
     const statusText = await status.text();
     const statusBytes = new TextEncoder().encode(statusText);
@@ -392,7 +393,7 @@ export async function loadRemoteStatus(server: string, wasmApi: filehandler.Expo
     return ret;
 }
 
-export async function loadRemoteHierarchy(server: string, wasmApi: filehandler.Exports, bearerToken?: string): Promise<any> {
+export async function loadRemoteHierarchy(server: string, wasmApi: filehandler.Exports | filehandler.Exports.Promisified, bearerToken?: string): Promise<void> {
     const hierarchy = await httpFetch(server, 'get_hierarchy', bearerToken);
     const hierarchyBytes = await hierarchy.arrayBuffer();
     const hierarchyUint8Array = new Uint8Array(hierarchyBytes);
@@ -403,7 +404,7 @@ export async function loadRemoteHierarchy(server: string, wasmApi: filehandler.E
     
 }
 
-export async function loadRemoteTimeTable(server: string, wasmApi: filehandler.Exports, bearerToken?: string): Promise<any> {
+export async function loadRemoteTimeTable(server: string, wasmApi: filehandler.Exports | filehandler.Exports.Promisified, bearerToken?: string): Promise<void> {
     const timeTable = await httpFetch(server, 'get_time_table', bearerToken);
     const timeTableBytes = await timeTable.arrayBuffer();
     const timeTableUint8Array = new Uint8Array(timeTableBytes);
@@ -413,7 +414,7 @@ export async function loadRemoteTimeTable(server: string, wasmApi: filehandler.E
     });
 }
 
-export async function loadRemoteSignals(server: string, wasmApi: filehandler.Exports, bearerToken?: string, signalIds?: number[]): Promise<any> {
+export async function loadRemoteSignals(server: string, wasmApi: filehandler.Exports | filehandler.Exports.Promisified, bearerToken?: string, signalIds?: number[]): Promise<void> {
     let path = 'get_signals';
     if (signalIds && signalIds.length > 0) {
         path += '/' + signalIds.join('/');

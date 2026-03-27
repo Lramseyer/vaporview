@@ -127,7 +127,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Vaporv
     },
     async getValuesAtTime(args: GetValuesAtTimeArgs) {
       const document = viewerProvider.getDocumentFromOptionalUri(args.uri);
-      if (!document) {return undefined;}
+      if (!document) {return [];}
       return document.getValuesAtTime(args);
     },
     async addVariableByInstancePath(args: AddVariableByPathArgs) {

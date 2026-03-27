@@ -747,6 +747,7 @@ export class NetlistSearchQuickPick {
   constructor() {
     this.quickPick = vscode.window.createQuickPick<NetlistQuickPickItem>();
     this.quickPick.placeholder = 'Search netlist by instance path...';
+    this.quickPick.matchOnDetail = true;
     this.quickPick.busy = false;
     this.quickPick.onDidHide(() => {this.quickPick.value = "";});
 
@@ -797,8 +798,9 @@ export class NetlistSearchQuickPick {
       const bitRange   = result.isVar ? bitRangeString(result.msb, result.lsb) : "";
       const paramValue = result.paramValue ? ": " + parseParamValue(result.paramValue) : "";
       return {
-        label: result.instancePath + bitRange,
+        label: result.instancePath.slice(result.instancePath.lastIndexOf(".") + 1) + bitRange,
         description: result.type + paramValue,
+        detail: result.instancePath,
         instancePath: result.instancePath,
         isVar: result.isVar,
         msb: result.msb || 0,

@@ -4,7 +4,7 @@
 		{
 			"type": "extensionHost",
 			"request": "launch",
-			"name": "Run Example",
+			"name": "Launch Vaporview Extension",
 			"runtimeExecutable": "${execPath}",
 			"args": [
 				"--extensionDevelopmentPath=${workspaceRoot}",

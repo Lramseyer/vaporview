@@ -1532,5 +1532,6 @@
     "vscode:prepublish": "npm run package",
     "package": "npm run compile-wasm && npm run check-types && node esbuild.js --production",
     "package-fsdb": "npm run compile-addon && npm run compile-wasm && npm run check-types && node esbuild.js --production"
-  }
+  },
+  "gypfile": false
 }

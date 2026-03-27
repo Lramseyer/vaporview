@@ -19,7 +19,6 @@ export interface VaporviewDocumentDelegate {
   updateViews(uri: vscode.Uri): void;
   emitEvent(e: any): void;
   removeFromCollection(uri: vscode.Uri, document: VaporviewDocument): void;
-  createFileParser(uri: vscode.Uri): Promise<WaveformFileParser>;
   getColorPalette(): {colorPalette: string[], errorColorPalette: string};
 }
 
@@ -288,49 +287,37 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     _token: vscode.CancellationToken,
   ): Promise<VaporviewDocument> {
 
-    // Declare document first so delegate closures can reference it
-    let document: VaporviewDocument;
-
     const delegate: VaporviewDocumentDelegate = {
       addSignalByNameToDocument: this.addSignalByNameToDocument.bind(this),
       logOutputChannel: (message: string) => {this.log.appendLine(message);},
-      updateViews: (uri: vscode.Uri) => {
-        if (this.activeDocument?.uri !== uri) {return;}
-        this.netlistTreeDataProvider.loadDocument(document);
-      },
+      updateViews: (uri: vscode.Uri) => {return;}, // placeholder function to be overridden once we create the document
       emitEvent: (e: any) => {this.emitEvent(e);},
-      removeFromCollection: (uri: vscode.Uri, doc: VaporviewDocument) => {
-        this.documentCollection.remove(doc.documentId);
-        // Clean up remote connection info if this is a vaporview-remote:// URI
-        if (uri.scheme === 'vaporview-remote') {
-          this.remoteConnections.delete(uri.toString());
-          // Also clean up persisted state
-          this._context.globalState.update(`remote-connection-${uri.toString()}`, undefined);
-        }
-      },
-      createFileParser: async (uri: vscode.Uri) => {
-        // Create the handler first, then create the document with it
-        let handler: WaveformFileParser;
-
-        if (uri.scheme === 'vaporview-remote') {
-          const connectionInfo = await this.getRemoteConnectionInfo(uri);
-          // Create Surfer handler
-          handler = await SurferFormatHandler.create(delegate, uri, connectionInfo.serverUrl, this.wasmWorkerFile, this.wasmModule, connectionInfo.bearerToken);
-        } else {
-          const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
-          if (fileType === 'fsdb') {
-            handler = new FsdbFormatHandler(delegate, uri, async () => null);
-          } else {
-            handler = await WasmFormatHandler.create(delegate, uri, fileType, this.wasmWorkerFile, this.wasmModule);
-          }
-        }
-        return handler;
-      },
+      removeFromCollection: this.removeFromCollection.bind(this),
       getColorPalette: () => {return this.documentCollection.getColorPalette();},
     };
 
+    let handler: WaveformFileParser;
+    if (uri.scheme === 'vaporview-remote') {
+      const connectionInfo = await this.getRemoteConnectionInfo(uri);
+      // Create Surfer handler
+      handler = await SurferFormatHandler.create(delegate, uri, connectionInfo.serverUrl, this.wasmWorkerFile, this.wasmModule, connectionInfo.bearerToken);
+    } else {
+      const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
+      if (fileType === 'fsdb') {
+        handler = new FsdbFormatHandler(delegate, uri, async () => null);
+      } else {
+        handler = await WasmFormatHandler.create(delegate, uri, fileType, this.wasmWorkerFile, this.wasmModule);
+      }
+    }
+
     // Create the document and load it using its handler
-    document = await VaporviewDocument.create(uri, delegate, this.documentCollection);
+    const document = await VaporviewDocument.create(uri, handler, delegate, this.documentCollection);
+
+    delegate.updateViews = (uri: vscode.Uri) => {
+      if (this.activeDocument?.uri !== uri) {return;}
+      this.netlistTreeDataProvider.loadDocument(document);
+    };
+
     await document.load();
     return document;
   }
@@ -631,6 +618,16 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     //const settings = document.getSettings();
     this.netlistTreeDataProvider.hide();
     await document.reload();
+  }
+
+  removeFromCollection(uri: vscode.Uri, document: VaporviewDocument) {
+    this.documentCollection.remove(document.documentId);
+    // Clean up remote connection info if this is a vaporview-remote:// URI
+    if (uri.scheme === 'vaporview-remote') {
+      this.remoteConnections.delete(uri.toString());
+      // Also clean up persisted state
+      this._context.globalState.update(`remote-connection-${uri.toString()}`, undefined);
+    }
   }
 
   copyWaveDrom() {

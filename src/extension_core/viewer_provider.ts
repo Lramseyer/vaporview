@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
 import { type DocumentId, type NetlistId, SignalGroupWebviewContext, SignalId, StateChangeType, WindowMessageType, type MarkerSetEvent, type SignalEvent, type ViewerDropEvent } from '../common/types';
 import { decodeNetlistUri } from '../../packages/vaporview-api';
-import type { VariableActionArgs, VariableAction, SetMarkerArgs } from '../../packages/vaporview-api/types';
+import type { VariableActionArgs, VariableAction, SetMarkerArgs, AddVariableByPathArgs, SavedRowItem } from '../../packages/vaporview-api/types';
 import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
 import { Worker } from 'worker_threads';
 import * as fs from 'fs';
 import { } from './extension';
-import { VaporviewDocument, NetlistSearchQuickPick, type WaveformFileParser } from './document';
+import { VaporviewDocument, NetlistSearchQuickPick, type WaveformFileParser, type WebviewStateEvent, type WebviewStateSettings } from './document';
 import { WasmFormatHandler } from './wasm_handler';
 import { FsdbFormatHandler } from './fsdb_handler';
 import { SurferFormatHandler } from './surfer_handler';
@@ -20,11 +20,74 @@ import { dirname } from 'path';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { getUserTheme } = require('vscode-shiki-bridge');
 
+// #region Local type definitions
+
+interface ThemeRule {
+  settings?: { foreground?: string };
+  scope?: string | string[];
+}
+
+interface ThemeEntry {
+  settings?: ThemeRule[];
+}
+
+export interface EmitEventData {
+  eventType: 'markerSet' | 'signalSelect' | 'addVariable' | 'removeVariable';
+  uri?: vscode.Uri;
+  time?: number;
+  units?: string;
+  instancePath?: string;
+  netlistId?: NetlistId;
+}
+
+interface WebviewMessageEvent {
+  messageType: WindowMessageType;
+  message: string;
+}
+
+interface WebviewResponseMessage {
+  requestId: number;
+  body: unknown;
+}
+
+interface WebviewDropData {
+  uri: { external: string };
+  resourceUriList?: vscode.Uri[];
+  groupPath?: string[];
+  dropIndex?: number;
+}
+
+
+interface DisplayFormatProperties {
+  valueFormat?: string;
+  colorIndex?: number;
+  renderType?: string;
+  rowHeight?: number;
+  verticalScale?: number;
+  nameType?: string;
+  customName?: string;
+  command?: string;
+  annotateValue?: string[];
+}
+
+interface AddItemsArgs {
+  recursive?: boolean;
+  items: string[];
+}
+
+export interface RenameSignalGroupArgs {
+  groupId?: number;
+  name?: string;
+  rowId?: number;
+}
+
+// #endregion
+
 export interface VaporviewDocumentDelegate {
   addSignalByNameToDocument(signalName: string): void;
   logOutputChannel(message: string): void;
   updateViews(uri: vscode.Uri): void;
-  emitEvent(e: any): void;
+  emitEvent(e: EmitEventData): void;
   removeFromCollection(uri: vscode.Uri, document: VaporviewDocument): void;
   getColorPalette(): {colorPalette: string[], errorColorPalette: string[], themeValid: boolean};
 }
@@ -44,6 +107,7 @@ export class VaporviewDocumentCollection {
   public colorPalette: string[] = [];
   public errorColorPalette: string[] = [];
   public themeValid: boolean = false;
+
 
   constructor(
     private readonly log: vscode.OutputChannel,
@@ -102,7 +166,7 @@ export class VaporviewDocumentCollection {
     }
   }
 
-  updateConfiguration(e: any) {
+  updateConfiguration(_e: vscode.ConfigurationChangeEvent) {
     this.broadcast((document) => {
       document.setConfigurationSettings();
     });
@@ -135,30 +199,31 @@ export class VaporviewDocumentCollection {
       "variable.parameter"
     ];
     const errorScopes = ["token.error-token", "invalid"];
-    const colorMap: any = {};
-    const scopeMap: any = {};
-    const colorPalette: any = [];
-    const errorColorPalette: any = [];
-    scopeList.forEach((scope: any) => {scopeMap[scope] = [];});
-    errorScopes.forEach((scope: any) => {scopeMap[scope] = [];});
-    themeData.forEach((theme: any) => {
+    const colorMap: Record<string, string[]> = {};
+    const scopeMap: Record<string, string[]> = {};
+    const colorPalette: string[] = [];
+    const errorColorPalette: string[] = [];
+    scopeList.forEach((scope: string) => {scopeMap[scope] = [];});
+    errorScopes.forEach((scope: string) => {scopeMap[scope] = [];});
+    themeData.forEach((theme: ThemeEntry) => {
       const settings = theme.settings;
+      if (!settings) {return;}
 
-      settings.forEach((rule: any) => {
+      settings.forEach((rule: ThemeRule) => {
         if (!rule.settings?.foreground) {return;}
         const color = rule.settings.foreground.toLowerCase();
         if (!colorMap[color]) {
           colorMap[color] = [];
         }
 
-        let rulesList = [];
+        let rulesList: string[] = [];
         if (typeof rule.scope === "string") {
           rulesList = [rule.scope];
         } else if (rule.scope instanceof Array) {
           rulesList = rule.scope;
         }
 
-        rulesList.forEach((scope: any) => {
+        rulesList.forEach((scope: string) => {
           colorMap[color].push(scope);
           if (scopeList.includes(scope)) {
             scopeMap[scope].push(color);
@@ -171,22 +236,22 @@ export class VaporviewDocumentCollection {
     });
 
     const semanticTokens = Object.keys(colorMap);
-    errorScopes.forEach((scope: any) => {
-      scopeMap[scope].forEach((color: any) => {
+    errorScopes.forEach((scope: string) => {
+      scopeMap[scope].forEach((color: string) => {
         if (errorColorPalette.includes(color)) {return;}
         errorColorPalette.push(color);
       });
     });
 
-    scopeList.forEach((scope: any) => {
-      scopeMap[scope].forEach((color: any) => {
+    scopeList.forEach((scope: string) => {
+      scopeMap[scope].forEach((color: string) => {
         if (colorPalette.includes(color)) {return;}
         if (errorColorPalette.includes(color)) {return;}
         colorPalette.push(color);
       });
     });
 
-    semanticTokens.forEach((color: any) => {
+    semanticTokens.forEach((color: string) => {
       if (colorPalette.includes(color)) {return;}
       if (errorColorPalette.includes(color)) {return;}
       colorPalette.push(color);
@@ -310,7 +375,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       addSignalByNameToDocument: this.addSignalByNameToDocument.bind(this),
       logOutputChannel: (message: string) => {this.log.appendLine(message);},
       updateViews: (uri: vscode.Uri) => {return;}, // placeholder function to be overridden once we create the document
-      emitEvent: (e: any) => {this.emitEvent(e);},
+      emitEvent: (e: EmitEventData) => {this.emitEvent(e);},
       removeFromCollection: this.removeFromCollection.bind(this),
       getColorPalette: () => {return this.documentCollection.getColorPalette();},
     };
@@ -430,7 +495,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     return this.documentCollection.getAllDocuments().map(entry => entry.uri.toString());
   }
 
-  public getViewerState(uri: any) {
+  public getViewerState(uri: string | undefined) {
     const document = this.getDocumentFromOptionalUri(uri);
     if (!document) {return;}
     return document.getSettings();
@@ -535,7 +600,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     //let version  = vscode.extensions.getExtension('Lramseyer.vaporview')?.packageJSON.version;
     // show open file dialog
-    const uri = await new Promise<any>((resolve, reject) => {
+    const uri = await new Promise<vscode.Uri>((resolve, reject) => {
       vscode.window.showOpenDialog({
         canSelectFiles: true,
         canSelectFolders: false,
@@ -548,7 +613,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         } else {
           reject("No file selected"); // Reject if no file is selected
         }
-      }, (error: any) => {
+      }, (error: unknown) => {
         reject(error); // Reject if showOpenDialog fails
       });
     });
@@ -582,7 +647,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     return true;
   }
 
-  public restoreState(state: any, uri: vscode.Uri) {
+  public restoreState(state: WebviewStateSettings | undefined, uri: vscode.Uri) {
     let document = this.documentCollection.getDocumentFromUri(uri.toString());
     if (!document) {
       document = this.activeDocument;
@@ -622,7 +687,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     }
   }
 
-  async reloadFile(e: any) {
+  async reloadFile(e: vscode.Uri) {
 
     let document: VaporviewDocument | undefined;
     if (e.fsPath) {
@@ -661,7 +726,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     });
   }
 
-  handleWebviewMessage(event: any) {
+  handleWebviewMessage(event: WebviewMessageEvent) {
     switch (event.messageType) {
       case WindowMessageType.Warning: {vscode.window.showWarningMessage(event.message); break;}
       case WindowMessageType.Error:   {vscode.window.showErrorMessage(event.message); break;}
@@ -727,7 +792,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     this.lastActiveWebview.webview.postMessage({command: 'setTimeUnits', units: units});
   }
 
-  handleUpdateWebviewContext(document: VaporviewDocument, event: any) {
+  handleUpdateWebviewContext(document: VaporviewDocument, event: WebviewStateEvent) {
     if (!document) {return;}
     const isDirty = document.captureWebviewState(event);
 
@@ -746,28 +811,28 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     }
   }
 
-  emitEvent(e: any) {
+  emitEvent(e: EmitEventData) {
 
-    const markerData: MarkerSetEvent = {
-      uri: e.uri,
-      time: e.time,
-      units: e.units,
-    };
-
-    const signalData: SignalEvent = {
-      uri: e.uri,
-      instancePath: e.instancePath,
-      netlistId: e.netlistId,
-      source: "viewer",
-    };
-
-    //console.log(e);
+    const uriStr = e.uri?.toString() ?? '';
 
     switch (e.eventType) {
-      case 'markerSet':      {WaveformViewerProvider.markerSetEventEmitter.fire(markerData); break;}
-      case 'signalSelect':   {WaveformViewerProvider.signalSelectEventEmitter.fire(signalData); break;}
-      case 'addVariable':    {WaveformViewerProvider.addVariableEventEmitter.fire(signalData); break;}
-      case 'removeVariable': {WaveformViewerProvider.removeVariableEventEmitter.fire(signalData); break;}
+      case 'markerSet': {
+        WaveformViewerProvider.markerSetEventEmitter.fire({
+          uri: uriStr, time: e.time ?? 0, units: e.units ?? '',
+        });
+        break;
+      }
+      case 'signalSelect':
+      case 'addVariable':
+      case 'removeVariable': {
+        const signalData: SignalEvent = {
+          uri: uriStr, instancePath: e.instancePath ?? '', netlistId: e.netlistId ?? 0, source: "viewer",
+        };
+        if (e.eventType === 'signalSelect') {WaveformViewerProvider.signalSelectEventEmitter.fire(signalData);}
+        else if (e.eventType === 'addVariable') {WaveformViewerProvider.addVariableEventEmitter.fire(signalData);}
+        else {WaveformViewerProvider.removeVariableEventEmitter.fire(signalData);}
+        break;
+      }
     }
   }
 
@@ -797,7 +862,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     }
   }
 
-  showInNetlistView(e: any) {
+  showInNetlistView(e: { netlistId?: NetlistId } | undefined) {
 
     if (!this.lastActiveDocument) {return;}
     const document = this.lastActiveDocument;
@@ -817,25 +882,25 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   }
 
   private _requestId = 1;
-  private readonly _callbacks = new Map<number, (response: any) => void>();
-  private postMessageWithResponse<R = unknown>(panel: vscode.WebviewPanel, type: string, body: any): Promise<R> {
+  private readonly _callbacks = new Map<number, (response: unknown) => void>();
+  private postMessageWithResponse<R = unknown>(panel: vscode.WebviewPanel, type: string, body: Record<string, unknown>): Promise<R> {
     const requestId = this._requestId++;
-    const p = new Promise<R>(resolve => this._callbacks.set(requestId, resolve));
+    const p = new Promise<R>(resolve => this._callbacks.set(requestId, resolve as (response: unknown) => void));
     panel.webview.postMessage({ type, requestId, body });
     return p;
   }
 
-  private onMessage(message: any) {
+  private onMessage(message: WebviewResponseMessage) {
     const callback = this._callbacks.get(message.requestId);
     callback?.(message.body);
   }
 
   // #region Command Handlers
-  private getDocumentFromCommandArgs(e: any): VaporviewDocument | undefined {
+  private getDocumentFromCommandArgs(e: { uri?: string }): VaporviewDocument | undefined {
     if (e.uri !== undefined) {
       const document = this.documentCollection.getDocumentFromUri(e.uri);
       if (!document) {
-        vscode.window.showErrorMessage('Document not found: ' + e.uri.fsPath);
+        vscode.window.showErrorMessage('Document not found: ' + e.uri);
         return undefined;
       } else {
         return document;
@@ -847,7 +912,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     }
   }
 
-  private async getNetlistItemFromCommandArgs(e: any): Promise<NetlistItem | null> {
+  private async getNetlistItemFromCommandArgs(e: VariableActionArgs): Promise<NetlistItem | null> {
     // CHeck for URI in the event
     let path;
     let metadata: NetlistItem | null = null;
@@ -868,11 +933,11 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         path = e.instancePath;
       } else {
         if (e.scopePath !== undefined) {
-          path = e.scopePath + ".";
+          path = (path ?? '') + e.scopePath + ".";
         }
-        path += e.name;
+        path = (path ?? '') + (e.name ?? '');
       }
-      metadata = await document.findTreeItem(path, e.msb, e.lsb);
+      metadata = await document.findTreeItem(path ?? '', e.msb, e.lsb);
     }
 
     return metadata;
@@ -957,12 +1022,12 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     }
   }
 
-  public handleKeyBinding(e: any, keyCommand: string) {
+  public handleKeyBinding(e: unknown, keyCommand: string) {
     if (!this.activeWebview) {return;}
     this.activeWebview.webview.postMessage({command: 'handle-keypress', keyCommand: keyCommand, event: e});
   }
 
-  private handleWebviewDrop(e: any) {
+  private handleWebviewDrop(e: WebviewDropData) {
 
     const unknownUriList: vscode.Uri[] = [];
     const netlistIdList: NetlistId[] = [];
@@ -1002,10 +1067,10 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     // Emit an event for the unknown URIs so that other extensions can handle them if needed
     if (unknownUriList.length === 0) {return;}
     WaveformViewerProvider.externalDropEventEmitter.fire({
-      uri: e.uri,
+      uri: e.uri.external,
       resourceUriList: unknownUriList,
       groupPath: groupPath,
-      index: index
+      index: index ?? 0
     });
   }
 
@@ -1015,7 +1080,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   //}
 
   // This function is only used in WCP command handlers (specifically handleAddItems in wcp_server.ts)
-  public async addItemsToDocument(document: VaporviewDocument, e: any) {
+  public async addItemsToDocument(document: VaporviewDocument, e: AddItemsArgs) {
     const recursive = e.recursive === true;
     for (const item of e.items) {
       if (typeof item !== 'string') {
@@ -1086,7 +1151,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     document.revealSignalInWebview(netlistId);
   }
 
-  public async addVariableByInstancePathToDocument(e: any) {
+  public async addVariableByInstancePathToDocument(e: AddVariableByPathArgs | undefined) {
     if (e === undefined || e.instancePath === undefined) { // Executed from the command palette
       vscode.window.showInputBox({
         prompt: 'Enter variable name',
@@ -1294,7 +1359,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     });
   }
 
-  public renameSignalGroup(e: any | undefined) {
+  public renameSignalGroup(e: RenameSignalGroupArgs | undefined) {
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}
@@ -1356,8 +1421,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     });
   }
 
-  public setValueFormat(commandArgs: any, index: number | undefined, properties: any) {
-    //if (netlistId === undefined && rowId === undefined) {return;}
+  public setValueFormat(commandArgs: { netlistId?: NetlistId; rowId?: number } | undefined, index: number | undefined, properties: DisplayFormatProperties) {
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}
@@ -1392,7 +1456,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     });
   }
 
-  copyValueAtMarker(e: any) {
+  copyValueAtMarker(e: { rowId?: number }) {
     if (e.rowId === undefined) {return;}
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}

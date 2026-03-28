@@ -1,9 +1,28 @@
-import type * as vscode from 'vscode';
-
-export type DocumentId  = string;
-export type NetlistId   = number;
-export type SignalId    = number;
-export type RowId       = number;
+// Re-export shared API types from the canonical source
+export type {
+  DocumentId,
+  NetlistId,
+  SignalId,
+  RowId,
+  SavedRowItem,
+  SavedNetlistVariable,
+  SavedCustomVariable,
+  SavedSignalGroup,
+  SavedSignalSeparator,
+  BitRangeSource,
+  MarkerSetEvent,
+  SignalEvent,
+  ViewerDropEvent,
+  DefaultWebviewContext,
+  RulerContext,
+  SignalSeparatorContext,
+  NetlistVariableContext,
+  CustomVariableContext,
+  SignalGroupContext,
+  SignalGroupWebviewContext,
+} from '../../packages/vaporview-api/types';
+export { NameType } from '../../packages/vaporview-api/types';
+import type { NetlistId, SignalId, RowId } from '../../packages/vaporview-api/types';
 export type ValueChange = [number, string];
 export type EnumEntry   = [string, string];
 export type EnumData    = EnumEntry[];
@@ -23,25 +42,6 @@ export type EnumQueueEntry = {
   netlistId: NetlistId;
 };
 
-export interface markerSetEvent {
-  uri: string;
-  time: number;
-  units: string;
-}
-
-export interface signalEvent {
-  uri: string;
-  instancePath: string;
-  netlistId: NetlistId;
-  source: string; // "viewer" or "treeView"
-}
-
-export interface viewerDropEvent {
-  uri: string;
-  resourceUriList: vscode.Uri[];
-  groupPath: string[];
-  index: number;
-}
 
 export enum VariableEncoding {
   BitVector = 'BitVector',
@@ -50,11 +50,6 @@ export enum VariableEncoding {
   none = 'none',
 }
 
-export enum NameType {
-  fullPath = 'fullPath',
-  signalName = 'signalName',
-  custom = 'custom',
-}
 
 export enum WindowMessageType {
   Warning = 'warning',
@@ -71,64 +66,12 @@ export enum StateChangeType {
   User    = 5,
 }
 
-// Save file schema
-
-export type SavedRowItem = SavedNetlistVariable | SavedSignalGroup | SavedSignalSeparator | SavedCustomVariable;
-
-export type SavedNetlistVariable = {
-  dataType: 'netlist-variable';
-  netlistId: NetlistId | undefined;
-  name: string;
-  numberFormat: string;
-  colorIndex: number;
-  rowHeight: number;
-  verticalScale: number;
-  nameType: NameType;
-  customName: string;
-  renderType: string;
-  valueLinkCommand: string;
-}
-
-export type SavedCustomVariable = {
-  dataType: 'custom-variable';
-  numberFormat: string;
-  colorIndex: number;
-  rowHeight: number;
-  verticalScale: number;
-  nameType: NameType;
-  customName: string;
-  renderType: string;
-  valueLinkCommand: string;
-  source: BitRangeSource[];
-};
-
 export enum CollapseState {
   None      = 0,
   Collapsed = 1,
   Expanded  = 2,
 }
 
-export type BitRangeSource = {
-  name: string;
-  netlistId: NetlistId | undefined;
-  signalId: SignalId | undefined;
-  signalWidth: number;
-  msb: number;
-  lsb: number;
-};
-
-export type SavedSignalGroup = {
-  dataType: 'signal-group';
-  groupName: string;
-  collapseState: CollapseState;
-  children: SavedRowItem[];
-}
-
-export type SavedSignalSeparator = {
-  dataType: 'signal-separator';
-  label: string;
-  rowHeight: number;
-}
 
 // Webview Value Change Data Structure
 
@@ -162,69 +105,3 @@ export type CompressedValueChangeDataChunk = {
   originalSize: number;
 };
 
-// Webview Context
-
-export type DefaultWebviewContext = {
-  preventDefaultContextMenuItems: boolean;
-  webviewSelection: boolean;
-  documentId: DocumentId;
-  uri: string;
-}
-
-export type RulerContext = {
-  webviewSection: 'ruler';
-  preventDefaultContextMenuItems: boolean;
-  rulerLines: boolean;
-  fillBitVector: boolean;
-  enableAnimations: boolean;
-  fs: boolean;
-  ps: boolean;
-  ns: boolean;
-  µs: boolean;
-  ms: boolean;
-  s: boolean;
-}
-
-export type SignalSeparatorContext = {
-  webviewSection: 'signal-separator';
-  preventDefaultContextMenuItems: boolean;
-  rowId: RowId;
-}
-
-export type NetlistVariableContext = {
-  webviewSection: "signal",
-  scopePath: string;
-  signalName: string;
-  type: string;
-  width: number;
-  preventDefaultContextMenuItems: boolean;
-  commandValid: boolean;
-  netlistId: NetlistId | undefined;
-  rowId: RowId;
-  isAnalog: boolean;
-  enum: boolean;
-}
-
-export type CustomVariableContext = {
-  webviewSection: "signal";
-  signalName: string;
-  type: string;
-  width: number;
-  preventDefaultContextMenuItems: boolean;
-  rowId: RowId;
-  isAnalog: boolean;
-}
-
-export type SignalGroupContext = {
-  webviewSection: 'signal-group';
-  preventDefaultContextMenuItems: boolean;
-  groupId: number;
-  rowId: RowId;
-}
-
-export type RulerContextMenuEvent = RulerContext & DefaultWebviewContext;
-export type SignalSeparatorContextMenuEvent = SignalSeparatorContext & DefaultWebviewContext;
-export type SignalGroupContextMenuEvent = SignalGroupContext & DefaultWebviewContext;
-export type NetlistVariableContextMenuEvent = NetlistVariableContext & DefaultWebviewContext;
-export type CustomVariableContextMenuEvent = CustomVariableContext & DefaultWebviewContext;
-export type RowItemContextMenuEvent = NetlistVariableContext | CustomVariableContext | SignalGroupContext | SignalSeparatorContext;

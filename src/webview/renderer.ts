@@ -157,6 +157,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     const fillShape     = config.fillMultiBitValues;
     const fixedHeight   = config.multiBitFixedHeight;
     const minYPosition  = fixedHeight ? halfCanvasHeight / viewport.zoomRatio : 0;
+    const yMultiplier   = 2 * netlistData.rowHeight;
     let lastDrawTime    = 0;
     let parsedValue;
     const noDrawRanges: any[] = [];
@@ -181,7 +182,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
         is4State  = valueIs9State(value);
         xPosition = (elementWidth / 2) + adjustedTime;
         //yPosition =  elementWidth * 2;
-        yPosition =  Math.max(elementWidth * 2, minYPosition);
+        yPosition =  Math.max(elementWidth * yMultiplier, minYPosition);
         if (is4State) {
           xzPoints.push([[adjustedTime, 0], [xPosition, yPosition], [adjustedTimeEnd, 0], [xPosition, -yPosition]]);
         } else {
@@ -233,7 +234,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
       }
 
       xPosition = (elementWidth / 2) + adjustedTime;
-      yPosition =  Math.max(elementWidth * 2, minYPosition);
+      yPosition =  Math.max(elementWidth * yMultiplier, minYPosition);
       is4State  = valueIs9State(value);
       if (is4State) {
         xzPoints.push([[adjustedTime, 0], [xPosition, yPosition], [adjustedTimeEnd, 0], [xPosition, -yPosition]]);

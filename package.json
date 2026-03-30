@@ -1000,22 +1000,22 @@
         {
           "command": "vaporview.renderLinear",
           "when": "webviewSection == 'signal' && (width > '1' || type == 'Real')",
-          "group": "1_default@2"
+          "group": "2_analog@2"
         },
         {
           "command": "vaporview.renderStepped",
           "when": "webviewSection == 'signal' && (width > '1' || type == 'Real')",
-          "group": "1_default@3"
+          "group": "2_analog@3"
         },
         {
           "command": "vaporview.renderLinearSigned",
           "when": "webviewSection == 'signal' && (width > '1')",
-          "group": "1_default@4"
+          "group": "2_analog@4"
         },
         {
           "command": "vaporview.renderSteppedSigned",
           "when": "webviewSection == 'signal' && (width > '1')",
-          "group": "1_default@5"
+          "group": "2_analog@5"
         }
       ],
       "vaporview.highlightEdge": [

@@ -160,9 +160,7 @@ Vaporview can display values in different number formats. To change the value fo
 
 ## Waveform Color
 
-Vaporview supports 8 different waveform colors. The colors are based off the [semantic token colors](https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide) for VScode text.* There are 4 builtin colors, and 4 custom colors that can be configured in the vaporview settings. To change the color, right click on the waveform, select **Color** -> and select the color you wish to use.
-
-*Unfortunately, the VScode API does not make these colors visible to custom webviews yet. It is an [open issue](https://github.com/microsoft/vscode/issues/32813), so there's a hack in place. The default waveform colors will not follow suit with all color themes, but it should work broadly between light themes and dark themes.
+Vaporview supports 8 different waveform colors. The colors are based off the [semantic token colors](https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide) for VScode text as defined by the color theme. Colors are selected based on background contrast and uniqueness. To change the color, right click on the waveform, select **Color** -> and select the color you wish to use. Alternatively you can use the number keys to change the color of the selected signal.
 
 ## Waveform Render Types
 
@@ -251,6 +249,8 @@ Version 1.5.2 (Upcoming release) will require VScode 1.102.0 or later
 - Organized user settings into categories
 - Added user settings for default waveform colors
 - Added Epoch time (ns) number format
+- Netlist search better displays variable or scope name and instance path @DGGua
+- Multi-bit renderer at larger row heights now only vertically scales
 - Fixed status bar not updating when setting alt marker, or selecting the last value change
 - Update wellen to 0.20.3
 

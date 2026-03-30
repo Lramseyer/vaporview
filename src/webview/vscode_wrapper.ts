@@ -4,7 +4,7 @@ import { SignalGroup, NetlistVariable, CustomVariable } from "./signal_item";
 import { viewerState, events, createWebviewContext, viewport, rowHandler, getParentGroupIdList, labelsPanel, EventHandler, ActionType, dataManager, controlBar, styles, unload, init, revealSignal, config } from "./vaporview";
 import { copyWaveDrom } from "./wavedrom";
 
-import { differenceCiede2000, rgb } from "culori";
+import { differenceCiede2000, rgb, differenceEuclidean } from "culori";
 
 declare function acquireVsCodeApi(): VsCodeApi;
 const vscode = acquireVsCodeApi();
@@ -260,42 +260,117 @@ export class ThemeColors {
     console.log(`--- XZ color: ${this.xzColor} rgb(${rgbXZ.r}, ${rgbXZ.g}, ${rgbXZ.b})`);
 
     const deltaE = differenceCiede2000();
+    const deltaEuclidean = differenceEuclidean();
     let colorIndex = 1;
 
-    const topTierColors: string[] = [];
-    const midTierColors: string[] = [];
-    const lowTierColors: string[] = [];
-    const bottomTierColors: string[] = [];
+    const topTierColors: number[] = [];
+    const midTierColors: number[] = [];
+    const lowTierColors: number[] = [];
+    const bottomTierColors: number[] = [];
 
-    colorPalette.forEach((color, index) => {
-      if (topTierColors.length >= 8) {return;}
+    const colorProfiles: any = [];
+
+    // Arrange colors into tiers based on their distance from the background color
+    // And similarity to the XZ color
+    const colorList = colorPalette.concat(errorColorPalette);
+    colorList.forEach((color, index) => {
+      //if (topTierColors.length >= 8) {return;}
       const rgbColor = rgb(color);
-      if (rgbColor === undefined) {return;}
+      if (rgbColor === undefined) {
+        colorProfiles.push({
+          index: index,
+          color: color,
+          rgbColor: undefined,
+          deltaBackground: undefined,
+          deltaXZ: undefined,
+          tier: 5,
+        });
+        return;
+      }
 
       // round to 2 decimal places for logging
       const deltaBackground = Math.round(deltaE(rgbBackground, rgbColor) * 100) / 100;
-      const deltaXZ         = Math.round(deltaE(rgbColor,      rgbXZ)    * 100) / 100;
+      const deltaXZ         = Math.round(deltaE(rgbColor, rgbXZ) * 100) / 100;
 
-      let tier = '';
-      if (deltaBackground >= 35 && deltaXZ > 20) {
-        topTierColors.push(color);
-        tier = 'top';
-      } else if (deltaBackground >= 30 && deltaXZ > 15) {
-        midTierColors.push(color);
-        tier = 'mid';
-      } else if (deltaBackground >= 25 && deltaXZ > 10) {
-        lowTierColors.push(color);
-        tier = 'low';
-      } else {
-        bottomTierColors.push(color);
-        tier = 'bottom';
+      let tier = 0;
+      if (deltaBackground >= 35 && deltaXZ >= 15) {
+        topTierColors.push(index);
+        tier = 1;
+      } else if (deltaBackground >= 30 && deltaXZ >= 15) {
+        midTierColors.push(index);
+        tier = 2;
+      } else if (deltaBackground >= 25 && deltaXZ >= 10) {
+        lowTierColors.push(index);
+        tier = 3;
+      } else if (deltaBackground >= 15) {
+        bottomTierColors.push(index);
+        tier = 4;
       }
+
+      colorProfiles.push({
+        index: index,
+        color: color,
+        rgbColor: rgbColor,
+        deltaBackground: deltaBackground,
+        deltaXZ: deltaXZ,
+        tier: tier,
+      });
 
       console.log(`Color ${colorIndex} ${color} has deltaE of ${deltaBackground} from background color and deltaE of ${deltaXZ} from XZ color - tier: ${tier}`);
       colorIndex++;
     });
 
-    this.colorKey = topTierColors.concat(midTierColors).concat(lowTierColors).concat(bottomTierColors);
+    const contrastSortedColors = topTierColors.concat(midTierColors).concat(lowTierColors).concat(bottomTierColors);
+    const finalColorPalette: any[] = [];
+    const secondaryColorPalette: any[] = [];
+    const tertiaryColorPalette: any[] = [];
+
+    // Next, we check to see how similar they are to each other, and bump them in to lower tiers if
+    // they're too similar to other colors in the color palette
+    contrastSortedColors.forEach(index => {
+      if (finalColorPalette.length >= 8) {return;}
+      const testColorProfile = colorProfiles[index];
+      if (!testColorProfile) {return;}
+      const testRgbColor = testColorProfile.rgbColor;
+      if (testRgbColor === undefined) {return;}
+
+      let minDelta = Infinity;
+      finalColorPalette.forEach(index => {
+        const paletteColorProfile = colorProfiles[index];
+        if (!paletteColorProfile) {return;}
+        const paletteRgbColor = paletteColorProfile.rgbColor;
+        if (paletteRgbColor === undefined) {return;}
+        const delta = Math.round(deltaE(testRgbColor, paletteRgbColor) * 100) / 100;
+        minDelta = Math.min(minDelta, delta);
+      })
+
+      console.log(`Color ${testColorProfile.color} has minimum deltaE of ${minDelta} from colors in final palette`);
+
+      if (minDelta >= 8) {
+        finalColorPalette.push(index);
+      } else if (minDelta >= 5) {
+        secondaryColorPalette.push(index);
+      } else {
+        tertiaryColorPalette.push(index);
+      }
+    });
+
+    // Lastly, we want to make sure that something kind of far from red is color 1
+    const similaritySortedColors = finalColorPalette.concat(secondaryColorPalette).concat(tertiaryColorPalette);
+
+    const color1Index   = similaritySortedColors[0];
+    const color1Profile = colorProfiles[color1Index];
+    const color1DeltaXZ = Math.min(color1Profile.deltaXZ, 35);
+    const color2Index   = similaritySortedColors[1];
+    const color2Profile = colorProfiles[color2Index];
+    const color2DeltaXZ = Math.min(color2Profile.deltaXZ, 35);
+    if (color1DeltaXZ < color2DeltaXZ) {
+      // Swap color1 and color2
+      similaritySortedColors[0] = color2Index;
+      similaritySortedColors[1] = color1Index;
+    }
+
+    this.colorKey = similaritySortedColors.map(index => colorProfiles[index].color);
     this.events.dispatch(ActionType.UpdateColorTheme);
   }
 }

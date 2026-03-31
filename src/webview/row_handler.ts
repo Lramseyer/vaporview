@@ -161,7 +161,7 @@ export class RowHandler {
     dataManager.requestData(signalIdList, enumTableList);
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowIdList);
     updateDisplayedSignalsFlat();
-    this.events.dispatch(ActionType.AddVariable, rowIdList, updateFlag);
+    this.events.addVariable(rowIdList, updateFlag);
 
     let reorder = false;
     let groupId = 0;
@@ -193,10 +193,10 @@ export class RowHandler {
     }
 
     if (reorder) {
-      this.events.dispatch(ActionType.ReorderSignals, moveList, groupId, moveIndex);
+      this.events.reorderSignals(moveList, groupId, moveIndex);
     }
 
-    this.events.dispatch(ActionType.SignalSelect, rowIdList, lastRowId);
+    this.events.signalSelect(rowIdList, lastRowId);
 
     //console.log('addVariable');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
@@ -258,11 +258,11 @@ export class RowHandler {
     this.rowItems[rowId] = groupItem;
 
     updateDisplayedSignalsFlat();
-    this.events.dispatch(ActionType.AddVariable, [rowId], false);
+    this.events.addVariable([rowId], false);
 
     let moveValid = true;
     if (moveSelected && viewerState.selectedSignal.length > 0) {
-      //this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignal, groupId, 0);
+      //this.events.reorderSignals(viewerState.selectedSignal, groupId, 0);
       const filteredRowIdList = this.removeChildrenFromSignalList(viewerState.selectedSignal);
       const parentGroupRowId = this.groupIdTable[parentGroupId];
       filteredRowIdList.forEach((id) => {
@@ -273,13 +273,13 @@ export class RowHandler {
     }
 
     if (reorder && moveValid) {
-      this.events.dispatch(ActionType.ReorderSignals, [rowId], parentGroupId, index);
+      this.events.reorderSignals([rowId], parentGroupId, index);
     }
 
     if (moveSelected && viewerState.selectedSignal.length > 1) {
-      this.events.dispatch(ActionType.ReorderSignals, viewerState.selectedSignal, groupId, 0);
+      this.events.reorderSignals(viewerState.selectedSignal, groupId, 0);
     } else {
-      this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
+      this.events.signalSelect([rowId], rowId);
     }
 
     if (showRenameInput) {labelsPanel.showRenameInput(rowId);}
@@ -301,7 +301,7 @@ export class RowHandler {
     const separatorItem = new SignalSeparator(rowId, name || "---");
     this.rowItems[rowId] = separatorItem;
     updateDisplayedSignalsFlat();
-    this.events.dispatch(ActionType.AddVariable, [rowId], false);
+    this.events.addVariable([rowId], false);
 
     let reorder = false;
     let index = viewerState.displayedSignalsFlat.length;
@@ -318,10 +318,10 @@ export class RowHandler {
     }
 
     if (reorder) {
-      this.events.dispatch(ActionType.ReorderSignals, [rowId], parentGroupId, index);
+      this.events.reorderSignals([rowId], parentGroupId ?? 0, index);
     }
 
-    this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
+    this.events.signalSelect([rowId], rowId);
     //console.log('addSeparator');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
     return rowId;
@@ -402,7 +402,7 @@ export class RowHandler {
 
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowId);
     updateDisplayedSignalsFlat();
-    this.events.dispatch(ActionType.AddVariable, [rowId], false);
+    this.events.addVariable([rowId], false);
 
     let reorder = false;
     let index = viewerState.displayedSignalsFlat.length;
@@ -419,10 +419,10 @@ export class RowHandler {
     }
 
     if (reorder) {
-      this.events.dispatch(ActionType.ReorderSignals, [rowId], parentGroupId, index);
+      this.events.reorderSignals([rowId], parentGroupId ?? 0, index);
     }
 
-    this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
+    this.events.signalSelect([rowId], rowId);
     //console.log('addCustomVariable');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
     return rowId;
@@ -463,7 +463,7 @@ export class RowHandler {
 
     const eventGroupId = getParentGroupId(eventRowId);
     const eventIndex = getIndexInGroup(eventRowId, eventGroupId);
-    this.events.dispatch(ActionType.ReorderSignals, [groupRowId], eventGroupId, eventIndex + 1);
+    this.events.reorderSignals([groupRowId], eventGroupId ?? 0, eventIndex + 1);
 
     this.events.exitBatchMode();
     //console.log('addAllBitSlices');
@@ -514,17 +514,17 @@ export class RowHandler {
     this.events.enterBatchMode();
     try {
       if (viewerState.displayedSignals.length > 0) {
-        this.events.dispatch(ActionType.RemoveVariable, viewerState.visibleSignalsFlat, true);
+        this.events.removeVariable(viewerState.visibleSignalsFlat, true);
       }
       this.addSignalList(settings.displayedSignals, 0);
       dataManager.garbageCollectValueFormats();
     } catch (error) {console.error(error);}
 
     if (settings.markerTime !== undefined) {
-      this.events.dispatch(ActionType.MarkerSet, settings.markerTime, 0);
+      this.events.markerSet(settings.markerTime, 0);
     }
     if (settings.altMarkerTime !== undefined) {
-      this.events.dispatch(ActionType.MarkerSet, settings.altMarkerTime, 1);
+      this.events.markerSet(settings.altMarkerTime, 1);
     }
     if (settings.displayTimeUnit !== undefined) {
       viewport.updateUnits(settings.displayTimeUnit, false);
@@ -533,7 +533,7 @@ export class RowHandler {
       const rowIdList = this.getRowIdsFromNetlistId(settings.selectedSignal);
       let lastSelectedSignal: RowId | null = rowIdList[0];
       if (rowIdList.length === 0) {lastSelectedSignal = null;}
-      this.events.dispatch(ActionType.SignalSelect, rowIdList, lastSelectedSignal);
+      this.events.signalSelect(rowIdList, lastSelectedSignal);
     }
 
     if (settings.zoomRatio !== undefined && settings.scrollLeft !== undefined) {
@@ -623,15 +623,15 @@ export class RowHandler {
 
     const index = viewerState.visibleSignalsFlat.indexOf(viewerState.selectedSignal[0]);
 
-    this.events.dispatch(ActionType.RemoveVariable, removeList, true);
+    this.events.removeVariable(removeList, true);
 
     if (viewerState.selectedSignal.length === 1 && removeList.includes(viewerState.selectedSignal[0])) {
       const newIndex = Math.max(0, Math.min(viewerState.visibleSignalsFlat.length - 1, index));
       const newRowId = viewerState.visibleSignalsFlat[newIndex];
-      this.events.dispatch(ActionType.SignalSelect, [newRowId], newRowId);
+      this.events.signalSelect([newRowId], newRowId);
     } else {
       const newSelected = viewerState.selectedSignal.filter((id) => removeList.includes(id) === false);
-      this.events.dispatch(ActionType.SignalSelect, newSelected, viewerState.lastSelectedSignal);
+      this.events.signalSelect(newSelected, viewerState.lastSelectedSignal);
     }
     //console.log('removeVariable');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
@@ -663,14 +663,14 @@ export class RowHandler {
       });
       removeList.push(rId);
     });
-    this.events.dispatch(ActionType.RemoveVariable, removeList, recursive);
+    this.events.removeVariable(removeList, recursive);
 
     if (newSelected.length === 1) {
       const newIndex = Math.max(0, Math.min(viewerState.visibleSignalsFlat.length - 1, index));
       const newRowId = viewerState.visibleSignalsFlat[newIndex];
-      this.events.dispatch(ActionType.SignalSelect, [newRowId], newRowId);
+      this.events.signalSelect([newRowId], newRowId);
     } else {
-      this.events.dispatch(ActionType.SignalSelect, newSelected, viewerState.lastSelectedSignal);
+      this.events.signalSelect(newSelected, viewerState.lastSelectedSignal);
     }
     //console.log('removeSignalGroup');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
@@ -829,7 +829,7 @@ export class RowHandler {
   }
 
   deselectAllSignals() {
-    this.events.dispatch(ActionType.SignalSelect, [], null);
+    this.events.signalSelect([], null);
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }
 
@@ -988,7 +988,7 @@ export class RowHandler {
 
     if (updateAllSelected && updateSelected) {redrawList = viewerState.selectedSignal;}
     redrawList.forEach((rId) => {
-      this.events.dispatch(ActionType.RedrawVariable, rId);
+      this.events.redrawVariable(rId);
     });
   }
 

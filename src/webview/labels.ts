@@ -499,7 +499,7 @@ export class LabelsPanels {
     if (this.dragFreezeTimeout) { clearTimeout(this.dragFreezeTimeout); }
 
     if (!abort) {
-      this.events.dispatch(ActionType.ReorderSignals, rowIdList, newGroupId, newIndex);
+      this.events.reorderSignals(rowIdList, newGroupId, newIndex);
       //console.log('dragEnd');
       vscodeWrapper.sendWebviewContext(StateChangeType.User);
     } else {

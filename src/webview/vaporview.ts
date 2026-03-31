@@ -73,42 +73,78 @@ export const viewerState: ViewerState = {
   autoReload: false,
 };
 
+interface ActionTypeMap {
+  [ActionType.MarkerSet]:        [time: number, markerType: number];
+  [ActionType.SignalSelect]:     [rowIdList: RowId[], lastSelected: RowId | null];
+  [ActionType.ReorderSignals]:   [rowIdList: number[], newGroupId: number, newIndex: number];
+  [ActionType.AddVariable]:      [rowIdList: RowId[], updateFlag: boolean];
+  [ActionType.RemoveVariable]:   [rowIdList: RowId[], recursive: boolean];
+  [ActionType.RedrawVariable]:   [rowId: RowId];
+  [ActionType.Resize]:           [];
+  [ActionType.UpdateColorTheme]: [];
+  [ActionType.ExitBatchMode]:    [];
+}
+
 export class EventHandler {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic event system
-  private subscribers: Map<ActionType, ((...args: any[]) => void)[]> = new Map();
-  private batchMode: boolean = false;
+  private subscribers = new Map<ActionType, ((...args: unknown[]) => void)[]>();
+  private batchMode = false;
   public get isBatchMode(): boolean {return this.batchMode;}
-  private signalSelectArgs: [RowId[], RowId | null] = [[], null];
+  private signalSelectArgs: ActionTypeMap[ActionType.SignalSelect] = [[], null];
 
   enterBatchMode() {
-    //console.log("entering batch mode");
     this.batchMode = true;
   }
 
   exitBatchMode() {
-    //console.log("exiting batch mode");
     this.batchMode = false;
-    this.dispatch(ActionType.SignalSelect, ...this.signalSelectArgs);
-    this.dispatch(ActionType.ExitBatchMode);
+    this.signalSelect(...this.signalSelectArgs);
+    this.fire(ActionType.ExitBatchMode);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic event system
-  subscribe(action: ActionType, callback: (...args: any[]) => void) {
+  subscribe<T extends ActionType>(action: T, callback: (...args: ActionTypeMap[T]) => void) {
     if (!this.subscribers.has(action)) {
       this.subscribers.set(action, []);
     }
-    this.subscribers.get(action)?.push(callback);
+    this.subscribers.get(action)!.push(callback as (...args: unknown[]) => void);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic event system
-  dispatch(action: ActionType, ...args: any[]) {
-    if (action === ActionType.SignalSelect) {
-      this.signalSelectArgs = args as [RowId[], RowId | null];
-      if (this.batchMode) {return;}
-    } else if (action == ActionType.RedrawVariable) {
-      if (this.batchMode) {return;}
-    }
+  private fire<T extends ActionType>(action: T, ...args: ActionTypeMap[T]) {
     this.subscribers.get(action)?.forEach((callback) => callback(...args));
+  }
+
+  markerSet(time: number, markerType: number) {
+    this.fire(ActionType.MarkerSet, time, markerType);
+  }
+
+  signalSelect(rowIdList: RowId[], lastSelected: RowId | null) {
+    this.signalSelectArgs = [rowIdList, lastSelected];
+    if (this.batchMode) {return;}
+    this.fire(ActionType.SignalSelect, rowIdList, lastSelected);
+  }
+
+  reorderSignals(rowIdList: number[], newGroupId: number, newIndex: number) {
+    this.fire(ActionType.ReorderSignals, rowIdList, newGroupId, newIndex);
+  }
+
+  addVariable(rowIdList: RowId[], updateFlag: boolean) {
+    this.fire(ActionType.AddVariable, rowIdList, updateFlag);
+  }
+
+  removeVariable(rowIdList: RowId[], recursive: boolean) {
+    this.fire(ActionType.RemoveVariable, rowIdList, recursive);
+  }
+
+  redrawVariable(rowId: RowId) {
+    if (this.batchMode) {return;}
+    this.fire(ActionType.RedrawVariable, rowId);
+  }
+
+  resize() {
+    this.fire(ActionType.Resize);
+  }
+
+  updateColorTheme() {
+    this.fire(ActionType.UpdateColorTheme);
   }
 }
 
@@ -226,7 +262,7 @@ export function handleClickSelection(event: MouseEvent, rowId: RowId) {
   } else {
     newSelection = [rowId];
   }
-  events.dispatch(ActionType.SignalSelect, newSelection, rowId);
+  events.signalSelect(newSelection, rowId);
   //console.log('handleClickSelection');
   vscodeWrapper.sendWebviewContext(StateChangeType.User);
 }
@@ -454,11 +490,11 @@ class VaporviewWebview {
     }
 
     if ((e.key === 'ArrowRight') && (viewerState.markerTime !== null)) {
-      if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, this.viewport.timeStop, 0); updateState = true;}
+      if (e.metaKey) {this.events.markerSet(this.viewport.timeStop, 0); updateState = true;}
       else if (e.altKey || e.ctrlKey) {/* Do nothing */}
       else           {controlBar.goToNextTransition(1, []);}
     } else if ((e.key === 'ArrowLeft') && (viewerState.markerTime !== null)) {
-      if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, 0, 0); updateState = true;}
+      if (e.metaKey) {this.events.markerSet(0, 0); updateState = true;}
       else if (e.altKey || e.ctrlKey) {/* Do nothing */}
       else           {controlBar.goToNextTransition(-1, []);}
 
@@ -469,17 +505,17 @@ class VaporviewWebview {
       const newIndex = Math.max(selectedSignalIndex - 1, 0);
       const newRowId = viewerState.visibleSignalsFlat[newIndex];
       if (e.altKey) {this.handleReorderArrowKeys(-1);}
-      else          {this.events.dispatch(ActionType.SignalSelect, [newRowId], newRowId); updateState = true;}
+      else          {this.events.signalSelect([newRowId], newRowId); updateState = true;}
     } else if ((e.key === 'ArrowDown') && (selectedSignalIndex !== null)) {
       const newIndex = Math.min(selectedSignalIndex + 1, viewerState.visibleSignalsFlat.length - 1);
       const newRowId = viewerState.visibleSignalsFlat[newIndex];
       if (e.altKey) {this.handleReorderArrowKeys(1);}
-      else          {this.events.dispatch(ActionType.SignalSelect, [newRowId], newRowId); updateState = true;}
+      else          {this.events.signalSelect([newRowId], newRowId); updateState = true;}
     }
 
     // handle Home and End keys to move to the start and end of the waveform
-    else if (e.key === 'Home') {this.events.dispatch(ActionType.MarkerSet, 0, 0); updateState = true;}
-    else if (e.key === 'End')  {this.events.dispatch(ActionType.MarkerSet, this.viewport.timeStop, 0); updateState = true;}
+    else if (e.key === 'Home') {this.events.markerSet(0, 0); updateState = true;}
+    else if (e.key === 'End')  {this.events.markerSet(this.viewport.timeStop, 0); updateState = true;}
 
     // "N" and Shift + "N" go to the next transition
     else if (e.key === 'n') {controlBar.goToNextTransition(1, []);}
@@ -488,7 +524,7 @@ class VaporviewWebview {
     else if (e.key === 'a' && (e.ctrlKey || e.metaKey) && !controlBar.searchInFocus && !labelsPanel.renameActive) {
       e.preventDefault();
       controlBar.defocusSearchBar();
-      this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignalsFlat, null);
+      this.events.signalSelect(viewerState.displayedSignalsFlat, null);
       updateState = true;
     }
 
@@ -560,7 +596,7 @@ class VaporviewWebview {
       }
     }
 
-    this.events.dispatch(ActionType.ReorderSignals, [rowId], parentGroupId, newIndex);
+    this.events.reorderSignals([rowId], parentGroupId, newIndex);
     //console.log('handleReorderArrowKeys');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }
@@ -607,7 +643,7 @@ class VaporviewWebview {
   // #region Global Events
   handleResizeViewer() {
     clearTimeout(resizeDebounce);
-    resizeDebounce = setTimeout(this.events.dispatch.bind(this.events, ActionType.Resize), 100);
+    resizeDebounce = setTimeout(() => this.events.resize(), 100);
   }
 
   handleSignalSelect(rowIdList: RowId[], lastSelected: RowId | null = null) {

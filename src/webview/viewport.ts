@@ -395,7 +395,7 @@ export class Viewport {
           if (linkClicked) {return;}
         }
         if (!(event.ctrlKey || event.shiftKey || event.metaKey)) {
-          this.events.dispatch(ActionType.MarkerSet, snapToTime, button);
+          this.events.markerSet(snapToTime, button);
           updateContext = true;
         }
       }

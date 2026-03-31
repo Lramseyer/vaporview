@@ -5,9 +5,18 @@ import { TimestampLinkProvider, NetlistLinkProvider } from './terminal_links';
 import { registerVaporviewCommands } from './commands';
 import { WaveformViewerProvider, VaporviewDocumentCollection } from './viewer_provider';
 import { updateWCPServerFromConfiguration, WCPServer } from './wcp_server';
+import type {
+  VaporviewApi,
+  OpenFileArgs,
+  VariableActionArgs,
+  SetMarkerArgs,
+  GetViewerStateArgs,
+  GetValuesAtTimeArgs,
+  AddVariableByPathArgs,
+} from '../../packages/vaporview-api/types';
 
 // #region activate()
-export async function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext): Promise<VaporviewApi> {
 
   // Load the Wasm module
   const binaryFile = vscode.Uri.joinPath(context.extensionUri, 'target', 'wasm32-unknown-unknown', 'release', 'filehandler.wasm');
@@ -79,13 +88,53 @@ export async function activate(context: vscode.ExtensionContext) {
 
   outputLog.appendLine('Vaporview Activated');
 
-  return {
+  const api: VaporviewApi = {
+    // Events
     onDidSetMarker: markerSetEvent,
     onDidSelectSignal: signalSelectEvent,
     onDidAddVariable: addVariableEvent,
     onDidRemoveVariable: removeVariableEvent,
-    onDidDropInWaveformViewer: externalDropEvent
+    onDidDropInWaveformViewer: externalDropEvent,
+
+    // Commands
+    async openFile(args: OpenFileArgs) {
+      if (!args.uri) {return;}
+      await vscode.commands.executeCommand('vscode.openWith', args.uri, 'vaporview.waveformViewer');
+      if (args.loadAll) {viewerProvider.loadAllVariablesFromFile(args.uri.toString(), args.maxSignals || 64);}
+    },
+    async addVariable(args: VariableActionArgs) {
+      viewerProvider.variableActionCommandHandler(args, "add");
+    },
+    async removeVariable(args: VariableActionArgs) {
+      viewerProvider.variableActionCommandHandler(args, "remove");
+    },
+    async revealInNetlistView(args: VariableActionArgs) {
+      viewerProvider.variableActionCommandHandler(args, "reveal");
+    },
+    async addSignalValueLink(args: VariableActionArgs) {
+      viewerProvider.variableActionCommandHandler(args, "addLink");
+    },
+    setMarker(args: SetMarkerArgs) {
+      viewerProvider.markerCommandHandler(args);
+    },
+    async getOpenDocuments() {
+      return viewerProvider.getAllDocumentUris();
+    },
+    async getViewerState(args?: GetViewerStateArgs) {
+      const document = viewerProvider.getDocumentFromOptionalUri(args?.uri);
+      if (!document) {return undefined;}
+      return document.getSettings();
+    },
+    async getValuesAtTime(args: GetValuesAtTimeArgs) {
+      const document = viewerProvider.getDocumentFromOptionalUri(args.uri);
+      if (!document) {return undefined;}
+      return document.getValuesAtTime(args);
+    },
+    async addVariableByInstancePath(args: AddVariableByPathArgs) {
+      viewerProvider.addVariableByInstancePathToDocument(args);
+    },
   };
+  return api;
 }
 
 export default WaveformViewerProvider;

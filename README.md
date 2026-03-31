@@ -64,13 +64,15 @@ Vaporview allows you to connect to a remote machine and open up waveforms remote
 - **Home** and **End** - Scroll to the beginning and end (respectively) of the waveform
 - **Delete** or **Backspace** - Remove Selected Signal
 - **Ctrl/Cmd + Z** or **Ctrl/Cmd + Shift + Z** - Undo or Redo action
+- **Ctrl/Cmd + F** - Search netlist
 - **F2** - Rename selected item
 - **G** - Create new group from selected items
+- **1** through **8** - Change selected signal color
 - **Escape** - Abort click and drag event (Rearranging signals, zoom, scrolling)
 
 ## Adding and Removing Signals
 
-Signals may be added or removed through VaporView view container. Click on the VaporView Activity Bar icon, and it will show the netlist for the opened waveform file as well as the signals displayed in the tab.
+Signals may be added or removed through Vaporview netlist view. Click on the VaporView Activity Bar icon, and it will show the netlist for the opened waveform file.
 
 ### Adding Signals
 
@@ -78,11 +80,11 @@ Signals may be added or removed through VaporView view container. Click on the V
 
 To Add a signal, double click on it in the netlist view or click the "+" icon on the right.
 
-Signals can also be added by dragging and dropping them from the netlist view to the viewer. Make sure to hold **Shift** before dropping them into the viewer - note that this is a VScode requirement.
+Signals can also be added by dragging and dropping them from the netlist view to the viewer. Make sure to hold **Shift** before dropping them into the viewer (this is unfortunately a VScode requirement.)
 
 ### Removing Signals
 
-To remove a signal, you can either select the signal you would like to remove and hit **Delete** or **Backspace**, or right click on a signal in the viewer and select **remove signal** from the menu.
+To remove a signal, you can either select the signal or set of signals you would like to remove and hit **Delete** or **Backspace**. You can also right click on a signal in the viewer and select **remove signal** from the menu.
 
 ### Other less common ways
 
@@ -109,6 +111,7 @@ Zooming can be done one of 3 ways:
 - Hold **Ctrl**, and **Scroll**, or use the pinch gesture in touchpad mode
 - Use the Zoom in/out buttons on the top right
 - Click and drag over the area you wish to zoom in on
+  - Note that zoom animations can be disabled in the settings
 
 ![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/zoom.gif?raw=true)
 
@@ -160,7 +163,7 @@ Vaporview can display values in different number formats. To change the value fo
 
 ## Waveform Color
 
-Vaporview supports 8 different waveform colors. The colors are based off the [semantic token colors](https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide) for VScode text as defined by the color theme. Colors are selected based on background contrast and uniqueness. To change the color, right click on the waveform, select **Color** -> and select the color you wish to use. Alternatively you can use the number keys to change the color of the selected signal.
+Vaporview supports 8 different waveform colors. The colors are based off the [semantic token colors](https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide) for VScode text as defined by the color theme. Colors are selected based on background contrast and uniqueness. To change the color, right click on the waveform, select **Color** -> and select the color you wish to use. Alternatively you can use the number keys **1** through **8** to change the color of the selected signal.
 
 ## Waveform Render Types
 
@@ -178,9 +181,9 @@ To adjust the row height, right click on the signal, and select your desired row
 
 ## Custom Signals
 
-Vaporview allows users to create custom signals from a subset of bits from a multi-bit signal. To create a custom signal, right click on a multi-bit variable, and select **New Signal From Bit Range...**. This will prompt the user in the command bar for a bit range. This allows for single bit or multi bit inputs, and will create a new custom signal that can be moved and displayed independently of the original signal.
+Vaporview allows users to create custom signals from a subset of bits from a multi-bit signal. To create a custom signal, right click on a multi-bit variable, and select **New Signal From Bit Range...** This will prompt the user in the command bar for a bit range. This allows for single bit or multi bit inputs, and will create a new custom signal that can be moved and displayed independently of the original signal.
 
-Alternatively, signals can be automatically split into all individual bits. To do this, right click on the multi-bit variable, and select **Create Signals From Bits**. This will create a group with all of the individual bits in the group.
+Alternatively, signals can be automatically split into all individual bits, nibbles, bytes, words, etc. To do this, right click on the multi-bit variable, go to **Create Signals From**, and select bit width. This will create a group with all of the bits split (starting from bit 0.)
 
 ## Time Units
 
@@ -188,9 +191,7 @@ You can change the Time Units in one of 2 ways: clicking the Time Status Bar in 
 
 ## Saving and loading opened signals
 
-VaporView allows you to save and load your signal list. This can be done either by right clicking anywhere in the viewer or netlist and selecting **"Save Vaporview Settings"** or **"Load Vaporview Settings"**. You can also access the command directly by pressing **Ctrl + Shift + P** and Type **">Save Vaporview Settings"** or **">Load Vaporview Settings"** and press **Enter** to select the command. A dialog box will pop up prompting which file you would like to save/load settings from.
-
-**Note:** The settings will only load for the active viewer tab that is in focus, and will look up signals by name. If the module paths have changed, it may not load in the signals properly. The settings files however are plaintext (JSON) and can be edited if need be.
+VaporView allows you to save and load your signal list. This can be done either by right clicking anywhere in the viewer or netlist and selecting **"Save Vaporview Settings"** or **"Load Vaporview Settings"**. You can also save settings by pressing **Ctrl + S**. Saved user settings are tracked like a text document in VScode. So once you specify a file (by either saving or loading a file) VScode will track changes and automatically update the file when pressing **Ctrl + S**. If you make changes and close without saving, it will prompt you about unsaved changes.
 
 ## Copying selection as WaveDrom
 

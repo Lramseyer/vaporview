@@ -1,17 +1,18 @@
 {
   "compilerOptions": {
-    "target": "es6",
+    "target": "es2020",
     "module": "es6",
     "strict": true,
     "noImplicitAny": true,
     "moduleResolution": "node",
     "outDir": "./out/webview",
-    "rootDir": "./src",
+    "rootDir": ".",
+    "skipLibCheck": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "lib": ["es6", "dom"],
+    "lib": ["es2020", "dom"],
     "sourceMap": true
   },
-  "include": ["src/webview/**/*.ts", "src/common/**/*.ts"],
+  "include": ["src/webview/**/*.ts", "src/common/**/*.ts", "packages/vaporview-api/types.ts"],
   "exclude": ["node_modules"]
 }

@@ -1,10 +1,20 @@
-import { type NetlistId, SignalId, type RowId, EnumData, EnumEntry, QueueEntry, SignalQueueEntry, type EnumQueueEntry, NameType, StateChangeType, CollapseState, type BitRangeSource } from '../common/types';
+import { type NetlistId, SignalId, type RowId, EnumData, EnumEntry, QueueEntry, SignalQueueEntry, type EnumQueueEntry, NameType, StateChangeType, CollapseState, VariableEncoding, type BitRangeSource, type SavedRowItem, type AddVariableSignal, type SetDisplayFormatMessage, type EditSignalGroupMessage } from '../common/types';
 import { bitRangeString, createInstancePath } from '../common/functions';
 import { ActionType, dataManager, type EventHandler, viewerState, getParentGroupId, updateDisplayedSignalsFlat, labelsPanel, controlBar, getIndexInGroup, getChildrenByGroupId, viewport, vscodeWrapper, styles } from './vaporview';
 import { NetlistVariable, type RowItem, SignalGroup, SignalSeparator, CustomVariable, isAnalogSignal } from './signal_item';
 import { BinaryWaveformRenderer, MultiBitWaveformRenderer, LinearWaveformRenderer } from './renderer';
 import type { WaveformData } from './data_manager';
 import { type ValueFormat, getNumberFormatById } from './value_format';
+
+interface ApplyStateSettings {
+  displayedSignals: (SavedRowItem & Record<string, unknown>)[];
+  markerTime?: number;
+  altMarkerTime?: number;
+  displayTimeUnit?: string;
+  selectedSignal?: number;
+  zoomRatio?: number;
+  scrollLeft?: number;
+}
 
 export class RowHandler {
 
@@ -70,21 +80,21 @@ export class RowHandler {
     });
   }
 
-  addVariable(signalList: any, groupPath: string[] | undefined, parentGroupId: number | undefined, index: number | undefined) {
+  addVariable(signalList: AddVariableSignal[], groupPath: string[] | undefined, parentGroupId: number | undefined, index: number | undefined) {
     // Handle rendering a signal, e.g., render the signal based on message content
 
     if (signalList.length === 0) {return;}
 
     let updateFlag     = false;
     //let selectedSignal = viewerState.selectedSignal;
-    const signalIdList: any  = [];
-    const enumTableList: any = [];
-    const netlistIdList: any = [];
-    const rowIdList: any     = [];
-    const moveList: any      = [];
+    const signalIdList: SignalQueueEntry[]  = [];
+    const enumTableList: EnumQueueEntry[] = [];
+    const netlistIdList: number[] = [];
+    const rowIdList: number[]     = [];
+    const moveList: number[]      = [];
     let lastRowId: number | null = null;
 
-    signalList.forEach((signal: any) => {
+    signalList.forEach((signal: AddVariableSignal) => {
 
       const netlistId = signal.netlistId;
       const signalId  = signal.signalId;
@@ -109,9 +119,9 @@ export class RowHandler {
         signal.scopePath,
         signal.signalWidth,
         signal.type,
-        signal.encoding,
+        signal.encoding as VariableEncoding,
         signal.signalWidth === 1 ? new BinaryWaveformRenderer() : new MultiBitWaveformRenderer(),
-        enumType
+        enumType || ""
       );
 
       this.rowItems[rowId] = varItem;
@@ -460,8 +470,8 @@ export class RowHandler {
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }
 
-  addSignalList(signalList: any, parentGroupId: number | undefined) {
-    signalList.forEach((signal: any) => {
+  addSignalList(signalList: (SavedRowItem & Record<string, unknown>)[], parentGroupId: number | undefined) {
+    signalList.forEach((signal) => {
       if (signal.dataType === 'signal-group') {
         const groupRowId = this.addSignalGroup(signal.groupName, undefined, parentGroupId, undefined, false, false);
         let groupId = parentGroupId;
@@ -478,25 +488,26 @@ export class RowHandler {
       } else if (signal.dataType === 'signal-separator') {
         this.addSeparator(signal.label, undefined, parentGroupId, undefined, false);
       } else if (signal.dataType === 'netlist-variable') {
-        const rowIdList = this.addVariable([signal], undefined, parentGroupId, undefined);
+        const rowIdList = this.addVariable([signal as unknown as AddVariableSignal], undefined, parentGroupId, undefined);
+        if (rowIdList === undefined) {return;}
         const rowId     = rowIdList[0];
-        const displayFormat = Object.assign({rowId: rowId}, signal);
+        const displayFormat = Object.assign({rowId: rowId}, signal) as unknown as SetDisplayFormatMessage;
         this.setDisplayFormat(displayFormat, true);
       } else if (signal.dataType === 'custom-variable') {
         //console.log('addCustomVariable', signal);
         const bitRange = signal.source[0];
         const msb      = bitRange.msb;
         const lsb      = bitRange.lsb;
-        const name     = bitRange.instancePath + bitRangeString(msb, lsb);
+        const name     = bitRange.name + bitRangeString(msb, lsb);
         const rowId    = this.addCustomVariable(name, undefined, parentGroupId, undefined, undefined, msb, lsb, bitRange);
         if (rowId === undefined) {return;}
-        const displayFormat = Object.assign({rowId: rowId}, signal);
+        const displayFormat = Object.assign({rowId: rowId}, signal) as unknown as SetDisplayFormatMessage;
         this.setDisplayFormat(displayFormat, true);
       }
     });
   }
 
-  applyState(settings: any, stateChangeType: number) {
+  applyState(settings: ApplyStateSettings, stateChangeType: number) {
     //this.flushRowCache(true);
     //console.log('applyState()', settings);
 
@@ -557,7 +568,7 @@ export class RowHandler {
     }
   }
 
-  editSignalGroup(message: any) {
+  editSignalGroup(message: EditSignalGroupMessage) {
 
     const groupPath = message.groupPath;
     const groupId = message.groupId;
@@ -861,7 +872,7 @@ export class RowHandler {
     //console.log(filteredRowIdList);
   }
 
-  setDisplayFormat(message: any, ignoreSelection: boolean) {
+  setDisplayFormat(message: SetDisplayFormatMessage, ignoreSelection: boolean) {
 
     if (controlBar.searchInFocus || labelsPanel.renameActive) {return;}
 
@@ -871,7 +882,7 @@ export class RowHandler {
       if (viewerState.selectedSignal.length === 0) {return;}
       rowId = viewerState.selectedSignal[0];
     } else if (rowId === undefined) {
-      const matchingRows = this.getRowIdsFromNetlistId(netlistId);
+      const matchingRows = this.getRowIdsFromNetlistId(netlistId!);
       if (matchingRows.length === 0) {return;}
       const index = message.index || 0;
       rowId = matchingRows[index];

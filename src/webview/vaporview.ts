@@ -1,6 +1,6 @@
 import { error, group } from 'console';
 import { type NetlistId, SignalId, type RowId, StateChangeType, type DocumentId, SavedNetlistVariable, SavedSignalSeparator, SavedSignalGroup, CollapseState, SavedCustomVariable, DefaultWebviewContext, SavedRowItem } from '../common/types';
-import { Viewport } from './viewport';
+import { Viewport, type ViewportMetadata } from './viewport';
 import { LabelsPanels } from './labels';
 import { ControlBar } from './control_bar';
 import { RowHandler } from './row_handler';
@@ -39,10 +39,10 @@ export enum MouseUpEventType {
   None,
 }
 
-let resizeDebounce: any = 0;
+let resizeDebounce: ReturnType<typeof setTimeout> | number = 0;
 
 export interface ViewerState {
-  uri: any;
+  uri: string | null;
   documentId: DocumentId;
   markerTime: number | null;
   altMarkerTime: number | null;
@@ -74,10 +74,11 @@ export const viewerState: ViewerState = {
 };
 
 export class EventHandler {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic event system
   private subscribers: Map<ActionType, ((...args: any[]) => void)[]> = new Map();
   private batchMode: boolean = false;
   public get isBatchMode(): boolean {return this.batchMode;}
-  private signalSelectArgs: any[] = [[], null];
+  private signalSelectArgs: [RowId[], RowId | null] = [[], null];
 
   enterBatchMode() {
     //console.log("entering batch mode");
@@ -91,6 +92,7 @@ export class EventHandler {
     this.dispatch(ActionType.ExitBatchMode);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic event system
   subscribe(action: ActionType, callback: (...args: any[]) => void) {
     if (!this.subscribers.has(action)) {
       this.subscribers.set(action, []);
@@ -98,9 +100,10 @@ export class EventHandler {
     this.subscribers.get(action)?.push(callback);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic event system
   dispatch(action: ActionType, ...args: any[]) {
     if (action === ActionType.SignalSelect) {
-      this.signalSelectArgs = args;
+      this.signalSelectArgs = args as [RowId[], RowId | null];
       if (this.batchMode) {return;}
     } else if (action == ActionType.RedrawVariable) {
       if (this.batchMode) {return;}
@@ -242,11 +245,11 @@ export function getRowHeightCssClass(height: number) {
 // ----------------------------------------------------------------------------
 
 export function createWebviewContext() {
-  let selectedNetlistId: any = null; 
+  let selectedNetlistId: number | null = null;
   if (viewerState.selectedSignal.length === 1) {
     const data = rowHandler.rowItems[viewerState.selectedSignal[0]];
     if (data instanceof NetlistVariable) {
-      selectedNetlistId = data.netlistId;
+      selectedNetlistId = data.netlistId ?? null;
     }
   }
 
@@ -290,7 +293,7 @@ class VaporviewWebview {
   events: EventHandler;
 
   lastIsTouchpad: boolean = false;
-  touchpadCheckTimer: any = 0;
+  touchpadCheckTimer: number = 0;
 
   constructor(
     events: EventHandler, 
@@ -345,14 +348,15 @@ class VaporviewWebview {
   // Function to test whether or not the user is using a touchpad
   // Sometimes it returns false negatives when flicking the touchpad,
   // hence the timer to prevent multiple checks in a short period of time
-  isTouchpad(e: any) {
+  isTouchpad(e: WheelEvent) {
 
     if (performance.now() < this.touchpadCheckTimer) {
       return this.lastIsTouchpad;
     }
 
-    if (e.wheelDeltaY) {
-      if (e.wheelDeltaY === (e.deltaY * -3)) {
+    const wheelDeltaY = (e as WheelEvent & { wheelDeltaY?: number }).wheelDeltaY;
+    if (wheelDeltaY) {
+      if (wheelDeltaY === (e.deltaY * -3)) {
         this.lastIsTouchpad = true;
         return true;
       }
@@ -369,7 +373,7 @@ class VaporviewWebview {
     return false;
   }
 
-  scrollHandler(e: any) {
+  scrollHandler(e: WheelEvent) {
     e.preventDefault();
     //console.log(event);
     //if (!isTouchpad) {e.preventDefault();}
@@ -427,7 +431,7 @@ class VaporviewWebview {
     }
   }
 
-  keyDownHandler(e: any) {
+  keyDownHandler(e: KeyboardEvent) {
 
     let updateState = false;
 
@@ -561,7 +565,7 @@ class VaporviewWebview {
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }
 
-  keyUpHandler(e: any) {
+  keyUpHandler(e: KeyboardEvent) {
     if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(false);}
   }
 
@@ -576,8 +580,8 @@ class VaporviewWebview {
     } else if (viewerState.mouseupEventType === MouseUpEventType.DragAndDrop) {
       labelsPanel.dragEndExternal(event, abort);
     } else if (viewerState.mouseupEventType === MouseUpEventType.Resize) {
-      labelsPanel.resizeElement.classList.remove('is-resizing');
-      labelsPanel.resizeElement.classList.add('is-idle');
+      labelsPanel.resizeElement?.classList.remove('is-resizing');
+      labelsPanel.resizeElement?.classList.add('is-idle');
       document.removeEventListener("mousemove", labelsPanel.resize, false);
       this.handleResizeViewer();
     } else if (viewerState.mouseupEventType === MouseUpEventType.Scroll) {
@@ -588,8 +592,8 @@ class VaporviewWebview {
       viewport.highlightZoom(abort);
     } else if (viewerState.mouseupEventType === MouseUpEventType.MarkerSet) {
       document.removeEventListener('mousemove', viewport.drawHighlightZoomCanvas, false);
-      clearTimeout(viewport.highlightDebounce);
-      viewport.handleScrollAreaClick(viewport.highlightStartEvent, 0);
+      if (viewport.highlightDebounce) { clearTimeout(viewport.highlightDebounce); }
+      if (viewport.highlightStartEvent) { viewport.handleScrollAreaClick(viewport.highlightStartEvent, 0); }
       viewport.highlightListenerSet = false;
       viewport.updateOverlayCanvas();
     } else if (viewerState.mouseupEventType === MouseUpEventType.None && abort) {
@@ -618,7 +622,7 @@ class VaporviewWebview {
 
 // #region Helper Functions
 
-  syncVerticalScroll(e: any, scrollLevel: number) {
+  syncVerticalScroll(e: WheelEvent | { deltaY: number }, scrollLevel: number) {
     const deltaY = e.deltaY;
     if (this.viewport.updatePending) {return;}
     this.viewport.updatePending = true;
@@ -628,7 +632,7 @@ class VaporviewWebview {
     // labelsScroll position = relative, which allows it to scroll past the bottom
     this.labelsScroll.scrollTop = this.scrollArea.scrollTop;
     viewport.renderAllWaveforms(false);
-    labelsPanel.dragMove(e);
+    if (e instanceof MouseEvent) { labelsPanel.dragMove(e); }
     this.viewport.updatePending = false;
   }
 
@@ -642,12 +646,21 @@ class VaporviewWebview {
   }
 }
 
-export function init(message: any) {
+interface InitMessage {
+  documentId: string;
+  uri: string;
+  metadata: ViewportMetadata & { filename: string };
+  colorPalette: string[];
+  errorColorPalette: string[];
+  themeValid: boolean;
+}
+
+export function init(message: InitMessage) {
   const context: DefaultWebviewContext = {
     preventDefaultContextMenuItems: true,
     webviewSelection: true,
     documentId: message.documentId,
-    uri: message.uri,
+    uri: message.uri as unknown as DefaultWebviewContext['uri'],
   };
   document.body.setAttribute("data-vscode-context", JSON.stringify(context));
   document.title         = message.metadata.filename;
@@ -696,3 +709,4 @@ vscodeWrapper.webviewReady();
 //  }
 //  return text;
 //}
+

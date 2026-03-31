@@ -105,11 +105,6 @@ export class Configuration {
       this.defaultCustomSignalColor = Math.floor(settings.defaultCustomSignalColor - 1);
     }
 
-    // Custom Colors
-    if (settings.customColors !== undefined) {
-      styles.customColorKey = settings.customColors;
-    }
-
     // Pixel Ratio
     const oldPixelRatio = viewport.pixelRatio;
     if (settings.overrideDevicePixelRatio !== undefined) {
@@ -140,7 +135,6 @@ export class Configuration {
 export class ThemeColors {
 
   colorKey: string[] = ['#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC'];
-  customColorKey: string[] = ['#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC'];
   xzColor: string = 'red';
   textColor: string = 'white';
   rulerTextColor: string = 'grey';
@@ -342,7 +336,7 @@ export class ThemeColors {
         if (paletteRgbColor === undefined) {return;}
         const delta = Math.round(deltaE(testRgbColor, paletteRgbColor) * 100) / 100;
         minDelta = Math.min(minDelta, delta);
-      })
+      });
 
       console.log(`Color ${testColorProfile.color} has minimum deltaE of ${minDelta} from colors in final palette`);
 

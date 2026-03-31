@@ -899,9 +899,6 @@ export class RowHandler {
 
       // Color - this is applied to all selected signals if the selected signal is being updated
       if (message.colorIndex !== undefined) {
-        if (message.customColors) {
-          styles.customColorKey = message.customColors;
-        }
         data.colorIndex = message.colorIndex;
         data.setColorFromColorIndex();
         updateAllSelected = true;

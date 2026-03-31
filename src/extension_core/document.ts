@@ -187,10 +187,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
 
   public setConfigurationSettings() {
     const config = vscode.workspace.getConfiguration('vaporview');
-    const color1 = config.get('customColor1');
-    const color2 = config.get('customColor2');
-    const color3 = config.get('customColor3');
-    const color4 = config.get('customColor4');
 
     this.webviewPanel?.webview.postMessage({
       command: 'setConfigSettings',
@@ -209,7 +205,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       defaultStringColor:                 config.get('defaultStringColor'),
       defaultEnumColor:                   config.get('defaultEnumColor'),
       defaultCustomSignalColor:           config.get('defaultCustomSignalColor'),
-      customColors: [color1, color2, color3, color4],
     });
 
     this.setTerminalLinkProvider();
@@ -407,15 +402,9 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
 
     //console.log(stateChangeType);
 
-    const color1 = vscode.workspace.getConfiguration('vaporview').get('customColor1');
-    const color2 = vscode.workspace.getConfiguration('vaporview').get('customColor2');
-    const color3 = vscode.workspace.getConfiguration('vaporview').get('customColor3');
-    const color4 = vscode.workspace.getConfiguration('vaporview').get('customColor4');
-
     this.webviewPanel?.webview.postMessage({
       command: 'apply-state',
       settings: documentSettings,
-      customColors: [color1, color2, color3, color4],
       stateChangeType: stateChangeType,
     });
 

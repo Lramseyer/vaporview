@@ -1347,13 +1347,8 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     //  }
     //}
 
-    const panel  = this.activeWebview;
-    const format = properties.valueFormat;
-    const color1 = vscode.workspace.getConfiguration('vaporview').get('customColor1');
-    const color2 = vscode.workspace.getConfiguration('vaporview').get('customColor2');
-    const color3 = vscode.workspace.getConfiguration('vaporview').get('customColor3');
-    const color4 = vscode.workspace.getConfiguration('vaporview').get('customColor4');
-
+    const panel     = this.activeWebview;
+    const format    = properties.valueFormat;
     const netlistId = commandArgs === undefined ? undefined : commandArgs.netlistId;
     const rowId     = commandArgs === undefined ? undefined : commandArgs.rowId;
 
@@ -1365,7 +1360,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       numberFormat: format,
       colorIndex: properties.colorIndex,
       renderType: properties.renderType,
-      customColors: [color1, color2, color3, color4],
       rowHeight: properties.rowHeight,
       verticalScale: properties.verticalScale,
       nameType: properties.nameType,

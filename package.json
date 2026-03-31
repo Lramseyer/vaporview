@@ -167,30 +167,6 @@
             "scope": "application",
             "description": "Alphabetically sort scopes, parameters, and variables in the netlist view"
           },
-          "vaporview.customColor1": {
-            "type": "string",
-            "default": "#cccccc",
-            "scope": "application",
-            "description": "Custom Color in CSS format ie '#C0FFEE' or 'rgb(192, 255, 238)' or 'blue'"
-          },
-          "vaporview.customColor2": {
-            "type": "string",
-            "default": "#dcdcaa",
-            "scope": "application",
-            "description": "Custom Color in CSS format ie '#C0FFEE' or 'rgb(192, 255, 238)' or 'blue'"
-          },
-          "vaporview.customColor3": {
-            "type": "string",
-            "default": "#4ec9b0",
-            "scope": "application",
-            "description": "Custom Color in CSS format ie '#C0FFEE' or 'rgb(192, 255, 238)' or 'blue'"
-          },
-          "vaporview.customColor4": {
-            "type": "string",
-            "default": "#9cdcfe",
-            "scope": "application",
-            "description": "Custom Color in CSS format ie '#C0FFEE' or 'rgb(192, 255, 238)' or 'blue'"
-          },
           "vaporview.fsdbReaderLibsPath": {
             "type": "string",
             "scope": "application",

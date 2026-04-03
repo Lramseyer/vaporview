@@ -237,11 +237,22 @@ export class ThemeColors {
   //         non-2-state color, and bin them based on how close they are
   // Step 6: Select from all of our top tier colors, and if we don't have
   //         enough colors, then select from the next tier, etc.
-  updateColorPalette(colorPalette: string[], errorColorPalette: string[]) {
+  updateColorPalette(colorPalette: string[], errorColorPalette: string[], themeValid: boolean) {
 
     const style = window.getComputedStyle(document.body);
     this.backgroundColor = style.getPropertyValue('--vscode-editor-background');
     this.xzColor = style.getPropertyValue('--vscode-debugTokenExpression-error');
+
+    if (!themeValid) {
+      console.log("Using default color palette because theme is not valid");
+      this.colorKey = ['#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC'];
+      this.colorKey[0] = style.getPropertyValue('--vscode-debugTokenExpression-number');
+      this.colorKey[1] = style.getPropertyValue('--vscode-debugTokenExpression-string');
+      this.colorKey[2] = style.getPropertyValue('--vscode-debugTokenExpression-type');
+      this.colorKey[3] = style.getPropertyValue('--vscode-debugTokenExpression-name');
+      this.events.dispatch(ActionType.UpdateColorTheme);
+      return;
+    }
 
     if (this.backgroundColor === undefined) {return;}
     if (this.xzColor === undefined) {return;}
@@ -417,7 +428,7 @@ export class VscodeWrapper {
       case 'setSelectedSignal':     {this.setSelectedSignal(message.netlistId); break;}
       case 'copyWaveDrom':          {copyWaveDrom(); break;}
       case 'copyValueAtMarker':     {labelsPanel.copyValueAtMarker(message.rowId); break;}
-      case 'updateColorPalette':    {styles.updateColorPalette(message.colorPalette, message.errorColorPalette); break;}
+      case 'updateColorPalette':    {styles.updateColorPalette(message.colorPalette, message.errorColorPalette, message.themeValid); break;}
       default:                      {this.outputLog('Unknown webview message type: ' + message.command); break;}
     }
   }

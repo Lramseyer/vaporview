@@ -180,6 +180,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       uri: this.uri,
       colorPalette: colorPalette.colorPalette,
       errorColorPalette: colorPalette.errorColorPalette,
+      themeValid: colorPalette.themeValid,
     });
     this.setConfigurationSettings();
     this._webviewInitialized = true;

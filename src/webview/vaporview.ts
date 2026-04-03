@@ -654,7 +654,7 @@ export function init(message: any) {
   viewerState.uri        = message.uri;
   viewerState.documentId = message.documentId;
   styles.getThemeColors();
-  styles.updateColorPalette(message.colorPalette, message.errorColorPalette);
+  styles.updateColorPalette(message.colorPalette, message.errorColorPalette, message.themeValid);
   viewport.initViewport(message.metadata);
   vscodeWrapper.restoreState();
   //this.updateRuler();

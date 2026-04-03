@@ -12,6 +12,7 @@ import { NetlistTreeDataProvider, type NetlistItem, netlistItemDragAndDropContro
 import path from 'path';
 import { dirname } from 'path';
 
+const { getUserTheme } = require('vscode-shiki-bridge');
 
 export interface VaporviewDocumentDelegate {
   addSignalByNameToDocument(signalName: string): void;
@@ -19,7 +20,7 @@ export interface VaporviewDocumentDelegate {
   updateViews(uri: vscode.Uri): void;
   emitEvent(e: any): void;
   removeFromCollection(uri: vscode.Uri, document: VaporviewDocument): void;
-  getColorPalette(): {colorPalette: string[], errorColorPalette: string};
+  getColorPalette(): {colorPalette: string[], errorColorPalette: string[], themeValid: boolean};
 }
 
 class VaporviewDocumentBackup implements vscode.CustomDocumentBackup {
@@ -35,11 +36,11 @@ export class VaporviewDocumentCollection {
 
   // Color palette
   public colorPalette: string[] = [];
-  public errorColorPalette: string = '';
+  public errorColorPalette: string[] = [];
+  public themeValid: boolean = false;
 
   constructor(
     private readonly log: vscode.OutputChannel,
-    private readonly getUserTheme: () => Promise<[string, unknown[]]>
   ) {
     this.getTokenColorsForTheme();
   }
@@ -112,7 +113,8 @@ export class VaporviewDocumentCollection {
   //         select from the remaining colors in the unique color set.
   async getTokenColorsForTheme() {
 
-    const [_themeName, themeData] = await this.getUserTheme();
+    try {
+    const [themeName, themeData] = await getUserTheme();
 
     const scopeList = [
       "constant.numeric",
@@ -188,6 +190,15 @@ export class VaporviewDocumentCollection {
 
     this.colorPalette = colorPalette;
     this.errorColorPalette = errorColorPalette;
+    this.themeValid = true;
+
+    } catch (error) {
+      vscode.window.showErrorMessage("Error getting user theme: " + error);
+      this.colorPalette = ['#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC'];
+      this.errorColorPalette = ['#C00000'];
+      this.themeValid = false;
+    }
+
     this.broadcast((document) => {
       const webview = document.webviewPanel;
       if (webview) {
@@ -195,6 +206,7 @@ export class VaporviewDocumentCollection {
           command: 'updateColorPalette',
           colorPalette: this.colorPalette,
           errorColorPalette: this.errorColorPalette,
+          themeValid: this.themeValid
         });
       }
     });
@@ -203,7 +215,8 @@ export class VaporviewDocumentCollection {
   getColorPalette() {
     return {
       colorPalette: this.colorPalette,
-      errorColorPalette: this.errorColorPalette
+      errorColorPalette: this.errorColorPalette,
+      themeValid: this.themeValid
     };
   }
 }

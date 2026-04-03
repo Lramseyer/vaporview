@@ -6,8 +6,6 @@ import { registerVaporviewCommands } from './commands';
 import { WaveformViewerProvider, VaporviewDocumentCollection } from './viewer_provider';
 import { updateWCPServerFromConfiguration, WCPServer } from './wcp_server';
 
-const { getUserTheme } = require('vscode-shiki-bridge');
-
 // #region activate()
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -22,7 +20,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Register Custom Editor Provider (The viewer window)
   // See package.json for more details
-  const documentCollection = new VaporviewDocumentCollection(outputLog, getUserTheme);
+  const documentCollection = new VaporviewDocumentCollection(outputLog);
   const viewerProvider     = new WaveformViewerProvider(context, outputLog, wasmModule, documentCollection);
 
   vscode.window.registerCustomEditorProvider(

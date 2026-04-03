@@ -6,6 +6,8 @@ import { registerVaporviewCommands } from './commands';
 import { WaveformViewerProvider, VaporviewDocumentCollection } from './viewer_provider';
 import { updateWCPServerFromConfiguration, WCPServer } from './wcp_server';
 
+const { getUserTheme } = require('vscode-shiki-bridge');
+
 // #region activate()
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -13,9 +15,6 @@ export async function activate(context: vscode.ExtensionContext) {
   const binaryFile = vscode.Uri.joinPath(context.extensionUri, 'target', 'wasm32-unknown-unknown', 'release', 'filehandler.wasm');
   const binaryData = await vscode.workspace.fs.readFile(binaryFile);
   const wasmModule = await WebAssembly.compile(new Uint8Array(binaryData));
-
-  // Import the vscode-shiki-bridge package
-  const { getUserTheme } = await import('vscode-shiki-bridge');
 
   // create an output channel for logging
   const outputLog = vscode.window.createOutputChannel('Vaporview', { log: true });

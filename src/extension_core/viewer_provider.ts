@@ -12,6 +12,10 @@ import { NetlistTreeDataProvider, type NetlistItem, netlistItemDragAndDropContro
 import path from 'path';
 import { dirname } from 'path';
 
+// vscode-shiki-bridge is ESM-only, but esbuild aliases it to dist/index.cjs
+// (see esbuild.js). A static import fails TS module resolution, and a dynamic
+// import() bypasses the alias, so require() through the alias is the only path.
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { getUserTheme } = require('vscode-shiki-bridge');
 
 export interface VaporviewDocumentDelegate {

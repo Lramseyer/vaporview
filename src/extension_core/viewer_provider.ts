@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
-import { type DocumentId, type NetlistId, SignalGroupContextMenuEvent, SignalId, StateChangeType, WindowMessageType, type markerSetEvent, type signalEvent, type viewerDropEvent } from '../common/types';
+import { type DocumentId, type NetlistId, SignalGroupWebviewContext, SignalId, StateChangeType, WindowMessageType, type MarkerSetEvent, type SignalEvent, type ViewerDropEvent } from '../common/types';
+import { decodeNetlistUri } from '../../packages/vaporview-api';
+import type { VariableActionArgs, VariableAction, SetMarkerArgs } from '../../packages/vaporview-api/types';
 import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
 import { Worker } from 'worker_threads';
 import * as fs from 'fs';
@@ -257,11 +259,11 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   public statusBar: VaporviewStatusBar;
 
   // Event emitters
-  public static readonly markerSetEventEmitter = new vscode.EventEmitter<markerSetEvent>();
-  public static readonly signalSelectEventEmitter = new vscode.EventEmitter<signalEvent>();
-  public static readonly addVariableEventEmitter = new vscode.EventEmitter<signalEvent>();
-  public static readonly removeVariableEventEmitter = new vscode.EventEmitter<signalEvent>();
-  public static readonly externalDropEventEmitter = new vscode.EventEmitter<viewerDropEvent>();
+  public static readonly markerSetEventEmitter = new vscode.EventEmitter<MarkerSetEvent>();
+  public static readonly signalSelectEventEmitter = new vscode.EventEmitter<SignalEvent>();
+  public static readonly addVariableEventEmitter = new vscode.EventEmitter<SignalEvent>();
+  public static readonly removeVariableEventEmitter = new vscode.EventEmitter<SignalEvent>();
+  public static readonly externalDropEventEmitter = new vscode.EventEmitter<ViewerDropEvent>();
   private readonly _onDidChangeCustomDocument = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<VaporviewDocument>>();
   public readonly onDidChangeCustomDocument = this._onDidChangeCustomDocument.event;
 
@@ -746,13 +748,13 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
   emitEvent(e: any) {
 
-    const markerData: markerSetEvent = {
+    const markerData: MarkerSetEvent = {
       uri: e.uri,
       time: e.time,
       units: e.units,
     };
 
-    const signalData: signalEvent = {
+    const signalData: SignalEvent = {
       uri: e.uri,
       instancePath: e.instancePath,
       netlistId: e.netlistId,
@@ -888,7 +890,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   }
 
   // Add or remove signals from the waveform viewer
-  public async variableActionCommandHandler(e: any, action: string) {
+  public async variableActionCommandHandler(e: VariableActionArgs, action: VariableAction) {
     // Check for URI in the command
     const document = this.getDocumentFromCommandArgs(e);
     if (!document) {return;}
@@ -937,7 +939,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     }
   }
 
-  public markerCommandHandler(e: any) {
+  public markerCommandHandler(e: SetMarkerArgs) {
 
     if (e.time === undefined) {return;}
 
@@ -973,12 +975,10 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         unknownUriList.push(uri);
         return;
       }
-      const fragment = uri.fragment;
-      if (fragment === undefined || fragment === "") {return;}
-      fragment.split('&').forEach((tag: string) => {
-        const [key, value] = tag.split('=');
-        if (key === "var") {netlistIdList.push(parseInt(value));}
-      });
+      const decoded = decodeNetlistUri(uri);
+      if (decoded.id !== undefined) {
+        netlistIdList.push(decoded.id);
+      }
     });
 
     let groupPath: string[] = [];
@@ -1322,7 +1322,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     });
   }
 
-  public deleteSignalGroup(e: SignalGroupContextMenuEvent | undefined, recursive: boolean) {
+  public deleteSignalGroup(e: SignalGroupWebviewContext | undefined, recursive: boolean) {
     if (!this.activeWebview) {return;}
     if (!this.activeDocument) {return;}
     if (!this.activeWebview.visible) {return;}

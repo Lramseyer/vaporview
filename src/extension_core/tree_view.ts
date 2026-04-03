@@ -3,6 +3,7 @@ import { NetlistId, SignalId, VariableEncoding } from '../common/types';
 import { bitRangeString, createInstancePath, parseParamValue } from '../common/functions';
 import type { VaporviewDocument } from './document';
 import { WaveformViewerProvider } from './viewer_provider';
+import type { NetlistTreeItemData } from '../../packages/vaporview-api/types';
 
 // Scopes
 const scopeColor    = new vscode.ThemeColor('charts.purple');
@@ -268,7 +269,7 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
 }
 
 // #region NetlistItem
-export class NetlistItem extends vscode.TreeItem {
+export class NetlistItem extends vscode.TreeItem implements NetlistTreeItemData {
 
   //public numberFormat: string;
   public fsdbVarLoaded: boolean = false; // Only used in fsdb

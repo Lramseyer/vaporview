@@ -29,6 +29,7 @@ export class RowHandler {
     this.groupIdTable = [];
     this.nextRowId    = 0;
     this.nextGroupId  = 1;
+    labelsPanel.valueAtMarker = {};
   }
 
   private flushRowCache(force: boolean) {

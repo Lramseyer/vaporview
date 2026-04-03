@@ -282,7 +282,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
 
   public createValueDisplayElement() {
     let   value = labelsPanel.valueAtMarker[this.rowId];
-    if (value === undefined) {value = [];}
+    if (value === undefined || this.signalId === undefined) {value = [];}
     const isSelectedClass   = this.isSelected ? 'is-selected' : '';
     const lastSelectedClass = viewerState.lastSelectedSignal === this.rowId ? 'last-selected' : '';
     const selectorClass = isSelectedClass + ' ' + lastSelectedClass;
@@ -543,7 +543,7 @@ export class CustomVariable extends SignalItem implements RowItem {
     public createValueDisplayElement() {
 
       let   value = labelsPanel.valueAtMarker[this.rowId];
-      if (value === undefined) {value = [];}
+      if (value === undefined || this.customSignalId === undefined) {value = [];}
       const isSelectedClass   = this.isSelected ? 'is-selected' : '';
       const lastSelectedClass = viewerState.lastSelectedSignal === this.rowId ? 'last-selected' : '';
       const selectorClass = isSelectedClass + ' ' + lastSelectedClass;

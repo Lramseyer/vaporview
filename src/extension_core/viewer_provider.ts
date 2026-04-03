@@ -975,6 +975,12 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         unknownUriList.push(uri);
         return;
       }
+      //const fragment = uri.fragment;
+      //if (fragment === undefined || fragment === "") {return;}
+      //fragment.split('&').forEach((tag: string) => {
+      //  const [key, value] = tag.split('=');
+      //  if (key === "var") {netlistIdList.push(parseInt(value));}
+      //});
       const decoded = decodeNetlistUri(uri);
       if (decoded.id !== undefined) {
         netlistIdList.push(decoded.id);

@@ -22,7 +22,7 @@ export type {
   SignalGroupWebviewContext,
 } from '../../packages/vaporview-api/types';
 export { NameType } from '../../packages/vaporview-api/types';
-import type { NetlistId, SignalId, RowId } from '../../packages/vaporview-api/types';
+import type { NetlistId, SignalId, RowId, SignalSeparatorContext, SignalGroupContext, CustomVariableContext, NetlistVariableContext } from '../../packages/vaporview-api/types';
 export type ValueChange = [number, string];
 export type EnumEntry   = [string, string];
 export type EnumData    = EnumEntry[];
@@ -105,3 +105,4 @@ export type CompressedValueChangeDataChunk = {
   originalSize: number;
 };
 
+export type RowItemContextMenuEvent = NetlistVariableContext | CustomVariableContext | SignalGroupContext | SignalSeparatorContext;

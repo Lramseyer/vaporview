@@ -248,7 +248,7 @@ export type NetlistVariableContext = {
   width: number;
   preventDefaultContextMenuItems: boolean;
   commandValid: boolean;
-  netlistId: NetlistId;
+  netlistId: NetlistId | undefined;
   rowId: RowId;
   isAnalog: boolean;
   enum: boolean;

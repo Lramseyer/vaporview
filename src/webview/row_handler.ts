@@ -863,6 +863,8 @@ export class RowHandler {
 
   setDisplayFormat(message: any, ignoreSelection: boolean) {
 
+    if (controlBar.searchInFocus || labelsPanel.renameActive) {return;}
+
     const netlistId = message.netlistId;
     let rowId = message.rowId;
     if (netlistId === undefined && rowId === undefined) {

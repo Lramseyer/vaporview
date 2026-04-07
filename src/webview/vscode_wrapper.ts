@@ -4,7 +4,7 @@ import { SignalGroup, NetlistVariable, CustomVariable } from "./signal_item";
 import { viewerState, events, createWebviewContext, viewport, rowHandler, getParentGroupIdList, labelsPanel, EventHandler, ActionType, dataManager, controlBar, styles, unload, init, revealSignal, config } from "./vaporview";
 import { copyWaveDrom } from "./wavedrom";
 
-import { differenceCiede2000, rgb, differenceEuclidean } from "culori";
+import { differenceCiede2000, rgb } from "culori";
 
 declare function acquireVsCodeApi(): VsCodeApi;
 const vscode = acquireVsCodeApi();
@@ -265,7 +265,6 @@ export class ThemeColors {
     console.log(`--- XZ color: ${this.xzColor} rgb(${rgbXZ.r}, ${rgbXZ.g}, ${rgbXZ.b})`);
 
     const deltaE = differenceCiede2000();
-    const deltaEuclidean = differenceEuclidean();
     let colorIndex = 1;
 
     const topTierColors: number[] = [];

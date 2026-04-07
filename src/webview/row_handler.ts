@@ -795,8 +795,9 @@ export class RowHandler {
 
   handleColorChange() {
     this.rowItems.forEach((data) => {
-      if (data instanceof NetlistVariable === false) {return;}
-      data.setColorFromColorIndex();
+      if (data instanceof NetlistVariable || data instanceof CustomVariable) {
+        data.setColorFromColorIndex();
+      }
     });
   }
 

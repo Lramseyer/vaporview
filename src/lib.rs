@@ -437,7 +437,8 @@ fn search<'h>(
     VecDeque::from([s])
   } else {
     let mut q: VecDeque<&Scope> = VecDeque::new();
-    for s in hierarchy.iter_scopes() {
+    for scope_ref in hierarchy.scopes() {
+      let s = hierarchy.index(scope_ref);
       let name = s.name(hierarchy).to_string().to_lowercase();
       if name.contains(search_string) {
         search_results.push(ScopeOrVar::Scope(s));
@@ -940,7 +941,8 @@ impl Guest for Filecontext {
       let lower_path = scopepath.to_lowercase();
       let path_segments: Vec<&str> = lower_path.split(".").collect();
 
-      let mut current_scopes: Vec<&Scope> = hierarchy.iter_scopes()
+      let mut current_scopes: Vec<&Scope> = hierarchy.scopes()
+        .map(|sr| hierarchy.index(sr))
         .filter(|s| s.name(hierarchy).to_string().to_lowercase() == path_segments[0])
         .collect();
 

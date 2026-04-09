@@ -369,8 +369,8 @@ export class WasmFormatHandler implements WaveformFileParser {
     return JSON.parse(result);
   }
 
-  public async searchNetlist(searchString: string): Promise<NetlistSearchResult> {
-    const resultJson = await this.wasmApi.searchnetlist(searchString);
+  public async searchNetlist(scopePath: string, searchString: string): Promise<NetlistSearchResult> {
+    const resultJson = await this.wasmApi.searchnetlist(scopePath, searchString);
     try {
       return JSON.parse(resultJson) as NetlistSearchResult;
     } catch {

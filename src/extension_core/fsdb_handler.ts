@@ -361,7 +361,7 @@ export class FsdbFormatHandler implements WaveformFileParser {
   }
 
   // TODO: @heyfey - implement netlist search
-  public searchNetlist(searchString: string): Promise<NetlistSearchResult> {
+  public searchNetlist(scopePath: string, searchString: string): Promise<NetlistSearchResult> {
     return Promise.resolve({totalResults: 0, searchResults: []});
   }
 }

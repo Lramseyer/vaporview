@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 // Use a procedural macro to generate bindings for the world we specified in
 // `host.wit`
 
@@ -422,49 +424,54 @@ fn scope_search_entry(scope_data: &Scope, hierarchy: &Hierarchy) -> SearchEntry 
   };
 }
 
+/// Breadth-first search all descendants of a scope for items matching `search_string`.
+/// If `scope` is None, searches all top-level scopes and vars.
 fn search<'h>(
   hierarchy: &'h Hierarchy,
-  scope_path: Vec<&str>,
-  iter_scopes: impl Iterator<Item = &'h Scope>,
-  iter_vars: Option<impl Iterator<Item = &'h Var>>,
+  scope: Option<&'h Scope>,
+  search_string: &str,
   search_results: &mut Vec<ScopeOrVar<'h>>,
 ) {
+  // Seed the queue with either the single scope or all top-level scopes
+  let mut queue: VecDeque<&Scope> = if let Some(s) = scope {
+    VecDeque::from([s])
+  } else {
+    hierarchy.iter_scopes().collect()
+  };
 
-  if scope_path.is_empty() { return; }
-  let search_string = scope_path[0].to_string();
-  let new_scope_path = scope_path[1..].to_vec();
-  let search_depth = new_scope_path.len();
-
-  for scope_data in iter_scopes {
-    let name = scope_data.name(hierarchy).to_string().to_lowercase();
-    if name.contains(&search_string) {
-      if search_depth == 0 {
-        search_results.push(ScopeOrVar::Scope(scope_data));
-      } else {
-        // Collect children before recursing to avoid overlapping borrows
-        let search_scope_path = new_scope_path.clone();
-        let child_scopes: Vec<&'h Scope> = scope_data.scopes(hierarchy)
-          .map(|scope_ref| hierarchy.index(scope_ref))
-          .collect();
-        let mut child_vars: Option<Vec<&'h Var>> = None;
-        if search_depth == 1 {
-          let var_iter: Vec<&'h Var> = scope_data.vars(hierarchy)
-            .map(|var_ref| hierarchy.index(var_ref))
-            .collect();
-          child_vars = Some(var_iter);
-        }
-        search(hierarchy, search_scope_path, child_scopes.into_iter(), child_vars.map(|v| v.into_iter()), search_results);
+  // For top-level search, also search top-level vars first
+  if scope.is_none() {
+    for var_data in hierarchy.iter_vars() {
+      let name = var_data.name(hierarchy).to_string().to_lowercase();
+      if name.contains(search_string) {
+        search_results.push(ScopeOrVar::Var(var_data));
       }
     }
   }
 
-  if search_depth > 0 { return; }
-  if let Some(iter_vars) = iter_vars {
-    for var_data in iter_vars {
-      let name = var_data.name(hierarchy).to_string().to_lowercase();
-      if name.contains(&search_string) {
-        search_results.push(ScopeOrVar::Var(var_data));
+  while let Some(current) = queue.pop_front() {
+    let name = current.name(hierarchy).to_string().to_lowercase();
+    if scope.is_none() && name.contains(search_string) {
+      search_results.push(ScopeOrVar::Scope(current));
+    }
+
+    // Search vars in this scope
+    for var_ref in current.vars(hierarchy) {
+      let var = hierarchy.index(var_ref);
+      let name = var.name(hierarchy).to_string().to_lowercase();
+      if name.contains(search_string) {
+        search_results.push(ScopeOrVar::Var(var));
       }
+    }
+
+    // Enqueue child scopes for the next level
+    for scope_ref in current.scopes(hierarchy) {
+      let child = hierarchy.index(scope_ref);
+      let name = child.name(hierarchy).to_string().to_lowercase();
+      if name.contains(search_string) {
+        search_results.push(ScopeOrVar::Scope(child));
+      }
+      queue.push_back(child);
     }
   }
 }
@@ -922,7 +929,7 @@ impl Guest for Filecontext {
 
   }
 
-  fn searchnetlist(searchquery: String) -> String {
+  fn searchnetlist(scopepath: String, searchquery: String) -> String {
     let global_hierarchy = _hierarchy.lock().unwrap();
     let hierarchy = global_hierarchy.as_ref().unwrap();
     let empty_result = "{\"totalResults\":0,\"searchResults\":[]}".to_string();
@@ -931,17 +938,40 @@ impl Guest for Filecontext {
       return empty_result;
     }
 
-    let mut search_results: Vec<ScopeOrVar> = Vec::new();
     let lower_query = searchquery.to_lowercase();
-    let scope_path = lower_query.split(".").collect::<Vec<&str>>();
 
-    let all_scopes = hierarchy.iter_scopes();
-    let mut all_vars = None;
-    if scope_path.len() == 1 {
-      all_vars = Some(hierarchy.iter_vars());
-    }
+    // Navigate to target scope if scopepath is provided
+    let target_scope = if scopepath.is_empty() {
+      None
+    } else {
+      let lower_path = scopepath.to_lowercase();
+      let path_segments: Vec<&str> = lower_path.split(".").collect();
 
-    search(hierarchy, scope_path, all_scopes, all_vars, &mut search_results);
+      let mut current_scopes: Vec<&Scope> = hierarchy.iter_scopes()
+        .filter(|s| s.name(hierarchy).to_string().to_lowercase() == path_segments[0])
+        .collect();
+
+      for segment in path_segments.iter().skip(1) {
+        let mut next_scopes = Vec::new();
+        for scope in &current_scopes {
+          for child_ref in scope.scopes(hierarchy) {
+            let child = hierarchy.index(child_ref);
+            if child.name(hierarchy).to_string().to_lowercase() == *segment {
+              next_scopes.push(child);
+            }
+          }
+        }
+        current_scopes = next_scopes;
+        if current_scopes.is_empty() {
+          return empty_result;
+        }
+      }
+
+      current_scopes.first().copied()
+    };
+
+    let mut search_results: Vec<ScopeOrVar> = Vec::new();
+    search(hierarchy, target_scope, &lower_query, &mut search_results);
 
     let total = search_results.len();
     let return_amount = std::cmp::min(total, 100);

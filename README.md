@@ -165,6 +165,8 @@ Vaporview can display values in different number formats. To change the value fo
 
 Vaporview supports 8 different waveform colors. The colors are based off the [semantic token colors](https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide) for VScode text as defined by the color theme. Colors are selected based on background contrast and uniqueness. To change the color, right click on the waveform, select **Color** -> and select the color you wish to use. Alternatively you can use the number keys **1** through **8** to change the color of the selected signal.
 
+![](https://github.com/Lramseyer/vaporview/blob/main/readme_assets/color_themes.gif?raw=true)
+
 ## Waveform Render Types
 
 Aside from the binary and multi-bit waveform renderers, Vaporview supports displaying analog signals. Any multi-bit variable or Real type supports this. Analog signals can be displayed wither as a linear or stepped line. In the case of binary values, the Y value can be evaluated as either a signed or unsigned value. To change the Render Type, right click on the signal in the viewer and select **Render Type** -> and select the render type you wish to use for the signal.
@@ -217,9 +219,7 @@ To set which signal will be the WaveDrom Clock, right click on the signal you wi
 
 # Requirements
 
-This extension requires VScode 1.96.0 or later
-
-Version 1.5.2 (Upcoming release) will require VScode 1.102.0 or later 
+This extension requires VScode 1.102.0 or later
 
 # Development Roadmap
 

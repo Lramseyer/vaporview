@@ -244,7 +244,7 @@ export class ThemeColors {
     this.xzColor = style.getPropertyValue('--vscode-debugTokenExpression-error');
 
     if (!themeValid) {
-      console.log("Using default color palette because theme is not valid");
+      //console.log("Using default color palette because theme is not valid");
       this.colorKey = ['#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC'];
       this.colorKey[0] = style.getPropertyValue('--vscode-debugTokenExpression-number');
       this.colorKey[1] = style.getPropertyValue('--vscode-debugTokenExpression-string');
@@ -261,8 +261,8 @@ export class ThemeColors {
     if (rgbBackground === undefined) {return;}
     if (rgbXZ === undefined) {return;}
 
-    console.log(`--- Background color: ${this.backgroundColor} rgb(${rgbBackground.r}, ${rgbBackground.g}, ${rgbBackground.b})`);
-    console.log(`--- XZ color: ${this.xzColor} rgb(${rgbXZ.r}, ${rgbXZ.g}, ${rgbXZ.b})`);
+    //console.log(`--- Background color: ${this.backgroundColor} rgb(${rgbBackground.r}, ${rgbBackground.g}, ${rgbBackground.b})`);
+    //console.log(`--- XZ color: ${this.xzColor} rgb(${rgbXZ.r}, ${rgbXZ.g}, ${rgbXZ.b})`);
 
     const deltaE = differenceCiede2000();
     let colorIndex = 1;
@@ -320,7 +320,7 @@ export class ThemeColors {
         tier: tier,
       });
 
-      console.log(`Color ${colorIndex} ${color} has deltaE of ${deltaBackground} from background color and deltaE of ${deltaXZ} from XZ color - tier: ${tier}`);
+      //console.log(`Color ${colorIndex} ${color} has deltaE of ${deltaBackground} from background color and deltaE of ${deltaXZ} from XZ color - tier: ${tier}`);
       colorIndex++;
     });
 
@@ -348,7 +348,7 @@ export class ThemeColors {
         minDelta = Math.min(minDelta, delta);
       });
 
-      console.log(`Color ${testColorProfile.color} has minimum deltaE of ${minDelta} from colors in final palette`);
+      //console.log(`Color ${testColorProfile.color} has minimum deltaE of ${minDelta} from colors in final palette`);
 
       if (minDelta >= 8) {
         finalColorPalette.push(index);

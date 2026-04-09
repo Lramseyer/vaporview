@@ -436,15 +436,18 @@ fn search<'h>(
   let mut queue: VecDeque<&Scope> = if let Some(s) = scope {
     VecDeque::from([s])
   } else {
-    hierarchy.iter_scopes().collect()
+    let mut q: VecDeque<&Scope> = VecDeque::new();
+    for s in hierarchy.iter_scopes() {
+      let name = s.name(hierarchy).to_string().to_lowercase();
+      if name.contains(search_string) {
+        search_results.push(ScopeOrVar::Scope(s));
+      }
+      q.push_back(s);
+    }
+    q
   };
 
   while let Some(current) = queue.pop_front() {
-    let name = current.name(hierarchy).to_string().to_lowercase();
-    if scope.is_none() && name.contains(search_string) {
-      search_results.push(ScopeOrVar::Scope(current));
-    }
-
     // Search vars in this scope
     for var_ref in current.vars(hierarchy) {
       let var = hierarchy.index(var_ref);

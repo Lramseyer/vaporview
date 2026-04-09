@@ -827,13 +827,13 @@ export class NetlistSearchQuickPick {
     const displayedResults = searchResult.searchResults.length;
     const resultString     = totalResults === 1 ? "result" : "results";
 
-    const scopeString = scopePrefix ? `in ${scopePrefix}` : "";
+    const scopeString = scopePrefix ? ` in ${scopePrefix}` : "";
     if (totalResults === 0) {
-      this.quickPick.title = `No results found ${scopeString}`;
+      this.quickPick.title = `No results found${scopeString}`;
     } else if (displayedResults !== totalResults) {
-      this.quickPick.title = `Showing ${displayedResults} of ${totalResults} ${resultString} ${scopeString}`;
+      this.quickPick.title = `Showing ${displayedResults} of ${totalResults} ${resultString}${scopeString}`;
     } else {
-      this.quickPick.title = `${totalResults} ${resultString} ${scopeString}`;
+      this.quickPick.title = `${totalResults} ${resultString}${scopeString}`;
     }
 
     this.quickPick.items = searchResult.searchResults.map(result => {

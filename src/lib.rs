@@ -439,16 +439,6 @@ fn search<'h>(
     hierarchy.iter_scopes().collect()
   };
 
-  // For top-level search, also search top-level vars first
-  if scope.is_none() {
-    for var_data in hierarchy.iter_vars() {
-      let name = var_data.name(hierarchy).to_string().to_lowercase();
-      if name.contains(search_string) {
-        search_results.push(ScopeOrVar::Var(var_data));
-      }
-    }
-  }
-
   while let Some(current) = queue.pop_front() {
     let name = current.name(hierarchy).to_string().to_lowercase();
     if scope.is_none() && name.contains(search_string) {

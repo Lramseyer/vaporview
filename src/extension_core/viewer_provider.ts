@@ -813,26 +813,32 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
   emitEvent(e: EmitEventData) {
 
-    const uriStr = e.uri?.toString() ?? '';
+    const uriString    = e.uri?.toString() ?? '';
+    const time         = e.time ?? 0;
+    const units        = e.units ?? '';
+    const instancePath = e.instancePath ?? '';
+    const netlistId    = e.netlistId ?? 0;
+
+    const markerData: MarkerSetEvent = {
+      uri: uriString,
+      time: time,
+      units: units,
+    };
+
+    const signalData: SignalEvent = {
+      uri: uriString,
+      instancePath: instancePath,
+      netlistId: netlistId,
+      source: "viewer",
+    };
+
+    //console.log(e);
 
     switch (e.eventType) {
-      case 'markerSet': {
-        WaveformViewerProvider.markerSetEventEmitter.fire({
-          uri: uriStr, time: e.time ?? 0, units: e.units ?? '',
-        });
-        break;
-      }
-      case 'signalSelect':
-      case 'addVariable':
-      case 'removeVariable': {
-        const signalData: SignalEvent = {
-          uri: uriStr, instancePath: e.instancePath ?? '', netlistId: e.netlistId ?? 0, source: "viewer",
-        };
-        if (e.eventType === 'signalSelect') {WaveformViewerProvider.signalSelectEventEmitter.fire(signalData);}
-        else if (e.eventType === 'addVariable') {WaveformViewerProvider.addVariableEventEmitter.fire(signalData);}
-        else {WaveformViewerProvider.removeVariableEventEmitter.fire(signalData);}
-        break;
-      }
+      case 'markerSet':      {WaveformViewerProvider.markerSetEventEmitter.fire(markerData); break;}
+      case 'signalSelect':   {WaveformViewerProvider.signalSelectEventEmitter.fire(signalData); break;}
+      case 'addVariable':    {WaveformViewerProvider.addVariableEventEmitter.fire(signalData); break;}
+      case 'removeVariable': {WaveformViewerProvider.removeVariableEventEmitter.fire(signalData); break;}
     }
   }
 

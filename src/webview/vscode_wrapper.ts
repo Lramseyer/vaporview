@@ -277,7 +277,7 @@ export class ThemeColors {
       this.colorKey[1] = style.getPropertyValue('--vscode-debugTokenExpression-string');
       this.colorKey[2] = style.getPropertyValue('--vscode-debugTokenExpression-type');
       this.colorKey[3] = style.getPropertyValue('--vscode-debugTokenExpression-name');
-      this.events.dispatch(ActionType.UpdateColorTheme);
+      this.events.updateColorTheme();
       return;
     }
 
@@ -402,7 +402,7 @@ export class ThemeColors {
     }
 
     this.colorKey = similaritySortedColors.map(index => colorProfiles[index].color);
-    this.events.dispatch(ActionType.UpdateColorTheme);
+    this.events.updateColorTheme();
   }
 }
 
@@ -479,14 +479,14 @@ export class VscodeWrapper {
     if (netlistId === undefined) {return;}
     const rowIdList = rowHandler.getRowIdsFromNetlistId(netlistId);
     if (rowIdList.length === 0) {return;}
-    this.events.dispatch(ActionType.SignalSelect, rowIdList, rowIdList[0]);
+    this.events.signalSelect(rowIdList, rowIdList[0]);
     //console.log('handleSetSelectedSignal');
     this.sendWebviewContext(StateChangeType.User);
   }
 
   setMarker(time: number, markerType: number) {
     //console.log('handleMessage - setMarker');
-    this.events.dispatch(ActionType.MarkerSet, time, markerType);
+    this.events.markerSet(time, markerType);
     this.sendWebviewContext(StateChangeType.User);
   }
 
@@ -503,7 +503,7 @@ export class VscodeWrapper {
       const renderType = netlistData.renderType.id;
       if (renderType === "multiBit" || renderType === "binary") {return;}
       netlistData.verticalScale = Math.max(1, netlistData.verticalScale * scale);
-      this.events.dispatch(ActionType.RedrawVariable, rowId);
+      this.events.redrawVariable(rowId);
     }); 
   }
 

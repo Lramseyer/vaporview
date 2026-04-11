@@ -312,7 +312,7 @@ export class WaveformDataManager {
       const netlistData = rowHandler.rowItems[rowId];
       if (!(netlistData instanceof NetlistVariable) && !(netlistData instanceof CustomVariable)) {return;}
       labelsPanel.valueAtMarker[rowId] = netlistData.getValueAtTime(viewerState.markerTime);
-      events.dispatch(ActionType.RedrawVariable, rowId);
+      events.redrawVariable(rowId);
       if (netlistData.encoding === "Real") {
         netlistData.min = min;
         netlistData.max = max;
@@ -437,7 +437,7 @@ export class WaveformDataManager {
       const data = this.valueChangeData[netlistData.signalId];
       if (data === undefined) {return;}
       rowHandler.setValueFormat(data, netlistData.valueFormat, true);
-      events.dispatch(ActionType.RedrawVariable, rowId);
+      events.redrawVariable(rowId);
     });
   }
 

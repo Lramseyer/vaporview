@@ -878,7 +878,7 @@ export class SignalGroup extends SignalItem implements RowItem {
       if (lastSelected !== null && childRows.includes(lastSelected)) {
         lastSelected = null;
       }
-      events.dispatch(ActionType.SignalSelect, newSelection, lastSelected);
+      events.signalSelect(newSelection, lastSelected);
     }
     labelsPanel.renderLabelsPanels();
     this.showHideViewportRows();

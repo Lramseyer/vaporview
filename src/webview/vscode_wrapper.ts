@@ -9,9 +9,9 @@ import { differenceCiede2000, rgb } from "culori";
 declare function acquireVsCodeApi(): VsCodeApi;
 const vscode = acquireVsCodeApi();
 interface VsCodeApi {
-  postMessage(message: any): void;
-  setState(newState: any): void;
-  getState(): any;
+  postMessage(message: unknown): void;
+  setState(newState: unknown): void;
+  getState(): unknown;
 }
 
 export enum OS {
@@ -26,6 +26,24 @@ export enum OS {
 // - package.json in contributes.configuration
 // - extension_core/document.ts - setConfigurationSettings()
 // - here - setConfigSettings()
+interface ConfigSettingsMessage {
+  scrollingMode?: string;
+  rulerLines?: boolean;
+  fillMultiBitValues?: boolean;
+  multiBitFixedHeight?: boolean;
+  enableAnimations?: boolean;
+  animationDuration?: number;
+  overrideDevicePixelRatio?: boolean;
+  userPixelRatio?: number;
+  disableAnalogRendererOptimizations?: boolean;
+  defaultSingleBitColor?: number;
+  defaultMultiBitColor?: number;
+  defaultParamColor?: number;
+  defaultStringColor?: number;
+  defaultEnumColor?: number;
+  defaultCustomSignalColor?: number;
+}
+
 export class Configuration {
   touchpadScrolling: boolean        = false;
   autoTouchpadScrolling: boolean    = false;
@@ -51,7 +69,7 @@ export class Configuration {
     this.os = this.getOS();
   }
 
-  setConfigSettings(settings: any) {
+  setConfigSettings(settings: ConfigSettingsMessage) {
     if (settings.scrollingMode !== undefined) {
       controlBar.setScrollMode(settings.scrollingMode);
     }
@@ -130,6 +148,15 @@ export class Configuration {
     if (/linux/i.test(platform))   return OS.Linux;
     return OS.Unknown;
   }
+}
+
+interface ColorProfile {
+  index: number;
+  color: string;
+  rgbColor: ReturnType<typeof rgb>;
+  deltaBackground: number | undefined;
+  deltaXZ: number | undefined;
+  tier: number;
 }
 
 export class ThemeColors {
@@ -272,7 +299,7 @@ export class ThemeColors {
     const lowTierColors: number[] = [];
     const bottomTierColors: number[] = [];
 
-    const colorProfiles: any = [];
+    const colorProfiles: ColorProfile[] = [];
 
     // Arrange colors into tiers based on their distance from the background color
     // And similarity to the XZ color
@@ -325,9 +352,9 @@ export class ThemeColors {
     });
 
     const contrastSortedColors = topTierColors.concat(midTierColors).concat(lowTierColors).concat(bottomTierColors);
-    const finalColorPalette: any[] = [];
-    const secondaryColorPalette: any[] = [];
-    const tertiaryColorPalette: any[] = [];
+    const finalColorPalette: number[] = [];
+    const secondaryColorPalette: number[] = [];
+    const tertiaryColorPalette: number[] = [];
 
     // Next, we check to see how similar they are to each other, and bump them in to lower tiers if
     // they're too similar to other colors in the color palette
@@ -364,10 +391,10 @@ export class ThemeColors {
 
     const color1Index   = similaritySortedColors[0];
     const color1Profile = colorProfiles[color1Index];
-    const color1DeltaXZ = Math.min(color1Profile.deltaXZ, 35);
+    const color1DeltaXZ = Math.min(color1Profile.deltaXZ ?? 0, 35);
     const color2Index   = similaritySortedColors[1];
     const color2Profile = colorProfiles[color2Index];
-    const color2DeltaXZ = Math.min(color2Profile.deltaXZ, 35);
+    const color2DeltaXZ = Math.min(color2Profile.deltaXZ ?? 0, 35);
     if (color1DeltaXZ < color2DeltaXZ) {
       // Swap color1 and color2
       similaritySortedColors[0] = color2Index;
@@ -377,6 +404,11 @@ export class ThemeColors {
     this.colorKey = similaritySortedColors.map(index => colorProfiles[index].color);
     this.events.dispatch(ActionType.UpdateColorTheme);
   }
+}
+
+interface ExternalKeyDownMessage {
+  keyCommand: string;
+  event?: { rowId?: RowId };
 }
 
 export class VscodeWrapper {
@@ -395,7 +427,7 @@ export class VscodeWrapper {
     vscode.postMessage({command: 'ready'});
   }
 
-  handleMessage(e: any) {
+  handleMessage(e: MessageEvent) {
     const message = e.data;
 
     switch (message.command) {
@@ -432,7 +464,7 @@ export class VscodeWrapper {
     }
   }
 
-  externalKeyDownHandler(e: any) {
+  externalKeyDownHandler(e: ExternalKeyDownMessage) {
     switch (e.keyCommand) {
       case 'nextEdge': {controlBar.goToNextTransition(1, []); break;}
       case 'previousEdge': {controlBar.goToNextTransition(-1, []); break;}
@@ -458,7 +490,7 @@ export class VscodeWrapper {
     this.sendWebviewContext(StateChangeType.User);
   }
 
-  handleUpdateVerticalScale(event: any, scale: number) {
+  handleUpdateVerticalScale(event: { rowId?: RowId } | null | undefined, scale: number) {
     let rowIdList: RowId[] = viewerState.selectedSignal;
     if (event && event.rowId !== undefined && !viewerState.selectedSignal.includes(event.rowId)) {
       rowIdList = [event.rowId];
@@ -518,7 +550,7 @@ export class VscodeWrapper {
 
   sendWebviewContext(stateChangeType: number) {
     if (events.isBatchMode) {return;}
-    const context: any = createWebviewContext();
+    const context = createWebviewContext() as Record<string, unknown>;
     context.stateChangeType = stateChangeType;
     vscode.setState(context);
     context.command = 'contextUpdate';
@@ -534,7 +566,7 @@ export class VscodeWrapper {
     });
   }
 
-  executeCommand(command: string, args: any[]) {
+  executeCommand(command: string, args: unknown[]) {
     vscode.postMessage({
       command: 'executeCommand',
       commandName: command,
@@ -542,7 +574,7 @@ export class VscodeWrapper {
     });
   }
 
-  updateConfiguration(property: string, value: any) {
+  updateConfiguration(property: string, value: unknown) {
     vscode.postMessage({
       command: 'updateConfiguration',
       property: property,
@@ -617,7 +649,7 @@ export class VscodeWrapper {
     const data    = e.dataTransfer.getData('codeeditors');
     if (!data) {return;}
     const dataObj = JSON.parse(data);
-    const uriList = dataObj.map((d: any) => {return d.resource;});
+    const uriList = dataObj.map((d: { resource: string }) => {return d.resource;});
 
     const {newGroupId, newIndex} = labelsPanel.dragEndExternal(e, false);
 

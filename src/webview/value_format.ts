@@ -519,13 +519,13 @@ export class EnumValueFormat implements ValueFormat {
     const result = enumTable.find((entry) => {return entry[0] === inputString;});
     if (result) {return htmlSafe(result[1]);}
     return htmlSafe(inputString);
-  }
+  };
 
-  public checkValidSearch = (searchString: string) => {return dataManager.enumTable[this.enumType].find((entry) => {return entry[0] === searchString;}) !== undefined;}
-  public parseSearchValue = (searchString: string) => {return searchString;}
+  public checkValidSearch = (searchString: string) => {return dataManager.enumTable[this.enumType].find((entry) => {return entry[0] === searchString;}) !== undefined;};
+  public parseSearchValue = (searchString: string) => {return searchString;};
   public checkSearchValue = regexMatchBinary;
-  public is9State = () => {return false;}
-  public checkWidth = (width: number) => {return true;}
+  public is9State = () => {return false;};
+  public checkWidth = (width: number) => {return true;};
 }
 
 // #region Format Fixed Point
@@ -562,7 +562,7 @@ export class FixedPointValueFormat implements ValueFormat {
     }
 
     return (value * this.multiplier).toString();
-  }
+  };
 
   public checkValidSearch(searchString: string) {
     if (searchString.match(/^-?[0-9xzXZ_,]+(\.\d+)?$/)) {return true;}
@@ -572,7 +572,7 @@ export class FixedPointValueFormat implements ValueFormat {
   public parseSearchValue(searchString: string) {return searchString.replace(/[,_]/g, '');}
   public checkSearchValue = regexMatchString;
   public is9State = valueIs9State;
-  public checkWidth = (width: number) => {return width > 1;}
+  public checkWidth = (width: number) => {return width > 1;};
 }
 
 export const valueFormatList: ValueFormat[] = [

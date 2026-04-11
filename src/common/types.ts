@@ -73,6 +73,42 @@ export enum CollapseState {
 }
 
 
+// #region Webview Message Types
+// These types define the shape of messages sent between the extension and webview via postMessage.
+
+export interface AddVariableSignal {
+  netlistId?: NetlistId;
+  signalId?: SignalId;
+  enumType?: string;
+  signalName: string;
+  scopePath: string[];
+  signalWidth: number;
+  type: string;
+  encoding: string;
+}
+
+export interface SetDisplayFormatMessage {
+  netlistId?: NetlistId;
+  rowId?: RowId;
+  index?: number;
+  rowHeight?: number;
+  colorIndex?: number;
+  renderType?: string;
+  verticalScale?: number;
+  nameType?: string;
+  customName?: string;
+  numberFormat?: string;
+  valueLinkCommand?: string;
+  annotateValue?: string[];
+}
+
+export interface EditSignalGroupMessage {
+  groupPath?: string[];
+  groupId?: number;
+  name?: string;
+  isExpanded?: boolean;
+}
+
 // Webview Value Change Data Structure
 
 export type EnumDataChunk = {

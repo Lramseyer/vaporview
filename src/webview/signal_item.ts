@@ -78,7 +78,7 @@ export abstract class SignalItem {
   public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {return [this.rowId];}
   public rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number {return 1;}
   public findParentGroupId(rowId: RowId): number | null {return null;}
-  public formatValue(value: any): string {return "";}
+  public formatValue(value: string): string {return "";}
   public getWaveformData(): WaveformData | undefined {return undefined;}
   public renderWaveform() {return;}
   public handleValueLink(time: number, snapToTime: number) {return false;}
@@ -330,7 +330,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
       width: this.signalWidth,
       preventDefaultContextMenuItems: true,
       commandValid: this.valueLinkCommand !== "",
-      netlistId: this.netlistId,
+      netlistId: this.netlistId!,
       rowId: this.rowId,
       isAnalog: isAnalog,
       enum: this.enumType !== "",

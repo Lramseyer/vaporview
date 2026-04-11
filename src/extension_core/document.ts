@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type EnumQueueEntry, type DocumentId, type SavedRowItem, VariableEncoding, type BitRangeSource } from '../common/types';
+import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type EnumQueueEntry, type DocumentId, type SavedRowItem, VariableEncoding, type BitRangeSource, type AddVariableSignal } from '../common/types';
 import type { GetValuesAtTimeArgs, ValuesAtTimeResult } from '../../packages/vaporview-api/types';
 import { bitRangeString, logScaleFromUnits, parseParamValue, toStringWithCommas } from '../common/functions';
 import { NetlistLinkProvider } from './terminal_links';
@@ -633,7 +633,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   public async renderSignals(netlistIdList: NetlistId[], moveToGroup: string[] | undefined, index: number | undefined) {
-    const signalList: Pick<ParsedSignalData, 'signalId' | 'signalWidth' | 'signalName' | 'scopePath' | 'netlistId' | 'type' | 'encoding' | 'enumType'>[] = [];
+    const signalList: AddVariableSignal[] = [];
     if (!this.webviewPanel) { return; }
 
     netlistIdList.forEach((netlistId) => {

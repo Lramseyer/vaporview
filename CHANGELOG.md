@@ -2,6 +2,7 @@
 
 ## 1.5.3
 
+- Shift + Up/Down Arrow now adds to selection
 - Enforce type safety @AndrewNolte
 
 ## 1.5.2 - 4/8/2026 - Latest Release

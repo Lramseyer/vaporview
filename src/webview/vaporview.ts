@@ -388,27 +388,30 @@ class VaporviewWebview {
     }
 
     if ((e.key === 'ArrowRight') && (viewerState.markerTime !== null)) {
-      if (e.metaKey) {this.events.markerSet(this.viewport.timeStop, 0); updateState = true;}
+      if      (e.metaKey) {this.events.markerSet(this.viewport.timeStop, 0); updateState = true;}
       else if (e.altKey || e.ctrlKey) {/* Do nothing */}
-      else           {controlBar.goToNextTransition(1, []);}
+      else                {controlBar.goToNextTransition(1, []);}
     } else if ((e.key === 'ArrowLeft') && (viewerState.markerTime !== null)) {
-      if (e.metaKey) {this.events.markerSet(0, 0); updateState = true;}
+      if      (e.metaKey) {this.events.markerSet(0, 0); updateState = true;}
       else if (e.altKey || e.ctrlKey) {/* Do nothing */}
-      else           {controlBar.goToNextTransition(-1, []);}
-
+      else                {controlBar.goToNextTransition(-1, []);}
 
     // up and down arrow keys move the selected signal
     // alt + up and down arrow keys reorder the selected signal up and down
     } else if ((e.key === 'ArrowUp') && (selectedSignalIndex !== null)) {
       const newIndex = Math.max(selectedSignalIndex - 1, 0);
       const newRowId = viewerState.visibleSignalsFlat[newIndex];
-      if (e.altKey) {this.handleReorderArrowKeys(-1);}
-      else          {this.events.signalSelect([newRowId], newRowId); updateState = true;}
+      updateState    = true;
+      if    (e.shiftKey) {this.addToSelection(newRowId);}
+      else if (e.altKey) {this.handleReorderArrowKeys(-1);}
+      else               {this.events.signalSelect([newRowId], newRowId);}
     } else if ((e.key === 'ArrowDown') && (selectedSignalIndex !== null)) {
       const newIndex = Math.min(selectedSignalIndex + 1, viewerState.visibleSignalsFlat.length - 1);
       const newRowId = viewerState.visibleSignalsFlat[newIndex];
-      if (e.altKey) {this.handleReorderArrowKeys(1);}
-      else          {this.events.signalSelect([newRowId], newRowId); updateState = true;}
+      updateState    = true;
+      if    (e.shiftKey) {this.addToSelection(newRowId);}
+      else if (e.altKey) {this.handleReorderArrowKeys(1);}
+      else               {this.events.signalSelect([newRowId], newRowId);}
     }
 
     // handle Home and End keys to move to the start and end of the waveform
@@ -442,6 +445,14 @@ class VaporviewWebview {
       //console.log('keyDownHandler');
       vscodeWrapper.sendWebviewContext(StateChangeType.User);
     }
+  }
+
+  addToSelection(rowId: RowId) {
+    const newSelection = viewerState.selectedSignal;
+    if (!viewerState.selectedSignal.includes(rowId)) {
+      newSelection.push(rowId);
+    }
+    this.events.signalSelect(newSelection, rowId);
   }
 
   handleReorderArrowKeys(direction: number) {
@@ -495,8 +506,6 @@ class VaporviewWebview {
     }
 
     this.events.reorderSignals([rowId], parentGroupId, newIndex);
-    //console.log('handleReorderArrowKeys');
-    vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }
 
   keyUpHandler(e: KeyboardEvent) {

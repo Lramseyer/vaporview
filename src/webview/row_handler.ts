@@ -1,6 +1,7 @@
 import { type NetlistId, SignalId, type RowId, EnumData, EnumEntry, QueueEntry, SignalQueueEntry, type EnumQueueEntry, NameType, StateChangeType, CollapseState, VariableEncoding, type BitRangeSource, type SavedRowItem, type AddVariableSignal, type SetDisplayFormatMessage, type EditSignalGroupMessage } from '../common/types';
 import { bitRangeString, createInstancePath } from '../common/functions';
-import { ActionType, dataManager, type EventHandler, viewerState, getParentGroupId, updateDisplayedSignalsFlat, labelsPanel, controlBar, getIndexInGroup, getChildrenByGroupId, viewport, vscodeWrapper, styles } from './vaporview';
+import { ActionType, type EventHandler } from './event_handler';
+import { dataManager, viewerState, getParentGroupId, updateDisplayedSignalsFlat, labelsPanel, controlBar, getIndexInGroup, getChildrenByGroupId, viewport, vscodeWrapper, styles } from './vaporview';
 import { NetlistVariable, type RowItem, SignalGroup, SignalSeparator, CustomVariable, isAnalogSignal } from './signal_item';
 import { BinaryWaveformRenderer, MultiBitWaveformRenderer, LinearWaveformRenderer } from './renderer';
 import type { WaveformData } from './data_manager';

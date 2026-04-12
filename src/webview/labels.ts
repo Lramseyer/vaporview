@@ -1,4 +1,5 @@
-import { type EventHandler, viewport, ActionType, viewerState, dataManager, getChildrenByGroupId, getIndexInGroup, handleClickSelection, rowHandler, vscodeWrapper, styles, MouseUpEventType} from './vaporview';
+import { viewport, viewerState, dataManager, getChildrenByGroupId, getIndexInGroup, handleClickSelection, rowHandler, vscodeWrapper, styles, MouseUpEventType} from './vaporview';
+import { ActionType, type EventHandler } from './event_handler';
 import { ValueFormat } from './value_format';
 import { getParentGroupId } from './vaporview';
 import { SignalGroup, NetlistVariable, SignalItem, RowItem, htmlSafe, CustomVariable, SignalSeparator } from './signal_item';
@@ -28,17 +29,17 @@ export class LabelsPanels {
   dragDivider: HTMLElement | null   = null;
   dragCursorTag: HTMLElement | null = null;
   dragCursorText: string            = "";
-  labelsList: string[]                = [];
-  idleItems: Element[]                = [];
-  idleGroups: IdleGroupEntry[]         = [];
+  labelsList: string[]              = [];
+  idleItems: Element[]              = [];
+  idleGroups: IdleGroupEntry[]      = [];
   draggableRows: RowId[]            = [];
   draggableItem: HTMLElement | null = null;
   closestItem: HTMLElement | null   = null;
-  groupContainer: HTMLElement | null  = null;
+  groupContainer: HTMLElement | null = null;
   indexOffset: number               = 0;
   pointerStartX: number | null      = null;
   pointerStartY: number | null      = null;
-  scrollStartY: number | null         = null;
+  scrollStartY: number | null       = null;
   resizeIndex: number | null        = null;
   defaultDragDividerY: number       = 0;
   dragActive: boolean               = false;
@@ -192,6 +193,7 @@ export class LabelsPanels {
   }
 
   initializeDragHandler(event: MouseEvent) {
+    this.labelsList        = Array.from(this.labels.querySelectorAll('.waveform-label')).map((element) => element.outerHTML);
     this.pointerStartX     = event.clientX;
     this.pointerStartY     = event.clientY;
     this.scrollStartY      = this.labelsScroll.scrollTop;

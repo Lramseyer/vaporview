@@ -1,5 +1,6 @@
 import { type NetlistId, type SignalId, type RowId, type ValueChange, type EnumData, type EnumEntry, type QueueEntry, type SignalQueueEntry, type EnumQueueEntry, NameType, CollapseState, type BitRangeSource, type ValueChangeDataChunk, type CompressedValueChangeDataChunk, type EnumDataChunk } from '../common/types';
-import { type EventHandler, viewerState, ActionType, viewport, DataType, dataManager, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, labelsPanel, getIndexInGroup, controlBar, rowHandler, events, vscodeWrapper } from './vaporview';
+import { ActionType, type EventHandler } from './event_handler';
+import { viewerState, viewport, DataType, dataManager, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, labelsPanel, getIndexInGroup, controlBar, rowHandler, events, vscodeWrapper } from './vaporview';
 import { SignalGroup, NetlistVariable, RowItem, SignalSeparator, isAnalogSignal, CustomVariable } from './signal_item';
 
 import * as LZ4 from 'lz4js';

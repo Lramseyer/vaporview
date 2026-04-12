@@ -1,18 +1,11 @@
-import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType, type DocumentId, type DefaultWebviewContext, type RulerContext } from '../common/types';
+import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType, type DocumentId, type DefaultWebviewContext, type RulerContext, type WaveformDumpMetadata } from '../common/types';
 import { logScaleFromUnits } from '../common/functions';
-import { ActionType, type EventHandler, viewerState, dataManager, updateDisplayedSignalsFlat, handleClickSelection, controlBar, MouseUpEventType } from "./vaporview";
+import { ActionType, type EventHandler } from './event_handler';
+import { viewerState, dataManager, updateDisplayedSignalsFlat, handleClickSelection, controlBar, MouseUpEventType } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer } from './renderer';
 import { labelsPanel, rowHandler, vscodeWrapper, styles, config } from "./vaporview";
 import { CustomVariable, NetlistVariable, VariableItem } from "./signal_item";
-
-export interface ViewportMetadata {
-  defaultZoom: number;
-  timeScale: number;
-  timeUnit: string;
-  timeEnd: number;
-  timeTableCount: number;
-}
 
 export class Viewport {
 
@@ -179,7 +172,7 @@ export class Viewport {
     this.handleSignalSelect(viewerState.selectedSignal, viewerState.lastSelectedSignal);
   }
 
-  initViewport(metadata: ViewportMetadata) {
+  initViewport(metadata: WaveformDumpMetadata) {
     this.setPixelRatio();
     this.defaultZoom     = metadata.defaultZoom;
     this.zoomRatio       = metadata.defaultZoom;

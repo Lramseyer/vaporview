@@ -429,16 +429,16 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     if (valueIs9State(initialValue)) {
       initialValue2state = 0;
     }
-    const startScreenX  = -10 * viewport.pixelTime;
+    const startScreenX    = -10 * viewport.pixelTime;
     const accumulatedPath = [[startScreenX, 0], [startScreenX, initialValue2state]];
-    let value2state     = 0;
+    let value2state       = 0;
     // No Draw Code
-    let lastDrawTime    = 0;
-    let lastNoDrawTime: number = 0;
-    let noDrawFlag      = false;
+    let lastDrawTime             = 0;
+    let lastNoDrawTime: number   = 0;
+    let noDrawFlag               = false;
     const noDrawPath: number[][] = [];
-    let lastDrawValue   = initialValue2state;
-    let lastNoDrawValue: string = initialValue;
+    let lastDrawValue            = initialValue2state;
+    //let lastNoDrawValue: string = initialValue;
 
     for (let i = startIndex; i < endIndex; i++) {
       const time  = transitionData[i][0];
@@ -447,7 +447,7 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
       if (time - initialTime < minDrawWidth) {
         noDrawFlag     = true;
         lastNoDrawTime = time;
-        lastNoDrawValue = value;
+        //lastNoDrawValue = value;
       } else {
 
         if (noDrawFlag) {
@@ -612,14 +612,14 @@ function createAnalogWaveform(valueChangeChunk: RenderBounds, netlistData: Netli
   const accumulatedPath: number[][] = [[-10 * viewport.pixelTime, 0]];
   accumulatedPath.push([initialTime - timeScrollLeft, evalCoordinates(initialValue2state)]);
 
-  let value2state    = "0";
+  let value2state              = "0";
   // No Draw Code
-  let lastDrawTime        = 0;
-  let lastNoDrawTime: number = 0;
-  let noDrawFlag          = false;
+  let lastDrawTime             = 0;
+  let lastNoDrawTime: number   = 0;
+  let noDrawFlag               = false;
   const noDrawPath: number[][] = [];
-  let lastDrawValue       = initialValue2state;
-  let lastNoDrawValue: string = initialValue;
+  let lastDrawValue            = initialValue2state;
+  //let lastNoDrawValue: string = initialValue;
 
   for (let i = startIndex; i < endIndex; i++) {
     const time  = transitionData[i][0];
@@ -628,7 +628,7 @@ function createAnalogWaveform(valueChangeChunk: RenderBounds, netlistData: Netli
     if (time - initialTime < minDrawWidth) {
       noDrawFlag     = true;
       lastNoDrawTime = time;
-      lastNoDrawValue = value;
+      //lastNoDrawValue = value;
     } else {
 
       if (noDrawFlag) {

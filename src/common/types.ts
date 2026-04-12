@@ -42,7 +42,6 @@ export type EnumQueueEntry = {
   netlistId: NetlistId;
 };
 
-
 export enum VariableEncoding {
   BitVector = 'BitVector',
   Real = 'Real',
@@ -75,6 +74,58 @@ export enum CollapseState {
 
 // #region Webview Message Types
 // These types define the shape of messages sent between the extension and webview via postMessage.
+
+export type WaveformDumpMetadata = {
+  timeTableLoaded: boolean;
+  scopeCount: number;
+  netlistIdCount: number;
+  signalIdCount: number;
+  timeTableCount: number;
+  timeEnd: number;
+  defaultZoom: number;
+  timeScale: number;
+  timeUnit: string;
+  chunkSize: number;
+};
+
+export interface InitMessage {
+  command: 'initViewport';
+  documentId: string;
+  uri: string;
+  metadata: WaveformDumpMetadata;
+  colorPalette: string[];
+  errorColorPalette: string[];
+  themeValid: boolean;
+}
+
+// This object tracks extension settings that pertain to the webview
+// Settings are registered in the following places:
+// - package.json in contributes.configuration
+// - extension_core/document.ts - setConfigurationSettings()
+// - here - setConfigSettings()
+export interface ConfigSettingsMessage {
+  scrollingMode?: string;
+  rulerLines?: boolean;
+  fillMultiBitValues?: boolean;
+  multiBitFixedHeight?: boolean;
+  enableAnimations?: boolean;
+  animationDuration?: number;
+  overrideDevicePixelRatio?: boolean;
+  userPixelRatio?: number;
+  disableAnalogRendererOptimizations?: boolean;
+  defaultSingleBitColor?: number;
+  defaultMultiBitColor?: number;
+  defaultParamColor?: number;
+  defaultStringColor?: number;
+  defaultEnumColor?: number;
+  defaultCustomSignalColor?: number;
+}
+
+export interface ExternalKeyDownMessage {
+  command: 'handle-keypress';
+  keyCommand: string;
+  event?: { rowId?: RowId };
+}
 
 export interface AddVariableSignal {
   netlistId?: NetlistId;

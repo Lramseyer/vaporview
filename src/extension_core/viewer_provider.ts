@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { type DocumentId, type NetlistId, SignalGroupWebviewContext, SignalId, StateChangeType, WindowMessageType, type MarkerSetEvent, type SignalEvent, type ViewerDropEvent } from '../common/types';
+import { type DocumentId, type NetlistId, SignalGroupWebviewContext, SignalId, StateChangeType, WindowMessageType, type MarkerSetEvent, type SignalEvent, type ViewerDropEvent, ExternalKeyDownMessage } from '../common/types';
 import { decodeNetlistUri } from '../../packages/vaporview-api';
 import type { VariableActionArgs, VariableAction, SetMarkerArgs, AddVariableByPathArgs, SavedRowItem } from '../../packages/vaporview-api/types';
 import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
@@ -1030,7 +1030,11 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
   public handleKeyBinding(e: unknown, keyCommand: string) {
     if (!this.activeWebview) {return;}
-    this.activeWebview.webview.postMessage({command: 'handle-keypress', keyCommand: keyCommand, event: e});
+    this.activeWebview.webview.postMessage({
+      command: 'handle-keypress',
+      keyCommand: keyCommand,
+      event: e
+    } as ExternalKeyDownMessage);
   }
 
   private handleWebviewDrop(e: WebviewDropData) {

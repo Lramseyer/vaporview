@@ -1,6 +1,6 @@
-import { error, group } from 'console';
-import { type NetlistId, SignalId, type RowId, StateChangeType, type DocumentId, SavedNetlistVariable, SavedSignalSeparator, SavedSignalGroup, CollapseState, SavedCustomVariable, DefaultWebviewContext, SavedRowItem } from '../common/types';
-import { Viewport, type ViewportMetadata } from './viewport';
+import { type NetlistId, SignalId, type RowId, StateChangeType, type DocumentId, SavedNetlistVariable, SavedSignalSeparator, SavedSignalGroup, CollapseState, SavedCustomVariable, DefaultWebviewContext, SavedRowItem, InitMessage } from '../common/types';
+import { ActionType, EventHandler } from './event_handler';
+import { Viewport } from './viewport';
 import { LabelsPanels } from './labels';
 import { ControlBar } from './control_bar';
 import { RowHandler } from './row_handler';
@@ -17,18 +17,6 @@ export enum DataType {
   Separator
 }
 
-export enum ActionType {
-  MarkerSet,
-  SignalSelect,
-  ReorderSignals,
-  AddVariable,
-  RemoveVariable,
-  RedrawVariable,
-  Resize,
-  UpdateColorTheme,
-  ExitBatchMode,
-}
-
 export enum MouseUpEventType {
   Rearrange,
   DragAndDrop,
@@ -41,112 +29,22 @@ export enum MouseUpEventType {
 
 let resizeDebounce: ReturnType<typeof setTimeout> | number = 0;
 
-export interface ViewerState {
-  uri: string | null;
-  documentId: DocumentId;
-  markerTime: number | null;
-  altMarkerTime: number | null;
-  selectedSignal: RowId[];
-  lastSelectedSignal: RowId | null;
-  displayedSignals: number[];
-  displayedSignalsFlat: number[];
-  visibleSignalsFlat: RowId[]
-  zoomRatio: number;
-  scrollLeft: number;
-  mouseupEventType: MouseUpEventType;
-  autoReload: boolean;
+export class ViewerState {
+  uri: string | null                 = null;
+  documentId: DocumentId             = "";
+  markerTime: number | null          = null;
+  altMarkerTime: number | null       = null;
+  selectedSignal: RowId[]            = [];
+  lastSelectedSignal: RowId | null   = null;
+  displayedSignals: number[]         = [];
+  displayedSignalsFlat: number[]     = [];
+  visibleSignalsFlat: RowId[]        = [];
+  zoomRatio: number                  = 1;
+  scrollLeft: number                 = 0;
+  mouseupEventType: MouseUpEventType = MouseUpEventType.None;
+  autoReload: boolean                = false;
 }
-
-export const viewerState: ViewerState = {
-  uri: null,
-  documentId: "",
-  markerTime: null,
-  altMarkerTime: null,
-  selectedSignal: [],
-  lastSelectedSignal: null,
-  displayedSignals: [],
-  displayedSignalsFlat: [],
-  visibleSignalsFlat: [],
-  zoomRatio: 1,
-  scrollLeft: 0,
-  mouseupEventType: MouseUpEventType.None,
-  autoReload: false,
-};
-
-interface ActionTypeMap {
-  [ActionType.MarkerSet]:        [time: number, markerType: number];
-  [ActionType.SignalSelect]:     [rowIdList: RowId[], lastSelected: RowId | null];
-  [ActionType.ReorderSignals]:   [rowIdList: number[], newGroupId: number, newIndex: number];
-  [ActionType.AddVariable]:      [rowIdList: RowId[], updateFlag: boolean];
-  [ActionType.RemoveVariable]:   [rowIdList: RowId[], recursive: boolean];
-  [ActionType.RedrawVariable]:   [rowId: RowId];
-  [ActionType.Resize]:           [];
-  [ActionType.UpdateColorTheme]: [];
-  [ActionType.ExitBatchMode]:    [];
-}
-
-export class EventHandler {
-  private subscribers = new Map<ActionType, ((...args: unknown[]) => void)[]>();
-  private batchMode = false;
-  public get isBatchMode(): boolean {return this.batchMode;}
-  private signalSelectArgs: ActionTypeMap[ActionType.SignalSelect] = [[], null];
-
-  enterBatchMode() {
-    this.batchMode = true;
-  }
-
-  exitBatchMode() {
-    this.batchMode = false;
-    this.signalSelect(...this.signalSelectArgs);
-    this.fire(ActionType.ExitBatchMode);
-  }
-
-  subscribe<T extends ActionType>(action: T, callback: (...args: ActionTypeMap[T]) => void) {
-    if (!this.subscribers.has(action)) {
-      this.subscribers.set(action, []);
-    }
-    this.subscribers.get(action)!.push(callback as (...args: unknown[]) => void);
-  }
-
-  private fire<T extends ActionType>(action: T, ...args: ActionTypeMap[T]) {
-    this.subscribers.get(action)?.forEach((callback) => callback(...args));
-  }
-
-  markerSet(time: number, markerType: number) {
-    this.fire(ActionType.MarkerSet, time, markerType);
-  }
-
-  signalSelect(rowIdList: RowId[], lastSelected: RowId | null) {
-    this.signalSelectArgs = [rowIdList, lastSelected];
-    if (this.batchMode) {return;}
-    this.fire(ActionType.SignalSelect, rowIdList, lastSelected);
-  }
-
-  reorderSignals(rowIdList: number[], newGroupId: number, newIndex: number) {
-    this.fire(ActionType.ReorderSignals, rowIdList, newGroupId, newIndex);
-  }
-
-  addVariable(rowIdList: RowId[], updateFlag: boolean) {
-    this.fire(ActionType.AddVariable, rowIdList, updateFlag);
-  }
-
-  removeVariable(rowIdList: RowId[], recursive: boolean) {
-    this.fire(ActionType.RemoveVariable, rowIdList, recursive);
-  }
-
-  redrawVariable(rowId: RowId) {
-    if (this.batchMode) {return;}
-    this.fire(ActionType.RedrawVariable, rowId);
-  }
-
-  resize() {
-    this.fire(ActionType.Resize);
-  }
-
-  updateColorTheme() {
-    this.fire(ActionType.UpdateColorTheme);
-  }
-}
+export const viewerState: ViewerState = new ViewerState();
 
 export function updateDisplayedSignalsFlat() {
   viewerState.displayedSignalsFlat = [];
@@ -682,15 +580,6 @@ class VaporviewWebview {
   }
 }
 
-interface InitMessage {
-  documentId: string;
-  uri: string;
-  metadata: ViewportMetadata & { filename: string };
-  colorPalette: string[];
-  errorColorPalette: string[];
-  themeValid: boolean;
-}
-
 export function init(message: InitMessage) {
   const context: DefaultWebviewContext = {
     preventDefaultContextMenuItems: true,
@@ -699,7 +588,7 @@ export function init(message: InitMessage) {
     uri: message.uri as unknown as DefaultWebviewContext['uri'],
   };
   document.body.setAttribute("data-vscode-context", JSON.stringify(context));
-  document.title         = message.metadata.filename;
+  //document.title         = message.metadata.filename;
   viewerState.uri        = message.uri;
   viewerState.documentId = message.documentId;
   styles.getThemeColors();

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type EnumQueueEntry, type DocumentId, type SavedRowItem, VariableEncoding, type BitRangeSource, type AddVariableSignal } from '../common/types';
+import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type EnumQueueEntry, type DocumentId, type SavedRowItem, VariableEncoding, type BitRangeSource, type AddVariableSignal, InitMessage, WaveformDumpMetadata, ConfigSettingsMessage } from '../common/types';
 import type { GetValuesAtTimeArgs, ValuesAtTimeResult } from '../../packages/vaporview-api/types';
 import { bitRangeString, logScaleFromUnits, parseParamValue, toStringWithCommas } from '../common/functions';
 import { NetlistLinkProvider } from './terminal_links';
@@ -8,21 +8,9 @@ import type { VaporviewDocumentCollection, VaporviewDocumentDelegate } from './v
 import { getVarIcon, getScopeIcon, type NetlistItem } from './tree_view';
 import type { FsdbFormatHandler } from './fsdb_handler';
 
-export type WaveformDumpMetadata = {
-  timeTableLoaded: boolean;
-  scopeCount: number;
-  netlistIdCount: number;
-  signalIdCount: number;
-  timeTableCount: number;
-  timeEnd: number;
-  defaultZoom: number;
-  timeScale: number;
-  timeUnit: string;
-  chunkSize: number;
-};
+
 
 export type NetlistIdTable = NetlistItem[];
-
 
 export type SignalInfo = {
   name: string;
@@ -244,11 +232,11 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       command: 'initViewport',
       metadata: this.metadata,
       documentId: this.documentId,
-      uri: this.uri,
+      uri: this.uri.toString(),
       colorPalette: colorPalette.colorPalette,
       errorColorPalette: colorPalette.errorColorPalette,
       themeValid: colorPalette.themeValid,
-    });
+    } as InitMessage);
     this.setConfigurationSettings();
     this._webviewInitialized = true;
   }
@@ -273,7 +261,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       defaultStringColor:                 config.get('defaultStringColor'),
       defaultEnumColor:                   config.get('defaultEnumColor'),
       defaultCustomSignalColor:           config.get('defaultCustomSignalColor'),
-    });
+    } as ConfigSettingsMessage);
 
     this.setTerminalLinkProvider();
   }

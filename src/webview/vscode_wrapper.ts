@@ -1,7 +1,8 @@
 import { createInstancePath } from "../common/functions";
-import { QueueEntry, WindowMessageType, StateChangeType, NetlistId, RowId } from "../common/types";
+import { QueueEntry, WindowMessageType, StateChangeType, NetlistId, RowId, ConfigSettingsMessage, ExternalKeyDownMessage } from "../common/types";
+import { ActionType, type EventHandler } from './event_handler';
 import { SignalGroup, NetlistVariable, CustomVariable } from "./signal_item";
-import { viewerState, events, createWebviewContext, viewport, rowHandler, getParentGroupIdList, labelsPanel, EventHandler, ActionType, dataManager, controlBar, styles, unload, init, revealSignal, config } from "./vaporview";
+import { viewerState, events, createWebviewContext, viewport, rowHandler, getParentGroupIdList, labelsPanel, dataManager, controlBar, styles, unload, init, revealSignal, config } from "./vaporview";
 import { copyWaveDrom } from "./wavedrom";
 
 import { differenceCiede2000, rgb } from "culori";
@@ -19,29 +20,6 @@ export enum OS {
   Windows,
   Linux,
   Unknown
-}
-
-// This object tracks extension settings that pertain to the webview
-// Settings are registered in the following places:
-// - package.json in contributes.configuration
-// - extension_core/document.ts - setConfigurationSettings()
-// - here - setConfigSettings()
-interface ConfigSettingsMessage {
-  scrollingMode?: string;
-  rulerLines?: boolean;
-  fillMultiBitValues?: boolean;
-  multiBitFixedHeight?: boolean;
-  enableAnimations?: boolean;
-  animationDuration?: number;
-  overrideDevicePixelRatio?: boolean;
-  userPixelRatio?: number;
-  disableAnalogRendererOptimizations?: boolean;
-  defaultSingleBitColor?: number;
-  defaultMultiBitColor?: number;
-  defaultParamColor?: number;
-  defaultStringColor?: number;
-  defaultEnumColor?: number;
-  defaultCustomSignalColor?: number;
 }
 
 export class Configuration {
@@ -404,11 +382,6 @@ export class ThemeColors {
     this.colorKey = similaritySortedColors.map(index => colorProfiles[index].color);
     this.events.updateColorTheme();
   }
-}
-
-interface ExternalKeyDownMessage {
-  keyCommand: string;
-  event?: { rowId?: RowId };
 }
 
 export class VscodeWrapper {

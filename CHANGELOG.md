@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.5.3
+
+- Enforce type safety @AndrewNolte
+
 ## 1.5.2 - 4/8/2026 - Latest Release
 
 - Waveform color palette is derived from semantic token colors to better align with color theme

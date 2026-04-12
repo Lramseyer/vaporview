@@ -1,6 +1,6 @@
 import { type NetlistId, type RowId, type ValueChange, EnumData, EnumEntry, NameType, VariableEncoding, CollapseState, type BitRangeSource, type SignalSeparatorContext, type NetlistVariableContext, CustomVariableContext, SignalGroupContext, SavedRowItem, SavedSignalSeparator, SavedNetlistVariable, SavedCustomVariable, SavedSignalGroup } from '../common/types';
-
-import { dataManager, viewport, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, rowHandler, vscodeWrapper, styles, config } from "./vaporview";
+import { ActionType, type EventHandler } from './event_handler';
+import { dataManager, viewport, viewerState, updateDisplayedSignalsFlat, events, getRowHeightCssClass, rowHandler, vscodeWrapper, styles, config } from "./vaporview";
 import { EnumValueFormat, formatBinary, formatHex, formatString, type ValueFormat } from "./value_format";
 import { type WaveformRenderer, setRenderBounds } from "./renderer";
 import type { WaveformData } from "./data_manager";

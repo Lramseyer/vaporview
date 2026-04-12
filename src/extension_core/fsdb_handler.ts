@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
-import type { EnumQueueEntry, SignalId, NetlistId, ValueChangeDataChunk } from '../common/types';
+import type { EnumQueueEntry, SignalId, NetlistId, ValueChangeDataChunk, WaveformDumpMetadata } from '../common/types';
 import { type ChildProcess, fork } from 'child_process';
 import * as path from 'path';
 
 import type { VaporviewDocumentDelegate } from './viewer_provider';
 import { type NetlistItem, createScope, createVar } from './tree_view';
-import type { WaveformFileParser, WaveformDumpMetadata, NetlistSearchResult, NetlistSearchEntry } from './document';
+import type { WaveformFileParser, NetlistSearchResult, NetlistSearchEntry } from './document';
 import type { ValuesAtTimeResult } from '../../packages/vaporview-api/types';
 import type { FsdbWaveformData, FsdbWorkerCommand } from './fsdb_types';
 

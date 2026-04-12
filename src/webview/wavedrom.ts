@@ -7,6 +7,12 @@ import { createInstancePath } from '../common/functions';
 // Maybe I should make dataManager a user setting in the future...
 const MAX_TRANSITIONS = 32;
 
+interface WaveDromEntry {
+  name: string;
+  wave: string;
+  data?: string[];
+}
+
 export function copyWaveDrom() {
 
   // Marker and alt marker need to be set
@@ -16,13 +22,13 @@ export function copyWaveDrom() {
   }
 
   const timeWindow   = [viewerState.markerTime, viewerState.altMarkerTime].sort((a, b) => a - b);
-  let allTransitions: any = [];
+  let allTransitions: [number, string, number][] = [];
 
   // Populate the waveDrom names with the selected signals
-  const waveDromData: any = {};
+  const waveDromData: Record<number, { json: WaveDromEntry; signalData: ValueChange[]; signalWidth: number; initialState: string | null | undefined }> = {};
   viewerState.displayedSignalsFlat.forEach((rowId) => {
 
-    const netlistItem: any = rowHandler.rowItems[rowId];
+    const netlistItem = rowHandler.rowItems[rowId];
     if (netlistItem === undefined || netlistItem instanceof NetlistVariable === false) {return;}
     const netlistId       = netlistItem.netlistId;
     const signalId        = netlistItem.signalId;
@@ -34,17 +40,17 @@ export function copyWaveDrom() {
     const upperBound      = dataManager.binarySearch(transitionData, timeWindow[1]) + 2;
     const signalDataChunk = transitionData.slice(lowerBound, upperBound);
     let   initialState = "x";
-    const json: any       = {name: signalName, wave: ""};
-    const signalDataTrimmed: any[] = [];
+    const json: WaveDromEntry = {name: signalName, wave: ""};
+    const signalDataTrimmed: ValueChange[] = [];
     if (netlistItem.signalWidth > 1) {json.data = [];}
 
-    signalDataChunk.forEach((transition: any) => {
+    signalDataChunk.forEach((transition: ValueChange) => {
       if (transition[0] <= timeWindow[0]) {initialState = transition[1];}
       if (transition[0] >= timeWindow[0] && transition[0] <= timeWindow[1]) {signalDataTrimmed.push(transition);}
     });
 
     waveDromData[netlistId] = {json: json, signalData: signalDataTrimmed, signalWidth: netlistItem.signalWidth, initialState: initialState};
-    const taggedTransitions: any = signalDataTrimmed.map(t => [t[0], t[1], netlistId]);
+    const taggedTransitions: [number, string, number][] = signalDataTrimmed.map(t => [t[0], t[1], netlistId]);
     allTransitions = allTransitions.concat(taggedTransitions);
   });
 
@@ -53,7 +59,7 @@ export function copyWaveDrom() {
 
   if (dataManager.waveDromClock.netlistId === null) {
 
-    allTransitions = allTransitions.sort((a: ValueChange, b: ValueChange) => a[0] - b[0]);
+    allTransitions = allTransitions.sort((a, b) => a[0] - b[0]);
 
     for (let index = 0; index < allTransitions.length; index++) {
       const time      = allTransitions[index][0];
@@ -71,12 +77,12 @@ export function copyWaveDrom() {
           const signal = waveDromData[n];
           const parseValue = varItem.valueFormat.formatString;
           const valueIs9State = varItem.valueFormat.is9State;
-          if (signal.initialState === null) {signal.json.wave += '.';}
+          if (signal.initialState == null) {signal.json.wave += '.';}
           else {
             if (signal.signalWidth > 1) {
               const is4State = valueIs9State(signal.initialState);
               signal.json.wave += is4State ? "9" : "7";
-              signal.json.data.push(parseValue(signal.initialState, signal.signalWidth, !is4State));
+              signal.json.data?.push(parseValue(signal.initialState, signal.signalWidth, !is4State));
             } else {
               signal.json.wave += signal.initialState;
             }
@@ -107,15 +113,15 @@ export function copyWaveDrom() {
         const valueIs9State = varItem.valueFormat.is9State;
         if (n === dataManager.waveDromClock.netlistId) {signal.json.wave += edge;}
         else {
-          let transition = signalData.find((t: ValueChange) => t[0] >= currentTime && t[0] < nextEdge);
-          if (!transition && index === 0) {transition = [currentTime, signal.initialState];}
+          let transition: ValueChange | undefined = signalData.find((t: ValueChange) => t[0] >= currentTime && t[0] < nextEdge);
+          if (!transition && index === 0 && signal.initialState != null) {transition = [currentTime, signal.initialState];}
           if (!transition && index > 0) {
             signal.json.wave += '.';
-          } else {
+          } else if (transition) {
             if (signal.signalWidth > 1) {
               const is4State = valueIs9State(transition[1]);
               signal.json.wave += is4State ? "9" : "7";
-              signal.json.data.push(parseValue(transition[1], signal.signalWidth, !is4State));
+              signal.json.data?.push(parseValue(transition[1], signal.signalWidth, !is4State));
             } else {
               signal.json.wave += transition[1];
             }

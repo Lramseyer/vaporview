@@ -1,5 +1,6 @@
 import { type NetlistId, type SignalId, type RowId, type ValueChange, type EnumData, type EnumEntry, type QueueEntry, type SignalQueueEntry, type EnumQueueEntry, NameType, CollapseState, type BitRangeSource, type ValueChangeDataChunk, type CompressedValueChangeDataChunk, type EnumDataChunk } from '../common/types';
-import { type EventHandler, viewerState, ActionType, viewport, DataType, dataManager, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, labelsPanel, getIndexInGroup, controlBar, rowHandler, events, vscodeWrapper } from './vaporview';
+import { ActionType, type EventHandler } from './event_handler';
+import { viewerState, viewport, DataType, dataManager, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, labelsPanel, getIndexInGroup, controlBar, rowHandler, events, vscodeWrapper } from './vaporview';
 import { SignalGroup, NetlistVariable, RowItem, SignalSeparator, isAnalogSignal, CustomVariable } from './signal_item';
 
 import * as LZ4 from 'lz4js';
@@ -50,7 +51,7 @@ export class WaveformDataManager {
   valueChangeDataTemp: TempWaveformData[] = [];
   customValueChangeData: CustomWaveformData[] = [];
   enumTable: Record<string, EnumData> = {}; // enum type is the key/index, array of enum values is the value
-  enumTableTemp: any                  = {};
+  enumTableTemp: Record<string, { totalChunks: number; chunkLoaded: boolean[]; chunkData: string[] } | undefined> = {};
 
   private nextCustomSignalId: number = 0;
 
@@ -157,7 +158,7 @@ export class WaveformDataManager {
 
     this.valueChangeDataTemp[signalId].chunkData[message.chunkNum]   = message.transitionDataChunk;
     this.valueChangeDataTemp[signalId].chunkLoaded[message.chunkNum] = true;
-    const allChunksLoaded = this.valueChangeDataTemp[signalId].chunkLoaded.every((chunk: any) => {return chunk;});
+    const allChunksLoaded = this.valueChangeDataTemp[signalId].chunkLoaded.every((chunk: boolean) => {return chunk;});
 
     if (!allChunksLoaded) {return;}
 
@@ -168,11 +169,13 @@ export class WaveformDataManager {
     // const transitionData = JSON.parse(this.valueChangeDataTemp[signalId].chunkData.join(""));
     const chunkData = this.valueChangeDataTemp[signalId].chunkData;
     const firstChunk = chunkData?.[0];
-    let transitionData: any;
+    let transitionData: ValueChange[];
     if (typeof firstChunk === "string") {
-      transitionData = JSON.parse(chunkData.join(""));
+      transitionData = JSON.parse((chunkData as string[]).join(""));
     } else if (Array.isArray(firstChunk)) { // We're receiving array from fsdb worker
-      transitionData = chunkData.flat();
+      transitionData = (chunkData as ValueChange[][]).flat();
+    } else {
+      return;
     }
 
     if (!this.requestActive) {
@@ -196,7 +199,7 @@ export class WaveformDataManager {
 
     this.enumTableTemp[enumName].chunkData[message.chunkNum]   = message.enumDataChunk;
     this.enumTableTemp[enumName].chunkLoaded[message.chunkNum] = true;
-    const allChunksLoaded = this.enumTableTemp[enumName].chunkLoaded.every((chunk: any) => {return chunk;});
+    const allChunksLoaded = this.enumTableTemp[enumName].chunkLoaded.every((chunk: boolean) => {return chunk;});
 
     if (!allChunksLoaded) {return;}
 
@@ -222,7 +225,7 @@ export class WaveformDataManager {
     // Store the compressed chunk as Uint8Array
     this.valueChangeDataTemp[signalId].compressedChunks[message.chunkNum] = new Uint8Array(message.compressedDataChunk);
     this.valueChangeDataTemp[signalId].chunkLoaded[message.chunkNum] = true;
-    const allChunksLoaded = this.valueChangeDataTemp[signalId].chunkLoaded.every((chunk: any) => {return chunk;});
+    const allChunksLoaded = this.valueChangeDataTemp[signalId].chunkLoaded.every((chunk: boolean) => {return chunk;});
 
     if (!allChunksLoaded) {return;}
 
@@ -246,7 +249,7 @@ export class WaveformDataManager {
       const decompressedData = LZ4.decompress(fullCompressedData);
       const byteIncrement = 8 + message.signalWidth;
       let time = 0;
-      const transitionData: any[] = [];
+      const transitionData: ValueChange[] = [];
       
       // Create DataView once from the entire decompressed data
       const dataView = new DataView(decompressedData.buffer, decompressedData.byteOffset, decompressedData.byteLength);
@@ -279,7 +282,7 @@ export class WaveformDataManager {
     this.clearTempWaveformData(signalId);
   }
 
-  updateWaveform(signalId: SignalId, valueChangeData: any[], min: number, max: number) {
+  updateWaveform(signalId: SignalId, valueChangeData: ValueChange[], min: number, max: number) {
 
     const rowIdList    = this.valueChangeDataTemp[signalId].rowIdList;
     const customSignalIdList = this.valueChangeDataTemp[signalId].customSignalIdList;
@@ -310,7 +313,7 @@ export class WaveformDataManager {
       const netlistData = rowHandler.rowItems[rowId];
       if (!(netlistData instanceof NetlistVariable) && !(netlistData instanceof CustomVariable)) {return;}
       labelsPanel.valueAtMarker[rowId] = netlistData.getValueAtTime(viewerState.markerTime);
-      events.dispatch(ActionType.RedrawVariable, rowId);
+      events.redrawVariable(rowId);
       if (netlistData.encoding === "Real") {
         netlistData.min = min;
         netlistData.max = max;
@@ -435,7 +438,7 @@ export class WaveformDataManager {
       const data = this.valueChangeData[netlistData.signalId];
       if (data === undefined) {return;}
       rowHandler.setValueFormat(data, netlistData.valueFormat, true);
-      events.dispatch(ActionType.RedrawVariable, rowId);
+      events.redrawVariable(rowId);
     });
   }
 
@@ -472,7 +475,7 @@ export class WaveformDataManager {
   }
 
   // binary searches for a value in an array. Will return the index of the value if it exists, or the lower bound if it doesn't
-  binarySearch(array: any[], target: number) {
+  binarySearch(array: ValueChange[], target: number) {
     let low  = 0;
     let high = array.length;
     while (low < high) {
@@ -483,7 +486,7 @@ export class WaveformDataManager {
     return low;
   }
 
-  binarySearchTime(array: any[], target: number) {
+  binarySearchTime(array: number[], target: number) {
     let low  = 0;
     let high = array.length;
     while (low < high) {

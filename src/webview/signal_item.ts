@@ -1,6 +1,6 @@
 import { type NetlistId, type RowId, type ValueChange, EnumData, EnumEntry, NameType, VariableEncoding, CollapseState, type BitRangeSource, type SignalSeparatorContext, type NetlistVariableContext, CustomVariableContext, SignalGroupContext, SavedRowItem, SavedSignalSeparator, SavedNetlistVariable, SavedCustomVariable, SavedSignalGroup } from '../common/types';
-
-import { dataManager, viewport, viewerState, updateDisplayedSignalsFlat, events, ActionType, getRowHeightCssClass, rowHandler, vscodeWrapper, styles, config } from "./vaporview";
+import { ActionType, type EventHandler } from './event_handler';
+import { dataManager, viewport, viewerState, updateDisplayedSignalsFlat, events, getRowHeightCssClass, rowHandler, vscodeWrapper, styles, config } from "./vaporview";
 import { EnumValueFormat, formatBinary, formatHex, formatString, type ValueFormat } from "./value_format";
 import { type WaveformRenderer, setRenderBounds } from "./renderer";
 import type { WaveformData } from "./data_manager";
@@ -78,7 +78,7 @@ export abstract class SignalItem {
   public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {return [this.rowId];}
   public rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number {return 1;}
   public findParentGroupId(rowId: RowId): number | null {return null;}
-  public formatValue(value: any): string {return "";}
+  public formatValue(value: string): string {return "";}
   public getWaveformData(): WaveformData | undefined {return undefined;}
   public renderWaveform() {return;}
   public handleValueLink(time: number, snapToTime: number) {return false;}
@@ -282,7 +282,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
 
   public createValueDisplayElement() {
     let   value = labelsPanel.valueAtMarker[this.rowId];
-    if (value === undefined) {value = [];}
+    if (value === undefined || this.signalId === undefined) {value = [];}
     const isSelectedClass   = this.isSelected ? 'is-selected' : '';
     const lastSelectedClass = viewerState.lastSelectedSignal === this.rowId ? 'last-selected' : '';
     const selectorClass = isSelectedClass + ' ' + lastSelectedClass;
@@ -330,7 +330,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
       width: this.signalWidth,
       preventDefaultContextMenuItems: true,
       commandValid: this.valueLinkCommand !== "",
-      netlistId: this.netlistId,
+      netlistId: this.netlistId!,
       rowId: this.rowId,
       isAnalog: isAnalog,
       enum: this.enumType !== "",
@@ -543,7 +543,7 @@ export class CustomVariable extends SignalItem implements RowItem {
     public createValueDisplayElement() {
 
       let   value = labelsPanel.valueAtMarker[this.rowId];
-      if (value === undefined) {value = [];}
+      if (value === undefined || this.customSignalId === undefined) {value = [];}
       const isSelectedClass   = this.isSelected ? 'is-selected' : '';
       const lastSelectedClass = viewerState.lastSelectedSignal === this.rowId ? 'last-selected' : '';
       const selectorClass = isSelectedClass + ' ' + lastSelectedClass;
@@ -878,7 +878,7 @@ export class SignalGroup extends SignalItem implements RowItem {
       if (lastSelected !== null && childRows.includes(lastSelected)) {
         lastSelected = null;
       }
-      events.dispatch(ActionType.SignalSelect, newSelection, lastSelected);
+      events.signalSelect(newSelection, lastSelected);
     }
     labelsPanel.renderLabelsPanels();
     this.showHideViewportRows();

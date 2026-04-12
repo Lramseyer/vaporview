@@ -1,5 +1,6 @@
 import { EnumQueueEntry, SignalId, type RowId, StateChangeType } from '../common/types';
-import { vscodeWrapper, ActionType, type EventHandler, viewerState, viewport, dataManager, rowHandler, config} from './vaporview';
+import { ActionType, type EventHandler } from './event_handler';
+import { vscodeWrapper, viewerState, viewport, dataManager, rowHandler, config} from './vaporview';
 import { CustomVariable, NetlistVariable } from './signal_item';
 
 enum ButtonState {
@@ -40,9 +41,9 @@ export class ControlBar {
   private autoReload: HTMLElement;
   settings: HTMLElement;
 
-  private searchContainer: any;
-  private searchBar: any;
-  private valueIconRef: any;
+  private searchContainer: HTMLElement;
+  private searchBar: HTMLInputElement;
+  private valueIconRef: HTMLElement;
 
   // Search handler variables
   searchState         = SearchState.Time;
@@ -74,9 +75,9 @@ export class ControlBar {
     this.mouseScroll   = document.getElementById('mouse-scroll-button')!;
     this.autoReload    = document.getElementById('autoReload')!;
     this.settings      = document.getElementById('settings-menu')!;
-    this.searchContainer = document.getElementById('search-container');
-    this.searchBar     = document.getElementById('search-bar');
-    this.valueIconRef  = document.getElementById('value-icon-reference');
+    this.searchContainer = document.getElementById('search-container')!;
+    this.searchBar     = document.getElementById('search-bar') as HTMLInputElement;
+    this.valueIconRef  = document.getElementById('value-icon-reference')!;
 
     if (this.zoomInButton === null || this.zoomOutButton === null || this.zoomFitButton === null || 
         this.prevNegedge === null || this.prevPosedge === null || this.nextNegedge === null || 
@@ -98,13 +99,13 @@ export class ControlBar {
     this.nextPosedge.addEventListener(  'click', () => {this.goToNextTransition( 1, ['1']);});
     this.prevEdge.addEventListener(     'click', () => {this.goToNextTransition(-1, []);});
     this.nextEdge.addEventListener(     'click', () => {this.goToNextTransition( 1, []);});
-    this.autoReload.addEventListener(  'change', (e: any) => {this.handleAutoReloadCheckbox(e);});
+    this.autoReload.addEventListener(  'change', (e: Event) => {this.handleAutoReloadCheckbox(e);});
 
     // Search bar event handlers
     this.searchBar.addEventListener(     'focus', () => {this.handleSearchBarInFocus(true);});
     this.searchBar.addEventListener(      'blur', () => {this.handleSearchBarInFocus(false);});
-    this.searchBar.addEventListener(   'keydown', (e: any) => {this.handleSearchBarKeyDown(e);});
-    this.searchBar.addEventListener(     'keyup', (e: any) => {this.handleSearchBarEntry(e);});
+    this.searchBar.addEventListener(   'keydown', (e: KeyboardEvent) => {this.handleSearchBarKeyDown(e);});
+    this.searchBar.addEventListener(     'keyup', (e: KeyboardEvent) => {this.handleSearchBarEntry(e);});
     this.timeEquals.addEventListener(    'click', () => {this.handleSearchButtonSelect(0);});
     this.valueEquals.addEventListener(   'click', () => {this.handleSearchButtonSelect(1);});
     this.previousButton.addEventListener('click', () => {this.handleSearchGoTo(-1);});
@@ -116,7 +117,7 @@ export class ControlBar {
     this.mouseScroll.addEventListener(   'click', () => {this.handleScrollModeClick("Mouse");});
 
     // Settings menu
-    this.settings.addEventListener(      'click', (e: any) => {this.clickSettings(e);});
+    this.settings.addEventListener(      'click', (e: MouseEvent) => {this.clickSettings(e);});
 
     this.setButtonState(this.previousButton, ButtonState.Disabled);
     this.setButtonState(this.mouseScroll, ButtonState.Selected);
@@ -154,7 +155,7 @@ export class ControlBar {
       nearestTime = Math.max(...nextTransitionTime);
     }
 
-    this.events.dispatch(ActionType.MarkerSet, nearestTime, 0);
+    this.events.markerSet(nearestTime, 0);
     //console.log('goToNextTransition');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }
@@ -191,15 +192,15 @@ export class ControlBar {
     this.setButtonState(this.autoScroll, ButtonState.Selected);
   }
 
-  clickSettings(e: any) {
+  clickSettings(e: MouseEvent) {
     e.preventDefault();
-    e.target.dispatchEvent(
+    (e.target as HTMLElement).dispatchEvent(
       new MouseEvent("contextmenu", { bubbles: true, clientX: e.clientX, clientY: e.clientY })
     );
     e.stopPropagation();
   }
 
-  setButtonState(buttonId: any, state: number) {
+  setButtonState(buttonId: HTMLElement, state: number) {
     if (state === ButtonState.Disabled) {
       buttonId.classList.remove('selected-button');
       buttonId.classList.add('disabled-button');
@@ -293,7 +294,7 @@ export class ControlBar {
     }
   }
   
-  handleSearchBarEntry(event: any) {
+  handleSearchBarEntry(event: KeyboardEvent | { key: string }) {
     const inputText  = this.searchBar.value;
     let inputValid   = true;
     //console.log(viewerState.selectedSignal);
@@ -350,7 +351,7 @@ export class ControlBar {
     const checkSearchValue = format.checkSearchValue;
   
     if (this.searchState === SearchState.Time && direction === 1) {
-      this.events.dispatch(ActionType.MarkerSet, parseInt(this.parsedSearchValue), 0);
+      this.events.markerSet(parseInt(this.parsedSearchValue), 0);
       updateState = true;
     } else {
       const signalWidth     = data.signalWidth;
@@ -370,7 +371,7 @@ export class ControlBar {
   
       for (let i = timeIndex + indexOffset; i >= 0; i+=direction) {
         if (checkSearchValue(this.parsedSearchValue, valueChangeData[i][1], formattedValues[i])) {
-          this.events.dispatch(ActionType.MarkerSet, valueChangeData[i][0], 0);
+          this.events.markerSet(valueChangeData[i][0], 0);
           updateState = true;
           break;
         }
@@ -382,8 +383,8 @@ export class ControlBar {
     }
   }
 
-  handleAutoReloadCheckbox(event: any) {
-    viewerState.autoReload = event.target.checked;
+  handleAutoReloadCheckbox(event: Event) {
+    viewerState.autoReload = (event.target as HTMLInputElement).checked;
     vscodeWrapper.sendWebviewContext(StateChangeType.None);
   }
 
@@ -422,7 +423,7 @@ export class ControlBar {
 
   handleMarkerSet(time: number, markerType: number) {
     if (this.searchState === SearchState.Time) {
-      this.searchBar.value = time;
+      this.searchBar.value = String(time);
       this.searchContainer.classList.remove('is-invalid');
     }
   }

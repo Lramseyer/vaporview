@@ -1,5 +1,5 @@
-import { error, group } from 'console';
-import { type NetlistId, SignalId, type RowId, StateChangeType, type DocumentId, SavedNetlistVariable, SavedSignalSeparator, SavedSignalGroup, CollapseState, SavedCustomVariable, DefaultWebviewContext, SavedRowItem } from '../common/types';
+import { type NetlistId, SignalId, type RowId, StateChangeType, type DocumentId, SavedNetlistVariable, SavedSignalSeparator, SavedSignalGroup, CollapseState, SavedCustomVariable, DefaultWebviewContext, SavedRowItem, InitMessage } from '../common/types';
+import { ActionType, EventHandler } from './event_handler';
 import { Viewport } from './viewport';
 import { LabelsPanels } from './labels';
 import { ControlBar } from './control_bar';
@@ -17,18 +17,6 @@ export enum DataType {
   Separator
 }
 
-export enum ActionType {
-  MarkerSet,
-  SignalSelect,
-  ReorderSignals,
-  AddVariable,
-  RemoveVariable,
-  RedrawVariable,
-  Resize,
-  UpdateColorTheme,
-  ExitBatchMode,
-}
-
 export enum MouseUpEventType {
   Rearrange,
   DragAndDrop,
@@ -39,75 +27,24 @@ export enum MouseUpEventType {
   None,
 }
 
-let resizeDebounce: any = 0;
+let resizeDebounce: ReturnType<typeof setTimeout> | number = 0;
 
-export interface ViewerState {
-  uri: any;
-  documentId: DocumentId;
-  markerTime: number | null;
-  altMarkerTime: number | null;
-  selectedSignal: RowId[];
-  lastSelectedSignal: RowId | null;
-  displayedSignals: number[];
-  displayedSignalsFlat: number[];
-  visibleSignalsFlat: RowId[]
-  zoomRatio: number;
-  scrollLeft: number;
-  mouseupEventType: MouseUpEventType;
-  autoReload: boolean;
+export class ViewerState {
+  uri: string | null                 = null;
+  documentId: DocumentId             = "";
+  markerTime: number | null          = null;
+  altMarkerTime: number | null       = null;
+  selectedSignal: RowId[]            = [];
+  lastSelectedSignal: RowId | null   = null;
+  displayedSignals: number[]         = [];
+  displayedSignalsFlat: number[]     = [];
+  visibleSignalsFlat: RowId[]        = [];
+  zoomRatio: number                  = 1;
+  scrollLeft: number                 = 0;
+  mouseupEventType: MouseUpEventType = MouseUpEventType.None;
+  autoReload: boolean                = false;
 }
-
-export const viewerState: ViewerState = {
-  uri: null,
-  documentId: "",
-  markerTime: null,
-  altMarkerTime: null,
-  selectedSignal: [],
-  lastSelectedSignal: null,
-  displayedSignals: [],
-  displayedSignalsFlat: [],
-  visibleSignalsFlat: [],
-  zoomRatio: 1,
-  scrollLeft: 0,
-  mouseupEventType: MouseUpEventType.None,
-  autoReload: false,
-};
-
-export class EventHandler {
-  private subscribers: Map<ActionType, ((...args: any[]) => void)[]> = new Map();
-  private batchMode: boolean = false;
-  public get isBatchMode(): boolean {return this.batchMode;}
-  private signalSelectArgs: any[] = [[], null];
-
-  enterBatchMode() {
-    //console.log("entering batch mode");
-    this.batchMode = true;
-  }
-
-  exitBatchMode() {
-    //console.log("exiting batch mode");
-    this.batchMode = false;
-    this.dispatch(ActionType.SignalSelect, ...this.signalSelectArgs);
-    this.dispatch(ActionType.ExitBatchMode);
-  }
-
-  subscribe(action: ActionType, callback: (...args: any[]) => void) {
-    if (!this.subscribers.has(action)) {
-      this.subscribers.set(action, []);
-    }
-    this.subscribers.get(action)?.push(callback);
-  }
-
-  dispatch(action: ActionType, ...args: any[]) {
-    if (action === ActionType.SignalSelect) {
-      this.signalSelectArgs = args;
-      if (this.batchMode) {return;}
-    } else if (action == ActionType.RedrawVariable) {
-      if (this.batchMode) {return;}
-    }
-    this.subscribers.get(action)?.forEach((callback) => callback(...args));
-  }
-}
+export const viewerState: ViewerState = new ViewerState();
 
 export function updateDisplayedSignalsFlat() {
   viewerState.displayedSignalsFlat = [];
@@ -223,7 +160,7 @@ export function handleClickSelection(event: MouseEvent, rowId: RowId) {
   } else {
     newSelection = [rowId];
   }
-  events.dispatch(ActionType.SignalSelect, newSelection, rowId);
+  events.signalSelect(newSelection, rowId);
   //console.log('handleClickSelection');
   vscodeWrapper.sendWebviewContext(StateChangeType.User);
 }
@@ -242,11 +179,11 @@ export function getRowHeightCssClass(height: number) {
 // ----------------------------------------------------------------------------
 
 export function createWebviewContext() {
-  let selectedNetlistId: any = null; 
+  let selectedNetlistId: number | null = null;
   if (viewerState.selectedSignal.length === 1) {
     const data = rowHandler.rowItems[viewerState.selectedSignal[0]];
     if (data instanceof NetlistVariable) {
-      selectedNetlistId = data.netlistId;
+      selectedNetlistId = data.netlistId ?? null;
     }
   }
 
@@ -290,7 +227,7 @@ class VaporviewWebview {
   events: EventHandler;
 
   lastIsTouchpad: boolean = false;
-  touchpadCheckTimer: any = 0;
+  touchpadCheckTimer: number = 0;
 
   constructor(
     events: EventHandler, 
@@ -345,14 +282,15 @@ class VaporviewWebview {
   // Function to test whether or not the user is using a touchpad
   // Sometimes it returns false negatives when flicking the touchpad,
   // hence the timer to prevent multiple checks in a short period of time
-  isTouchpad(e: any) {
+  isTouchpad(e: WheelEvent) {
 
     if (performance.now() < this.touchpadCheckTimer) {
       return this.lastIsTouchpad;
     }
 
-    if (e.wheelDeltaY) {
-      if (e.wheelDeltaY === (e.deltaY * -3)) {
+    const wheelDeltaY = (e as WheelEvent & { wheelDeltaY?: number }).wheelDeltaY;
+    if (wheelDeltaY) {
+      if (wheelDeltaY === (e.deltaY * -3)) {
         this.lastIsTouchpad = true;
         return true;
       }
@@ -369,7 +307,7 @@ class VaporviewWebview {
     return false;
   }
 
-  scrollHandler(e: any) {
+  scrollHandler(e: WheelEvent) {
     e.preventDefault();
     //console.log(event);
     //if (!isTouchpad) {e.preventDefault();}
@@ -427,7 +365,7 @@ class VaporviewWebview {
     }
   }
 
-  keyDownHandler(e: any) {
+  keyDownHandler(e: KeyboardEvent) {
 
     let updateState = false;
 
@@ -450,32 +388,35 @@ class VaporviewWebview {
     }
 
     if ((e.key === 'ArrowRight') && (viewerState.markerTime !== null)) {
-      if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, this.viewport.timeStop, 0); updateState = true;}
+      if      (e.metaKey) {this.events.markerSet(this.viewport.timeStop, 0); updateState = true;}
       else if (e.altKey || e.ctrlKey) {/* Do nothing */}
-      else           {controlBar.goToNextTransition(1, []);}
+      else                {controlBar.goToNextTransition(1, []);}
     } else if ((e.key === 'ArrowLeft') && (viewerState.markerTime !== null)) {
-      if (e.metaKey) {this.events.dispatch(ActionType.MarkerSet, 0, 0); updateState = true;}
+      if      (e.metaKey) {this.events.markerSet(0, 0); updateState = true;}
       else if (e.altKey || e.ctrlKey) {/* Do nothing */}
-      else           {controlBar.goToNextTransition(-1, []);}
-
+      else                {controlBar.goToNextTransition(-1, []);}
 
     // up and down arrow keys move the selected signal
     // alt + up and down arrow keys reorder the selected signal up and down
     } else if ((e.key === 'ArrowUp') && (selectedSignalIndex !== null)) {
       const newIndex = Math.max(selectedSignalIndex - 1, 0);
       const newRowId = viewerState.visibleSignalsFlat[newIndex];
-      if (e.altKey) {this.handleReorderArrowKeys(-1);}
-      else          {this.events.dispatch(ActionType.SignalSelect, [newRowId], newRowId); updateState = true;}
+      updateState    = true;
+      if    (e.shiftKey) {this.addToSelection(newRowId);}
+      else if (e.altKey) {this.handleReorderArrowKeys(-1);}
+      else               {this.events.signalSelect([newRowId], newRowId);}
     } else if ((e.key === 'ArrowDown') && (selectedSignalIndex !== null)) {
       const newIndex = Math.min(selectedSignalIndex + 1, viewerState.visibleSignalsFlat.length - 1);
       const newRowId = viewerState.visibleSignalsFlat[newIndex];
-      if (e.altKey) {this.handleReorderArrowKeys(1);}
-      else          {this.events.dispatch(ActionType.SignalSelect, [newRowId], newRowId); updateState = true;}
+      updateState    = true;
+      if    (e.shiftKey) {this.addToSelection(newRowId);}
+      else if (e.altKey) {this.handleReorderArrowKeys(1);}
+      else               {this.events.signalSelect([newRowId], newRowId);}
     }
 
     // handle Home and End keys to move to the start and end of the waveform
-    else if (e.key === 'Home') {this.events.dispatch(ActionType.MarkerSet, 0, 0); updateState = true;}
-    else if (e.key === 'End')  {this.events.dispatch(ActionType.MarkerSet, this.viewport.timeStop, 0); updateState = true;}
+    else if (e.key === 'Home') {this.events.markerSet(0, 0); updateState = true;}
+    else if (e.key === 'End')  {this.events.markerSet(this.viewport.timeStop, 0); updateState = true;}
 
     // "N" and Shift + "N" go to the next transition
     else if (e.key === 'n') {controlBar.goToNextTransition(1, []);}
@@ -484,7 +425,7 @@ class VaporviewWebview {
     else if (e.key === 'a' && (e.ctrlKey || e.metaKey) && !controlBar.searchInFocus && !labelsPanel.renameActive) {
       e.preventDefault();
       controlBar.defocusSearchBar();
-      this.events.dispatch(ActionType.SignalSelect, viewerState.displayedSignalsFlat, null);
+      this.events.signalSelect(viewerState.displayedSignalsFlat, null);
       updateState = true;
     }
 
@@ -504,6 +445,14 @@ class VaporviewWebview {
       //console.log('keyDownHandler');
       vscodeWrapper.sendWebviewContext(StateChangeType.User);
     }
+  }
+
+  addToSelection(rowId: RowId) {
+    const newSelection = viewerState.selectedSignal;
+    if (!viewerState.selectedSignal.includes(rowId)) {
+      newSelection.push(rowId);
+    }
+    this.events.signalSelect(newSelection, rowId);
   }
 
   handleReorderArrowKeys(direction: number) {
@@ -556,12 +505,10 @@ class VaporviewWebview {
       }
     }
 
-    this.events.dispatch(ActionType.ReorderSignals, [rowId], parentGroupId, newIndex);
-    //console.log('handleReorderArrowKeys');
-    vscodeWrapper.sendWebviewContext(StateChangeType.User);
+    this.events.reorderSignals([rowId], parentGroupId, newIndex);
   }
 
-  keyUpHandler(e: any) {
+  keyUpHandler(e: KeyboardEvent) {
     if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(false);}
   }
 
@@ -576,8 +523,8 @@ class VaporviewWebview {
     } else if (viewerState.mouseupEventType === MouseUpEventType.DragAndDrop) {
       labelsPanel.dragEndExternal(event, abort);
     } else if (viewerState.mouseupEventType === MouseUpEventType.Resize) {
-      labelsPanel.resizeElement.classList.remove('is-resizing');
-      labelsPanel.resizeElement.classList.add('is-idle');
+      labelsPanel.resizeElement?.classList.remove('is-resizing');
+      labelsPanel.resizeElement?.classList.add('is-idle');
       document.removeEventListener("mousemove", labelsPanel.resize, false);
       this.handleResizeViewer();
     } else if (viewerState.mouseupEventType === MouseUpEventType.Scroll) {
@@ -588,8 +535,8 @@ class VaporviewWebview {
       viewport.highlightZoom(abort);
     } else if (viewerState.mouseupEventType === MouseUpEventType.MarkerSet) {
       document.removeEventListener('mousemove', viewport.drawHighlightZoomCanvas, false);
-      clearTimeout(viewport.highlightDebounce);
-      viewport.handleScrollAreaClick(viewport.highlightStartEvent, 0);
+      if (viewport.highlightDebounce) { clearTimeout(viewport.highlightDebounce); }
+      if (viewport.highlightStartEvent) { viewport.handleScrollAreaClick(viewport.highlightStartEvent, 0); }
       viewport.highlightListenerSet = false;
       viewport.updateOverlayCanvas();
     } else if (viewerState.mouseupEventType === MouseUpEventType.None && abort) {
@@ -603,7 +550,7 @@ class VaporviewWebview {
   // #region Global Events
   handleResizeViewer() {
     clearTimeout(resizeDebounce);
-    resizeDebounce = setTimeout(this.events.dispatch.bind(this.events, ActionType.Resize), 100);
+    resizeDebounce = setTimeout(() => this.events.resize(), 100);
   }
 
   handleSignalSelect(rowIdList: RowId[], lastSelected: RowId | null = null) {
@@ -618,7 +565,7 @@ class VaporviewWebview {
 
 // #region Helper Functions
 
-  syncVerticalScroll(e: any, scrollLevel: number) {
+  syncVerticalScroll(e: WheelEvent | { deltaY: number }, scrollLevel: number) {
     const deltaY = e.deltaY;
     if (this.viewport.updatePending) {return;}
     this.viewport.updatePending = true;
@@ -628,7 +575,7 @@ class VaporviewWebview {
     // labelsScroll position = relative, which allows it to scroll past the bottom
     this.labelsScroll.scrollTop = this.scrollArea.scrollTop;
     viewport.renderAllWaveforms(false);
-    labelsPanel.dragMove(e);
+    if (e instanceof MouseEvent) { labelsPanel.dragMove(e); }
     this.viewport.updatePending = false;
   }
 
@@ -642,19 +589,19 @@ class VaporviewWebview {
   }
 }
 
-export function init(message: any) {
+export function init(message: InitMessage) {
   const context: DefaultWebviewContext = {
     preventDefaultContextMenuItems: true,
     webviewSelection: true,
     documentId: message.documentId,
-    uri: message.uri,
+    uri: message.uri as unknown as DefaultWebviewContext['uri'],
   };
   document.body.setAttribute("data-vscode-context", JSON.stringify(context));
-  document.title         = message.metadata.filename;
+  //document.title         = message.metadata.filename;
   viewerState.uri        = message.uri;
   viewerState.documentId = message.documentId;
   styles.getThemeColors();
-  styles.updateColorPalette(message.colorPalette, message.errorColorPalette);
+  styles.updateColorPalette(message.colorPalette, message.errorColorPalette, message.themeValid);
   viewport.initViewport(message.metadata);
   vscodeWrapper.restoreState();
   //this.updateRuler();
@@ -696,3 +643,4 @@ vscodeWrapper.webviewReady();
 //  }
 //  return text;
 //}
+

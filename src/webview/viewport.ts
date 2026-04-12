@@ -1,6 +1,7 @@
-import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType, type DocumentId, type DefaultWebviewContext, type RulerContext } from '../common/types';
+import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType, type DocumentId, type DefaultWebviewContext, type RulerContext, type WaveformDumpMetadata } from '../common/types';
 import { logScaleFromUnits } from '../common/functions';
-import { ActionType, type EventHandler, viewerState, dataManager, updateDisplayedSignalsFlat, handleClickSelection, controlBar, MouseUpEventType } from "./vaporview";
+import { ActionType, type EventHandler } from './event_handler';
+import { viewerState, dataManager, updateDisplayedSignalsFlat, handleClickSelection, controlBar, MouseUpEventType } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer } from './renderer';
 import { labelsPanel, rowHandler, vscodeWrapper, styles, config } from "./vaporview";
@@ -28,10 +29,10 @@ export class Viewport {
   netlistLinkElement: HTMLElement | null = null;
   valueLinkObject: NetlistVariable | null = null;
 
-  highlightEndEvent: any    = null;
-  highlightStartEvent: any  = null;
+  highlightEndEvent: MouseEvent | null    = null;
+  highlightStartEvent: MouseEvent | null  = null;
   highlightListenerSet      = false;
-  highlightDebounce: any    = null;
+  highlightDebounce: ReturnType<typeof setTimeout> | null    = null;
 
   // Scroll handler variables
   pseudoScrollLeft: number    = 0;
@@ -171,7 +172,7 @@ export class Viewport {
     this.handleSignalSelect(viewerState.selectedSignal, viewerState.lastSelectedSignal);
   }
 
-  initViewport(metadata: any) {
+  initViewport(metadata: WaveformDumpMetadata) {
     this.setPixelRatio();
     this.defaultZoom     = metadata.defaultZoom;
     this.zoomRatio       = metadata.defaultZoom;
@@ -346,7 +347,7 @@ export class Viewport {
     }
   }
 
-  handleScrollAreaClick(event: any, eventButton: number) {
+  handleScrollAreaClick(event: MouseEvent, eventButton: number) {
 
     let button = eventButton;
 
@@ -387,7 +388,7 @@ export class Viewport {
           if (linkClicked) {return;}
         }
         if (!(event.ctrlKey || event.shiftKey || event.metaKey)) {
-          this.events.dispatch(ActionType.MarkerSet, snapToTime, button);
+          this.events.markerSet(snapToTime, button);
           updateContext = true;
         }
       }
@@ -450,6 +451,7 @@ export class Viewport {
   highlightZoom(abort: boolean) {
     this.updateOverlayCanvas();
     if (abort) {return;}
+    if (!this.highlightStartEvent || !this.highlightEndEvent) {return;}
     const timeStart = this.getTimeFromClick(this.highlightStartEvent);
     const timeEnd   = this.getTimeFromClick(this.highlightEndEvent);
     const time      = Math.round((timeStart + timeEnd) / 2);
@@ -464,6 +466,7 @@ export class Viewport {
     this.updateOverlayCanvas();
     const ctx = this.overlayCanvas;
     this.highlightEndEvent = event;
+    if (!this.highlightStartEvent) {return;}
     const width       = Math.abs(this.highlightEndEvent.pageX - this.highlightStartEvent.pageX);
     const left        = Math.min(this.highlightStartEvent.pageX, this.highlightEndEvent.pageX);
     const elementLeft = left - this.scrollAreaBounds.left;
@@ -790,8 +793,8 @@ export class Viewport {
     // Annotation lines
     const startIndex = dataManager.binarySearchTime(this.annotateTime, this.timeScrollLeft);
     const endIndex   = dataManager.binarySearchTime(this.annotateTime, this.timeScrollRight);
-    const lineList: any= [];
-    const boxList: any[] = [];
+    const lineList: number[]= [];
+    const boxList: [number, number][] = [];
     let noDrawFlag   = false;
     let lastDrawTime = 0;
     let lastNoDrawTime = 0;

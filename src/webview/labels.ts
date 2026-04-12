@@ -1,12 +1,20 @@
-import { type EventHandler, viewport, ActionType, viewerState, dataManager, getChildrenByGroupId, getIndexInGroup, handleClickSelection, rowHandler, vscodeWrapper, styles, MouseUpEventType} from './vaporview';
+import { viewport, viewerState, dataManager, getChildrenByGroupId, getIndexInGroup, handleClickSelection, rowHandler, vscodeWrapper, styles, MouseUpEventType} from './vaporview';
+import { ActionType, type EventHandler } from './event_handler';
 import { ValueFormat } from './value_format';
 import { getParentGroupId } from './vaporview';
 import { SignalGroup, NetlistVariable, SignalItem, RowItem, htmlSafe, CustomVariable, SignalSeparator } from './signal_item';
-import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType, NetlistVariableContext, NetlistVariableContextMenuEvent } from '../common/types';
+import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType, NetlistVariableContext } from '../common/types';
+
+interface IdleGroupEntry {
+  element: HTMLElement;
+  top: number;
+  bottom: number;
+  left: number;
+}
 
 export class LabelsPanels {
 
-  resizeElement: any = null;
+  resizeElement: HTMLElement | null = null;
   events: EventHandler;
 
   webview: HTMLElement;
@@ -21,26 +29,26 @@ export class LabelsPanels {
   dragDivider: HTMLElement | null   = null;
   dragCursorTag: HTMLElement | null = null;
   dragCursorText: string            = "";
-  labelsList: any                   = [];
-  idleItems: any                    = [];
-  idleGroups: any                   = [];
+  labelsList: string[]              = [];
+  idleItems: Element[]              = [];
+  idleGroups: IdleGroupEntry[]      = [];
   draggableRows: RowId[]            = [];
   draggableItem: HTMLElement | null = null;
   closestItem: HTMLElement | null   = null;
-  groupContainer: any               = null;
+  groupContainer: HTMLElement | null = null;
   indexOffset: number               = 0;
   pointerStartX: number | null      = null;
   pointerStartY: number | null      = null;
-  scrollStartY: any                 = null;
+  scrollStartY: number | null       = null;
   resizeIndex: number | null        = null;
   defaultDragDividerY: number       = 0;
   dragActive: boolean               = false;
   dragInProgress: boolean           = false;
   dragFreeze: boolean               = true;
-  dragFreezeTimeout: any            = null;
+  dragFreezeTimeout: ReturnType<typeof setTimeout> | null = null;
 
   renameActive: boolean             = false;
-  valueAtMarker: any                = {};
+  valueAtMarker: Record<number, string[]> = {};
   lastClickedSignal: RowId | null   = null;
   lastClickedTime: number           = 0;
 
@@ -117,10 +125,10 @@ export class LabelsPanels {
     this.valueDisplay.innerHTML = transitions.join('');
   }
 
-  clickValueDisplay(event: any) {
+  clickValueDisplay(event: MouseEvent) {
     const labelsList   = Array.from(this.valueDisplay.querySelectorAll('.value-display-item'));
-    const clickedLabel = event.target.closest('.value-display-item');
-    const itemIndex    = labelsList.indexOf(clickedLabel);
+    const clickedLabel = (event.target as HTMLElement)?.closest('.value-display-item') ?? null;
+    const itemIndex    = clickedLabel ? labelsList.indexOf(clickedLabel) : -1;
     if (itemIndex === -1) {
       rowHandler.deselectAllSignals();
       return;
@@ -130,18 +138,19 @@ export class LabelsPanels {
     handleClickSelection(event, rowId);
   }
 
-  clickLabel(event: any) {
+  clickLabel(event: MouseEvent) {
     if (this.dragInProgress) {return;}
     if (this.renameActive) {return;}
-    const clickedLabel = event.target.closest('.waveform-label');
+    const clickedLabel = (event.target as HTMLElement)?.closest('.waveform-label') as HTMLElement | null;
     const rowId = this.getRowIdFromElement(clickedLabel);
     if (rowId === null || isNaN(rowId)) {
       rowHandler.deselectAllSignals();
       return;
     }
 
-    if (event.target.classList.contains('codicon-chevron-down') ||
-        event.target.classList.contains('codicon-chevron-right')) {
+    const target = event.target as HTMLElement;
+    if (target.classList.contains('codicon-chevron-down') ||
+        target.classList.contains('codicon-chevron-right')) {
         if (rowHandler.rowItems[rowId] instanceof SignalGroup) {
           rowHandler.rowItems[rowId].toggleCollapse();
           vscodeWrapper.sendWebviewContext(StateChangeType.User);
@@ -183,8 +192,8 @@ export class LabelsPanels {
     vscodeWrapper.copyToClipboard(formattedValue);
   }
 
-  initializeDragHandler(event: MouseEvent | any) {
-    this.labelsList        = Array.from(this.labels.querySelectorAll('.waveform-label'));
+  initializeDragHandler(event: MouseEvent) {
+    this.labelsList        = Array.from(this.labels.querySelectorAll('.waveform-label')).map((element) => element.outerHTML);
     this.pointerStartX     = event.clientX;
     this.pointerStartY     = event.clientY;
     this.scrollStartY      = this.labelsScroll.scrollTop;
@@ -235,7 +244,7 @@ export class LabelsPanels {
     viewerState.visibleSignalsFlat.forEach((id: RowId) => {
       const signalItem = rowHandler.rowItems[id];
       if (signalItem instanceof SignalGroup && !draggableGroups.includes(id)) {
-        const element = this.labels.querySelector(`#label-${id}`);
+        const element = this.labels.querySelector(`#label-${id}`) as HTMLElement | null;
         if (element) {
           const boundingBox = element.getBoundingClientRect();
           this.idleGroups.push({
@@ -253,12 +262,12 @@ export class LabelsPanels {
     }
   }
 
-  dragStart(event: any) {
+  dragStart(event: MouseEvent) {
     if (event.button !== 0) {return;} // Only allow left mouse button drag
     if (this.renameActive) {return;} // Prevent drag if rename is active
     //event.preventDefault();
     
-    this.draggableItem = event.target.closest('.waveform-label');
+    this.draggableItem = (event.target as HTMLElement)?.closest('.waveform-label') as HTMLElement | null;
     if (!this.draggableItem) {return;}
     const rowId = parseInt(this.draggableItem.id.split('-')[1]);
     if (isNaN(rowId)) {return;}
@@ -275,7 +284,7 @@ export class LabelsPanels {
 
     this.draggableItem.classList.remove('is-idle');
     this.defaultDragDividerY = this.draggableItem.getBoundingClientRect().top + this.labelsScroll.scrollTop;
-    clearTimeout(this.dragFreezeTimeout);
+    if (this.dragFreezeTimeout) { clearTimeout(this.dragFreezeTimeout); }
     this.dragFreeze = true;
     this.dragFreezeTimeout = setTimeout(() => {this.dragFreeze = false;}, 100);
     document.addEventListener('mousemove', this.dragMove);
@@ -285,7 +294,7 @@ export class LabelsPanels {
     this.setIdleItemsState(rowIdList);
   }
 
-  dragStartExternal(event: MouseEvent | any) {
+  dragStartExternal(event: MouseEvent | DragEvent) {
 
     this.initializeDragHandler(event);
     this.setIdleItemsState([]);
@@ -316,7 +325,7 @@ export class LabelsPanels {
     this.dragInProgress = true;
   }
 
-  dragMove(event: MouseEvent | any) {
+  dragMove(event: MouseEvent | DragEvent) {
 
     if (!this.dragActive) {return;}
     if (!this.draggableItem) {return;}
@@ -333,7 +342,7 @@ export class LabelsPanels {
     this.updateIdleItemsStateAndPosition(event);
   }
 
-  public dragMoveExternal(event: MouseEvent | any) {
+  public dragMoveExternal(event: MouseEvent | DragEvent) {
 
     if (!this.dragInProgress) {
       this.dragStartExternal(event);
@@ -343,20 +352,20 @@ export class LabelsPanels {
     this.updateIdleItemsStateAndPosition(event);
   }
 
-  updateIdleItemsStateAndPosition(e: any) {
+  updateIdleItemsStateAndPosition(e: MouseEvent | DragEvent) {
 
     const labelsRect        = this.labels.getBoundingClientRect();
     const draggableItemY    = e.clientY;
-    const scrollDelta       = this.scrollStartY - this.labelsScroll.scrollTop;
+    const scrollDelta       = (this.scrollStartY ?? 0) - this.labelsScroll.scrollTop;
     const pointerY          = draggableItemY - scrollDelta;
     this.groupContainer     = null;
-    let groupContainerBox: any = labelsRect;
-    let smallestGroupBox: any = Infinity;
+    let groupContainerBox: DOMRect = labelsRect;
+    let smallestGroupBox: number = Infinity;
     let width = 0;
 
     // Reset all idle items and groups
     if (e.clientX <= labelsRect.right) {
-      this.idleGroups.forEach((item: any) => {
+      this.idleGroups.forEach((item: IdleGroupEntry) => {
         if (item.element.classList.contains('is-idle') === false) {return;}
         if (item.element.classList.contains('expanded-group') === false) {return;}
         item.element.style.backgroundColor = 'transparent';
@@ -371,11 +380,13 @@ export class LabelsPanels {
       });
     }
 
-    let idleItems: any  = [];
-    if (this.groupContainer) {
-      this.groupContainer.style.backgroundColor = styles.dropBackgroundColor;
-      groupContainerBox = this.groupContainer.children[1].getBoundingClientRect();
-      idleItems = Array.from(this.groupContainer.children[1].children);
+    let idleItems: Element[]  = [];
+    // Re-read groupContainer since it may have been set in the forEach above
+    const groupContainer = this.groupContainer as HTMLElement | null;
+    if (groupContainer !== null) {
+      groupContainer.style.backgroundColor = styles.dropBackgroundColor;
+      groupContainerBox = groupContainer.children[1].getBoundingClientRect();
+      idleItems = Array.from(groupContainer.children[1].children);
       this.closestItem = null;
     } else {
       idleItems = Array.from(this.labels.children);
@@ -385,7 +396,7 @@ export class LabelsPanels {
     this.indexOffset = 0;
     let dragDividerY: number | null = groupContainerBox.top - labelsRect.top;
 
-    idleItems.forEach((item: any) => {
+    idleItems.forEach((item: Element) => {
       if (breakFlag) {return;}
       if (!item.classList.contains('is-idle') && !item.classList.contains('is-draggable') ) {return;}
       const itemRect = item.getBoundingClientRect();
@@ -397,18 +408,18 @@ export class LabelsPanels {
           dragDividerY += itemRect.height;
         }
         breakFlag = true;
-        this.closestItem = item;
+        this.closestItem = item as HTMLElement;
       }
     });
 
     if (!breakFlag) {
       if (draggableItemY >= groupContainerBox.bottom) {
         dragDividerY = groupContainerBox.bottom - labelsRect.top;
-        this.closestItem = idleItems[idleItems.length - 1];
+        this.closestItem = (idleItems[idleItems.length - 1] as HTMLElement) || null;
         this.indexOffset = 1;
       } else if (draggableItemY < groupContainerBox.top) {
         dragDividerY = groupContainerBox.top - labelsRect.top;
-        this.closestItem = idleItems[0] || null;
+        this.closestItem = (idleItems[0] as HTMLElement) || null;
         this.indexOffset = 0;
       } else {
         dragDividerY = (this.defaultDragDividerY - this.labelsScroll.scrollTop) - labelsRect.top;
@@ -446,7 +457,7 @@ export class LabelsPanels {
   }
 
   clearDragHandler() {
-    this.idleItems.forEach((item: any) => {item.style = null;});
+    this.idleItems.forEach((item) => {(item as HTMLElement).style.cssText = '';});
     this.idleItems      = [];
     this.idleGroups     = [];
     this.draggableRows  = [];
@@ -487,10 +498,10 @@ export class LabelsPanels {
     //const oldIndex   = getIndexInGroup(draggableItemRowId, oldGroupId) || 0;
 
     this.clearDragHandler();
-    clearTimeout(this.dragFreezeTimeout);
+    if (this.dragFreezeTimeout) { clearTimeout(this.dragFreezeTimeout); }
 
     if (!abort) {
-      this.events.dispatch(ActionType.ReorderSignals, rowIdList, newGroupId, newIndex);
+      this.events.reorderSignals(rowIdList, newGroupId, newIndex);
       //console.log('dragEnd');
       vscodeWrapper.sendWebviewContext(StateChangeType.User);
     } else {

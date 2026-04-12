@@ -8,7 +8,7 @@
     "color": "#202020",
     "theme": "dark"
   },
-  "version": "1.5.1",
+  "version": "1.5.2",
   "repository": "https://github.com/lramseyer/vaporview",
   "categories": [
     "Debuggers",
@@ -166,30 +166,6 @@
             "default": "false",
             "scope": "application",
             "description": "Alphabetically sort scopes, parameters, and variables in the netlist view"
-          },
-          "vaporview.customColor1": {
-            "type": "string",
-            "default": "#cccccc",
-            "scope": "application",
-            "description": "Custom Color in CSS format ie '#C0FFEE' or 'rgb(192, 255, 238)' or 'blue'"
-          },
-          "vaporview.customColor2": {
-            "type": "string",
-            "default": "#dcdcaa",
-            "scope": "application",
-            "description": "Custom Color in CSS format ie '#C0FFEE' or 'rgb(192, 255, 238)' or 'blue'"
-          },
-          "vaporview.customColor3": {
-            "type": "string",
-            "default": "#4ec9b0",
-            "scope": "application",
-            "description": "Custom Color in CSS format ie '#C0FFEE' or 'rgb(192, 255, 238)' or 'blue'"
-          },
-          "vaporview.customColor4": {
-            "type": "string",
-            "default": "#9cdcfe",
-            "scope": "application",
-            "description": "Custom Color in CSS format ie '#C0FFEE' or 'rgb(192, 255, 238)' or 'blue'"
           },
           "vaporview.fsdbReaderLibsPath": {
             "type": "string",
@@ -1000,22 +976,22 @@
         {
           "command": "vaporview.renderLinear",
           "when": "webviewSection == 'signal' && (width > '1' || type == 'Real')",
-          "group": "1_default@2"
+          "group": "2_analog@2"
         },
         {
           "command": "vaporview.renderStepped",
           "when": "webviewSection == 'signal' && (width > '1' || type == 'Real')",
-          "group": "1_default@3"
+          "group": "2_analog@3"
         },
         {
           "command": "vaporview.renderLinearSigned",
           "when": "webviewSection == 'signal' && (width > '1')",
-          "group": "1_default@4"
+          "group": "2_analog@4"
         },
         {
           "command": "vaporview.renderSteppedSigned",
           "when": "webviewSection == 'signal' && (width > '1')",
-          "group": "1_default@5"
+          "group": "2_analog@5"
         }
       ],
       "vaporview.highlightEdge": [
@@ -1531,12 +1507,14 @@
     "compile-addon": "node-gyp rebuild",
     "compile": "npm run compile-wasm && npm run check-types && node esbuild.js",
     "compile-fsdb": "npm run compile-addon && npm run compile-wasm && npm run check-types && node esbuild.js",
-    "check-types": "tsc --noEmit",
+    "check-types": "tsc --noEmit && tsc --noEmit -p tsconfig.webview.json",
+    "lint": "eslint src/extension_core src/common src/webview packages/vaporview-api --ext .ts",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
     "vscode:prepublish": "npm run package",
     "package": "npm run compile-wasm && npm run check-types && node esbuild.js --production",
     "package-fsdb": "npm run compile-addon && npm run compile-wasm && npm run check-types && node esbuild.js --production"
-  }
+  },
+  "gypfile": false
 }

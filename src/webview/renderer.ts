@@ -1,11 +1,22 @@
 //import { NetlistData } from './vaporview';
+import type { ValueChange } from '../common/types';
 import { NetlistVariable, type CustomVariable } from './signal_item';
 import { dataManager, viewport, styles, config } from './vaporview';
 import type { WaveformData } from './data_manager';
 
+export interface RenderBounds {
+  valueChanges: ValueChange[];
+  formattedValues: string[];
+  formatCached: boolean;
+  startIndex: number;
+  endIndex: number;
+  initialState: ValueChange;
+  postState: ValueChange;
+}
+
 export interface WaveformRenderer {
   id: string;
-  draw(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable): void;
+  draw(valueChangeChunk: RenderBounds, netlistData: NetlistVariable | CustomVariable): void;
 }
 
 export function setRenderBounds(netlistData: NetlistVariable | CustomVariable, waveformData: WaveformData) {
@@ -69,7 +80,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
       xValue = adjustedTime + (adjustedDeltaTime / 2);
     } else {
       const charCount = Math.floor(characterWidthLimit / (styles.characterWidth * viewport.pixelTime)) - 1;
-      if (charCount < 0) {return ["", -100];}
+      if (charCount < 0) {return ["", -100, false] as [string, number, boolean];}
       if (justifyDirection) {
         xValue = adjustedTime + adjustedDeltaTime - padding;
         text = '…' + displayValue.slice(displayValue.length - charCount);
@@ -80,7 +91,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     }
 
     const adjustedXValue = (xValue * viewport.zoomRatio) - viewport.pseudoScrollLeft;
-    return [text, adjustedXValue, centerText];
+    return [text, adjustedXValue, centerText] as [string, number, boolean];
   }
 
   private outlineBusValue(ctx: CanvasRenderingContext2D, drawColor: string, canvasHeight: number) {
@@ -116,7 +127,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     ctx.stroke();
   }
 
-  public draw(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable) {
+  public draw(valueChangeChunk: RenderBounds, netlistData: NetlistVariable | CustomVariable) {
     const ctx            = netlistData.ctx;
     if (!ctx) {return;}
     const transitionData = valueChangeChunk.valueChanges;
@@ -145,9 +156,9 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     const adjustedTime  = time - viewport.timeScrollLeft;
     const points        = [[adjustedTime, 0]];
     const endPoints     = [[adjustedTime, 0]];
-    const xzPoints: any[] = [];
+    const xzPoints: number[][][] = [];
     //const xzValues: string[] = [];
-    const textElements: any[] = [];
+    const textElements: [string, number, boolean][] = [];
     let moveCursor      = false;
     let drawBackgroundStrokes = false;
     const minTextWidth  = 12 * viewport.pixelTime;
@@ -157,9 +168,10 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     const fillShape     = config.fillMultiBitValues;
     const fixedHeight   = config.multiBitFixedHeight;
     const minYPosition  = fixedHeight ? halfCanvasHeight / viewport.zoomRatio : 0;
+    const yMultiplier   = 2 * netlistData.rowHeight;
     let lastDrawTime    = 0;
     let parsedValue;
-    const noDrawRanges: any[] = [];
+    const noDrawRanges: number[][] = [];
 
     for (let i = startIndex; i < endIndex; i++) {
 
@@ -181,7 +193,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
         is4State  = valueIs9State(value);
         xPosition = (elementWidth / 2) + adjustedTime;
         //yPosition =  elementWidth * 2;
-        yPosition =  Math.max(elementWidth * 2, minYPosition);
+        yPosition =  Math.max(elementWidth * yMultiplier, minYPosition);
         if (is4State) {
           xzPoints.push([[adjustedTime, 0], [xPosition, yPosition], [adjustedTimeEnd, 0], [xPosition, -yPosition]]);
         } else {
@@ -233,7 +245,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
       }
 
       xPosition = (elementWidth / 2) + adjustedTime;
-      yPosition =  Math.max(elementWidth * 2, minYPosition);
+      yPosition =  Math.max(elementWidth * yMultiplier, minYPosition);
       is4State  = valueIs9State(value);
       if (is4State) {
         xzPoints.push([[adjustedTime, 0], [xPosition, yPosition], [adjustedTimeEnd, 0], [xPosition, -yPosition]]);
@@ -389,7 +401,7 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
   public id: string = "binary";
   constructor() {}
 
-  public draw(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable) {
+  public draw(valueChangeChunk: RenderBounds, netlistData: NetlistVariable | CustomVariable) {
 
     const ctx            = netlistData.ctx;
     if (!ctx) {return;}
@@ -403,7 +415,7 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     let initialValue2state = parseInt(initialValue);
     let initialTime        = initialState[0];
     let initialTimeOrStart = Math.max(initialState[0], -10);
-    const xzPath: any[]    = [];
+    const xzPath: number[][] = [];
     const minDrawWidth     = viewport.pixelTime / viewport.pixelRatio;
     const drawColor        = netlistData.color;
     const xzColor          = styles.xzColor;
@@ -417,16 +429,16 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     if (valueIs9State(initialValue)) {
       initialValue2state = 0;
     }
-    const startScreenX  = -10 * viewport.pixelTime;
+    const startScreenX    = -10 * viewport.pixelTime;
     const accumulatedPath = [[startScreenX, 0], [startScreenX, initialValue2state]];
-    let value2state     = 0;
+    let value2state       = 0;
     // No Draw Code
-    let lastDrawTime    = 0;
-    let lastNoDrawTime: any = null;
-    let noDrawFlag      = false;
-    const noDrawPath: any[] = [];
-    let lastDrawValue   = initialValue2state;
-    let lastNoDrawValue: any = null;
+    let lastDrawTime             = 0;
+    let lastNoDrawTime: number   = 0;
+    let noDrawFlag               = false;
+    const noDrawPath: number[][] = [];
+    let lastDrawValue            = initialValue2state;
+    //let lastNoDrawValue: string = initialValue;
 
     for (let i = startIndex; i < endIndex; i++) {
       const time  = transitionData[i][0];
@@ -435,7 +447,7 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
       if (time - initialTime < minDrawWidth) {
         noDrawFlag     = true;
         lastNoDrawTime = time;
-        lastNoDrawValue = value;
+        //lastNoDrawValue = value;
       } else {
 
         if (noDrawFlag) {
@@ -567,7 +579,7 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
   }
 }
 
-function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable, stepped: boolean, evalCoordinates: (v: string) => number) {
+function createAnalogWaveform(valueChangeChunk: RenderBounds, netlistData: NetlistVariable | CustomVariable, stepped: boolean, evalCoordinates: (v: string) => number) {
 
   const ctx              = netlistData.ctx;
   if (!ctx) {return;}
@@ -586,7 +598,7 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariabl
   const minDrawWidth     = config.disableAnalogRendererOptimizations ? 0 : minFeatureSize;
   const timeScrollLeft   = viewport.timeScrollLeft;
   const timeScrollRight  = viewport.timeScrollRight - timeScrollLeft;
-  const xzPath: any[]    = [];
+  const xzPath: number[][] = [];
   const valueIs9State    = netlistData.valueFormat.is9State;
   const rowHeight        = netlistData.rowHeight * styles.rowHeight;
   const canvasHeight     = rowHeight - 8;
@@ -597,17 +609,17 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariabl
     initialValue2state = "0";
   }
 
-  const accumulatedPath: any[] = [[-10 * viewport.pixelTime, 0]];
+  const accumulatedPath: number[][] = [[-10 * viewport.pixelTime, 0]];
   accumulatedPath.push([initialTime - timeScrollLeft, evalCoordinates(initialValue2state)]);
 
-  let value2state    = "0";
+  let value2state              = "0";
   // No Draw Code
-  let lastDrawTime        = 0;
-  let lastNoDrawTime: any = null;
-  let noDrawFlag          = false;
-  const noDrawPath: any[] = [];
-  let lastDrawValue       = initialValue2state;
-  let lastNoDrawValue: any = null;
+  let lastDrawTime             = 0;
+  let lastNoDrawTime: number   = 0;
+  let noDrawFlag               = false;
+  const noDrawPath: number[][] = [];
+  let lastDrawValue            = initialValue2state;
+  //let lastNoDrawValue: string = initialValue;
 
   for (let i = startIndex; i < endIndex; i++) {
     const time  = transitionData[i][0];
@@ -616,12 +628,12 @@ function createAnalogWaveform(valueChangeChunk: any, netlistData: NetlistVariabl
     if (time - initialTime < minDrawWidth) {
       noDrawFlag     = true;
       lastNoDrawTime = time;
-      lastNoDrawValue = value;
+      //lastNoDrawValue = value;
     } else {
 
       if (noDrawFlag) {
         initialValue2state = initialValue;
-        if (valueIs9State(initialValue)) {initialValue2state = 0;}
+        if (valueIs9State(initialValue)) {initialValue2state = "0";}
 
         const adjustedLastDrawTime = lastDrawTime - timeScrollLeft;
         const adjustedLastNoDrawTime = lastNoDrawTime - timeScrollLeft;
@@ -788,7 +800,7 @@ export class LinearWaveformRenderer implements WaveformRenderer {
     }
   }
 
-  draw(valueChangeChunk: any, netlistData: NetlistVariable | CustomVariable) {
+  draw(valueChangeChunk: RenderBounds, netlistData: NetlistVariable | CustomVariable) {
     //const evalCoordinates = getEval(valueChangeChunk.encoding, netlistData.signalWidth, false);
     return createAnalogWaveform(valueChangeChunk, netlistData, this.stepped, this.evalCoordinates);
   }

@@ -930,8 +930,6 @@ export class Viewport {
       this.rulerTickSpacing = this.rulerNumberSpacing;
     }
 
-    console.log(`baseZoom: ${baseZoom} idealInterval: ${idealInterval} rulerNumberIncrement: ${this.rulerNumberIncrement} rulerNumberSpacing: ${this.rulerNumberSpacing} zoomRatio: ${this.zoomRatio} zoomOffset: ${this.zoomOffset}`);
-
     //console.log('zoom ratio: ' + this.zoomRatio + ' zoom offset: ' + zoomOffset + ' base zoom: ' + baseZoom);
 
     this.updateScrollbarResize();

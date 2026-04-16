@@ -920,11 +920,11 @@ export class Viewport {
     this.zoomOffset       = Math.log2(this.zoomRatio / this.defaultZoom);
     const baseZoom        = (2 ** Math.floor(this.zoomOffset)) * this.defaultZoom;
     const idealInterval   = this.minNumberSpacing / baseZoom;
-    this.rulerNumberIncrement = this.snapToTimescale(idealInterval);
+    this.rulerNumberIncrement = Math.round(this.snapToTimescale(idealInterval));
     this.rulerNumberSpacing = this.rulerNumberIncrement * baseZoom;
-    if(this.rulerNumberIncrement % 5 == 0) {
+    if(this.rulerNumberIncrement % 5 === 0) {
       this.rulerTickSpacing = this.rulerNumberSpacing / 5;
-    } else if (this.rulerNumberIncrement % 2 == 0) {
+    } else if (this.rulerNumberIncrement % 2 === 0) {
       this.rulerTickSpacing = this.rulerNumberSpacing / 2;
     } else { 
       this.rulerTickSpacing = this.rulerNumberSpacing;

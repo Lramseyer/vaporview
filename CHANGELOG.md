@@ -3,6 +3,7 @@
 ## 1.5.3
 
 - Shift + Up/Down Arrow now adds to selection
+- Glitch transitions show all values in value display
 - Enforce type safety @AndrewNolte
 - Update wellen to 0.20.5
 

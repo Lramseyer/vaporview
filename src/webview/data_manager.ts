@@ -537,16 +537,20 @@ export class WaveformDataManager {
     if (time === null) {return result;}
     if (!waveforms) {return result;}
 
-    const data   = waveforms.valueChangeData;
-    const index  = this.binarySearch(data, time);
+    const data = waveforms.valueChangeData;
+    let index  = this.binarySearch(data, time);
 
     if (data.length === 0) {return result;}
 
     if (index < data.length && time === data[index][0]) {
-      if (index > 0) {
-        result.push(data[index - 1][1]);
+      while (index > 0 && data[index][0] === time) {
+        index--;
       }
-      result.push(data[index][1]);
+      while (index < data.length && data[index][0] <= time) {
+        result.push(data[index][1]);
+        index++;
+      }
+
     } else {
       const newIndex = Math.max(0, index - 1);
       result.push(data[newIndex][1]);

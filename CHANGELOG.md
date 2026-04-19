@@ -4,6 +4,7 @@
 
 - Shift + Up/Down Arrow now adds to selection
 - Enforce type safety @AndrewNolte
+- Update wellen to 0.20.5
 
 ## 1.5.2 - 4/8/2026 - Latest Release
 

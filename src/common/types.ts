@@ -96,6 +96,7 @@ export interface InitMessage {
   colorPalette: string[];
   errorColorPalette: string[];
   themeValid: boolean;
+  autoReload: boolean;
 }
 
 // This object tracks extension settings that pertain to the webview

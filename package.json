@@ -183,6 +183,12 @@
       {
         "title": "File Loading",
         "properties": {
+          "vaporview.defaultAutoReload": {
+            "type": "boolean",
+            "default": false,
+            "scope": "application",
+            "description": "Recommended: false (unchecked) - default state for the 'Auto Reload' checkbox in the control bar. When enabled, files opened will have auto reload enabled by default."
+          },
           "vaporview.fstMaxStaticLoadSize": {
             "type": "number",
             "default": 256,

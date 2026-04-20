@@ -38,7 +38,7 @@ export class ControlBar {
   private autoScroll: HTMLElement;
   private touchScroll: HTMLElement;
   private mouseScroll: HTMLElement;
-  private autoReload: HTMLElement;
+  private autoReload: HTMLInputElement;
   settings: HTMLElement;
 
   private searchContainer: HTMLElement;
@@ -73,7 +73,7 @@ export class ControlBar {
     this.autoScroll    = document.getElementById('auto-scroll-button')!;
     this.touchScroll   = document.getElementById('touchpad-scroll-button')!;
     this.mouseScroll   = document.getElementById('mouse-scroll-button')!;
-    this.autoReload    = document.getElementById('autoReload')!;
+    this.autoReload    = document.getElementById('autoReload') as HTMLInputElement;
     this.settings      = document.getElementById('settings-menu')!;
     this.searchContainer = document.getElementById('search-container')!;
     this.searchBar     = document.getElementById('search-bar') as HTMLInputElement;
@@ -381,6 +381,11 @@ export class ControlBar {
       //console.log('handleSearchGoTo');
       vscodeWrapper.sendWebviewContext(StateChangeType.User);
     }
+  }
+
+  setAutoReload(state: boolean) {
+    viewerState.autoReload  = state;
+    this.autoReload.checked = state;
   }
 
   handleAutoReloadCheckbox(event: Event) {

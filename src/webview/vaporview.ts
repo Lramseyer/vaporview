@@ -604,6 +604,7 @@ export function init(message: InitMessage) {
   styles.updateColorPalette(message.colorPalette, message.errorColorPalette, message.themeValid);
   viewport.initViewport(message.metadata);
   vscodeWrapper.restoreState();
+  controlBar.setAutoReload(message.autoReload);
   //this.updateRuler();
   //this.updatePending = false;
 }

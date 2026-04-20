@@ -236,6 +236,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       colorPalette: colorPalette.colorPalette,
       errorColorPalette: colorPalette.errorColorPalette,
       themeValid: colorPalette.themeValid,
+      autoReload: this.webviewContext.autoReload,
     } as InitMessage);
     this.setConfigurationSettings();
     this._webviewInitialized = true;
@@ -496,8 +497,10 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   private setupFileWatcher() {
     if (this.uri.scheme !== 'file') { return; }
 
+    const settings = vscode.workspace.getConfiguration('vaporview');
     const pattern = new vscode.RelativePattern(path.dirname(this.uri.fsPath), path.basename(this.uri.fsPath));
     const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+    this.webviewContext.autoReload = settings.get('defaultAutoReload') || false;
     const scheduleReload = () => {
       if (this.reloadDebounce) { clearTimeout(this.reloadDebounce); }
       this.reloadDebounce = setTimeout(() => this.handleUpdateFile(), 500);

@@ -6,6 +6,7 @@ import { type WaveformRenderer, setRenderBounds } from "./renderer";
 import type { WaveformData } from "./data_manager";
 import { labelsPanel } from "./vaporview";
 import { createInstancePath } from '../common/functions';
+import { ValueLinkEvent } from '../../packages/vaporview-api/types';
 
 export function htmlSafe(string: string) {
   return string.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -189,7 +190,7 @@ export class SignalSeparator extends SignalItem implements RowItem {
 export class NetlistVariable extends SignalItem implements RowItem {
 
   public valueFormat: ValueFormat;
-  public valueLinkCommand: string = "";
+  public valueLinkEnable: boolean = false;
   public valueLinkBounds: [number, number][] = [];
   public valueLinkIndex: number = -1;
   public colorIndex: number = 0;
@@ -329,7 +330,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
       type: this.variableType,
       width: this.signalWidth,
       preventDefaultContextMenuItems: true,
-      commandValid: this.valueLinkCommand !== "",
+      valueLinkEnable: this.valueLinkEnable,
       netlistId: this.netlistId!,
       rowId: this.rowId,
       isAnalog: isAnalog,
@@ -350,7 +351,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
       nameType:         this.nameType,
       customName:       this.customName,
       renderType:       this.renderType.id,
-      valueLinkCommand: this.valueLinkCommand
+      valueLinkEnable:  this.valueLinkEnable
     };
   }
 
@@ -440,12 +441,11 @@ export class NetlistVariable extends SignalItem implements RowItem {
     const data = dataManager.valueChangeData[this.signalId];
 
     if (!data) {return false;}
-    if (this.valueLinkCommand === "") {return false;}
+    if (!this.valueLinkEnable) {return false;}
     if (this.renderType.id !== 'multiBit') {return false;}
     if (this.valueLinkIndex < 0) {return false;}
     if (time !== snapToTime) {return false;}
 
-    const command        = this.valueLinkCommand;
     const signalId       = this.signalId;
     const index          = dataManager.binarySearch(data.valueChangeData, time) - 1;
     const valueChange    = dataManager.valueChangeData[signalId].valueChangeData[index];
@@ -453,7 +453,9 @@ export class NetlistVariable extends SignalItem implements RowItem {
     const value          = valueChange[1];
     const formattedValue = this.valueFormat.formatString(value, this.signalWidth, !this.valueFormat.is9State(value));
 
-    const event = {
+    const event: ValueLinkEvent = {
+      uri: viewerState.uri?.toString() || "",
+      rowId: this.rowId,
       netlistId: this.netlistId,
       scopePath: this.scopePath,
       signalName: this.signalName,
@@ -466,7 +468,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
       time: timeValue,
     };
 
-    vscodeWrapper.executeCommand(command, [event]);
+    vscodeWrapper.emitValueLinkEvent(event);
     return true;
   }
 
@@ -483,7 +485,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
 export class CustomVariable extends SignalItem implements RowItem {
 
   public valueFormat: ValueFormat;
-  public valueLinkCommand: string = "";
+  public valueLinkEnable: boolean = false;
   public valueLinkBounds: [number, number][] = [];
   public valueLinkIndex: number = -1;
   public colorIndex: number = config.defaultCustomSignalColor;
@@ -606,7 +608,7 @@ export class CustomVariable extends SignalItem implements RowItem {
       nameType:         this.nameType,
       customName:       this.customName,
       renderType:       this.renderType.id,
-      valueLinkCommand: this.valueLinkCommand,
+      valueLinkEnable:  this.valueLinkEnable,
     };
   }
 

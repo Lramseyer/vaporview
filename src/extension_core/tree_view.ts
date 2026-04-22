@@ -4,7 +4,7 @@ import type { WebviewStateEvent } from './document';
 import { bitRangeString, createInstancePath, parseParamValue } from '../common/functions';
 import type { VaporviewDocument } from './document';
 import { WaveformViewerProvider } from './viewer_provider';
-import type { NetlistTreeItemData } from '../../packages/vaporview-api/types';
+import type { NetlistTreeItemData, SignalEvent } from '../../packages/vaporview-api/types';
 
 // Scopes
 const scopeColor    = new vscode.ThemeColor('charts.purple');
@@ -210,10 +210,10 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
 
       WaveformViewerProvider.signalSelectEventEmitter.fire({
         uri: uri.toString(),
-        instancePath: netlistData.instancePath(),
-        netlistId: netlistData.netlistId,
+        instancePath: [netlistData.instancePath()],
+        netlistId: [netlistData.netlistId],
         source: "netlistView",
-      });
+      } as SignalEvent);
     }
   };
 

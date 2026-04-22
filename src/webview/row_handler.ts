@@ -961,17 +961,17 @@ export class RowHandler {
     if (netlistData instanceof NetlistVariable) {
 
       // Value link command
-      if (message.valueLinkCommand !== undefined) {
+      if (message.valueLinkEnable !== undefined) {
 
-        if (netlistData.valueLinkCommand === "" && message.valueLinkCommand !== "") {
+        if (netlistData.valueLinkEnable === false && message.valueLinkEnable === true) {
           netlistData.canvas?.addEventListener("pointermove", netlistData.handleValueLinkMouseOver, true);
           netlistData.canvas?.addEventListener("pointerleave", netlistData.handleValueLinkMouseExit, true);
-        } else if (message.valueLinkCommand === "") {
+        } else if (message.valueLinkEnable === false) {
           netlistData.canvas?.removeEventListener("pointermove", netlistData.handleValueLinkMouseOver, true);
           netlistData.canvas?.removeEventListener("pointerleave", netlistData.handleValueLinkMouseExit, true);
         }
 
-        netlistData.valueLinkCommand = message.valueLinkCommand;
+        netlistData.valueLinkEnable = message.valueLinkEnable;
         netlistData.valueLinkIndex   = -1;
       }
     }

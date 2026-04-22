@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { type DocumentId, type NetlistId, SignalGroupWebviewContext, SignalId, StateChangeType, WindowMessageType, type MarkerSetEvent, type SignalEvent, type ViewerDropEvent, ExternalKeyDownMessage } from '../common/types';
+import { type DocumentId, type NetlistId, SignalGroupWebviewContext, SignalId, StateChangeType, WindowMessageType, type MarkerSetEvent, type SignalEvent, type ViewerDropEvent, ExternalKeyDownMessage, SetDisplayFormatMessage, EmitEventMessage } from '../common/types';
 import { decodeNetlistUri } from '../../packages/vaporview-api';
-import type { VariableActionArgs, VariableAction, SetMarkerArgs, AddVariableByPathArgs, SavedRowItem } from '../../packages/vaporview-api/types';
+import type { VariableActionArgs, VariableAction, SetMarkerArgs, AddVariableByPathArgs, SavedRowItem, ValueLinkEvent } from '../../packages/vaporview-api/types';
 import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
 import { Worker } from 'worker_threads';
 import * as fs from 'fs';
@@ -31,15 +31,6 @@ interface ThemeEntry {
   settings?: ThemeRule[];
 }
 
-export interface EmitEventData {
-  eventType: 'markerSet' | 'signalSelect' | 'addVariable' | 'removeVariable';
-  uri?: vscode.Uri;
-  time?: number;
-  units?: string;
-  instancePath?: string;
-  netlistId?: NetlistId;
-}
-
 interface WebviewMessageEvent {
   messageType: WindowMessageType;
   message: string;
@@ -66,7 +57,7 @@ interface DisplayFormatProperties {
   verticalScale?: number;
   nameType?: string;
   customName?: string;
-  command?: string;
+  valueLinkEnable?: boolean;
   annotateValue?: string[];
 }
 
@@ -87,7 +78,7 @@ export interface VaporviewDocumentDelegate {
   addSignalByNameToDocument(signalName: string): void;
   logOutputChannel(message: string): void;
   updateViews(uri: vscode.Uri): void;
-  emitEvent(e: EmitEventData): void;
+  emitEvent(e: EmitEventMessage): void;
   removeFromCollection(uri: vscode.Uri, document: VaporviewDocument): void;
   getColorPalette(): {colorPalette: string[], errorColorPalette: string[], themeValid: boolean};
 }
@@ -328,6 +319,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   public static readonly signalSelectEventEmitter = new vscode.EventEmitter<SignalEvent>();
   public static readonly addVariableEventEmitter = new vscode.EventEmitter<SignalEvent>();
   public static readonly removeVariableEventEmitter = new vscode.EventEmitter<SignalEvent>();
+  public static readonly valueLinkEventEmitter = new vscode.EventEmitter<ValueLinkEvent>();
   public static readonly externalDropEventEmitter = new vscode.EventEmitter<ViewerDropEvent>();
   private readonly _onDidChangeCustomDocument = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<VaporviewDocument>>();
   public readonly onDidChangeCustomDocument = this._onDidChangeCustomDocument.event;
@@ -375,7 +367,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       addSignalByNameToDocument: this.addSignalByNameToDocument.bind(this),
       logOutputChannel: (message: string) => {this.log.appendLine(message);},
       updateViews: (uri: vscode.Uri) => {return;}, // placeholder function to be overridden once we create the document
-      emitEvent: (e: EmitEventData) => {this.emitEvent(e);},
+      emitEvent: (e: EmitEventMessage) => {this.emitEvent(e);},
       removeFromCollection: this.removeFromCollection.bind(this),
       getColorPalette: () => {return this.documentCollection.getColorPalette();},
     };
@@ -811,34 +803,16 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     }
   }
 
-  emitEvent(e: EmitEventData) {
-
-    const uriString    = e.uri?.toString() ?? '';
-    const time         = e.time ?? 0;
-    const units        = e.units ?? '';
-    const instancePath = e.instancePath ?? '';
-    const netlistId    = e.netlistId ?? 0;
-
-    const markerData: MarkerSetEvent = {
-      uri: uriString,
-      time: time,
-      units: units,
-    };
-
-    const signalData: SignalEvent = {
-      uri: uriString,
-      instancePath: instancePath,
-      netlistId: netlistId,
-      source: "viewer",
-    };
+  emitEvent(e: EmitEventMessage) {
 
     //console.log(e);
 
     switch (e.eventType) {
-      case 'markerSet':      {WaveformViewerProvider.markerSetEventEmitter.fire(markerData); break;}
-      case 'signalSelect':   {WaveformViewerProvider.signalSelectEventEmitter.fire(signalData); break;}
-      case 'addVariable':    {WaveformViewerProvider.addVariableEventEmitter.fire(signalData); break;}
-      case 'removeVariable': {WaveformViewerProvider.removeVariableEventEmitter.fire(signalData); break;}
+      case 'markerSet':      {WaveformViewerProvider.markerSetEventEmitter.fire(e.eventData as MarkerSetEvent); break;}
+      case 'signalSelect':   {WaveformViewerProvider.signalSelectEventEmitter.fire(e.eventData as SignalEvent); break;}
+      case 'addVariable':    {WaveformViewerProvider.addVariableEventEmitter.fire(e.eventData as SignalEvent); break;}
+      case 'removeVariable': {WaveformViewerProvider.removeVariableEventEmitter.fire(e.eventData as SignalEvent); break;}
+      case 'valueLink':      {WaveformViewerProvider.valueLinkEventEmitter.fire(e.eventData as ValueLinkEvent); break;}
     }
   }
 
@@ -1003,7 +977,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       }
       case "addLink": {
         if (metadata.contextValue !== 'netlistScope') {
-          this.setValueFormat({netlistId: metadata.netlistId}, 0, {command: e.command});
+          this.setValueFormat({netlistId: metadata.netlistId}, 0, {valueLinkEnable: e.valueLinkEnable === true});
         }
         break;
       }
@@ -1461,9 +1435,9 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       verticalScale: properties.verticalScale,
       nameType: properties.nameType,
       customName: properties.customName,
-      valueLinkCommand: properties.command,
+      valueLinkEnable: properties.valueLinkEnable,
       annotateValue: properties.annotateValue,
-    });
+    } as SetDisplayFormatMessage);
   }
 
   copyValueAtMarker(e: { rowId?: number }) {

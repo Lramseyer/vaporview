@@ -22,7 +22,7 @@ export type {
   SignalGroupWebviewContext,
 } from '../../packages/vaporview-api/types';
 export { NameType } from '../../packages/vaporview-api/types';
-import type { NetlistId, SignalId, RowId, SignalSeparatorContext, SignalGroupContext, CustomVariableContext, NetlistVariableContext } from '../../packages/vaporview-api/types';
+import type { NetlistId, SignalId, RowId, SignalSeparatorContext, SignalGroupContext, CustomVariableContext, NetlistVariableContext, ValueLinkEvent, SignalEvent, MarkerSetEvent } from '../../packages/vaporview-api/types';
 export type ValueChange = [number, string];
 export type EnumEntry   = [string, string];
 export type EnumData    = EnumEntry[];
@@ -128,6 +128,12 @@ export interface ExternalKeyDownMessage {
   event?: { rowId?: RowId };
 }
 
+export interface EmitEventMessage {
+  command: 'emitEvent';
+  eventType: 'markerSet' | 'signalSelect' | 'addVariable' | 'removeVariable' | 'valueLink';
+  eventData: MarkerSetEvent | SignalEvent | ValueLinkEvent;
+}
+
 export interface AddVariableSignal {
   netlistId?: NetlistId;
   signalId?: SignalId;
@@ -150,7 +156,7 @@ export interface SetDisplayFormatMessage {
   nameType?: string;
   customName?: string;
   numberFormat?: string;
-  valueLinkCommand?: string;
+  valueLinkEnable?: boolean;
   annotateValue?: string[];
 }
 

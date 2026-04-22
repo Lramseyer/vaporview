@@ -23,6 +23,16 @@ Vaporview is designed with the VSCode IDE experience in mind, so this document s
 - Signal Value Links
 - Drag and drop into viewer (proposed API)
 
+## Internal Identifiers
+
+**Netlist ID** - This is a unique number assigned to every item in the netlist hierarchy. This number is guaranteed to be consistent for a given file, but there is no standard way of calculating this, and it is not guaranteed to be consistent between files - especially if the hierarchies have differences between them. While netlist IDs can be used to reference variables, only do so for known variables.
+
+**Row ID** - This is a unique number assigned to every netlist variable, custom variable, group item, and signal separator. These are assigned in order of what is added to the viewer. Different instances of the same variable will have different row IDs even if they have the same netlist ID. Row IDs can change.
+
+**Document ID** - This is a unique string corresponding to the document tab. It is randomly generated when a user opens a vaporview tab, and will not be consistent when a file is closed and reopened.
+
+**Only use internal identifiers when handling event emitters and right click context menus!** Netlist IDs can change when a user reloads a file, Row IDs can change when a user does an undo/redo, and Document IDs can change if a user closes and reopens a file.
+
 # Context Menus
 
 Custom context [right click] menu commands can be added to vaporview components such as the netlist viewer and and waveform viewer, and those context menu items can call commands to other extensions.
@@ -59,29 +69,67 @@ Custom context menu items can be added to the waveform viewer webview. All attri
 - 5_waveDrom
   - **Submenu vaporview.waveDrom** -  WaveDrom
 
-### Signal Item Attributes - data-vscode-context
+### Signal Item Context - data-vscode-context
 
-All signals in the webview will emit the following attributes when right clicked on
+All signals in the webview will emit the following context values when right clicked on. This will also be passed as an argument. The type definitions can be found in packages/vaporview-api/types.ts
 
-- **webviewSection** - "signal"
-- **scopePath** - Instance path (delimited by "." characters) without the variable name
-- **signalName** - Variable or Scope Name
-- **type** - this.rowItems[netlistId].variableType,
-- **width** - BitVector Bit Width of Variable, will be 0 for Strings and Reals
-- **preventDefaultContextMenuItems** - always true
-- **netlistId** -  Variable ID in waveform dump file
+#### Netlist Variables
 
-## Netlist View and Displayed Signals View
+Type: NetlistVariableContext
 
-Context menu items can be added to the netlist view and displayed signals view. View IDs are listed below. Tree Item [netlist element] attributes are also outlined. However, keep in mind that for constructing a conditional menu, keep in mind that only the **contextValue** can be used for [when clause](https://code.visualstudio.com/api/references/when-clause-contexts) statements. However, when a command is called, all attributes are visible in an event object if passed into the first argument of the command handler function.
+- webviewSection: string = 'signal';
+- scopePath: string;
+- signalName: string;
+- type: string;
+- width: number;
+- preventDefaultContextMenuItems: boolean = true;
+- valueLinkEnable: boolean;
+- netlistId: NetlistId | undefined;
+- rowId: RowId;
+- isAnalog: boolean;
+- enum: boolean;
+
+#### Custom Variables
+
+Type: CustomVariableContext
+
+- webviewSection: string = 'signal';
+- signalName: string;
+- type: string;
+- width: number;
+- preventDefaultContextMenuItems: boolean = true;
+- rowId: RowId;
+- isAnalog: boolean;
+
+#### Signal Groups
+
+Type: SignalGroupContext
+
+- webviewSection: string = 'signal-group';
+- preventDefaultContextMenuItems: boolean = true;
+- groupId: number;
+- rowId: RowId;
+
+### Signal Separators
+
+Type: SignalSeparatorContext
+
+- webviewSection: string = 'signal-separator';
+- preventDefaultContextMenuItems: boolean = true;
+- rowId: RowId;
+
+## Netlist View
+
+Context menu items can be added to the netlist view. View IDs are listed below. Tree Item [netlist element] attributes are also outlined. However, keep in mind that for constructing a conditional menu, keep in mind that only the **contextValue** can be used for [when clause](https://code.visualstudio.com/api/references/when-clause-contexts) statements. However, when a command is called, all attributes are visible in an event object if passed into the first argument of the command handler function.
 
 See [Tree Item API docs](https://code.visualstudio.com/api/references/vscode-api#TreeItem) for details
 
 ### Netlist View
 
-- **ID:** waveformViewerNetlistView
+- **view ID:** waveformViewerNetlistView
 - **package.json path:** contributes.menus.view/item/context
-- **when:** view == 'waveformViewerNetlistView'
+
+ie: `'when': view == 'waveformViewerNetlistView'`
 
 ### Menu Groups
 
@@ -102,8 +150,6 @@ See [Tree Item API docs](https://code.visualstudio.com/api/references/vscode-api
   - Reload File
 
 ### Attributes:
-
-Note: Tree items in both the Netlist View and the Displayed Signals View have the same set of attributes.
 
 - **contextValue** - "netlistVar" | "netlistScope" - see [Tree Item API docs](https://code.visualstudio.com/api/references/vscode-api#TreeItem) and scroll down to the contextValue section.
 - **collapsibleState** - [VScode Tree Item Collapsible State](https://code.visualstudio.com/api/references/vscode-api#TreeItemCollapsibleState)
@@ -299,6 +345,24 @@ Emitted when an unknown tree item is dragged into the viewer. The resourceUriLis
 - **groupPath** - string[]
 - **index** - number
 
+## onDidClickSignalValueLink
+
+Emitted when a signal value link is clicked.
+
+- **uri**
+- **rowId** - Row ID in viewer
+- **netlistId** -  Variable ID in waveform dump file
+- **rowId** - Row ID in the viewer
+- **scopePath** - Instance path (delimited by "." characters) without the variable name
+- **signalName** - Variable or Scope Name
+- **type** - this.rowItems[netlistId].variableType,
+- **width** - BitVector Bit Width of Variable, will be 0 for Strings and Reals
+- **encoding** - "BitVector" | "Real" | "String" | "none"
+- **numberFormat** - Number format
+- **value** - Value as Bit Vector
+- **formattedValue** - Value formatted as seen in the viewer
+- **time** - Time of value change
+
 ## Sample code for subscribing to event emitters
 
 This would likely go in your `activate()` function
@@ -337,32 +401,18 @@ context.subscriptions.push(subscription);
 
 # Signal Value Links
 
-Something that has been in my roadmap for a while is the ability to "Allow users to link .objdump files to a program counter value for a more integrated debug experience" This was something I wanted when I first created vaporview (because I was debugging a CPU with no GDB or ETM tracing.) How cool would it be to debug a CPU with a waveform dump and actually connect it back to the line of code it's running? In brainstorming how to implement it, I have a proposed solution, but it's actually a more general solution.
+Much like how VScode supports terminal and text links, Vaporview supports signal value links. An example use case would be Allowing users to link .objdump files to a program counter value for a more integrated debug experience. This was something I wanted when I first created vaporview (because I was debugging a CPU with no GDB or ETM tracing.)
 
 ## How to Use
 
-Signals will have the ability to have links added to them such that when a user clicks on a value, it will emit a custom command that other extension developers can call. Any command can be attached to a Signal. When that command is emitted, it will include an argument, which will be an object with the attributes listed below.
-
-A submenu or menu group will be added for Signal Item context menu, and it will be up to the extension developer to contribute a menu item to add their custom command
-
-### Attributes
-
-- **netlistId** -  Variable ID in waveform dump file
-- **scopePath** - Instance path (delimited by "." characters) without the variable name
-- **signalName** - Variable or Scope Name
-- **type** - this.rowItems[netlistId].variableType,
-- **width** - BitVector Bit Width of Variable, will be 0 for Strings and Reals
-- **encoding** - "BitVector" | "Real" | "String" | "none"
-- **numberFormat** - Number format
-- **value** - Value as Bit Vector
-- **formattedValue** - Encoded value
-- **time** - Time of value change
+Signals will have the ability to have links added to them such that when a user clicks on a value, it will emit a custom command that other extension developers can call. ~~Any command can be attached to a Signal. When that command is emitted, it will include an argument, which will be an object with the attributes listed below.~~ This will be replaced by an event emitter for onDidClickSignalValue.
 
 ## waveformViewer.addSignalValueLink
 
 ### Arguments: object
   - **uri** - (Optional) Document URI - if not defined, this function will use the currently active, or last active document
-  - **command** - custom command that will be called when clicked
+  - ~~**command** - custom command that will be called when clicked~~
+  - **valueLinkEnable** - Set to true to enable Value Links, and set to false to disable Value Links
   - **netlistId** - (Optional*) Waveform Dump File Variable ID - note that this will be emitted by the context menu command, so developers will have this value
   - **instancePath** - (Optional*) Full instance path for variable
   - **scopePath** - (Optional*) - Variable module math without variable name
@@ -413,17 +463,13 @@ const disposable_1 = vscode.commands.registerCommand(
   (e) => {
     const args = {
       netlistId: e.netlistId
-      e.command: 'myExtension.clickSignalValueLink'
     }
     vscode.commands.executeCommand('waveformViewer.addSignalValueLink', args);
   }
 );
 
-// Register custom command that will be emitted by Signal Value Link
-const disposable_2 = vscode.commands.registerCommand(
-  'myExtension.clickSignalValueLink', 
-  (e) => {onDidClickSignalValueLink(e)}
-)
+// Handle event emitter
+// See examples above on how to handle events from other extensions
 ```
 
 # Vaporview URI schema (proposal)

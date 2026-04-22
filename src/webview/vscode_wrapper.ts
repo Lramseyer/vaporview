@@ -1,5 +1,6 @@
+import { MarkerSetEvent, SignalEvent, ValueLinkEvent } from "../../packages/vaporview-api/types";
 import { createInstancePath } from "../common/functions";
-import { QueueEntry, WindowMessageType, StateChangeType, NetlistId, RowId, ConfigSettingsMessage, ExternalKeyDownMessage } from "../common/types";
+import { QueueEntry, WindowMessageType, StateChangeType, NetlistId, RowId, ConfigSettingsMessage, ExternalKeyDownMessage, EmitEventMessage } from "../common/types";
 import { ActionType, type EventHandler } from './event_handler';
 import { SignalGroup, NetlistVariable, CustomVariable } from "./signal_item";
 import { viewerState, events, createWebviewContext, viewport, rowHandler, getParentGroupIdList, labelsPanel, dataManager, controlBar, styles, unload, init, revealSignal, config } from "./vaporview";
@@ -586,33 +587,52 @@ export class VscodeWrapper {
   }
 
   emitRemoveVariableEvent(instancePathList: string[], netlistIdList: number[]) {
+    const eventData: SignalEvent = {
+      uri: viewerState.uri?.toString() || "",
+      instancePath: instancePathList,
+      netlistId: netlistIdList,
+      source: 'viewer',
+    };
     vscode.postMessage({
       command: 'emitEvent',
       eventType: 'removeVariable',
-      uri: viewerState.uri,
-      instancePath: instancePathList,
-      netlistId: netlistIdList,
-    });
+      eventData: eventData,
+    } as EmitEventMessage);
   }
 
   emitSignalSelectEvent(instancePathList: string[], netlistIdList: number[]) {
+    const eventData: SignalEvent = {
+      uri: viewerState.uri?.toString() || "",
+      instancePath: instancePathList,
+      netlistId: netlistIdList,
+      source: 'viewer',
+    };
     vscode.postMessage({
       command: 'emitEvent',
       eventType: 'signalSelect',
-      uri: viewerState.uri,
-      instancePath: instancePathList,
-      netlistId: netlistIdList,
-    });
+      eventData: eventData,
+    } as EmitEventMessage);
   }
 
   emitMarkerSetEvent(time: number, units: string) {
+    const eventData: MarkerSetEvent = {
+      uri: viewerState.uri?.toString() || "",
+      time: time,
+      units: units,
+    };
     vscode.postMessage({
       command: 'emitEvent',
       eventType: 'markerSet',
-      uri: viewerState.uri,
-      time: time,
-      units: viewport.timeUnit,
-    });
+      eventData: eventData,
+    } as EmitEventMessage);
+  }
+
+  emitValueLinkEvent(event: ValueLinkEvent) {
+    vscode.postMessage({
+      command: 'emitEvent',
+      eventType: 'valueLink',
+      eventData: event,
+    } as EmitEventMessage);
   }
 
   handleDrop(e: DragEvent) {

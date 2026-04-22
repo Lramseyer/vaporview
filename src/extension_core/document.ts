@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type EnumQueueEntry, type DocumentId, type SavedRowItem, VariableEncoding, type BitRangeSource, type AddVariableSignal, InitMessage, WaveformDumpMetadata, ConfigSettingsMessage } from '../common/types';
-import type { GetValuesAtTimeArgs, ValuesAtTimeResult } from '../../packages/vaporview-api/types';
+import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type EnumQueueEntry, type DocumentId, type SavedRowItem, VariableEncoding, type BitRangeSource, type AddVariableSignal, InitMessage, WaveformDumpMetadata, ConfigSettingsMessage, EmitEventMessage } from '../common/types';
+import type { GetValuesAtTimeArgs, SignalEvent, ValuesAtTimeResult } from '../../packages/vaporview-api/types';
 import { bitRangeString, logScaleFromUnits, parseParamValue, toStringWithCommas } from '../common/functions';
 import { NetlistLinkProvider } from './terminal_links';
 import * as path from 'path';
@@ -627,10 +627,13 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     const signalList: AddVariableSignal[] = [];
     if (!this.webviewPanel) { return; }
 
+    const instancePathList: string[] = [];
+
     netlistIdList.forEach((netlistId) => {
       const metadata = this.netlistIdTable[netlistId];
       if (!metadata) { return; }
 
+      instancePathList.push(metadata.instancePath());
       signalList.push({
         signalId: metadata.signalId,
         signalWidth: metadata.width,
@@ -641,20 +644,27 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
         encoding: metadata.encoding,
         enumType: metadata.enumType,
       });
-
-      this._providerDelegate.emitEvent({
-        eventType: 'addVariable',
-        uri: this.uri,
-        instancePath: metadata.instancePath(),
-        netlistId: metadata.netlistId,
-      });
     });
+
     this.webviewPanel.webview.postMessage({
       command: 'add-variable',
       signalList: signalList,
       groupPath: moveToGroup,
       index: index
     });
+
+    const eventData: SignalEvent = {
+      uri: this.uri.toString(),
+      instancePath: instancePathList,
+      netlistId: netlistIdList,
+      source: 'webview',
+    };
+
+    this._providerDelegate.emitEvent({
+      command: 'emitEvent',
+      eventType: 'addVariable',
+      eventData: eventData,
+    } as EmitEventMessage);
   }
 
   public fetchData(requestList: QueueEntry[]) {

@@ -33,7 +33,7 @@ export type SavedNetlistVariable = {
   nameType: NameType;
   customName: string;
   renderType: string;
-  valueLinkCommand: string;
+  valueLinkEnable: boolean;
 }
 
 export type SavedCustomVariable = {
@@ -45,7 +45,7 @@ export type SavedCustomVariable = {
   nameType: NameType;
   customName: string;
   renderType: string;
-  valueLinkCommand: string;
+  valueLinkEnable: boolean;
   source: BitRangeSource[];
 };
 
@@ -89,9 +89,24 @@ export interface MarkerSetEvent {
 
 export interface SignalEvent {
   uri: string;
-  instancePath: string;
-  netlistId: NetlistId;
+  instancePath: string[];
+  netlistId: NetlistId[];
   source: string;
+}
+
+export interface ValueLinkEvent {
+  uri: string;
+  rowId: RowId;
+  netlistId: NetlistId | undefined;
+  scopePath: string[];
+  signalName: string;
+  type: string;
+  width: number;
+  encoding: string;
+  numberFormat: string;
+  value: string;
+  formattedValue: string;
+  time: number;
 }
 
 export interface ViewerDropEvent {
@@ -127,7 +142,7 @@ export interface VariableActionArgs {
   lsb?: number;
   recursive?: boolean;
   reveal?: boolean;
-  command?: string;
+  valueLinkEnable?: boolean;
 }
 
 export type VariableAction = 'add' | 'remove' | 'reveal' | 'addLink';
@@ -247,7 +262,7 @@ export type NetlistVariableContext = {
   type: string;
   width: number;
   preventDefaultContextMenuItems: boolean;
-  commandValid: boolean;
+  valueLinkEnable: boolean;
   netlistId: NetlistId | undefined;
   rowId: RowId;
   isAnalog: boolean;
@@ -314,5 +329,6 @@ export interface VaporviewApi extends VaporviewCommands {
   onDidSelectSignal: Event<SignalEvent>;
   onDidAddVariable: Event<SignalEvent>;
   onDidRemoveVariable: Event<SignalEvent>;
+  onDidClickSignalValueLink: Event<ValueLinkEvent>;
   onDidDropInWaveformViewer: Event<ViewerDropEvent>;
 }

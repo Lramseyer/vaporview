@@ -356,10 +356,10 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     ctx.save();
     ctx.translate(0.5, 0);
     
-    ctx.font = fontWeight + styles.fontStyle;
-    ctx.fillStyle = fillShape ? styles.backgroundColor : styles.textColor;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    ctx.font          = fontWeight + styles.fontStyle;
+    ctx.fillStyle     = fillShape ? styles.backgroundColor : styles.textColor;
+    ctx.textAlign     = 'center';
+    ctx.textBaseline  = 'middle';
     ctx.imageSmoothingEnabled = false;
     ctx.textRendering = 'optimizeLegibility';
     textElements.forEach(([text, xValue, center], i) => {
@@ -378,8 +378,8 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
 
     // Render Signal Link Underline
     netlistData.valueLinkBounds = [];
-    if (netlistData.valueLinkCommand !== "") {
-      const leftOffset = justifyDirection === "left" ? 0 : 1;
+    if (netlistData.valueLinkEnable) {
+      const leftOffset  = justifyDirection === "left" ?  0 : 1;
       const rightOffset = justifyDirection === "left" ? -1 : 0;
       textElements.forEach(([text, xValue, center]) => {
         const x = (xValue * viewport.zoomRatio) - viewport.pseudoScrollLeft;

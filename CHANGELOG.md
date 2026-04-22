@@ -4,6 +4,8 @@
 
 - Shift + Up/Down Arrow now adds to selection
 - Glitch transitions show all values in value display
+- Added user setting for default "Auto Reload" state
+- Value Links have been converted from a command call to an event emitter
 - Enforce type safety @AndrewNolte
 - Update wellen to 0.20.5
 

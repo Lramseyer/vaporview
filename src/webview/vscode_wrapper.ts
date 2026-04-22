@@ -411,6 +411,7 @@ export class VscodeWrapper {
       case 'setConfigSettings':     {config.setConfigSettings(message); break;}
       case 'apply-state':           {rowHandler.applyState(message.settings, message.stateChangeType); break;}
       case 'add-variable':          {rowHandler.addVariable(message.signalList, message.groupPath, undefined, message.index); break;}
+      case 'add-merged-variable':   {rowHandler.addMergedVariable(message.signalName, message.signalWidth, message.bits, message.groupPath, message.index); break;}
       case 'add-separator':         {rowHandler.addSeparator(message.name, message.groupPath, message.parentGroupId, message.eventRowId, message.moveSelected); break;}
       case 'add-bit-slice':         {rowHandler.addCustomVariable(message.name, message.groupPath, message.parentGroupId, message.eventRowId, undefined, message.msb, message.lsb, undefined); break;}
       case 'add-all-bit-slices':    {rowHandler.addAllBitSlices(message.name, message.groupPath, message.parentGroupId, message.eventRowId, message.bitWidth); break;}

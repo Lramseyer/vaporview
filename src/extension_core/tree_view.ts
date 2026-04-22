@@ -324,6 +324,8 @@ export class NetlistItem extends vscode.TreeItem implements NetlistTreeItemData 
     }
   }
 
+  public mergedBitItems?: NetlistItem[];
+
   instancePath(): string {return createInstancePath(this.scopePath, this.name);}
 
   setParamAndTooltip(paramValue: string) {

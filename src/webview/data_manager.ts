@@ -357,39 +357,41 @@ export class WaveformDataManager {
   }
 
   updateCustomSignal(customSignalId: number): void {
-    //console.log('updateCustomSignal', customSignalId);
     const data = this.customValueChangeData[customSignalId];
     if (data === undefined) {return;}
 
     const source = data.source;
 
-    // create new custom signal
+    // Only assemble once ALL sources have their data loaded.
+    // Note: data requests are always made by the caller (addCustomVariable /
+    // addMergedVariable), never from here, to avoid duplicate requests.
+    const allLoaded = source.every(s => s.signalId === undefined || this.valueChangeData[s.signalId] !== undefined);
+    if (!allLoaded) {return;}
+
     let signalWidth = 0;
-    const signalIdList: SignalQueueEntry[] = [];
     source.forEach((s) => {
       if (s.signalId === undefined) {return;}
       signalWidth += s.msb - s.lsb + 1;
-      if (this.valueChangeData[s.signalId] === undefined) {
-        const signalQueueEntry: SignalQueueEntry = {
-          type: 'signal',
-          signalWidth: s.signalWidth,
-          signalId: s.signalId,
-          customSignalId: customSignalId,
-        };
-        signalIdList.push(signalQueueEntry);
-      }
     });
 
-    dataManager.requestData(signalIdList, []);
-    const valueChangeData = this.createCustomSignalData(source[0]);
+    const valueChangeData = this.createCustomSignalData(source);
     if (valueChangeData === undefined) {return;}
     data.valueChangeData = valueChangeData;
     data.signalWidth = signalWidth;
+    // Clear stale formatted-value caches so they are recomputed with the
+    // newly assembled data instead of the empty placeholder.
+    data.formattedValues = {};
     data.dataLoaded = true;
-    return;
   }
 
-  createCustomSignalData(source: BitRangeSource): ValueChange[] | undefined {
+  createCustomSignalData(sources: BitRangeSource[]): ValueChange[] | undefined {
+    if (sources.length === 1) {
+      return this.createSingleSourceData(sources[0]);
+    }
+    return this.createMultiSourceData(sources);
+  }
+
+  private createSingleSourceData(source: BitRangeSource): ValueChange[] | undefined {
     const result: ValueChange[] = [];
     const signalId = source.signalId;
     if (signalId === undefined) {return undefined;}
@@ -423,6 +425,51 @@ export class WaveformDataManager {
         previousValue = value;
       }
     });
+    return result;
+  }
+
+  private createMultiSourceData(sources: BitRangeSource[]): ValueChange[] | undefined {
+    // Extract per-source value change arrays
+    const sourceDatas: ValueChange[][] = [];
+    for (const source of sources) {
+      const extracted = this.createSingleSourceData(source);
+      if (extracted === undefined) {return undefined;}
+      sourceDatas.push(extracted);
+    }
+
+    const n = sourceDatas.length;
+    const pointers = new Array<number>(n).fill(0);
+    const currentValues = new Array<string>(n).fill('x');
+    const result: ValueChange[] = [];
+    let prevCombined = '';
+    let minTime = 0;
+
+    while (minTime < Infinity) {
+      // Find the minimum timestamp among all active pointers
+      minTime = Infinity;
+      for (let i = 0; i < n; i++) {
+        if (pointers[i] < sourceDatas[i].length) {
+          const t = sourceDatas[i][pointers[i]][0];
+          if (t < minTime) {minTime = t;}
+        }
+      }
+      if (minTime === Infinity) {break;}
+
+      // Advance all sources that have a change at minTime
+      for (let i = 0; i < n; i++) {
+        if (pointers[i] < sourceDatas[i].length && sourceDatas[i][pointers[i]][0] === minTime) {
+          currentValues[i] = sourceDatas[i][pointers[i]][1];
+          pointers[i]++;
+        }
+      }
+
+      const combined = currentValues.join('');
+      if (combined !== prevCombined) {
+        result.push([minTime, combined]);
+        prevCombined = combined;
+      }
+    }
+
     return result;
   }
 

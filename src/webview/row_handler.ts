@@ -1,4 +1,4 @@
-import { type NetlistId, SignalId, type RowId, EnumData, EnumEntry, QueueEntry, SignalQueueEntry, type EnumQueueEntry, NameType, StateChangeType, CollapseState, VariableEncoding, type BitRangeSource, type SavedRowItem, type AddVariableSignal, type SetDisplayFormatMessage, type EditSignalGroupMessage } from '../common/types';
+import { type NetlistId, SignalId, type RowId, EnumData, EnumEntry, QueueEntry, SignalQueueEntry, type EnumQueueEntry, NameType, StateChangeType, CollapseState, VariableEncoding, type BitRangeSource, type MergedBitSource, type SavedRowItem, type AddVariableSignal, type SetDisplayFormatMessage, type EditSignalGroupMessage } from '../common/types';
 import { bitRangeString, createInstancePath } from '../common/functions';
 import { ActionType, type EventHandler } from './event_handler';
 import { dataManager, viewerState, getParentGroupId, updateDisplayedSignalsFlat, labelsPanel, controlBar, getIndexInGroup, getChildrenByGroupId, viewport, vscodeWrapper, styles } from './vaporview';
@@ -425,6 +425,102 @@ export class RowHandler {
 
     this.events.signalSelect([rowId], rowId);
     //console.log('addCustomVariable');
+    vscodeWrapper.sendWebviewContext(StateChangeType.User);
+    return rowId;
+  }
+
+  addMergedVariable(signalName: string, signalWidth: number, bits: MergedBitSource[], groupPath: string[] | undefined, index: number | undefined) {
+    if (controlBar.searchInFocus || labelsPanel.renameActive) {return;}
+
+    const rowId = this.nextRowId;
+    this.nextRowId++;
+
+    const sources: BitRangeSource[] = bits.map((bit) => ({
+      name: signalName,
+      netlistId: bit.netlistId,
+      signalId: bit.signalId,
+      signalWidth: 1,
+      msb: 0,
+      lsb: 0,
+    }));
+
+    const customSignalId = dataManager.newCustomSignal(sources);
+    if (customSignalId === undefined) {return;}
+
+    const signalLabel = signalName + bitRangeString(signalWidth - 1, 0);
+    const customVariable = new CustomVariable(rowId, sources, customSignalId, signalLabel, signalWidth, new MultiBitWaveformRenderer());
+    this.rowItems[rowId] = customVariable;
+
+    const customSignalData = dataManager.customValueChangeData[customSignalId];
+    let drawFlag = false;
+
+    if (customSignalData?.dataLoaded) {
+      // All source data already assembled (e.g. same merged vector added twice)
+      drawFlag = true;
+    } else {
+      // Queue data requests for each source, including rowId so updateWaveform
+      // triggers a redraw once the last source arrives and assembly completes
+      const signalIdList: SignalQueueEntry[] = [];
+      sources.forEach((s) => {
+        if (s.signalId === undefined) {return;}
+        if (dataManager.valueChangeData[s.signalId] === undefined) {
+          signalIdList.push({
+            type: 'signal',
+            signalWidth: s.signalWidth,
+            signalId: s.signalId,
+            rowId: rowId,
+            customSignalId: customSignalId,
+          });
+        }
+      });
+
+      if (signalIdList.length === 0) {
+        // All source data present but not yet assembled
+        dataManager.updateCustomSignal(customSignalId);
+        drawFlag = customSignalData?.dataLoaded ?? false;
+      } else {
+        dataManager.requestData(signalIdList, []);
+      }
+    }
+
+    if (drawFlag) {
+      const waveformData = customVariable.getWaveformData();
+      this.setValueFormat(waveformData, customVariable.valueFormat, false);
+      labelsPanel.valueAtMarker[rowId] = customVariable.getValueAtTime(viewerState.markerTime);
+    }
+
+    viewerState.displayedSignals = viewerState.displayedSignals.concat(rowId);
+    updateDisplayedSignalsFlat();
+    this.events.addVariable([rowId], drawFlag);
+
+    let reorder = false;
+    let groupId = 0;
+    let moveIndex = viewerState.displayedSignalsFlat.length;
+
+    const groupItem = this.getGroupByIdOrName(groupPath, undefined);
+    if (groupItem !== null) {
+      groupId = groupItem.groupId;
+      moveIndex = groupItem.children.length;
+      reorder = true;
+    }
+
+    if (index !== undefined) {
+      moveIndex = Math.max(index, 0);
+      reorder = true;
+    }
+
+    if (!reorder && viewerState.selectedSignal.length === 1) {
+      const selectedRowId = viewerState.selectedSignal[0];
+      groupId = getParentGroupId(selectedRowId) || 0;
+      moveIndex = (getIndexInGroup(selectedRowId, groupId) || 0) + 1;
+      reorder = true;
+    }
+
+    if (reorder) {
+      this.events.reorderSignals([rowId], groupId, moveIndex);
+    }
+
+    this.events.signalSelect([rowId], rowId);
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
     return rowId;
   }

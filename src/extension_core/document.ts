@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
-import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type EnumQueueEntry, type DocumentId, type SavedRowItem, VariableEncoding, type BitRangeSource, type AddVariableSignal, InitMessage, WaveformDumpMetadata, ConfigSettingsMessage, EmitEventMessage } from '../common/types';
+import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type EnumQueueEntry, type DocumentId, type SavedRowItem, VariableEncoding, type BitRangeSource, type AddVariableSignal, type MergedBitSource, InitMessage, WaveformDumpMetadata, ConfigSettingsMessage, EmitEventMessage } from '../common/types';
 import type { GetValuesAtTimeArgs, SignalEvent, ValuesAtTimeResult } from '../../packages/vaporview-api/types';
 import { bitRangeString, logScaleFromUnits, parseParamValue, toStringWithCommas } from '../common/functions';
 import { NetlistLinkProvider } from './terminal_links';
 import * as path from 'path';
 import type { VaporviewDocumentCollection, VaporviewDocumentDelegate } from './viewer_provider';
-import { getVarIcon, getScopeIcon, type NetlistItem } from './tree_view';
+import { getVarIcon, getScopeIcon, NetlistItem } from './tree_view';
 import type { FsdbFormatHandler } from './fsdb_handler';
 
 
@@ -634,24 +634,46 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       if (!metadata) { return; }
 
       instancePathList.push(metadata.instancePath());
-      signalList.push({
-        signalId: metadata.signalId,
-        signalWidth: metadata.width,
-        signalName: metadata.name,
-        scopePath: metadata.scopePath,
-        netlistId: metadata.netlistId,
-        type: metadata.type,
-        encoding: metadata.encoding,
-        enumType: metadata.enumType,
-      });
+
+      if (metadata.mergedBitItems) {
+        const bits: MergedBitSource[] = metadata.mergedBitItems.map((bit) => ({
+          netlistId: bit.netlistId,
+          signalId: bit.signalId,
+          signalWidth: bit.width,
+        }));
+        this.webviewPanel!.webview.postMessage({
+          command: 'add-merged-variable',
+          signalName: metadata.name,
+          scopePath: metadata.scopePath,
+          signalWidth: metadata.width,
+          msb: metadata.msb,
+          lsb: metadata.lsb,
+          bits: bits,
+          groupPath: moveToGroup,
+          index: index,
+        });
+      } else {
+        signalList.push({
+          signalId: metadata.signalId,
+          signalWidth: metadata.width,
+          signalName: metadata.name,
+          scopePath: metadata.scopePath,
+          netlistId: metadata.netlistId,
+          type: metadata.type,
+          encoding: metadata.encoding,
+          enumType: metadata.enumType,
+        });
+      }
     });
 
-    this.webviewPanel.webview.postMessage({
-      command: 'add-variable',
-      signalList: signalList,
-      groupPath: moveToGroup,
-      index: index
-    });
+    if (signalList.length > 0) {
+      this.webviewPanel.webview.postMessage({
+        command: 'add-variable',
+        signalList: signalList,
+        groupPath: moveToGroup,
+        index: index
+      });
+    }
 
     const eventData: SignalEvent = {
       uri: this.uri.toString(),
@@ -729,14 +751,70 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
 
   // #region Handler delegated methods
 
+  private mergeBitSplitSignals(items: NetlistItem[]): NetlistItem[] {
+    const result: NetlistItem[] = [];
+    // Group 1-bit signals by name where the bit index is stored in msb/lsb
+    // (VCD format: "$var wire 1 id name [4] $end" → name="name", msb=4, lsb=4)
+    const bitGroups = new Map<string, NetlistItem[]>();
+
+    for (const item of items) {
+      if (item.contextValue === 'netlistScope') {
+        result.push(item);
+        continue;
+      }
+      if (item.width === 1 && item.msb === item.lsb) {
+        const baseName = item.name;
+        if (!bitGroups.has(baseName)) { bitGroups.set(baseName, []); }
+        bitGroups.get(baseName)!.push(item);
+      } else {
+        result.push(item);
+      }
+    }
+
+    for (const [baseName, bits] of bitGroups) {
+      if (bits.length < 2) {
+        result.push(...bits);
+        continue;
+      }
+
+      // Sort by bit index descending (MSB first)
+      bits.sort((a, b) => b.msb - a.msb);
+
+      const indices = bits.map(b => b.msb);
+      const isContiguous = indices.every((idx, i) => i === 0 || idx === indices[i - 1] - 1);
+
+      if (!isContiguous) {
+        result.push(...bits);
+        continue;
+      }
+
+      const msb = indices[0];
+      const lsb = indices[indices.length - 1];
+      const refBit = bits[0];
+      const label = baseName + bitRangeString(msb, lsb);
+
+      const mergedItem = new NetlistItem(
+        label, "", refBit.type, refBit.encoding, bits.length,
+        refBit.signalId, bits[bits.length - 1].netlistId,
+        baseName, refBit.scopePath, msb, lsb, refBit.enumType,
+        -1, [], vscode.TreeItemCollapsibleState.None, this.uri,
+      );
+      mergedItem.mergedBitItems = bits;
+      result.push(mergedItem);
+    }
+
+    return result;
+  }
+
   public async getScopeChildren(element: NetlistItem | undefined): Promise<NetlistItem[]> {
     const children       = await this._handler.getChildren(element);
     const sortedChildren = this.sortNetlistScopeChildren(children);
-    if (element !== undefined) { element.children = sortedChildren; }
-    children.forEach((child) => {
+    const mergedChildren = this.mergeBitSplitSignals(sortedChildren);
+    if (element !== undefined) { element.children = mergedChildren; }
+    mergedChildren.forEach((child) => {
       this._netlistIdTable[child.netlistId] = child;
     });
-    return sortedChildren;
+    return mergedChildren;
   }
 
   public async getSignalData(signalIdList: SignalId[]): Promise<void> {

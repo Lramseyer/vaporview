@@ -145,6 +145,12 @@ export interface AddVariableSignal {
   encoding: string;
 }
 
+export type MergedBitSource = {
+  netlistId: NetlistId;
+  signalId: SignalId;
+  signalWidth: number;
+};
+
 export interface SetDisplayFormatMessage {
   netlistId?: NetlistId;
   rowId?: RowId;

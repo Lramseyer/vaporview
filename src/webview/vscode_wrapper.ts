@@ -1,6 +1,8 @@
+import * as vscodeTypes from 'vscode';
+
 import { MarkerSetEvent, SignalEvent, ValueLinkEvent } from "../../packages/vaporview-api/types";
 import { createInstancePath } from "../common/functions";
-import { QueueEntry, WindowMessageType, StateChangeType, NetlistId, RowId, ConfigSettingsMessage, ExternalKeyDownMessage, EmitEventMessage } from "../common/types";
+import { QueueEntry, WindowMessageType, StateChangeType, NetlistId, RowId, ConfigSettingsMessage, ExternalKeyDownMessage, EmitEventMessage, WebviewDropMessage } from "../common/types";
 import { ActionType, type EventHandler } from './event_handler';
 import { SignalGroup, NetlistVariable, CustomVariable } from "./signal_item";
 import { viewerState, events, createWebviewContext, viewport, rowHandler, getParentGroupIdList, labelsPanel, dataManager, controlBar, styles, unload, init, revealSignal, config } from "./vaporview";
@@ -642,7 +644,7 @@ export class VscodeWrapper {
     const data    = e.dataTransfer.getData('codeeditors');
     if (!data) {return;}
     const dataObj = JSON.parse(data);
-    const uriList = dataObj.map((d: { resource: string }) => {return d.resource;});
+    const uriList = dataObj.map((d: { resource: vscodeTypes.Uri }) => {return d.resource;});
 
     const {newGroupId, newIndex} = labelsPanel.dragEndExternal(e, false);
 
@@ -669,6 +671,7 @@ export class VscodeWrapper {
       dropIndex: newIndex,
       resourceUriList: uriList,
       uri: viewerState.uri,
-    });
+      documentId: viewerState.documentId,
+    } as WebviewDropMessage);
   }
 }

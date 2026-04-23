@@ -1,4 +1,5 @@
 // Re-export shared API types from the canonical source
+import * as vscode from 'vscode';
 export type {
   DocumentId,
   NetlistId,
@@ -22,7 +23,7 @@ export type {
   SignalGroupWebviewContext,
 } from '../../packages/vaporview-api/types';
 export { NameType } from '../../packages/vaporview-api/types';
-import type { NetlistId, SignalId, RowId, SignalSeparatorContext, SignalGroupContext, CustomVariableContext, NetlistVariableContext, ValueLinkEvent, SignalEvent, MarkerSetEvent } from '../../packages/vaporview-api/types';
+import type { NetlistId, SignalId, RowId, DocumentId, SignalSeparatorContext, SignalGroupContext, CustomVariableContext, NetlistVariableContext, ValueLinkEvent, SignalEvent, MarkerSetEvent } from '../../packages/vaporview-api/types';
 export type ValueChange = [number, string];
 export type EnumEntry   = [string, string];
 export type EnumData    = EnumEntry[];
@@ -145,6 +146,14 @@ export interface AddVariableSignal {
   encoding: string;
 }
 
+export interface WebviewDropMessage {
+  command: 'handleDrop';
+  groupPath?: string[];
+  dropIndex?: number;
+  resourceUriList?: vscode.Uri[];
+  documentId: DocumentId;
+}
+
 export interface SetDisplayFormatMessage {
   netlistId?: NetlistId;
   rowId?: RowId;
@@ -156,6 +165,18 @@ export interface SetDisplayFormatMessage {
   nameType?: string;
   customName?: string;
   numberFormat?: string;
+  valueLinkEnable?: boolean;
+  annotateValue?: string[];
+}
+
+export interface DisplayFormatProperties {
+  valueFormat?: string;
+  colorIndex?: number;
+  renderType?: string;
+  rowHeight?: number;
+  verticalScale?: number;
+  nameType?: string;
+  customName?: string;
   valueLinkEnable?: boolean;
   annotateValue?: string[];
 }

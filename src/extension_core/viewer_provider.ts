@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { type DocumentId, type NetlistId, SignalGroupWebviewContext, SignalId, StateChangeType, WindowMessageType, type MarkerSetEvent, type SignalEvent, type ViewerDropEvent, ExternalKeyDownMessage, SetDisplayFormatMessage, EmitEventMessage } from '../common/types';
+import { type DocumentId, type NetlistId, SignalGroupWebviewContext, SignalId, StateChangeType, WindowMessageType, type MarkerSetEvent, type SignalEvent, type ViewerDropEvent, ExternalKeyDownMessage, SetDisplayFormatMessage, EmitEventMessage, WebviewDropMessage, DisplayFormatProperties } from '../common/types';
 import { decodeNetlistUri } from '../../packages/vaporview-api';
 import type { VariableActionArgs, VariableAction, SetMarkerArgs, AddVariableByPathArgs, SavedRowItem, ValueLinkEvent } from '../../packages/vaporview-api/types';
 import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
@@ -39,26 +39,6 @@ interface WebviewMessageEvent {
 interface WebviewResponseMessage {
   requestId: number;
   body: unknown;
-}
-
-interface WebviewDropData {
-  uri: { external: string };
-  resourceUriList?: vscode.Uri[];
-  groupPath?: string[];
-  dropIndex?: number;
-}
-
-
-interface DisplayFormatProperties {
-  valueFormat?: string;
-  colorIndex?: number;
-  renderType?: string;
-  rowHeight?: number;
-  verticalScale?: number;
-  nameType?: string;
-  customName?: string;
-  valueLinkEnable?: boolean;
-  annotateValue?: string[];
 }
 
 interface AddItemsArgs {
@@ -1011,11 +991,11 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     } as ExternalKeyDownMessage);
   }
 
-  private handleWebviewDrop(e: WebviewDropData) {
+  private handleWebviewDrop(e: WebviewDropMessage) {
 
     const unknownUriList: vscode.Uri[] = [];
     const netlistIdList: NetlistId[] = [];
-    const document = this.documentCollection.getDocumentFromUri(e.uri.external);
+    const document = this.documentCollection.get(e.documentId);
     if (!document) {return;}
     if (!e.resourceUriList) {return;}
 
@@ -1051,7 +1031,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     // Emit an event for the unknown URIs so that other extensions can handle them if needed
     if (unknownUriList.length === 0) {return;}
     WaveformViewerProvider.externalDropEventEmitter.fire({
-      uri: e.uri.external,
+      uri: document.uri.toString(),
       resourceUriList: unknownUriList,
       groupPath: groupPath,
       index: index ?? 0

@@ -948,7 +948,7 @@ export class RowHandler {
       // Number format
       if (message.numberFormat !== undefined) {
         const valueFormat = getNumberFormatById(data, message.numberFormat);
-        if (valueFormat.checkWidth(data.signalWidth)) {
+        if (valueFormat.checkWidth(data.signalWidth) || data.missingSignal) {
           const forceUpdateValueFormat = !this.events.isBatchMode;
           this.unsetValueFormat(data.getWaveformData(), data.valueFormat);
           data.valueFormat = valueFormat;

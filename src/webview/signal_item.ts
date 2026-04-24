@@ -130,7 +130,7 @@ export interface RowItem {
 export class SignalSeparator extends SignalItem implements RowItem {
 
   constructor(
-    public rowId: number,
+    public readonly rowId: number,
     public label: string,
   ) {
     super();
@@ -206,16 +206,17 @@ export class NetlistVariable extends SignalItem implements RowItem {
   public customName: string = "";
   public min: number = 0;
   public max: number = 0;
+  public readonly missingSignal: boolean;
 
   constructor(
     public readonly rowId: RowId,
     public readonly netlistId: number | undefined,
-    public signalId: number | undefined,
-    public signalName: string,
-    public scopePath: string[],
-    public signalWidth: number,
-    public variableType: string,
-    public encoding: VariableEncoding,
+    public readonly signalId: number | undefined,
+    public readonly signalName: string,
+    public readonly scopePath: string[],
+    public readonly signalWidth: number,
+    public readonly variableType: string,
+    public readonly encoding: VariableEncoding,
     public renderType: WaveformRenderer,
     public enumType: string,
   ) {
@@ -228,6 +229,12 @@ export class NetlistVariable extends SignalItem implements RowItem {
       this.colorIndex = config.defaultSingleBitColor;
     } else {
       this.colorIndex = config.defaultMultiBitColor;
+    }
+
+    if (this.signalId === undefined && this.netlistId === undefined) {
+      this.missingSignal = true;
+    } else {
+      this.missingSignal = false;
     }
 
     if (this.encoding === VariableEncoding.String) {
@@ -269,7 +276,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
   public createLabelElement() {
 
     let missingSignalClass = "";
-    if (this.signalId === undefined) {missingSignalClass = 'missing-signal';}
+    if (this.missingSignal) {missingSignalClass = 'missing-signal';}
     const height        = getRowHeightCssClass(this.rowHeight);
     const signalName    = htmlSafe(this.signalName);
     const instancePath  = htmlSafe(createInstancePath(this.scopePath, signalName));
@@ -285,7 +292,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
 
   public createValueDisplayElement() {
     let   value = labelsPanel.valueAtMarker[this.rowId];
-    if (value === undefined || this.signalId === undefined) {value = [];}
+    if (this.missingSignal) {value = [];}
     const isSelectedClass   = this.isSelected ? 'is-selected' : '';
     const lastSelectedClass = viewerState.lastSelectedSignal === this.rowId ? 'last-selected' : '';
     const selectorClass = isSelectedClass + ' ' + lastSelectedClass;
@@ -501,14 +508,15 @@ export class CustomVariable extends SignalItem implements RowItem {
   public customName: string = "";
   public min: number = 0;
   public max: number = 0;
-  public variableType: string = "custom";
+  public readonly variableType: string = "custom";
   public encoding: VariableEncoding = VariableEncoding.BitVector;
   public enumType: string = "";
+  public readonly missingSignal: boolean;
 
   constructor(
-    public rowId: number,
+    public readonly rowId: number,
     public source: BitRangeSource[],
-    public customSignalId: number | undefined,
+    public readonly customSignalId: number | undefined,
     public signalName: string,
     public signalWidth: number,
     public renderType: WaveformRenderer,
@@ -516,6 +524,7 @@ export class CustomVariable extends SignalItem implements RowItem {
     super();
     this.customName = this.signalName;
     this.valueFormat = this.signalWidth === 1 ? formatBinary : formatHex;
+    this.missingSignal = (this.customSignalId === undefined);
     this.setSignalContextAttribute();
     this.setColorFromColorIndex();
   }
@@ -532,7 +541,7 @@ export class CustomVariable extends SignalItem implements RowItem {
   public createLabelElement() {
 
     let missingSignalClass = "";
-    if (this.customSignalId === undefined) {missingSignalClass = 'missing-signal';}
+    if (this.missingSignal) {missingSignalClass = 'missing-signal';}
     const height        = getRowHeightCssClass(this.rowHeight);
     const signalName    = htmlSafe(this.signalName);
     const isSelectedClass   = this.isSelected ? 'is-selected' : '';
@@ -547,7 +556,7 @@ export class CustomVariable extends SignalItem implements RowItem {
     public createValueDisplayElement() {
 
       let   value = labelsPanel.valueAtMarker[this.rowId];
-      if (value === undefined || this.customSignalId === undefined) {value = [];}
+      if (this.missingSignal) {value = [];}
       const isSelectedClass   = this.isSelected ? 'is-selected' : '';
       const lastSelectedClass = viewerState.lastSelectedSignal === this.rowId ? 'last-selected' : '';
       const selectorClass = isSelectedClass + ' ' + lastSelectedClass;
@@ -713,7 +722,7 @@ export class SignalGroup extends SignalItem implements RowItem {
   public children: RowId[] = [];
 
   constructor(
-    public rowId: number,
+    public readonly rowId: number,
     public label: string,
     public readonly groupId: number
   ) {

@@ -5,7 +5,7 @@ import { viewerState, dataManager, updateDisplayedSignalsFlat, handleClickSelect
 import { ValueFormat } from './value_format';
 import { WaveformRenderer } from './renderer';
 import { labelsPanel, rowHandler, vscodeWrapper, styles, config } from "./vaporview";
-import { CustomVariable, NetlistVariable, VariableItem } from "./signal_item";
+import { CustomVariable, NetlistVariable, SignalItem, VariableItem } from "./signal_item";
 
 export class Viewport {
 
@@ -70,14 +70,15 @@ export class Viewport {
   rulerNumberSpacing: number  = 100;
   rulerTickSpacing: number    = 10;
   rulerNumberIncrement: number = 100;
-  minNumberSpacing: number   = 100;
-  minTickSpacing: number     = 20;
+  minNumberSpacing: number    = 100;
+  minTickSpacing: number      = 20;
   rulerLineX: [number, number][] = [];
-  annotateTime: number[]     = [];
+  annotateTime: number[]      = [];
 
   pixelRatio: number          = 1;
   updatePending: boolean      = false;
   scrollEventPending: boolean = false;
+  hoverItemRowId: RowId | null = null;
 
   constructor(
     private events: EventHandler,
@@ -137,6 +138,7 @@ export class Viewport {
     scrollbar.addEventListener('pointerdown',        (e) => {this.handleScrollbarDrag(e);});
     scrollbarContainer.addEventListener('pointerdown', (e) => {this.handleScrollbarContainerClick(e);});
     overlayCanvas.addEventListener('contextmenu',    (e) => {this.handleContextMenu(e);});
+    overlayCanvas.addEventListener("pointermove",    (e) => {this.handleMouseOver(e);});
 
     this.handleScrollbarMove = this.handleScrollbarMove.bind(this);
     this.handleScrollbarPointerUp = this.handleScrollbarPointerUp.bind(this);
@@ -329,6 +331,23 @@ export class Viewport {
       }
     }
     this.overlayCanvasElement.setAttribute('data-vscode-context', "{}");
+  }
+
+  handleMouseOver(event: MouseEvent) {
+    const rowId = this.getRowIdFromMouseEvent(event);
+    if (rowId !== null) {
+      const signalItem = rowHandler.rowItems[rowId];
+      if (signalItem instanceof NetlistVariable && signalItem.valueLinkEnable) {
+        signalItem.handleValueLinkMouseOver(event);
+      }
+    }
+    if (this.hoverItemRowId !== null && rowId !== this.hoverItemRowId) {
+      const oldSignalItem = rowHandler.rowItems[this.hoverItemRowId];
+      if (oldSignalItem instanceof NetlistVariable) {
+        oldSignalItem.handleValueLinkMouseExit(event);
+      }
+    }
+    this.hoverItemRowId = rowId;
   }
 
   handleScrollAreaMouseDown(event: MouseEvent) {

@@ -382,13 +382,13 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
       const leftOffset  = justifyDirection === "left" ?  0 : 1;
       const rightOffset = justifyDirection === "left" ? -1 : 0;
       textElements.forEach(([text, xValue, center]) => {
-        const x = (xValue * viewport.zoomRatio) - viewport.pseudoScrollLeft;
+        //const x = (xValue * viewport.zoomRatio) - viewport.pseudoScrollLeft;
         const textWidth = text.length * styles.characterWidth;
         if (!center) {
-          netlistData.valueLinkBounds.push([x + (leftOffset * textWidth), x + (rightOffset * textWidth)]);
+          netlistData.valueLinkBounds.push([xValue + (leftOffset * textWidth), xValue + (rightOffset * textWidth)]);
         } else {
           const centerOffset = textWidth / 2;
-          netlistData.valueLinkBounds.push([x - centerOffset, x + centerOffset]);
+          netlistData.valueLinkBounds.push([xValue - centerOffset, xValue + centerOffset]);
         }
       });
     }

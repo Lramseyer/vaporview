@@ -963,16 +963,8 @@ export class RowHandler {
       // Value link command
       if (message.valueLinkEnable !== undefined) {
 
-        if (netlistData.valueLinkEnable === false && message.valueLinkEnable === true) {
-          netlistData.canvas?.addEventListener("pointermove", netlistData.handleValueLinkMouseOver, true);
-          netlistData.canvas?.addEventListener("pointerleave", netlistData.handleValueLinkMouseExit, true);
-        } else if (message.valueLinkEnable === false) {
-          netlistData.canvas?.removeEventListener("pointermove", netlistData.handleValueLinkMouseOver, true);
-          netlistData.canvas?.removeEventListener("pointerleave", netlistData.handleValueLinkMouseExit, true);
-        }
-
         netlistData.valueLinkEnable = message.valueLinkEnable;
-        netlistData.valueLinkIndex   = -1;
+        netlistData.valueLinkIndex  = -1;
       }
     }
 

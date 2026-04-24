@@ -22,6 +22,8 @@ export function isAnalogSignal(renderType: WaveformRenderer) {
 }
 
 function mouseOverHandler(event: MouseEvent, signalItem: NetlistVariable, checkBounds: boolean) {
+
+  if (!signalItem.valueLinkEnable) {return;}
   if (!event.target) {return;}
 
   let redraw        = false;
@@ -45,9 +47,9 @@ function mouseOverHandler(event: MouseEvent, signalItem: NetlistVariable, checkB
 
   // Check to change cursor to a pointer
   if (valueIndex >= 0 && (event.ctrlKey || event.metaKey)) {
-    signalItem.canvas?.classList.add('waveform-link');
+    viewport.overlayCanvasElement.classList.add('waveform-link');
   } else {
-    signalItem.canvas?.classList.remove('waveform-link');
+    viewport.overlayCanvasElement.classList.remove('waveform-link');
   }
 
   if (valueIndex !== signalItem.valueLinkIndex) {redraw = true;}

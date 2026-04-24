@@ -870,6 +870,7 @@ export class Viewport {
 
   updateOverlayCanvas() {
     const ctx = this.overlayCanvas;
+    let drawAltMarker = true;
     ctx.clearRect(0, 0, this.viewerWidth, this.viewerHeight);
     ctx.strokeStyle = styles.markerColor;
     ctx.lineWidth = 1;
@@ -878,6 +879,10 @@ export class Viewport {
     ctx.setLineDash([2, 2]);
 
     if (viewerState.markerTime !== null) {
+      if (viewerState.altMarkerTime === viewerState.markerTime) {
+        ctx.setLineDash([]);
+        drawAltMarker = false;
+      }
       const markerX = this.getViewportLeft(viewerState.markerTime, 100);
       ctx.beginPath();
       ctx.moveTo(markerX, styles.rulerHeight);
@@ -886,10 +891,7 @@ export class Viewport {
     }
 
     ctx.setLineDash([6, 2, 2, 2]);
-    if (viewerState.altMarkerTime !== null) {
-      if (viewerState.altMarkerTime === viewerState.markerTime) {
-        ctx.setLineDash([]);
-      }
+    if (viewerState.altMarkerTime !== null && drawAltMarker) {
     const altMarkerX = this.getViewportLeft(viewerState.altMarkerTime, 100);
       ctx.beginPath();
       ctx.moveTo(altMarkerX, styles.rulerHeight);

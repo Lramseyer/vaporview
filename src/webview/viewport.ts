@@ -57,6 +57,8 @@ export class Viewport {
 
   scrollbarMoved: boolean     = false;
   scrollbarStartX: number     = 0;
+  pointerStartX: number       = 0;
+  lastPointerX: number        = 0;
   scrollbarPointerId: number | null = null;
 
   // Zoom level variables
@@ -455,8 +457,10 @@ export class Viewport {
   handleScrollbarDrag(event: PointerEvent) {
     event.preventDefault();
     event.stopPropagation();
-    this.scrollbarMoved = false;
-    this.scrollbarStartX = event.clientX;
+    this.scrollbarMoved  = false;
+    this.scrollbarStartX = this.scrollbarPosition;
+    this.pointerStartX   = event.clientX;
+    this.lastPointerX    = event.clientX;
     this.scrollbar.classList.add('is-dragging');
     this.scrollbarPointerId = event.pointerId;
     this.scrollbar.setPointerCapture(event.pointerId);
@@ -506,12 +510,14 @@ export class Viewport {
 
   handleScrollbarMove(e: MouseEvent | PointerEvent) {
     if (!this.scrollbarMoved) {
-      this.scrollbarMoved = e.clientX !== this.scrollbarStartX;
+      this.scrollbarMoved = e.clientX !== this.lastPointerX;
       if (!this.scrollbarMoved) {return;}
     }
-    const newPosition   = Math.min(Math.max(0, e.clientX - this.scrollbarStartX + this.scrollbarPosition), this.maxScrollbarPosition);
-    this.scrollbarStartX = e.clientX;
+
+    this.lastPointerX   = e.clientX;
+    const newPosition   = e.clientX - this.pointerStartX + this.scrollbarStartX;
     const newScrollLeft = Math.round((newPosition / this.maxScrollbarPosition) * this.maxScrollLeft);
+    // No need to clamp the value, because handleScrollEvent() clamps it for us
     this.handleScrollEvent(newScrollLeft);
   }
 

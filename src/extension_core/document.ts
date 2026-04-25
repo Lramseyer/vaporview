@@ -584,9 +584,10 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   public async findTreeItem(scopePath: string, msb: number | undefined, lsb: number | undefined): Promise<NetlistItem | null> {
-    const module = this.treeData.find((element) => element.label === scopePath.split('.')[0]);
+    const pathArray = scopePath.split('.');
+    const module    = this.treeData.find((element) => element.label === pathArray[0]);
     if (!module) { return null; }
-    return await module.findChild(scopePath.split('.').slice(1).join('.'), this, msb, lsb);
+    return await module.findChild(pathArray.slice(1), this, msb, lsb);
   }
 
   public getNameFromNetlistId(netlistId: NetlistId | null) {

@@ -340,10 +340,11 @@ export class NetlistItem extends vscode.TreeItem implements NetlistTreeItemData 
   }
 
   // Method to recursively find a child element in the tree
-  async findChild(label: string, document: VaporviewDocument, msb: number | undefined, lsb: number | undefined): Promise<NetlistItem | null> {
+  async findChild(label: string[], document: VaporviewDocument, msb: number | undefined, lsb: number | undefined): Promise<NetlistItem | null> {
 
     // If the label is empty, return the current item, but try to find the child with the specified msb and lsb
-    if (label === '') {
+    if (label.length === 0) {
+      if (this.contextValue === 'netlistScope') {return this;}
       if (this.children.length === 0 || this.children === undefined) {return this;}
       if (msb === undefined || lsb === undefined) {return this;}
       if (this.msb === msb && this.lsb === lsb) {return this;}
@@ -353,8 +354,7 @@ export class NetlistItem extends vscode.TreeItem implements NetlistTreeItemData 
       return this;
     }
 
-    const subModules    = label.split(".");
-    const currentModule = subModules.shift();
+    const currentModule = label[0];
     if (this.children.length === 0 ||
       (document.fileType === 'fsdb' && this.fsdbVarLoaded === false)) { // For fsdb, variables are loaded on demand
       await document.getScopeChildren(this);
@@ -363,12 +363,13 @@ export class NetlistItem extends vscode.TreeItem implements NetlistTreeItemData 
     const childItem = this.children.find((child) => child.name === currentModule);
 
     if (childItem) {
-      return await childItem.findChild(subModules.join("."), document, msb, lsb);
+      return await childItem.findChild(label.slice(1), document, msb, lsb);
     } else {
       return null;
     }
   }
 }
+
 
 // We don't need to do anything special for drag and drop because the resource URI has the data we need
 export const netlistItemDragAndDropController: vscode.TreeDragAndDropController<NetlistItem> = {

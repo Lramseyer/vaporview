@@ -946,15 +946,46 @@ export class Viewport {
     this.timeScrollRight  = this.timeScrollLeft + this.viewerWidthTime;
     this.zoomOffset       = Math.log2(this.zoomRatio / this.defaultZoom);
     const baseZoom        = (2 ** Math.floor(this.zoomOffset)) * this.defaultZoom;
-    const spacingRatio    = 2 ** (this.zoomOffset - Math.floor(this.zoomOffset));
-    this.rulerTickSpacing = this.minTickSpacing * spacingRatio;
-    this.rulerNumberSpacing = this.minNumberSpacing * spacingRatio;
-    this.rulerNumberIncrement = this.minNumberSpacing / baseZoom;
+    const idealInterval   = this.minNumberSpacing / baseZoom;
+    this.rulerNumberIncrement = Math.round(this.snapToTimescale(idealInterval));
+    this.rulerNumberSpacing = this.rulerNumberIncrement * baseZoom;
+    if(this.rulerNumberIncrement % 5 === 0) {
+      this.rulerTickSpacing = this.rulerNumberSpacing / 5;
+    } else if (this.rulerNumberIncrement % 2 === 0) {
+      this.rulerTickSpacing = this.rulerNumberSpacing / 2;
+    } else { 
+      this.rulerTickSpacing = this.rulerNumberSpacing;
+    }
 
     //console.log('zoom ratio: ' + this.zoomRatio + ' zoom offset: ' + zoomOffset + ' base zoom: ' + baseZoom);
 
     this.updateScrollbarResize();
     this.redrawViewport();
+  }
+
+  /**
+   * calculate the closest "nice" interval to the ideal interval
+   * "nice" intervals are in the form of (1, 2, or 5) * 10^n * timeScale
+   */
+  private snapToTimescale(idealInterval: number): number {
+    const ts = this.timeScale;
+    const bases = [1, 2, 5];
+    let bestInterval = ts;
+    let bestDiff = Math.abs(idealInterval - ts);
+
+    for (let exp = 0; exp <= 20; exp++) {
+      const multiplier = 10 ** exp;
+      for (const base of bases) {
+        const candidate = ts * base * multiplier;
+        const diff = Math.abs(idealInterval - candidate);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          bestInterval = candidate;
+        }
+        if (candidate > idealInterval * 10) { return bestInterval; }
+      }
+    }
+    return bestInterval;
   }
 
   private animate(callback: (progress: number) => void): Promise<void> {

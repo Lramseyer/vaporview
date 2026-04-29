@@ -161,6 +161,14 @@
             "scope": "application",
             "description": "Scrolling mode for the waveform viewer. Options: 'mouse' (default), 'touch'."
           },
+          "vaporview.touchpadPinchSensitivity": {
+            "type": "number",
+            "default": 1,
+            "scope": "application",
+            "minimum": 0.1,
+            "maximum": 10,
+            "description": "Touchpad pinch zoom sensitivity - Higher values Zoom faster."
+          },
           "vaporview.sortNetlist": {
             "type": "boolean",
             "default": "false",

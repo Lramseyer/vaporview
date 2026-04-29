@@ -28,6 +28,7 @@ export enum OS {
 export class Configuration {
   touchpadScrolling: boolean        = false;
   autoTouchpadScrolling: boolean    = false;
+  touchpadPinchSensitivity: number   = 18;
   rulerLines: boolean               = true;
   fillMultiBitValues: boolean       = false;
   multiBitFixedHeight: boolean      = true;
@@ -51,8 +52,12 @@ export class Configuration {
   }
 
   setConfigSettings(settings: ConfigSettingsMessage) {
+    // Scroll and zoom settings
     if (settings.scrollingMode !== undefined) {
       controlBar.setScrollMode(settings.scrollingMode);
+    }
+    if (settings.touchpadPinchSensitivity !== undefined) {
+      config.touchpadPinchSensitivity = settings.touchpadPinchSensitivity;
     }
     if (settings.rulerLines !== undefined) {
       if (this.rulerLines !== settings.rulerLines) {

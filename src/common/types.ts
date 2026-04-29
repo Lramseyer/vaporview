@@ -107,6 +107,7 @@ export interface InitMessage {
 // - here - setConfigSettings()
 export interface ConfigSettingsMessage {
   scrollingMode?: string;
+  touchpadPinchSensitivity: number;
   rulerLines?: boolean;
   fillMultiBitValues?: boolean;
   multiBitFixedHeight?: boolean;

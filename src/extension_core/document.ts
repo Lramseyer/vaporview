@@ -248,6 +248,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this.webviewPanel?.webview.postMessage({
       command: 'setConfigSettings',
       scrollingMode:                      config.get('scrollingMode'),
+      touchpadPinchSensitivity:            config.get('touchpadPinchSensitivity'),
       rulerLines:                         config.get('showRulerLines'),
       overrideDevicePixelRatio:           config.get('overrideDevicePixelRatio'),
       userPixelRatio:                     config.get('userPixelRatio'),

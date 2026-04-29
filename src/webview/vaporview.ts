@@ -314,7 +314,7 @@ class VaporviewWebview {
 
     const deltaY = e.deltaY;
     const deltaX = e.deltaX;
-    const touchpadScrollDivisor = 18;
+    const touchpadPinchDivider = 18 / config.touchpadPinchSensitivity;
     const mouseMode = !config.autoTouchpadScrolling && !config.touchpadScrolling;
 
     if (e.shiftKey) {
@@ -329,7 +329,7 @@ class VaporviewWebview {
       const bounds      = viewport.scrollAreaBounds;
       const pixelLeft   = Math.round(e.pageX - bounds.left);
       const time        = Math.round((pixelLeft + this.viewport.pseudoScrollLeft) * this.viewport.pixelTime);
-      const zoomOffset  = Math.min(touchpadScrollDivisor, Math.max(-touchpadScrollDivisor, deltaY));
+      const zoomOffset  = Math.min(touchpadPinchDivider, Math.max(-touchpadPinchDivider, deltaY));
 
       //if (deltaY !== zoomOffset) {console.log('deltaY: ' + deltaY + '; zoomOffset: ' + zoomOffset);}
       // scroll up zooms in (- deltaY), scroll down zooms out (+ deltaY)
@@ -338,7 +338,7 @@ class VaporviewWebview {
 
       // Handle zooming with touchpad since we apply scroll attenuation
       else {
-        viewport.handleZoom(zoomOffset / touchpadScrollDivisor, time, pixelLeft);
+        viewport.handleZoom(zoomOffset / touchpadPinchDivider, time, pixelLeft);
       }
 
     } else {

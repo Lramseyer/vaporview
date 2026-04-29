@@ -4,10 +4,13 @@
 
 - Shift + Up/Down Arrow now adds to selection
 - Glitch transitions show all values in value display
-- Added user setting for default "Auto Reload" state
 - Value Links have been converted from a command call to an event emitter
-- Fix horizontal scrollbar drag behavior
-- Fix number formatting reset in missing signals when re-saving
+- Added user settings:
+  - Default "Auto Reload" state
+  - Touchpad pinch zoom sensitivity
+- Fixed:
+  - Horizontal scrollbar drag behavior
+  - Number formatting reset in missing signals when re-saving
 - Enforce type safety @AndrewNolte
 - Update wellen to 0.20.5
 

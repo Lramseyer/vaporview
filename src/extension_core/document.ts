@@ -94,7 +94,7 @@ export interface WaveformFileParser {
   getSignalData(signalIdList: SignalId[]): Promise<void>;
   getEnumData(enumList: EnumQueueEntry[]): Promise<void>;
   getValuesAtTime(time: number, instancePaths: string[]): Promise<ValuesAtTimeResult[]>;
-  searchNetlist(searchString: string): Promise<NetlistSearchResult>
+  searchNetlist(scopePath: string, searchString: string): Promise<NetlistSearchResult>
 
   // Callbacks
   postMessageToWebview(message: Record<string, unknown>): void;
@@ -754,8 +754,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     return this._handler.getValuesAtTime(time, e.instancePaths);
   }
 
-  public searchNetlist(searchQuery: string): Promise<NetlistSearchResult> {
-    return this._handler.searchNetlist(searchQuery);
+  public searchNetlist(scopePath: string, searchQuery: string): Promise<NetlistSearchResult> {
+    return this._handler.searchNetlist(scopePath, searchQuery);
   }
 
   public async unload(): Promise<void> {
@@ -802,23 +802,64 @@ export class NetlistSearchQuickPick {
   private document: VaporviewDocument | undefined;
   private searchInProgress = false;
   private pendingQuery: string | undefined;
+  private scopeHistory: string[] = []; // stack of full scope paths
+  private expectedHide = false; // whether hide the quickPick, will be true only when selected a var
 
   constructor() {
     this.quickPick = vscode.window.createQuickPick<NetlistQuickPickItem>();
-    this.quickPick.placeholder = 'Search netlist by instance path...';
     this.quickPick.matchOnDetail = true;
     this.quickPick.busy = false;
-    this.quickPick.onDidHide(() => {this.quickPick.value = "";});
+    
+    this.quickPick.onDidHide(() => {
+      if (this.scopeHistory.length > 0 && !this.expectedHide) {
+        // go back to previous search scope instead of closing
+        this.scopeHistory.pop();
+        this.restoreScope();
+        this.quickPick.show();
+      } else {
+        this.expectedHide = false;
+        this.quickPick.value = "";
+        this.scopeHistory = [];
+        this.quickPick.step = undefined;
+        this.quickPick.buttons = [];
+      }
+    });
 
     this.quickPick.onDidChangeValue((value) => this.applyFilter(value));
     this.quickPick.onDidAccept(() => this.onAccept());
+    this.quickPick.onDidTriggerButton((button) => {
+      if (button === vscode.QuickInputButtons.Back && this.scopeHistory.length > 0) {
+        this.scopeHistory.pop();
+        this.restoreScope();
+      }
+    });
   }
 
   public show(document: VaporviewDocument) {
     this.document = document;
     this.pendingQuery = undefined;
     this.searchInProgress = false;
+    this.scopeHistory = [];
+    this.quickPick.buttons = [];
+    this.quickPick.placeholder = 'Search netlist by instance path...';
+    this.quickPick.value = "";
+    this.quickPick.items = [];
+    this.quickPick.title = undefined;
     this.quickPick.show();
+  }
+  // update the search info, update the search scope to the last scope of history
+  private restoreScope() {
+    if (this.scopeHistory.length > 0) {
+      const scope = this.scopeHistory[this.scopeHistory.length - 1];
+      this.quickPick.buttons = [vscode.QuickInputButtons.Back];
+      this.quickPick.placeholder = `Search within ${scope}...`;
+    } else {
+      this.quickPick.buttons = [];
+      this.quickPick.placeholder = 'Search netlist by instance path...';
+    }
+    this.quickPick.value = "";
+    this.quickPick.items = [];
+    this.quickPick.title = undefined;
   }
 
   private async applyFilter(query: string) {
@@ -837,29 +878,34 @@ export class NetlistSearchQuickPick {
 
     this.searchInProgress  = true;
     this.quickPick.busy    = true;
-    const searchResult     = await this.document.searchNetlist(query);
+    const scopePrefix      = this.scopeHistory.length > 0 ? this.scopeHistory[this.scopeHistory.length - 1] : "";
+    const searchResult     = await this.document.searchNetlist(scopePrefix, query);
     this.searchInProgress  = false;
 
     const totalResults     = searchResult.totalResults;
     const displayedResults = searchResult.searchResults.length;
     const resultString     = totalResults === 1 ? "result" : "results";
 
+    const scopeString = scopePrefix ? ` in ${scopePrefix}` : "";
     if (totalResults === 0) {
-      this.quickPick.title = "No results found";
+      this.quickPick.title = `No results found${scopeString}`;
     } else if (displayedResults !== totalResults) {
-      this.quickPick.title = `Showing ${displayedResults} of ${totalResults} ${resultString}`;
+      this.quickPick.title = `Showing ${displayedResults} of ${totalResults} ${resultString}${scopeString}`;
     } else {
-      this.quickPick.title = `${totalResults} ${resultString}`;
+      this.quickPick.title = `${totalResults} ${resultString}${scopeString}`;
     }
 
     this.quickPick.items = searchResult.searchResults.map(result => {
       const icon       = result.isVar ? getVarIcon(result.type) : getScopeIcon(result.type);
       const bitRange   = result.isVar ? bitRangeString(result.msb, result.lsb) : "";
       const paramValue = result.paramValue ? ": " + parseParamValue(result.paramValue) : "";
+      const relativePath = scopePrefix && result.instancePath.startsWith(scopePrefix + '.')
+        ? result.instancePath.slice(scopePrefix.length + 1)
+        : result.instancePath;
       return {
         label: result.instancePath.slice(result.instancePath.lastIndexOf(".") + 1) + bitRange,
         description: result.type + paramValue,
-        detail: result.instancePath,
+        detail: relativePath,
         instancePath: result.instancePath,
         isVar: result.isVar,
         msb: result.msb || 0,
@@ -886,9 +932,11 @@ export class NetlistSearchQuickPick {
     if (selected.isVar) {
       const metadata = await this.document.findTreeItem(selected.instancePath, selected.msb, selected.lsb);
       if (metadata) {this.document.renderSignals([metadata.netlistId], [], undefined);}
+      this.expectedHide = true;
       this.quickPick.hide();
     } else {
-      this.quickPick.value = selected.instancePath + ".";
+      this.scopeHistory.push(selected.instancePath);
+      this.restoreScope();
     }
   }
 }

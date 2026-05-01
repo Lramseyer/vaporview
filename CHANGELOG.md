@@ -11,6 +11,7 @@
 - Fixed:
   - Horizontal scrollbar drag behavior
   - Number formatting reset in missing signals when re-saving
+  - Waveform disappearing when highlight zoom
 - Enforce type safety @AndrewNolte
 - Update wellen to 0.20.5
 

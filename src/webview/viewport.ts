@@ -905,7 +905,7 @@ export class Viewport {
   }
 
   setViewportRange(startTime: number, endTime: number) {
-    const timeRange = endTime - startTime;
+    const timeRange = Math.max(endTime - startTime, 1);
 
     if (this.updatePending) {return;}
     if (startTime < 0 || endTime <= startTime || endTime > this.timeStop) {return;}
@@ -951,7 +951,7 @@ export class Viewport {
     this.rulerNumberSpacing = this.minNumberSpacing * spacingRatio;
     this.rulerNumberIncrement = this.minNumberSpacing / baseZoom;
 
-    //console.log('zoom ratio: ' + this.zoomRatio + ' zoom offset: ' + zoomOffset + ' base zoom: ' + baseZoom);
+    //console.log('zoom ratio: ' + this.zoomRatio + ' base zoom: ' + baseZoom);
 
     this.updateScrollbarResize();
     this.redrawViewport();
@@ -995,7 +995,8 @@ export class Viewport {
     await this.animate((progress) => {
       const newPixelTimeStart = pixelTimeStart - (pixelTimeStart * progress);
       const newPixelTimeEnd   = pixelTimeEnd   + (pixelDelta * progress);
-      const newPixelTime      = deltaTime / (newPixelTimeEnd   - newPixelTimeStart);
+      const newDeltaTime      = Math.max(newPixelTimeEnd - newPixelTimeStart, 1);
+      const newPixelTime      = deltaTime / newDeltaTime;
       const newTimeStart      = timeStart - (newPixelTimeStart * newPixelTime);
       const newTimeEnd        = timeEnd + ((this.viewerWidth - newPixelTimeEnd) * newPixelTime);
       this.setViewportRange(newTimeStart, newTimeEnd);

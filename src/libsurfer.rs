@@ -179,7 +179,7 @@ impl SurferRemote {
     let time_end = tt[event_count - 1];
     let time_end_extend = time_end + (time_end as f32 / event_count as f32).ceil() as u64;
     
-    setchunksize(min_timestamp, time_end_extend, event_count as u64);
+    setchunksize(min_timestamp / 128, time_end_extend, event_count as u64);
   }
 
   pub fn loadremotesignals(signals_data: Vec<u8>) {

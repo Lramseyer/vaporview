@@ -83,10 +83,9 @@ export type WaveformDumpMetadata = {
   signalIdCount: number;
   timeTableCount: number;
   timeEnd: number;
-  defaultZoom: number;
+  minTimeStep: number;
   timeScale: number;
   timeUnit: string;
-  chunkSize: number;
 };
 
 export interface InitMessage {

@@ -8,8 +8,6 @@ import type { VaporviewDocumentCollection, VaporviewDocumentDelegate } from './v
 import { getVarIcon, getScopeIcon, type NetlistItem } from './tree_view';
 import type { FsdbFormatHandler } from './fsdb_handler';
 
-
-
 export type NetlistIdTable = NetlistItem[];
 
 export type SignalInfo = {
@@ -176,15 +174,6 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   //public get handler(): WaveformFileParser { return this._handler; }
   public get providerDelegate(): VaporviewDocumentDelegate { return this._providerDelegate; }
 
-  // #region WaveformFileParserDelegate implementation
-  // These methods are called by the format handlers
-  public setChunkSize() {
-    const chunkSize = this.metadata.chunkSize;
-    const newMinTimeStep = 10 ** (Math.round(Math.log10(Number(chunkSize) / 128)) | 0);
-    this.metadata.defaultZoom = 4 / newMinTimeStep;
-    this.onDoneParsingWaveforms();
-  }
-
   public postMessageToWebview(message: Record<string, unknown>): void {
     this.webviewPanel?.webview.postMessage(message);
   }
@@ -210,7 +199,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     const bodyLoadTime = Date.now();
     await this._handler.loadBody();
     const bodyTime     = (Date.now() - bodyLoadTime) / 1000;
-    this.setChunkSize();
+    this.onDoneParsingWaveforms();
 
     const timeTableCount = toStringWithCommas(Number(this.metadata.timeTableCount));
     this._providerDelegate.logOutputChannel("Finished parsing body for " + this.uri.fsPath);
@@ -248,7 +237,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this.webviewPanel?.webview.postMessage({
       command: 'setConfigSettings',
       scrollingMode:                      config.get('scrollingMode'),
-      touchpadPinchSensitivity:            config.get('touchpadPinchSensitivity'),
+      touchpadPinchSensitivity:           config.get('touchpadPinchSensitivity'),
       rulerLines:                         config.get('showRulerLines'),
       overrideDevicePixelRatio:           config.get('overrideDevicePixelRatio'),
       userPixelRatio:                     config.get('userPixelRatio'),

@@ -648,7 +648,7 @@ impl Guest for Filecontext {
     //log(&format!("Setting chunk size to: {:?}", min_timestamp));
     // convert time_table_length to string with commas
 
-    setchunksize(min_timestamp, time_end_extend, time_table_length as u64);
+    setchunksize(min_timestamp / 128, time_end_extend, time_table_length as u64);
 
     // unload _body
     *global_body = ReadBodyEnum::None;

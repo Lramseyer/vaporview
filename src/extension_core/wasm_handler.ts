@@ -105,10 +105,9 @@ export class WasmFormatHandler implements WaveformFileParser {
     signalIdCount: 0,
     timeTableCount: 0,
     timeEnd: 0,
-    defaultZoom: 1,
+    minTimeStep: 1,
     timeScale: 1,
     timeUnit: "ns",
-    chunkSize: 1
   };
 
   constructor(
@@ -173,8 +172,8 @@ export class WasmFormatHandler implements WaveformFileParser {
     setchunksize: (chunksize: bigint, timeend: bigint, timetablelength: bigint) => {
       this.metadata.timeEnd = Number(timeend);
       this.metadata.timeTableCount = Number(timetablelength);
+      this.metadata.minTimeStep = Number(chunksize);
       this.metadata.timeTableLoaded = true;
-      this.metadata.chunkSize = Number(chunksize);
     },
     sendtransitiondatachunk: (signalid: number, totalchunks: number, chunknum: number, min: number, max: number, transitionData: string) => {
       this.postMessageToWebview({

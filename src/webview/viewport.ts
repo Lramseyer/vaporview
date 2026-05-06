@@ -178,14 +178,15 @@ export class Viewport {
 
   initViewport(metadata: WaveformDumpMetadata) {
     this.setPixelRatio();
-    this.defaultZoom     = metadata.defaultZoom;
-    this.zoomRatio       = metadata.defaultZoom;
-    this.pixelTime       = 1 / this.zoomRatio;
     this.timeScale       = metadata.timeScale;
     this.timeUnit        = metadata.timeUnit;
     this.displayTimeUnit = metadata.timeUnit;
     this.timeStop        = metadata.timeEnd;
     this.timeTableCount  = metadata.timeTableCount;
+    const newMinTimeStep = 10 ** (Math.round(Math.log10(Number(metadata.minTimeStep))) | 0);
+    this.defaultZoom     = 4 / newMinTimeStep;
+    this.zoomRatio       = this.defaultZoom;
+    this.pixelTime       = 1 / this.zoomRatio;
     this.maxZoomRatio    = this.zoomRatio * 64;
     this.adjustedLogTimeScale   = 0;
     this.waveformArea.innerHTML = '';

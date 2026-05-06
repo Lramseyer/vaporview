@@ -487,8 +487,16 @@ export class Viewport {
   }
 
   drawHighlightZoomCanvas(event: MouseEvent) {
-    this.updateOverlayCanvas();
+
     const ctx = this.overlayCanvas;
+
+    // workaround for issue with canvas draw
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, 1);
+    ctx.stroke();
+
+    this.updateOverlayCanvas();
     this.highlightEndEvent = event;
     if (!this.highlightStartEvent) {return;}
     const width       = Math.abs(this.highlightEndEvent.pageX - this.highlightStartEvent.pageX);
@@ -498,7 +506,7 @@ export class Viewport {
     ctx.globalAlpha   = 0.5;
     ctx.roundRect(elementLeft, styles.rulerHeight, width, this.contentArea.clientHeight - styles.rulerHeight, 2);
     ctx.fill();
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha   = 1;
 
     if (width > 5) {viewerState.mouseupEventType = MouseUpEventType.HighlightZoom;}
 
@@ -876,10 +884,9 @@ export class Viewport {
     ctx.strokeStyle = styles.markerColor;
     ctx.lineWidth = 1;
 
-    // set stroke dash array to 2 2
-    ctx.setLineDash([2, 2]);
-
     if (viewerState.markerTime !== null) {
+      // set stroke dash array to 2 2
+      ctx.setLineDash([2, 2]);
       if (viewerState.altMarkerTime === viewerState.markerTime) {
         ctx.setLineDash([]);
         drawAltMarker = false;
@@ -891,9 +898,9 @@ export class Viewport {
       ctx.stroke();
     }
 
-    ctx.setLineDash([6, 2, 2, 2]);
     if (viewerState.altMarkerTime !== null && drawAltMarker) {
-    const altMarkerX = this.getViewportLeft(viewerState.altMarkerTime, 100);
+      ctx.setLineDash([6, 2, 2, 2]);
+      const altMarkerX = this.getViewportLeft(viewerState.altMarkerTime, 100);
       ctx.beginPath();
       ctx.moveTo(altMarkerX, styles.rulerHeight);
       ctx.lineTo(altMarkerX, this.waveformsHeight);
@@ -1064,7 +1071,7 @@ export class Viewport {
     this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth, 0));
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
     this.timeScrollRight  = this.timeScrollLeft + this.viewerWidthTime;
-    this.minZoomRatio     = (this.viewerWidth) / this.timeStop;
+    this.minZoomRatio     = this.viewerWidth / this.timeStop;
 
     // Update Ruler Canvas, Background Canvas, and Scrollbar Canvas Dimensions
     this.resizeCanvas(this.scrollbarCanvasElement, this.scrollbarCanvas, this.viewerWidth, 10);

@@ -186,7 +186,7 @@ export class Viewport {
     this.defaultPixelTime = 10 ** (Math.round(Math.log10(Number(metadata.minTimeStep))) | 0);
     this.zoomRatio        = 1 / this.defaultPixelTime;
     this.pixelTime        = 1 / this.zoomRatio;
-    this.maxZoomRatio     = this.zoomRatio * 64;
+    this.maxZoomRatio     = this.zoomRatio * 256;
     this.adjustedLogTimeScale   = 0;
     this.waveformArea.innerHTML = '';
     this.updateUnits(this.timeUnit, false);
@@ -959,11 +959,13 @@ export class Viewport {
     this.redrawViewport();
   }
 
-  updateRulerNumberBasis(numberIncrement: number) {
-    const numberBasis = 10 ** (Math.round(Math.log10(numberIncrement)) | 0);
+  updateRulerNumberBasis(inputIncrement: number | undefined) {
+    const numberIncrement = inputIncrement || this.rulerNumberIncrement;
+    const numberBasis     = 10 ** (Math.round(Math.log10(numberIncrement)) | 0);
     this.defaultPixelTime = numberBasis / this.minNumberSpacing;
     this.updateRulerSpacing();
     this.updateRuler();
+    this.updateBackgroundCanvas(false);
   }
 
   updateRulerSpacing() {

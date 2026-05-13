@@ -63,7 +63,7 @@ export class Viewport {
 
   // Zoom level variables
   zoomRatio: number           = 1;
-  defaultZoom: number         = 1;
+  defaultPixelTime: number    = 1;
   zoomOffset: number          = 0;
   pixelTime: number           = 1;
   maxZoomRatio: number        = 64;
@@ -72,8 +72,8 @@ export class Viewport {
   rulerNumberSpacing: number  = 100;
   rulerTickSpacing: number    = 10;
   rulerNumberIncrement: number = 100;
-  minNumberSpacing: number    = 100;
-  minTickSpacing: number      = 20;
+  readonly minNumberSpacing: number = 100;
+  readonly minTickSpacing: number   = 20;
   rulerLineX: [number, number][] = [];
   annotateTime: number[]      = [];
 
@@ -178,16 +178,15 @@ export class Viewport {
 
   initViewport(metadata: WaveformDumpMetadata) {
     this.setPixelRatio();
-    this.timeScale       = metadata.timeScale;
-    this.timeUnit        = metadata.timeUnit;
-    this.displayTimeUnit = metadata.timeUnit;
-    this.timeStop        = metadata.timeEnd;
-    this.timeTableCount  = metadata.timeTableCount;
-    const newMinTimeStep = 10 ** (Math.round(Math.log10(Number(metadata.minTimeStep))) | 0);
-    this.defaultZoom     = 4 / newMinTimeStep;
-    this.zoomRatio       = this.defaultZoom;
-    this.pixelTime       = 1 / this.zoomRatio;
-    this.maxZoomRatio    = this.zoomRatio * 64;
+    this.timeScale        = metadata.timeScale;
+    this.timeUnit         = metadata.timeUnit;
+    this.displayTimeUnit  = metadata.timeUnit;
+    this.timeStop         = metadata.timeEnd;
+    this.timeTableCount   = metadata.timeTableCount;
+    this.defaultPixelTime = 10 ** (Math.round(Math.log10(Number(metadata.minTimeStep))) | 0);
+    this.zoomRatio        = 1 / this.defaultPixelTime;
+    this.pixelTime        = 1 / this.zoomRatio;
+    this.maxZoomRatio     = this.zoomRatio * 64;
     this.adjustedLogTimeScale   = 0;
     this.waveformArea.innerHTML = '';
     this.updateUnits(this.timeUnit, false);
@@ -195,7 +194,7 @@ export class Viewport {
     this.addNetlistLink();
     this.updateViewportWidth();
     this.updateScrollbarResize();
-    this.handleZoom(1, 0, 0);
+    this.handleZoom(-4, 0, 0);
   }
 
   async handleColorChange() {
@@ -952,17 +951,28 @@ export class Viewport {
     this.timeScrollLeft   = this.pseudoScrollLeft * this.pixelTime;
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
     this.timeScrollRight  = this.timeScrollLeft + this.viewerWidthTime;
-    this.zoomOffset       = Math.log2(this.zoomRatio / this.defaultZoom);
-    const baseZoom        = (2 ** Math.floor(this.zoomOffset)) * this.defaultZoom;
-    const spacingRatio    = 2 ** (this.zoomOffset - Math.floor(this.zoomOffset));
-    this.rulerTickSpacing = this.minTickSpacing * spacingRatio;
-    this.rulerNumberSpacing = this.minNumberSpacing * spacingRatio;
-    this.rulerNumberIncrement = this.minNumberSpacing / baseZoom;
 
     //console.log('zoom ratio: ' + this.zoomRatio + ' base zoom: ' + baseZoom);
 
+    this.updateRulerSpacing();
     this.updateScrollbarResize();
     this.redrawViewport();
+  }
+
+  updateRulerNumberBasis(numberIncrement: number) {
+    const numberBasis = 10 ** (Math.round(Math.log10(numberIncrement)) | 0);
+    this.defaultPixelTime = numberBasis / this.minNumberSpacing;
+    this.updateRulerSpacing();
+    this.updateRuler();
+  }
+
+  updateRulerSpacing() {
+    this.zoomOffset           = Math.log2(this.zoomRatio * this.defaultPixelTime);
+    const baseZoom            = (2 ** Math.floor(this.zoomOffset)) / this.defaultPixelTime;
+    const spacingRatio        = 2 ** (this.zoomOffset - Math.floor(this.zoomOffset));
+    this.rulerTickSpacing     = this.minTickSpacing * spacingRatio;
+    this.rulerNumberSpacing   = this.minNumberSpacing * spacingRatio;
+    this.rulerNumberIncrement = this.minNumberSpacing / baseZoom;
   }
 
   private animate(callback: (progress: number) => void): Promise<void> {

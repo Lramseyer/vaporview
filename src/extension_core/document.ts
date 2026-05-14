@@ -522,9 +522,9 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     const signals = variables.filter(item => item.type !== 'Parameter');
 
     if (this.sortNetlist) {
-      result.push(...(scopes.sort((a, b) => a.name.localeCompare(b.name))));
-      result.push(...(parameters.sort((a, b) => a.name.localeCompare(b.name))));
-      result.push(...(signals.sort((a, b) => a.name.localeCompare(b.name))));
+      result.push(...(scopes.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}))));
+      result.push(...(parameters.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}))));
+      result.push(...(signals.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}))));
     } else {
       result.push(...scopes);
       result.push(...parameters);

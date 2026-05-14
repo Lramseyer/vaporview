@@ -207,6 +207,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     if (this._webviewInitialized) { return; }
     if (!this.metadata.timeTableLoaded) { return; }
     const colorPalette = this._providerDelegate.getColorPalette();
+    this.setConfigurationSettings();
     webviewPanel.webview.postMessage({
       command: 'initViewport',
       metadata: this.metadata,
@@ -217,12 +218,16 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       themeValid: colorPalette.themeValid,
       autoReload: this.webviewContext.autoReload,
     } as InitMessage);
-    this.setConfigurationSettings();
     this._webviewInitialized = true;
   }
 
   public setConfigurationSettings() {
     const config = vscode.workspace.getConfiguration('vaporview');
+
+    const customColor5 = config.get('customColor5');
+    const customColor6 = config.get('customColor6');
+    const customColor7 = config.get('customColor7');
+    const customColor8 = config.get('customColor8');
 
     this.webviewPanel?.webview.postMessage({
       command: 'setConfigSettings',
@@ -242,6 +247,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       defaultStringColor:                 config.get('defaultStringColor'),
       defaultEnumColor:                   config.get('defaultEnumColor'),
       defaultCustomSignalColor:           config.get('defaultCustomSignalColor'),
+      customColorPalette:                 [customColor5, customColor6, customColor7, customColor8],
     } as ConfigSettingsMessage);
 
     this.setTerminalLinkProvider();

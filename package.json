@@ -294,6 +294,30 @@
             "maximum": 8,
             "scope": "application",
             "description": "Default waveform color for custom signals."
+          },
+          "vaporview.customColor5": {
+            "type": "string",
+            "scope": "application",
+            "default": "#ffa557",
+            "description": "Fallback color for Color 5, must be a valid color name."
+          },
+          "vaporview.customColor6": {
+            "type": "string",
+            "scope": "application",
+            "default": "#dcdcaa",
+            "description": "Fallback color for Color 6, must be a valid color name."
+          },
+          "vaporview.customColor7": {
+            "type": "string",
+            "scope": "application",
+            "default": "#d2a8ff",
+            "description": "Fallback color for Color 7, must be a valid color name."
+          },
+          "vaporview.customColor8": {
+            "type": "string",
+            "scope": "application",
+            "default": "#4abfa8",
+            "description": "Fallback color for Color 8, must be a valid color name."
           }
         }
       },

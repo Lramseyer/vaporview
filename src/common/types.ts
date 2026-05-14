@@ -121,6 +121,7 @@ export interface ConfigSettingsMessage {
   defaultStringColor?: number;
   defaultEnumColor?: number;
   defaultCustomSignalColor?: number;
+  customColorPalette?: string[];
 }
 
 export interface ExternalKeyDownMessage {

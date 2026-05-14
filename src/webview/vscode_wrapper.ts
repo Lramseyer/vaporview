@@ -44,6 +44,7 @@ export class Configuration {
   defaultStringColor: number        = 0;
   defaultEnumColor: number          = 0;
   defaultCustomSignalColor: number  = 0;
+  customColorPalette: string[]      = ['#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC'];
 
   os: OS                            = OS.Unknown;
 
@@ -109,6 +110,14 @@ export class Configuration {
       this.defaultCustomSignalColor = Math.floor(settings.defaultCustomSignalColor - 1);
     }
 
+    // Fallback custom colors
+    if (settings.customColorPalette !== undefined) {
+      this.customColorPalette = settings.customColorPalette;
+      if (!styles.themeValid) {
+        styles.updateColorPalette(this.customColorPalette, this.customColorPalette, false);
+      }
+    }
+
     // Pixel Ratio
     const oldPixelRatio = viewport.pixelRatio;
     if (settings.overrideDevicePixelRatio !== undefined) {
@@ -148,6 +157,7 @@ interface ColorProfile {
 export class ThemeColors {
 
   colorKey: string[] = ['#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC'];
+  themeValid: boolean = false;
   xzColor: string = 'red';
   textColor: string = 'white';
   rulerTextColor: string = 'grey';
@@ -252,9 +262,10 @@ export class ThemeColors {
   //         enough colors, then select from the next tier, etc.
   updateColorPalette(colorPalette: string[], errorColorPalette: string[], themeValid: boolean) {
 
-    const style = window.getComputedStyle(document.body);
+    const style          = window.getComputedStyle(document.body);
     this.backgroundColor = style.getPropertyValue('--vscode-editor-background');
-    this.xzColor = style.getPropertyValue('--vscode-debugTokenExpression-error');
+    this.xzColor         = style.getPropertyValue('--vscode-debugTokenExpression-error');
+    this.themeValid      = themeValid;
 
     if (!themeValid) {
       //console.log("Using default color palette because theme is not valid");
@@ -263,6 +274,10 @@ export class ThemeColors {
       this.colorKey[1] = style.getPropertyValue('--vscode-debugTokenExpression-string');
       this.colorKey[2] = style.getPropertyValue('--vscode-debugTokenExpression-type');
       this.colorKey[3] = style.getPropertyValue('--vscode-debugTokenExpression-name');
+      this.colorKey[4] = config.customColorPalette[0];
+      this.colorKey[5] = config.customColorPalette[1];
+      this.colorKey[6] = config.customColorPalette[2];
+      this.colorKey[7] = config.customColorPalette[3];
       this.events.updateColorTheme();
       return;
     }

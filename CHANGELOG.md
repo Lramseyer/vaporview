@@ -9,6 +9,7 @@
 - Added user settings:
   - Default "Auto Reload" state
   - Touchpad pinch zoom sensitivity
+  - Custom fallback colors for colors 5-8
 - Fixed:
   - Horizontal scrollbar drag behavior
   - Number formatting reset in missing signals when re-saving

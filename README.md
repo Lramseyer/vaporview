@@ -261,6 +261,7 @@ Also special thanks to the Surfer team for their support and encouragement and a
 - [@marco-fr](https://github.com/marco-fr)
 - [@DGGua](https://github.com/DGGua)
 - [@AndrewNolte](https://github.com/AndrewNolte)
+- [@shlyahtink](https://github.com/shlyahtink)
 
 ## Misc
 

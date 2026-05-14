@@ -14,6 +14,7 @@
   - Horizontal scrollbar drag behavior
   - Number formatting reset in missing signals when re-saving
   - Waveform disappearing when highlight zoom
+  - Netlist sorting (when enabled) is numerical aware @shlyahtink
 - Enforce type safety @AndrewNolte
 - Update wellen to 0.20.5
 

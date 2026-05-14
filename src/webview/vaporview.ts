@@ -1,4 +1,4 @@
-import { type NetlistId, SignalId, type RowId, StateChangeType, type DocumentId, SavedNetlistVariable, SavedSignalSeparator, SavedSignalGroup, CollapseState, SavedCustomVariable, DefaultWebviewContext, SavedRowItem, InitMessage } from '../common/types';
+import { type NetlistId, SignalId, type RowId, StateChangeType, type DocumentId, SavedNetlistVariable, SavedSignalSeparator, SavedSignalGroup, CollapseState, SavedCustomVariable, DefaultWebviewContext, SavedRowItem, InitMessage, WebviewStateEvent } from '../common/types';
 import { ActionType, EventHandler } from './event_handler';
 import { Viewport } from './viewport';
 import { LabelsPanels } from './labels';
@@ -178,7 +178,7 @@ export function getRowHeightCssClass(height: number) {
 // Event handler helper functions
 // ----------------------------------------------------------------------------
 
-export function createWebviewContext() {
+export function createWebviewContext(): WebviewStateEvent {
   let selectedNetlistId: number | null = null;
   if (viewerState.selectedSignal.length === 1) {
     const data = rowHandler.rowItems[viewerState.selectedSignal[0]];
@@ -196,13 +196,14 @@ export function createWebviewContext() {
   });
 
   return {
-    markerTime: viewerState.markerTime,
-    altMarkerTime: viewerState.altMarkerTime,
+    markerTime: viewerState.markerTime ?? undefined,
+    altMarkerTime: viewerState.altMarkerTime ?? undefined,
     displayTimeUnit: viewport.displayTimeUnit,
     selectedSignal: selectedNetlistId,
     selectedSignalCount: viewerState.selectedSignal.length,
     transitionCount: dataManager.getTransitionCount(),
     zoomRatio: vaporview.viewport.zoomRatio,
+    defaultPixelTime: viewport.defaultPixelTime * 100,
     scrollLeft: Math.round(vaporview.viewport.timeScrollLeft),
     autoReload: viewerState.autoReload,
     displayedSignals: signalList,

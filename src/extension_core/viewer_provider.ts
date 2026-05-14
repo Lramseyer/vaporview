@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
-import { type DocumentId, type NetlistId, SignalGroupWebviewContext, SignalId, StateChangeType, WindowMessageType, type MarkerSetEvent, type SignalEvent, type ViewerDropEvent, ExternalKeyDownMessage, SetDisplayFormatMessage, EmitEventMessage, WebviewDropMessage, DisplayFormatProperties } from '../common/types';
+import { type DocumentId, type NetlistId, SignalGroupWebviewContext, SignalId, StateChangeType, WindowMessageType, type MarkerSetEvent, type SignalEvent, type ViewerDropEvent, ExternalKeyDownMessage, SetDisplayFormatMessage, EmitEventMessage, WebviewDropMessage, DisplayFormatProperties, WebviewStateEvent } from '../common/types';
 import { decodeNetlistUri } from '../../packages/vaporview-api';
-import type { VariableActionArgs, VariableAction, SetMarkerArgs, AddVariableByPathArgs, SavedRowItem, ValueLinkEvent } from '../../packages/vaporview-api/types';
+import type { VariableActionArgs, VariableAction, SetMarkerArgs, AddVariableByPathArgs, SavedRowItem, ValueLinkEvent, RulerContext, RulerWebviewContext } from '../../packages/vaporview-api/types';
 import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
 import { Worker } from 'worker_threads';
 import * as fs from 'fs';
 import { } from './extension';
-import { VaporviewDocument, NetlistSearchQuickPick, type WaveformFileParser, type WebviewStateEvent, type WebviewStateSettings } from './document';
+import { VaporviewDocument, NetlistSearchQuickPick, type WaveformFileParser, type WebviewStateSettings } from './document';
 import { WasmFormatHandler } from './wasm_handler';
 import { FsdbFormatHandler } from './fsdb_handler';
 import { SurferFormatHandler } from './surfer_handler';
@@ -761,7 +761,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     }
 
     if (units === undefined || units === "") {return;}
-    this.lastActiveWebview.webview.postMessage({command: 'setTimeUnits', units: units});
+    this.lastActiveWebview.webview.postMessage({command: 'updateRulerSettings', units: units});
   }
 
   handleUpdateWebviewContext(document: VaporviewDocument, event: WebviewStateEvent) {
@@ -1430,6 +1430,34 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       command: 'copyValueAtMarker',
       rowId: e.rowId,
     });
+  }
+
+  public setDefaultPixelTime(e: RulerWebviewContext | undefined, increment: string | undefined) {
+    let document: VaporviewDocument | undefined;
+
+    if (!this.lastActiveWebview) {return;}
+    if (!this.lastActiveDocument) {return;}
+    if (e !== undefined) {
+      document = this.documentCollection.get(e.documentId);
+    }
+    if (!document) {
+      document = this.lastActiveDocument;
+    }
+
+    let pixelTime = 0;
+    let timeScale = 1;
+    if (increment !== undefined) {
+      const [time, units] = increment.split(' ');
+      if (time === undefined) {return;}
+      const timeValue = parseFloat(time);
+      if (units !== undefined) {
+        const scale        = logScaleFromUnits(units);
+        const defaultScale = logScaleFromUnits(document.metadata.timeUnit);
+        timeScale          = 10 ** (scale - defaultScale);
+      }
+      pixelTime = timeValue * timeScale;
+    }
+    document.webviewPanel?.webview.postMessage({command: 'updateRulerSettings', pixelTime: pixelTime});
   }
 
   // To do: implement nonce with this HTML:

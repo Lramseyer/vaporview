@@ -436,7 +436,7 @@ export class VscodeWrapper {
       case 'setMarker':             {this.setMarker(message.time, message.markerType); break;}
       case 'setViewportTo':         {viewport.moveViewToTime(message.time); break;}
       case 'setViewportRange':      {viewport.setViewportRange(message.startTime, message.endTime); break;}
-      case 'setTimeUnits':          {viewport.updateUnits(message.units, true); break;}
+      case 'updateRulerSettings':   {this.handleUpdateRuler(message.units, message.pixelTime); break;}
       case 'setSelectedSignal':     {this.setSelectedSignal(message.netlistId); break;}
       case 'copyWaveDrom':          {copyWaveDrom(); break;}
       case 'copyValueAtMarker':     {labelsPanel.copyValueAtMarker(message.rowId); break;}
@@ -469,6 +469,15 @@ export class VscodeWrapper {
     //console.log('handleMessage - setMarker');
     this.events.markerSet(time, markerType);
     this.sendWebviewContext(StateChangeType.User);
+  }
+
+  handleUpdateRuler(units: string | undefined, pixelTime: number | undefined) {
+    if (units !== undefined) {
+      viewport.updateUnits(units, true);
+    }
+    if (pixelTime !== undefined) {
+      viewport.updateRulerNumberBasis(pixelTime, true);
+    }
   }
 
   handleUpdateVerticalScale(event: { rowId?: RowId } | null | undefined, scale: number) {

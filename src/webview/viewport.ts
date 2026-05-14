@@ -959,13 +959,24 @@ export class Viewport {
     this.redrawViewport();
   }
 
-  updateRulerNumberBasis(inputIncrement: number | undefined) {
-    const numberIncrement = inputIncrement || this.rulerNumberIncrement;
+  updateRulerNumberBasis(inputIncrement: number, updateState: boolean) {
+    let numberIncrement = this.minNumberSpacing * this.pixelTime;
+    if (inputIncrement > 0) {
+      numberIncrement = inputIncrement;
+    }
+
     const numberBasis     = 10 ** (Math.round(Math.log10(numberIncrement)) | 0);
-    this.defaultPixelTime = numberBasis / this.minNumberSpacing;
+    const newPixelTime    = numberBasis / this.minNumberSpacing;
+
+    if (newPixelTime === this.defaultPixelTime) {return;}
+
+    this.defaultPixelTime = newPixelTime;
     this.updateRulerSpacing();
     this.updateRuler();
     this.updateBackgroundCanvas(false);
+    if (updateState) {
+      vscodeWrapper.sendWebviewContext(StateChangeType.User);
+    }
   }
 
   updateRulerSpacing() {

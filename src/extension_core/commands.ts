@@ -7,6 +7,7 @@ import type {
   OpenFileArgs,
   VariableActionArgs,
   SetMarkerArgs,
+  RulerWebviewContext,
   GetViewerStateArgs,
   GetValuesAtTimeArgs,
   AddVariableByPathArgs,
@@ -294,6 +295,20 @@ export function registerVaporviewCommands(
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.setTimeUnitsFemtoseconds', () => {
     viewerProvider.updateTimeUnits("fs");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.autoRulerTimeIncrement', (e: RulerWebviewContext) => {
+    viewerProvider.setDefaultPixelTime(e, undefined);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.setRulerTimeIncrement', (e: RulerWebviewContext) => {
+    vscode.window.showInputBox({
+      prompt: 'Enter the ruler time increment - Note that this will be rounded to the nearest power of 10', 
+      value: ''
+    }).then((increment) => {
+      if (increment === undefined) {return;}
+      viewerProvider.setDefaultPixelTime(e, increment);
+    });
   }));
 
   // #region WaveDrom

@@ -4,6 +4,7 @@
 
 - Shift + Up/Down Arrow now adds to selection
 - Glitch transitions show all values in value display
+- Added feature to modify time ruler increment
 - Value Links have been converted from a command call to an event emitter
 - Added user settings:
   - Default "Auto Reload" state

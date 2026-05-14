@@ -15,6 +15,7 @@ interface ApplyStateSettings {
   selectedSignal?: number;
   zoomRatio?: number;
   scrollLeft?: number;
+  defaultPixelTime?: number;
 }
 
 export class RowHandler {
@@ -535,6 +536,9 @@ export class RowHandler {
       let lastSelectedSignal: RowId | null = rowIdList[0];
       if (rowIdList.length === 0) {lastSelectedSignal = null;}
       this.events.signalSelect(rowIdList, lastSelectedSignal);
+    }
+    if (settings.defaultPixelTime !== undefined) {
+      viewport.updateRulerNumberBasis(settings.defaultPixelTime, false);
     }
 
     if (settings.zoomRatio !== undefined && settings.scrollLeft !== undefined) {

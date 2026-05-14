@@ -477,6 +477,11 @@
         "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
       },
       {
+        "id": "vaporview.rulerTimeIncrement",
+        "label": "Ruler Time Increment",
+        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
+      },
+      {
         "id": "vaporview.scrollMode",
         "label": "Scrolling Mode",
         "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
@@ -574,47 +579,51 @@
       "webview/context": [
         {
           "submenu": "vaporview.timeUnit",
-          "group": "1_default@1"
+          "group": "1_time_ruler@1"
         },
         {
-          "submenu": "vaporview.scrollMode",
-          "when": "webviewSection == 'ruler' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "1_default@2"
+          "submenu": "vaporview.rulerTimeIncrement",
+          "group": "1_time_ruler@2"
         },
         {
           "command": "vaporview.showRulerLines",
           "when": "webviewSection == 'ruler' && rulerLines == false && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "1_default@3"
+          "group": "1_time_ruler@3"
         },
         {
           "command": "vaporview.hideRulerLines",
           "when": "webviewSection == 'ruler' && rulerLines == true && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "1_default@3"
+          "group": "1_time_ruler@3"
+        },
+        {
+          "submenu": "vaporview.scrollMode",
+          "when": "webviewSection == 'ruler' && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "group": "1_time_ruler@4"
         },
         {
           "command": "vaporview.fillBitVector",
           "when": "webviewSection == 'ruler' && fillBitVector == false && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "1_default@4"
+          "group": "1_time_ruler@5"
         },
         {
           "command": "vaporview.outlineBitVector",
           "when": "webviewSection == 'ruler' && fillBitVector == true && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "1_default@4"
+          "group": "1_time_ruler@5"
         },
         {
           "command": "vaporview.enableAnimations",
           "when": "webviewSection == 'ruler' && activeCustomEditorId == 'vaporview.waveformViewer' && enableAnimations == false",
-          "group": "1_default@5"
+          "group": "1_time_ruler@6"
         },
         {
           "command": "vaporview.disableAnimations",
           "when": "webviewSection == 'ruler' && activeCustomEditorId == 'vaporview.waveformViewer' && enableAnimations == true",
-          "group": "1_default@5"
+          "group": "1_time_ruler@6"
         },
         {
           "command": "vaporview.viewVaporViewSettings",
           "when": "webviewSection == 'ruler' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "1_default@6"
+          "group": "1_time_ruler@7"
         },
         {
           "submenu": "vaporview.valueFormat",
@@ -962,6 +971,18 @@
           "command": "vaporview.setTimeUnitsFemtoseconds",
           "when": "fs == true",
           "group": "1_default@6"
+        }
+      ],
+      "vaporview.rulerTimeIncrement": [
+        {
+          "command": "vaporview.autoRulerTimeIncrement",
+          "when": "webviewSection == 'ruler'",
+          "group": "1_default@1"
+        },
+        {
+          "command": "vaporview.setRulerTimeIncrement",
+          "when": "webviewSection == 'ruler'",
+          "group": "1_default@2"
         }
       ],
       "vaporview.scrollMode": [
@@ -1389,6 +1410,14 @@
       {
         "command": "vaporview.hideRulerLines",
         "title": "Hide Ruler Lines"
+      },
+      {
+        "command": "vaporview.setRulerTimeIncrement",
+        "title": "Custom..."
+      },
+      {
+        "command": "vaporview.autoRulerTimeIncrement",
+        "title": "Auto"
       },
       {
         "command": "vaporview.fillBitVector",

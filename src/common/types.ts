@@ -23,7 +23,7 @@ export type {
   SignalGroupWebviewContext,
 } from '../../packages/vaporview-api/types';
 export { NameType } from '../../packages/vaporview-api/types';
-import type { NetlistId, SignalId, RowId, DocumentId, SignalSeparatorContext, SignalGroupContext, CustomVariableContext, NetlistVariableContext, ValueLinkEvent, SignalEvent, MarkerSetEvent } from '../../packages/vaporview-api/types';
+import type { NetlistId, SignalId, RowId, DocumentId, SignalSeparatorContext, SignalGroupContext, CustomVariableContext, NetlistVariableContext, ValueLinkEvent, SignalEvent, MarkerSetEvent, SavedRowItem } from '../../packages/vaporview-api/types';
 export type ValueChange = [number, string];
 export type EnumEntry   = [string, string];
 export type EnumData    = EnumEntry[];
@@ -134,6 +134,21 @@ export interface EmitEventMessage {
   eventType: 'markerSet' | 'signalSelect' | 'addVariable' | 'removeVariable' | 'valueLink';
   eventData: MarkerSetEvent | SignalEvent | ValueLinkEvent;
 }
+
+export type WebviewStateEvent = {
+  stateChangeType?: StateChangeType;
+  markerTime?: number;
+  defaultPixelTime?: number;
+  altMarkerTime?: number;
+  displayTimeUnit?: string;
+  selectedSignal?: NetlistId | null;
+  displayedSignals?: SavedRowItem[];
+  zoomRatio?: number;
+  scrollLeft?: number;
+  autoReload?: boolean;
+  transitionCount?: number | null;
+  selectedSignalCount?: number;
+};
 
 export interface AddVariableSignal {
   netlistId?: NetlistId;

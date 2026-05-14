@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type EnumQueueEntry, type DocumentId, type SavedRowItem, VariableEncoding, type BitRangeSource, type AddVariableSignal, InitMessage, WaveformDumpMetadata, ConfigSettingsMessage, EmitEventMessage } from '../common/types';
+import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type EnumQueueEntry, type DocumentId, type SavedRowItem, VariableEncoding, type BitRangeSource, type AddVariableSignal, InitMessage, WaveformDumpMetadata, ConfigSettingsMessage, EmitEventMessage, type WebviewStateEvent } from '../common/types';
 import type { GetValuesAtTimeArgs, SignalEvent, ValuesAtTimeResult } from '../../packages/vaporview-api/types';
 import { bitRangeString, logScaleFromUnits, parseParamValue, toStringWithCommas } from '../common/functions';
 import { NetlistLinkProvider } from './terminal_links';
@@ -49,30 +49,31 @@ export type CustomVariableParseResult = {
   missingSignals: string[];
 };
 
+// TODO: Combine with WebviewStateEvent in /common/types.ts and WebviewState class
 export type WebviewStateSettings = {
-  displayedSignals?: SavedRowItem[] | ParsedSignalData[];
+  extensionVersion: string | undefined;
   markerTime?: number | null;
   altMarkerTime?: number | null;
   displayTimeUnit?: string;
   selectedSignal?: { name: string; msb: number; lsb: number } | null;
   zoomRatio?: number;
   scrollLeft?: number;
+  defaultPixelTime?: number;
   autoReload?: boolean;
+  displayedSignals?: SavedRowItem[] | ParsedSignalData[];
 };
 
-export type WebviewStateEvent = {
-  stateChangeType?: StateChangeType;
-  markerTime?: number;
-  altMarkerTime?: number;
-  displayTimeUnit?: string;
-  selectedSignal?: NetlistId | null;
-  displayedSignals?: SavedRowItem[];
-  zoomRatio?: number;
-  scrollLeft?: number;
-  autoReload?: boolean;
-  transitionCount?: number | null;
-  selectedSignalCount?: number;
-};
+class WebviewState {
+  markerTime: number | null = null;
+  altMarkerTime: number | null = null;
+  displayTimeUnit: string = "ns";
+  selectedSignal: NetlistId | null = null;
+  zoomRatio: number = 1;
+  scrollLeft: number = 0;
+  defaultPixelTime: number = 1;
+  autoReload: boolean = false;
+  displayedSignals: SavedRowItem[] = [];
+}
 
 /* 
 Interface for waveform file parsers
@@ -96,17 +97,6 @@ export interface WaveformFileParser {
 
   // Callbacks
   postMessageToWebview(message: Record<string, unknown>): void;
-}
-
-class WebviewState {
-  markerTime: number | null = null;
-  altMarkerTime: number | null = null;
-  selectedSignal: NetlistId | null = null;
-  displayTimeUnit: string = "ns";
-  zoomRatio: number = 1;
-  scrollLeft: number = 0;
-  autoReload: boolean = false;
-  displayedSignals: SavedRowItem[] = [];
 }
 
 // #region VaporviewDocument
@@ -295,6 +285,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this.webviewContext.displayedSignals = event.displayedSignals || this.webviewContext.displayedSignals;
     this.webviewContext.zoomRatio        = event.zoomRatio        || this.webviewContext.zoomRatio;
     this.webviewContext.scrollLeft       = event.scrollLeft       || this.webviewContext.scrollLeft;
+    this.webviewContext.defaultPixelTime = event.defaultPixelTime || this.webviewContext.defaultPixelTime;
     this.webviewContext.autoReload       = event.autoReload       || this.webviewContext.autoReload;
 
     return isDirty;
@@ -310,8 +301,9 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       selectedSignal: this.getNameFromNetlistId(this.webviewContext.selectedSignal),
       zoomRatio: this.webviewContext.zoomRatio,
       scrollLeft: this.webviewContext.scrollLeft,
+      defaultPixelTime: this.webviewContext.defaultPixelTime,
       displayedSignals: this.webviewContext.displayedSignals
-    };
+    } as WebviewStateSettings;
   }
 
   public async getNetlistItemFromSignalInfo(signalInfo: SignalInfo | SignalInfoSource, useNetlistId: boolean): Promise<NetlistItem | null> {
@@ -437,6 +429,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     const signalListSettings = await this.convertSignalListToSettings((settings.displayedSignals || []) as unknown as SignalInfo[], useNetlistId);
     //console.log('signalListSettings', signalListSettings);
     const documentSettings: WebviewStateSettings = {
+      extensionVersion: settings.extensionVersion,
       displayedSignals: signalListSettings.signalList,
       markerTime: settings.markerTime,
       altMarkerTime: settings.altMarkerTime,
@@ -444,6 +437,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       selectedSignal: settings.selectedSignal,
       zoomRatio: settings.zoomRatio,
       scrollLeft: settings.scrollLeft,
+      defaultPixelTime: settings.defaultPixelTime,
       autoReload: settings.autoReload,
     };
 

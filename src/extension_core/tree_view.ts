@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
-import { NetlistId, SignalId, VariableEncoding } from '../common/types';
-import type { WebviewStateEvent } from './document';
+import { NetlistId, SignalId, VariableEncoding, WebviewStateEvent } from '../common/types';
 import { bitRangeString, createInstancePath, parseParamValue } from '../common/functions';
 import type { VaporviewDocument } from './document';
 import { WaveformViewerProvider } from './viewer_provider';

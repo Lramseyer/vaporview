@@ -13,6 +13,7 @@ import type {
   GetViewerStateArgs,
   GetValuesAtTimeArgs,
   AddVariableByPathArgs,
+  ViewerState,
 } from '../../packages/vaporview-api/types';
 
 // #region activate()
@@ -122,7 +123,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Vaporv
     async getViewerState(args?: GetViewerStateArgs) {
       const document = viewerProvider.getDocumentFromOptionalUri(args?.uri);
       if (!document) {return undefined;}
-      return document.getSettings();
+      return document.getSettings() as unknown as ViewerState;
     },
     async getValuesAtTime(args: GetValuesAtTimeArgs) {
       const document = viewerProvider.getDocumentFromOptionalUri(args.uri);

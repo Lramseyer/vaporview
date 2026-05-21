@@ -1,6 +1,6 @@
 # Change Log
 
-## 1.5.3 - Upcoming Release
+## 1.5.3 - 5/20/2026 - Latest Release
 
 - Shift + Up/Down Arrow now adds to selection
 - Glitch transitions show all values in value display
@@ -18,7 +18,7 @@
 - Enforce type safety @AndrewNolte
 - Update wellen to 0.20.5
 
-## 1.5.2 - 4/8/2026 - Latest Release
+## 1.5.2 - 4/8/2026
 
 - Waveform color palette is derived from semantic token colors to better align with color theme
 - Added time units to save files

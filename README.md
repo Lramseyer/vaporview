@@ -223,20 +223,23 @@ This extension requires VScode 1.102.0 or later
 
 # Development Roadmap
 
-## 1.5.2 - 4/8/2026 - Latest Release
+## 1.5.3 - 5/20/2026 - Latest Release
 
-- Waveform color palette is derived from semantic token colors to better align with color theme
-- Added time units to save files
-- Viewer will show missing signals from save files not found in netlist
-- Clicking on an area outside the waveforms de-selects signals
-- Left/Right arrow no longer moves the marker if rows with no value change data are selected
-- Organized user settings into categories
-- Added user settings for default waveform colors
-- Added Epoch time (ns) number format
-- Netlist search better displays variable or scope name and instance path @DGGua
-- Multi-bit renderer at larger row heights now only vertically scales
-- Fixed status bar not updating when setting alt marker, or selecting the last value change
-- Update wellen to 0.20.4
+- Shift + Up/Down Arrow now adds to selection
+- Glitch transitions show all values in value display
+- Added feature to modify time ruler increment
+- Value Links have been converted from a command call to an event emitter
+- Added user settings:
+  - Default "Auto Reload" state
+  - Touchpad pinch zoom sensitivity
+  - Custom fallback colors for colors 5-8
+- Fixed:
+  - Horizontal scrollbar drag behavior
+  - Number formatting reset in missing signals when re-saving
+  - Waveform disappearing when highlight zoom
+  - Netlist sorting (when enabled) is numerical aware @shlyahtink
+- Enforce type safety @AndrewNolte
+- Update wellen to 0.20.5
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

@@ -536,7 +536,7 @@ export class WCPServer {
     // Returns server information, protocol version, and capabilities
     return {
       name: 'Vaporview',
-      version: '1.5.2',
+      version: '1.5.3',
       protocol: 'WCP',
       protocol_version: '0',
       capabilities: await this.getCapabilitiesList()

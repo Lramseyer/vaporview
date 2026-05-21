@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.5.4
+
+- Floating/detached tabs now work properly
+
 ## 1.5.3 - 5/20/2026 - Latest Release
 
 - Shift + Up/Down Arrow now adds to selection

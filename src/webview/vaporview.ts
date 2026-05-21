@@ -604,8 +604,9 @@ export function init(message: InitMessage) {
   styles.getThemeColors();
   styles.updateColorPalette(message.colorPalette, message.errorColorPalette, message.themeValid);
   viewport.initViewport(message.metadata);
-  vscodeWrapper.restoreState();
   controlBar.setAutoReload(message.autoReload);
+  vscodeWrapper.restoreState();
+  vscodeWrapper.setInitComplete();
   //this.updateRuler();
   //this.updatePending = false;
 }

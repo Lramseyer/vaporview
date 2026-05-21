@@ -409,6 +409,8 @@ export class ThemeColors {
 
 export class VscodeWrapper {
 
+  private initComplete: boolean = false;
+
   constructor(private events: EventHandler) {
     this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
     this.handleMarkerSet    = this.handleMarkerSet.bind(this);
@@ -421,6 +423,10 @@ export class VscodeWrapper {
 
   webviewReady() {
     vscode.postMessage({command: 'ready'});
+  }
+
+  setInitComplete() {
+    this.initComplete = true;
   }
 
   handleMessage(e: MessageEvent) {
@@ -555,6 +561,7 @@ export class VscodeWrapper {
 
   sendWebviewContext(stateChangeType: number) {
     if (events.isBatchMode) {return;}
+    if (!this.initComplete) {return;}
     const context = createWebviewContext() as Record<string, unknown>;
     context.stateChangeType = stateChangeType;
     vscode.setState(context);

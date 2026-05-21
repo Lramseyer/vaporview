@@ -3,6 +3,7 @@
 ## 1.5.4
 
 - Floating/detached tabs now work properly
+- Added drag and drop support for .json viewer settings files
 
 ## 1.5.3 - 5/20/2026 - Latest Release
 

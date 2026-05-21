@@ -1000,20 +1000,27 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     if (!e.resourceUriList) {return;}
 
     e.resourceUriList.forEach((uri: vscode.Uri) => {
-      if (uri.scheme !== 'waveform') {
-        unknownUriList.push(uri);
+      if (uri.scheme === 'waveform') {
+
+        //const fragment = uri.fragment;
+        //if (fragment === undefined || fragment === "") {return;}
+        //fragment.split('&').forEach((tag: string) => {
+        //  const [key, value] = tag.split('=');
+        //  if (key === "var") {netlistIdList.push(parseInt(value));}
+        //});
+        const decoded = decodeNetlistUri(uri);
+        if (decoded.id !== undefined) {
+          netlistIdList.push(decoded.id);
+        }
         return;
+      } else if (uri.scheme === 'file') {
+        // If the file is a JSON file, we can try to load it as a settings file
+        if (uri.fsPath.endsWith('.json')) {
+          this.loadSettingsFromFileUri(document, uri);
+          return;
+        }
       }
-      //const fragment = uri.fragment;
-      //if (fragment === undefined || fragment === "") {return;}
-      //fragment.split('&').forEach((tag: string) => {
-      //  const [key, value] = tag.split('=');
-      //  if (key === "var") {netlistIdList.push(parseInt(value));}
-      //});
-      const decoded = decodeNetlistUri(uri);
-      if (decoded.id !== undefined) {
-        netlistIdList.push(decoded.id);
-      }
+      unknownUriList.push(uri);
     });
 
     let groupPath: string[] = [];

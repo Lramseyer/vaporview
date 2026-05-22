@@ -104,8 +104,8 @@ pub fn get_var_data(hierarchy: &Hierarchy, v: VarRef) -> VarData {
   let id = v.index() as u32;
   let tpe = variable.var_type();
   let var_type = format!("{:?}", tpe);
-  let encoding = format!("{:?}", variable.signal_encoding());
-  let width = variable.length().unwrap_or(0);
+  let encoding = format!("{:?}", variable.signal_encoding(hierarchy));
+  let width = variable.length(hierarchy).unwrap_or(0);
   let signal_ref = variable.signal_ref();
   let signal_id = signal_ref.index() as u32;
   let mut msb: i32 = -1;
@@ -138,7 +138,7 @@ pub fn get_scope_data(hierarchy: &Hierarchy, s: ScopeRef) -> ScopeData {
   ScopeData { name, id, tpe }
 }
 
-fn load_parameters_and_signals(signal_id_list: Vec<SignalRef>, hierarchy: &Hierarchy, signal_source: &mut SignalSource) -> Vec<(SignalRef, Signal)> {
+fn load_parameters_and_signals(signal_id_list: Vec<SignalRef>, hierarchy: &Hierarchy, signal_source: &mut SignalSource) -> Vec<Signal> {
   outputlog(&format!("Loading parameters and signals"));
   let mut global_param_id_list = _param_id_list.lock().unwrap();
   let param_id_list = global_param_id_list.as_ref().unwrap();
@@ -149,17 +149,18 @@ fn load_parameters_and_signals(signal_id_list: Vec<SignalRef>, hierarchy: &Hiera
   let mut param_table = Vec::new();
 
   // Consume signal_data, process params immediately, keep return signals
-  for (s, signal) in signal_data {
-    if param_id_list.contains(&s) {
+  for signal in signal_data {
+    let signal_ref = signal.signal_ref();
+    if param_id_list.contains(&signal_ref) {
       let index = signal.get_first_time_idx();
       let data_offset = index.and_then(|i| signal.get_offset(i));
       if let Some(offset) = data_offset {
         let value = signal.get_value_at(&offset, 0);
-        param_table.push((s.index() as u32, value.to_string()));
+        param_table.push((signal_ref.index() as u32, value.to_string()));
       }
     }
-    if signal_id_list.contains(&s) {
-      return_signals.push((s, signal));
+    if signal_id_list.contains(&signal_ref) {
+      return_signals.push(signal);
     }
   }
 
@@ -213,7 +214,7 @@ fn parse_value_change_data_json(signal: &Signal, time_index: &[u32], signalid: u
     let v = value.to_string();
     let time = time_table[time_index[i] as usize];
     match value {
-      wellen::SignalValue::Real(v) => {
+      wellen::SignalValueRef::Real(v) => {
         min = f64::min(min, v);
         max = f64::max(max, v);
       },
@@ -257,7 +258,7 @@ fn parse_value_change_data_lz4(signal: &Signal, time_index: &[u32], signalid: u3
     let time = time_table[time_index[i] as usize];
     let delta_time = time - prev_time;
     match value {
-      wellen::SignalValue::Real(v) => {
+      wellen::SignalValueRef::Real(v) => {
         min = f64::min(min, v);
         max = f64::max(max, v);
       },
@@ -543,7 +544,7 @@ impl Guest for Filecontext {
 
     // Get Parameter Signal IDs
     let mut global_param_id_list = _param_id_list.lock().unwrap();
-    let signal_list = hierarchy.iter_vars()
+    let signal_list = hierarchy.all_vars()
       .filter(|var| {var.var_type() == wellen::VarType::Parameter})
       .map(|var| {var.signal_ref()})
       .collect::<Vec<SignalRef>>();
@@ -551,8 +552,8 @@ impl Guest for Filecontext {
     *global_param_id_list = Some(signal_list);
 
     // count the number of scopes and vars
-    let scope_count = hierarchy.iter_scopes().count() as u32;
-    let var_count = hierarchy.iter_vars().count() as u32;
+    let scope_count = hierarchy.all_scopes().count() as u32;
+    let var_count = hierarchy.all_vars().count() as u32;
     let time_scale_data = hierarchy.timescale();
     let time_unit = match time_scale_data {
       Some(scale) => {
@@ -770,15 +771,15 @@ impl Guest for Filecontext {
 
     // load_signals() is a potentially expensive operation, so we want to batch them together
     // if the parameters are not loaded, we load them with the signals
-    let signals_loaded: Vec<(SignalRef, Signal)>;
+    let signals_loaded: Vec<Signal>;
     if parameters_loaded {
       signals_loaded = signal_source.load_signals(&signal_ref_list, hierarchy, false);
     } else {
       signals_loaded = load_parameters_and_signals(signal_ref_list, hierarchy, signal_source);
     }
-    signals_loaded.iter().for_each(|(s, signal)| {
-
-      let signalid = s.index() as u32;
+    signals_loaded.iter().for_each(|signal| {
+      let signal_ref = signal.signal_ref();
+      let signalid = signal_ref.index() as u32;
       let time_index = signal.time_indices();
       let value_changes = time_index.len();
       let data_offset = signal.get_offset(0);
@@ -787,7 +788,7 @@ impl Guest for Filecontext {
       let width = match data_offset {
         Some(offset) => {
           let value = signal.get_value_at(&offset, 0);
-          let bits = value.bits();
+          let bits = value.width();
           match bits {
             Some(b) => b,
             None => 0,
@@ -875,7 +876,8 @@ impl Guest for Filecontext {
 
     let mut result = String::new();
     result.push_str("[");
-    signals_loaded.iter().for_each(|(s, signal)| {
+    signals_loaded.iter().for_each(|signal| {
+      let s = signal.signal_ref();
       let transitions = signal.iter_changes();
       let time_index = signal.time_indices();
 
@@ -935,10 +937,10 @@ impl Guest for Filecontext {
     let lower_query = searchquery.to_lowercase();
     let scope_path = lower_query.split(".").collect::<Vec<&str>>();
 
-    let all_scopes = hierarchy.iter_scopes();
+    let all_scopes = hierarchy.all_scopes();
     let mut all_vars = None;
     if scope_path.len() == 1 {
-      all_vars = Some(hierarchy.iter_vars());
+      all_vars = Some(hierarchy.all_vars());
     }
 
     search(hierarchy, scope_path, all_scopes, all_vars, &mut search_results);

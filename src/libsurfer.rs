@@ -120,8 +120,8 @@ impl SurferRemote {
     *global_file_format = file_format;
     
     let hier = global_hierarchy.as_ref().unwrap();
-    let scope_count = hier.iter_scopes().count() as u32;
-    let var_count = hier.iter_vars().count() as u32;
+    let scope_count = hier.scopes().count() as u32;
+    let var_count = hier.vars().count() as u32;
     
     let time_unit = hier.timescale().map_or("s".to_string(), |scale| {
       match scale.unit {
@@ -261,7 +261,7 @@ impl SurferRemote {
         let v = value.to_string();
         let time = time_table[time_index[i] as usize];
         
-        if let wellen::SignalValue::Real(v) = value {
+        if let wellen::SignalValueRef::Real(v) = value {
           min = f64::min(min, v);
           max = f64::max(max, v);
         }

@@ -67,9 +67,20 @@ export class Viewport {
   maxZoomRatio: number        = 64;
   minZoomRatio: number        = 1 / 64;
   minDrawWidth: number        = 1;
-  rulerNumberSpacing: number  = 100;
-  rulerTickSpacing: number    = 10;
-  rulerNumberIncrement: number = 100;
+  rulerNumberSpacing: number     = 100;
+  rulerNumberIncrement: number   = 100;
+  rulerTickDivisions: number     = 0;
+  rulerSubTickDivisions: number  = 0;
+  // Next denser ruler step ("sub" layer) used for the fade-in transition
+  // between two adjacent 1-2-5 nice steps (number layer only).
+  rulerSubNumberSpacing: number  = 0;
+  rulerSubNumberIncrement: number = 0;
+  rulerFadeAlpha: number         = 0;
+  // Fade-out alpha for main labels that exist only on the main grid (not on
+  // the sub grid). Used during ×2.5 transitions on the number layer so those
+  // positions disappear in sync with the sub layer fading in. Stays at 1 for
+  // ×2 transitions where the main grid is a strict subset of the sub grid.
+  rulerNumberFadeOut: number     = 1;
   minNumberSpacing: number   = 100;
   minTickSpacing: number     = 20;
   rulerLineX: [number, number][] = [];
@@ -690,16 +701,9 @@ export class Viewport {
   }
 
   updateRuler() {
-    let tickX = this.rulerTickSpacing - (this.pseudoScrollLeft % this.rulerTickSpacing) - (this.rulerTickSpacing + 0.5);
-    let tickXalt = tickX - (this.rulerTickSpacing / 2);
-    let numberX = -1 * (this.pseudoScrollLeft % this.rulerNumberSpacing);
-    const numberDirty = (this.pseudoScrollLeft + numberX) * this.pixelTime;
-    let number = Math.round(numberDirty / this.rulerNumberIncrement) * this.rulerNumberIncrement;
-    let setIndex = Math.round(number / this.rulerNumberIncrement);
-    const alpha = Math.min((this.zoomOffset - Math.floor(this.zoomOffset)) * 4, 1);
     const twoPi = Math.PI * 2;
     const textBaseline = 23 + styles.baselineOffset;
-
+    
     const ctx = this.rulerCanvas;
     ctx.imageSmoothingEnabled = false;
     ctx.textRendering = 'optimizeLegibility';
@@ -711,56 +715,160 @@ export class Viewport {
     ctx.textBaseline = 'bottom';
     ctx.clearRect(0, 0, this.viewerWidth, styles.rulerHeight);
 
-    // Draw the Ticks
-    ctx.beginPath();
-    while (tickX <= this.viewerWidth) {
-      ctx.arc(tickX, 30, 1, 0, twoPi);
-      tickX += this.rulerTickSpacing;
-    }
-    ctx.fill();
+    const scale = 10 ** Math.abs(this.adjustedLogTimeScale);
+    const formatTime = (t: number): string => {
+      const v = this.adjustedLogTimeScale > 0
+        ? t * this.timeScale * scale
+        : t * this.timeScale / scale;
+      return v.toString() + " " + this.displayTimeUnit;
+    };
 
-    ctx.globalAlpha = alpha;
-    ctx.beginPath();
-    while (tickXalt <= this.viewerWidth) {
-      ctx.arc(tickXalt, 30, 1, 0, twoPi);
-      tickXalt += this.rulerTickSpacing;
-    }
-    ctx.fill();
+    const fadeAlpha       = this.rulerFadeAlpha;
+    const scrollLeft      = this.pseudoScrollLeft;
+    const zoomRatio       = this.zoomRatio;
+    const mainInc         = this.rulerNumberIncrement;
+    const subInc          = this.rulerSubNumberIncrement;
+    const mainDiv         = this.rulerTickDivisions;
+    const subDiv          = this.rulerSubTickDivisions;
+    const numberFadeOut   = this.rulerNumberFadeOut;
 
-    // Draw the Numbers
-    let scale;
-    let valueString;
-    if (this.adjustedLogTimeScale >= 0) {
-      scale = 10 ** this.adjustedLogTimeScale;
-    } else {
-      scale = 10 ** -this.adjustedLogTimeScale;
+    const tickXAtTime = (t: number): number => t * zoomRatio - scrollLeft;
+
+    const mainCount = mainDiv > 1 ? mainDiv - 1 : 0;
+    const subCount  = subDiv  > 1 ? subDiv  - 1 : 0;
+    const drawSubTicks   = fadeAlpha > 0 && subInc < mainInc && subDiv > 1;
+    const tickHasMainOnly = drawSubTicks && (mainInc % subInc !== 0);
+
+    const timeLeft  = scrollLeft * this.pixelTime;
+    const timeRight = timeLeft + this.viewerWidthTime;
+
+    const tickOffsetInBlock = (t: number, blockInc: number): number => {
+      const base = Math.floor(t / blockInc) * blockInc;
+      return t - base;
+    };
+
+    const isMainMinorTick = (t: number): boolean => {
+      if (mainDiv <= 1 || t % mainInc === 0) { return false; }
+      const off  = tickOffsetInBlock(t, mainInc);
+      const step = mainInc / mainDiv;
+      for (let j = 1; j <= mainCount; j++) {
+        if (Math.abs(off - j * step) < 1e-9) { return true; }
+      }
+      return false;
+    };
+
+    const isSubMinorTick = (t: number): boolean => {
+      if (subDiv <= 1 || t % subInc === 0) { return false; }
+      const off  = tickOffsetInBlock(t, subInc);
+      const step = subInc / subDiv;
+      for (let j = 1; j <= subCount; j++) {
+        if (Math.abs(off - j * step) < 1e-9) { return true; }
+      }
+      return false;
+    };
+
+    const isOnSubTickGrid = (t: number): boolean => {
+      if (!drawSubTicks) { return false; }
+      return t % subInc === 0 || isSubMinorTick(t);
+    };
+
+    const alphaForMainMinor = (t: number): number => {
+      if (isOnSubTickGrid(t)) { return 1; }
+      return tickHasMainOnly ? numberFadeOut : 1;
+    };
+
+    const ticksByAlpha = new Map<number, number[]>();
+    const queueTick = (t: number, alpha: number) => {
+      if (alpha <= 0 || t < timeLeft - mainInc || t > timeRight + mainInc) { return; }
+      let bucket = ticksByAlpha.get(alpha);
+      if (!bucket) { bucket = []; ticksByAlpha.set(alpha, bucket); }
+      bucket.push(t);
+    };
+
+    // Major ticks at number positions, plus minor ticks between numbers.
+    let k = Math.floor(timeLeft / mainInc);
+    const kEnd = Math.ceil(timeRight / mainInc);
+    while (k <= kEnd) {
+      const base = k * mainInc;
+      queueTick(base, 1);
+      if (mainDiv > 1) {
+        const step = mainInc / mainDiv;
+        for (let j = 1; j <= mainCount; j++) {
+          queueTick(base + j * step, alphaForMainMinor(base + j * step));
+        }
+      }
+      k += 1;
     }
 
+    // Sub-only minor ticks (fade in like sub numbers).
+    if (drawSubTicks) {
+      let sk = Math.floor(timeLeft / subInc);
+      const skEnd = Math.ceil(timeRight / subInc);
+      while (sk <= skEnd) {
+        const base = sk * subInc;
+        const step = subInc / subDiv;
+        for (let j = 1; j <= subCount; j++) {
+          const t = base + j * step;
+          if (t % mainInc !== 0 && !isMainMinorTick(t)) {
+            queueTick(t, fadeAlpha);
+          }
+        }
+        sk += 1;
+      }
+    }
+
+    const sortedAlphas = [...ticksByAlpha.keys()].sort((a, b) => b - a);
+    for (const alpha of sortedAlphas) {
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      for (const t of ticksByAlpha.get(alpha)!) {
+        ctx.arc(tickXAtTime(t) - 0.5, 30, 1, 0, twoPi);
+      }
+      ctx.fill();
+    }
+
+    // ---- Numbers ----
     this.rulerLineX = [];
-    ctx.fillStyle = styles.rulerTextColor;
+    const drawSubNumber     = fadeAlpha > 0 && this.rulerSubNumberIncrement < this.rulerNumberIncrement && this.rulerSubNumberSpacing > 0;
+    const numberHasMainOnly = drawSubNumber && (this.rulerNumberIncrement % this.rulerSubNumberIncrement !== 0);
+
+    const numXBase = -(this.pseudoScrollLeft % this.rulerNumberSpacing);
+    const numTBase = Math.round((this.pseudoScrollLeft + numXBase) * this.pixelTime / this.rulerNumberIncrement) * this.rulerNumberIncrement;
+
+    // Main numbers: in ×2.5 transitions, positions not on the sub grid use
+    // numberFadeOut so they disappear in sync with the sub layer fading in.
+    let numberX = numXBase;
+    let number  = numTBase;
     while (numberX <= this.viewerWidth + 50) {
-      if (this.adjustedLogTimeScale > 0) {
-        valueString = (number * this.timeScale * scale).toString();
-      } else {
-        valueString = (number * this.timeScale / scale).toString();
+      let alpha = 1;
+      if (numberHasMainOnly && (number % this.rulerSubNumberIncrement !== 0)) {
+        alpha = numberFadeOut;
       }
-
-      valueString += " " + this.displayTimeUnit;
-      if (setIndex % 2 === 1) {
+      if (alpha > 0) {
         ctx.globalAlpha = alpha;
+        ctx.fillText(formatTime(number), numberX, textBaseline);
         this.rulerLineX.push([numberX, alpha]);
-      } else {
-        ctx.globalAlpha = 1;
-        this.rulerLineX.push([numberX, 1]);
       }
-
-      // Y height is .time-marker-label top offset
-      ctx.fillText(valueString, numberX, textBaseline);
       numberX += this.rulerNumberSpacing;
-      number += this.rulerNumberIncrement;
-      setIndex += 1;
+      number  += this.rulerNumberIncrement;
     }
-    
+
+    // Sub-only numbers (positions not on the main grid), faded in.
+    if (drawSubNumber) {
+      ctx.globalAlpha = fadeAlpha;
+      const subXBase = -(this.pseudoScrollLeft % this.rulerSubNumberSpacing);
+      let sx = subXBase;
+      let st = Math.round((this.pseudoScrollLeft + subXBase) * this.pixelTime / this.rulerSubNumberIncrement) * this.rulerSubNumberIncrement;
+      while (sx <= this.viewerWidth + 50) {
+        if (st % this.rulerNumberIncrement !== 0) {
+          ctx.fillText(formatTime(st), sx, textBaseline);
+          this.rulerLineX.push([sx, fadeAlpha]);
+        }
+        sx += this.rulerSubNumberSpacing;
+        st += this.rulerSubNumberIncrement;
+      }
+    }
+
     ctx.globalAlpha = 1;
   }
 
@@ -918,13 +1026,74 @@ export class Viewport {
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
     this.timeScrollRight  = this.timeScrollLeft + this.viewerWidthTime;
     this.zoomOffset       = Math.log2(this.zoomRatio / this.defaultZoom);
-    const baseZoom        = (2 ** Math.floor(this.zoomOffset)) * this.defaultZoom;
-    const spacingRatio    = 2 ** (this.zoomOffset - Math.floor(this.zoomOffset));
-    this.rulerTickSpacing = this.minTickSpacing * spacingRatio;
-    this.rulerNumberSpacing = this.minNumberSpacing * spacingRatio;
-    this.rulerNumberIncrement = this.minNumberSpacing / baseZoom;
 
-    //console.log('zoom ratio: ' + this.zoomRatio + ' zoom offset: ' + zoomOffset + ' base zoom: ' + baseZoom);
+    // Ruler step is the smallest "nice" value (1-2-5 × 10^n) in internal time
+    // units (multiples of the file's timescale) that yields at least
+    // `minNumberSpacing` pixels between adjacent number labels, and never
+    // finer than 1 timescale tick. Tick subdivisions follow GTKWave-style
+    // 5/4/5 splits depending on the leading digit. The denser "next" step is
+    // also computed so the ruler can fade it in as zoom approaches the
+    // boundary where it becomes the new main step.
+    const minIncrementTime = Math.max(this.minNumberSpacing * this.pixelTime, 1);
+    const exp10            = Math.floor(Math.log10(minIncrementTime));
+    const mantissa         = minIncrementTime / (10 ** exp10);
+
+    let curMant: number,  curExp: number;
+    let nextMant: number, nextExp: number;
+    if (mantissa <= 1)      { curMant = 1;  curExp = exp10;
+                              nextMant = 5; nextExp = exp10 - 1; }
+    else if (mantissa <= 2) { curMant = 2;  curExp = exp10;
+                              nextMant = 1; nextExp = exp10; }
+    else if (mantissa <= 5) { curMant = 5;  curExp = exp10;
+                              nextMant = 2; nextExp = exp10; }
+    else                    { curMant = 1;  curExp = exp10 + 1;
+                              nextMant = 5; nextExp = exp10; }
+    const numberIncrement = Math.max(curMant * (10 ** curExp), 1);
+
+    // Sub layer (denser); clamped at 1×timescale. If clamping makes it equal
+    // to the main step we have nothing finer to fade in.
+    const subNumberIncrement = Math.max(nextMant * (10 ** nextExp), 1);
+
+    // progress in log space: 0 right after entering the current step,
+    // approaching 1 as zoom gets closer to where the sub step would take over.
+    let progress = 0;
+    if (subNumberIncrement < numberIncrement) {
+      const logCur  = Math.log10(numberIncrement);
+      const logNext = Math.log10(subNumberIncrement);
+      const logMin  = Math.log10(Math.max(minIncrementTime, subNumberIncrement));
+      progress = (logCur - logMin) / (logCur - logNext);
+      progress = Math.max(0, Math.min(progress, 1));
+    }
+    const fadeAlpha = Math.min(progress * 4, 1);
+
+    // For ×2 transitions (e.g. 100→50, 20→10) the main grid is a subset of
+    // the sub grid, so main labels stay at alpha=1 throughout. For ×2.5
+    // transitions (5→2, 50→20) main has positions not on the sub grid
+    // (e.g. 5/15/25 with sub=2), and those positions disappear after the
+    // step boundary. Cross-fade them out as the sub layer fades in so the
+    // transition is continuous on common positions.
+    const numberMainOnly = subNumberIncrement < numberIncrement
+                            && (numberIncrement % subNumberIncrement !== 0);
+    const numberFadeOut  = numberMainOnly ? Math.max(1 - fadeAlpha, 0) : 1;
+
+    const tickDivisions = (mant: number, inc: number): number => {
+      if (mant === 2 && curExp === 0) { return 2; }
+      if (mant === 2) { return 4; }
+      if (mant === 5) { return 5; }
+      if (mant === 1 && inc > 1) { return 2; }
+      return 0;
+    };
+    console.log("curMant", curMant, "curExp", curExp);
+    this.rulerNumberIncrement    = numberIncrement;
+    this.rulerTickDivisions      = tickDivisions(curMant, numberIncrement);
+    this.rulerSubTickDivisions   = tickDivisions(nextMant, subNumberIncrement);
+    this.rulerNumberSpacing      = numberIncrement * this.zoomRatio;
+    this.rulerSubNumberIncrement = subNumberIncrement;
+    this.rulerSubNumberSpacing   = subNumberIncrement * this.zoomRatio;
+    this.rulerFadeAlpha          = fadeAlpha;
+    this.rulerNumberFadeOut      = numberFadeOut;
+    
+    console.log('spacing' , this.rulerNumberSpacing, this.rulerSubNumberSpacing);
 
     this.updateScrollbarResize();
     this.redrawViewport();

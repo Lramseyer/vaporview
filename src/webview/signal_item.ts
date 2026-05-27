@@ -223,8 +223,9 @@ export class NetlistVariable extends SignalItem implements RowItem {
     super();
 
     this.customName = this.signalName;
-
+    this.nameType   = config.defaultNameType as NameType;
     this.colorIndex = 1;
+
     if (this.signalWidth === 1) {
       this.colorIndex = config.defaultSingleBitColor;
     } else {

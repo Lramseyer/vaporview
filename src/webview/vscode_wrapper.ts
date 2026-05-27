@@ -38,6 +38,7 @@ export class Configuration {
   userPixelRatio: number            = 1;
   disableAnalogRendererOptimizations: boolean = false;
 
+  defaultNameType: string           = 'fullPath';
   defaultSingleBitColor: number     = 0;
   defaultMultiBitColor: number      = 0;
   defaultParamColor: number         = 0;
@@ -90,7 +91,10 @@ export class Configuration {
       this.animationDuration = settings.animationDuration;
     }
 
-    // Default Colors
+    // Default Colors and Name Type
+    if (settings.defaultNameType !== undefined) {
+      this.defaultNameType = settings.defaultNameType;
+    }
     if (settings.defaultSingleBitColor !== undefined) {
       this.defaultSingleBitColor = Math.floor(settings.defaultSingleBitColor - 1);
     }

@@ -115,6 +115,7 @@ export interface ConfigSettingsMessage {
   overrideDevicePixelRatio?: boolean;
   userPixelRatio?: number;
   disableAnalogRendererOptimizations?: boolean;
+  defaultNameType?: string;
   defaultSingleBitColor?: number;
   defaultMultiBitColor?: number;
   defaultParamColor?: number;

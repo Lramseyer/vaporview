@@ -213,7 +213,7 @@
         }
       },
       {
-        "title": "Styles",
+        "title": "Styles and Naming",
         "properties": {
           "vaporview.showRulerLines": {
             "order": 1,
@@ -236,8 +236,19 @@
             "scope": "application",
             "description": "Bit vector renderer style - If checked, multi-bit signals are drawn with a fixed height. If unchecked, short transitions are drawn with a smaller height."
           },
-          "vaporview.defaultSingleBitColor": {
+          "vaporview.defaultNameType": {
             "order": 4,
+            "type": "string",
+            "enum": [
+              "fullPath",
+              "signalName"
+            ],
+            "default": "fullPath",
+            "scope": "application",
+            "description": ""
+          },
+          "vaporview.defaultSingleBitColor": {
+            "order": 5,
             "type": "number",
             "default": 1,
             "minimum": 1,
@@ -246,7 +257,7 @@
             "description": "Default waveform color for single bit signals."
           },
           "vaporview.defaultMultiBitColor": {
-            "order": 5,
+            "order": 6,
             "type": "number",
             "default": 1,
             "minimum": 1,
@@ -255,7 +266,7 @@
             "description": "Default waveform color for multi bit signals."
           },
           "vaporview.defaultParamColor": {
-            "order": 6,
+            "order": 7,
             "type": "number",
             "default": 3,
             "minimum": 1,
@@ -264,7 +275,7 @@
             "description": "Default waveform color for parameters."
           },
           "vaporview.defaultStringColor": {
-            "order": 7,
+            "order": 8,
             "type": "number",
             "default": 2,
             "minimum": 1,
@@ -273,7 +284,7 @@
             "description": "Default waveform color for strings."
           },
           "vaporview.defaultEnumColor": {
-            "order": 8,
+            "order": 9,
             "type": "number",
             "default": 1,
             "minimum": 1,
@@ -282,7 +293,7 @@
             "description": "Default waveform color for enums."
           },
           "vaporview.defaultCustomSignalColor": {
-            "order": 9,
+            "order": 10,
             "type": "number",
             "default": 1,
             "minimum": 1,
@@ -291,28 +302,28 @@
             "description": "Default waveform color for custom signals."
           },
           "vaporview.customColor5": {
-            "order": 10,
+            "order": 11,
             "type": "string",
             "scope": "application",
             "default": "#ffa557",
             "description": "Fallback color for Color 5, must be a valid color name."
           },
           "vaporview.customColor6": {
-            "order": 11,
+            "order": 12,
             "type": "string",
             "scope": "application",
             "default": "#dcdcaa",
             "description": "Fallback color for Color 6, must be a valid color name."
           },
           "vaporview.customColor7": {
-            "order": 12,
+            "order": 13,
               "type": "string",
             "scope": "application",
             "default": "#d2a8ff",
             "description": "Fallback color for Color 7, must be a valid color name."
           },
           "vaporview.customColor8": {
-            "order": 13,
+            "order": 14,
             "type": "string",
             "scope": "application",
             "default": "#4abfa8",

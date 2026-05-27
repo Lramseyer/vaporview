@@ -241,6 +241,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       enableAnimations:                   config.get('enableAnimations'),
       animationDuration:                  config.get('animationDuration'),
       disableAnalogRendererOptimizations: config.get('disableAnalogRendererOptimizations'),
+      defaultNameType:                    config.get('defaultNameType'),
       defaultSingleBitColor:              config.get('defaultSingleBitColor'),
       defaultMultiBitColor:               config.get('defaultMultiBitColor'),
       defaultParamColor:                  config.get('defaultParamColor'),

@@ -323,8 +323,8 @@ export class SurferFormatHandler implements WaveformFileParser {
     }
   }
 
-  public async searchNetlist(searchString: string): Promise<NetlistSearchResult> {
-    const resultJson = await this.wasmApi!.searchnetlist(searchString);
+  public async searchNetlist(searchString: string, scopeId: number): Promise<NetlistSearchResult> {
+    const resultJson = await this.wasmApi!.searchnetlist(searchString, scopeId);
     try {
       return JSON.parse(resultJson) as NetlistSearchResult;
     } catch {

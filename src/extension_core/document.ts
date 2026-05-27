@@ -93,7 +93,7 @@ export interface WaveformFileParser {
   getSignalData(signalIdList: SignalId[]): Promise<void>;
   getEnumData(enumList: EnumQueueEntry[]): Promise<void>;
   getValuesAtTime(time: number, instancePaths: string[]): Promise<ValuesAtTimeResult[]>;
-  searchNetlist(searchString: string): Promise<NetlistSearchResult>
+  searchNetlist(searchString: string, scopeId: number): Promise<NetlistSearchResult>
 
   // Callbacks
   postMessageToWebview(message: Record<string, unknown>): void;
@@ -743,8 +743,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     return this._handler.getValuesAtTime(time, e.instancePaths);
   }
 
-  public searchNetlist(searchQuery: string): Promise<NetlistSearchResult> {
-    return this._handler.searchNetlist(searchQuery);
+  public searchNetlist(searchQuery: string, scopeId: number | undefined): Promise<NetlistSearchResult> {
+    return this._handler.searchNetlist(searchQuery, scopeId ?? 0xFFFFFFFF);
   }
 
   public async unload(): Promise<void> {
@@ -791,6 +791,8 @@ export class NetlistSearchQuickPick {
   private document: VaporviewDocument | undefined;
   private searchInProgress = false;
   private pendingQuery: string | undefined;
+  private searchScopeId: number | undefined;
+  private searchScopeName: string = "Top Level";
 
   constructor() {
     this.quickPick = vscode.window.createQuickPick<NetlistQuickPickItem>();
@@ -803,11 +805,21 @@ export class NetlistSearchQuickPick {
     this.quickPick.onDidAccept(() => this.onAccept());
   }
 
-  public show(document: VaporviewDocument) {
+  public show(document: VaporviewDocument, scopeId: number | undefined) {
     this.document = document;
     this.pendingQuery = undefined;
     this.searchInProgress = false;
+    this.updateSearchScope(scopeId);  
+    this.quickPick.placeholder = this.searchScopeName;
     this.quickPick.show();
+  }
+
+  private updateSearchScope(scopeId: number | undefined) {
+    this.searchScopeId = scopeId;
+    if (!scopeId) {this.searchScopeName = "Searching Top Level:"; return;}
+    const scope = this.document?.getNameFromNetlistId(scopeId);
+    if (!scope) {this.searchScopeName = "Searching Unknown Scope:"; return;}
+    this.searchScopeName = "Searching " + scope.name + ":";
   }
 
   private async applyFilter(query: string) {
@@ -826,7 +838,7 @@ export class NetlistSearchQuickPick {
 
     this.searchInProgress  = true;
     this.quickPick.busy    = true;
-    const searchResult     = await this.document.searchNetlist(query);
+    const searchResult     = await this.document.searchNetlist(query, this.searchScopeId);
     this.searchInProgress  = false;
 
     const totalResults     = searchResult.totalResults;
@@ -834,11 +846,11 @@ export class NetlistSearchQuickPick {
     const resultString     = totalResults === 1 ? "result" : "results";
 
     if (totalResults === 0) {
-      this.quickPick.title = "No results found";
+      this.quickPick.title = `${this.searchScopeName} No results found`;
     } else if (displayedResults !== totalResults) {
-      this.quickPick.title = `Showing ${displayedResults} of ${totalResults} ${resultString}`;
+      this.quickPick.title = `${this.searchScopeName} Showing ${displayedResults} of ${totalResults} ${resultString}`;
     } else {
-      this.quickPick.title = `${totalResults} ${resultString}`;
+      this.quickPick.title = `${this.searchScopeName} ${totalResults} ${resultString}`;
     }
 
     this.quickPick.items = searchResult.searchResults.map(result => {

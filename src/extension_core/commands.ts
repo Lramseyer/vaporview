@@ -94,8 +94,12 @@ export function registerVaporviewCommands(
     viewerProvider.netlistTreeDataProvider.clickNetlistItem(e.uri, e.netlistId);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.searchNetlist', () => {
-    viewerProvider.searchNetlist();
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.searchNetlist', (e: NetlistItem | undefined) => {
+    viewerProvider.searchNetlist(undefined);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.searchScope', (e: NetlistItem | undefined) => {
+    viewerProvider.searchNetlist(e);
   }));
 
   // Add or remove signal commands

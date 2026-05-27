@@ -1137,10 +1137,12 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     this.addSignalByNameToDocument(e.instancePath);
   }
 
-  public searchNetlist() {
+  public searchNetlist(e: NetlistItem | undefined) {
     const document = this.activeDocument;
+    let scopeId: number | undefined;
     if (!document) {return;}
-    this.quickPick.show(document);
+    if (e) {scopeId = e.netlistId;}
+    this.quickPick.show(document, scopeId);
   }
 
   public async addAllInScopeToDocument(e: NetlistItem, recursive: boolean, maxChildren: number) {

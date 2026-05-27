@@ -423,6 +423,34 @@ fn scope_search_entry(scope_data: &Scope, hierarchy: &Hierarchy) -> SearchEntry 
   };
 }
 
+fn get_all_vars<'h>(hierarchy: &'h Hierarchy, scope: Option<&'h Scope>) -> Box<dyn Iterator<Item = &'h Var> + 'h> {
+  match scope {
+    None => Box::new(hierarchy.all_vars()),
+    Some(s) => {
+      let direct_vars = s.vars(hierarchy).map(move |vr| hierarchy.index(vr));
+      let child_vars = s.scopes(hierarchy)
+        .map(move |sr| hierarchy.index(sr))
+        .flat_map(move |child| get_all_vars(hierarchy, Some(child)));
+      Box::new(direct_vars.chain(child_vars))
+    }
+  }
+}
+
+fn get_all_scopes<'h>(hierarchy: &'h Hierarchy, scope: Option<&'h Scope>) -> Box<dyn Iterator<Item = &'h Scope> + 'h> {
+  match scope {
+    None => Box::new(hierarchy.all_scopes()),
+    Some(s) => {
+      Box::new(
+        s.scopes(hierarchy)
+          .map(move |sr| hierarchy.index(sr))
+          .flat_map(move |child| {
+            std::iter::once(child).chain(get_all_scopes(hierarchy, Some(child)))
+          })
+      )
+    }
+  }
+}
+
 fn search<'h>(
   hierarchy: &'h Hierarchy,
   scope_path: Vec<&str>,
@@ -924,7 +952,7 @@ impl Guest for Filecontext {
 
   }
 
-  fn searchnetlist(searchquery: String) -> String {
+  fn searchnetlist(searchquery: String, scopeid: u32) -> String {
     let global_hierarchy = _hierarchy.lock().unwrap();
     let hierarchy = global_hierarchy.as_ref().unwrap();
     let empty_result = "{\"totalResults\":0,\"searchResults\":[]}".to_string();
@@ -933,14 +961,25 @@ impl Guest for Filecontext {
       return empty_result;
     }
 
+    let mut search_scope = None::<&Scope>;
+    if scopeid != 0xFFFFFFFF {
+      let search_scope_id_option = ScopeRef::from_index(scopeid as usize);
+      match search_scope_id_option {
+        Some(search_scope_id) => {search_scope = Some(hierarchy.index(search_scope_id));},
+        None => {search_scope = None;}
+      }
+    }
+
     let mut search_results: Vec<ScopeOrVar> = Vec::new();
     let lower_query = searchquery.to_lowercase();
     let scope_path = lower_query.split(".").collect::<Vec<&str>>();
 
-    let all_scopes = hierarchy.all_scopes();
+    let all_scopes = get_all_scopes(hierarchy, search_scope);
+    //let all_scopes = hierarchy.all_scopes();
     let mut all_vars = None;
     if scope_path.len() == 1 {
-      all_vars = Some(hierarchy.all_vars());
+      all_vars = Some(get_all_vars(hierarchy, search_scope));
+      //all_vars = Some(hierarchy.all_vars());
     }
 
     search(hierarchy, scope_path, all_scopes, all_vars, &mut search_results);

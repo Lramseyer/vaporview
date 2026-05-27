@@ -563,6 +563,11 @@
           "group": "inline@1"
         },
         {
+          "command": "vaporview.searchScope",
+          "when": "view == 'waveformViewerNetlistView' && vaporview.netlistSearchable && viewItem == 'netlistScope'",
+          "group": "1_default@0"
+        },
+        {
           "command": "vaporview.addSelected",
           "when": "viewItem == 'netlistVar' && view == 'waveformViewerNetlistView'",
           "group": "1_default@1"
@@ -1157,6 +1162,12 @@
       {
         "command": "vaporview.searchNetlist",
         "title": "Search Netlist",
+        "icon": "$(search)",
+        "category": "VaporView"
+      },
+      {
+        "command": "vaporview.searchScope",
+        "title": "Search Scope",
         "icon": "$(search)",
         "category": "VaporView"
       },

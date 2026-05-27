@@ -371,7 +371,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
     } else if (this.nameType === NameType.signalName) {
       return this.signalName;
     } else {
-      return [this.scopePath, this.signalName].join('.');
+      return [this.scopePath.join('.'), this.signalName].join('.');
     }
   }
 

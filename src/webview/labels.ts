@@ -511,14 +511,13 @@ export class LabelsPanels {
 
   public showRenameInput(rowId: RowId) {
     this.dragEnd(null, true); // Abort any drag operation
-    const signalItem    = rowHandler.rowItems[rowId];
-    const isSignalGroup = signalItem instanceof SignalGroup;
-    const labelElement  = document.getElementById(`label-${rowId}`);
+    const signalItem   = rowHandler.rowItems[rowId];
+    const labelElement = document.getElementById(`label-${rowId}`);
     if (!labelElement) {return;}
-    const waveformRow   = labelElement.querySelector('.waveform-row');
+    const waveformRow  = labelElement.querySelector('.waveform-row');
     if (!waveformRow) {return;}
     waveformRow.classList.remove('is-selected');
-    
+
     // Get the current name for the textarea
     const currentName = signalItem.getLabelText() || '';
     waveformRow.innerHTML = `<textarea id="rename-input-${rowId}" class="rename-input" autocorrect="off" autocapitalize="off" spellcheck="false" wrap="off">${htmlSafe(currentName)}</textarea>`;
@@ -526,7 +525,6 @@ export class LabelsPanels {
 
     // Focus the textarea and select all text
     const textarea = document.getElementById(`rename-input-${rowId}`) as HTMLTextAreaElement;
-    const oldName  = signalItem.getLabelText();
     if (!textarea) {return;}
     textarea.focus();
     textarea.select();
@@ -536,13 +534,8 @@ export class LabelsPanels {
     // due to the renameActive flag
     textarea.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        const newNameInput = textarea.value.trim() || signalItem.getLabelText();
-        const parentGroupId = getParentGroupId(rowId) || 0;
-        const isTaken = rowHandler.groupNameExists(newNameInput, parentGroupId) && isSignalGroup;
-        const isEmpty = newNameInput.trim().length === 0;
-        const isValid = !isEmpty && !isTaken;
         e.preventDefault();
-        this.finishRename(rowId, waveformRow, newNameInput, isValid);
+        this.finishRename(rowId, waveformRow, textarea);
       } else if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
@@ -559,18 +552,24 @@ export class LabelsPanels {
     this.renderLabelsPanels();
   }
 
-  private finishRename(rowId: RowId, waveformRow: Element, newName: string, renameValid: boolean) {
-    const signalItem = rowHandler.rowItems[rowId];
+  private finishRename(rowId: RowId, waveformRow: Element, textarea: HTMLTextAreaElement) {
+    const signalItem    = rowHandler.rowItems[rowId];
+    const isSignalGroup = signalItem instanceof SignalGroup;
+    const newNameInput  = textarea.value.trim() || signalItem.getLabelText();
+    const parentGroupId = getParentGroupId(rowId) || 0;
+    const isTaken = rowHandler.groupNameExists(newNameInput, parentGroupId) && isSignalGroup;
+    const isEmpty = newNameInput.trim().length === 0;
+    const renameValid = !isEmpty && !isTaken;
+
     if (!this.renameActive) {return;}
     this.renameActive = false;
     if (renameValid) {
-      signalItem.setLabelText(newName.trim());
+      signalItem.setLabelText(newNameInput.trim());
     }
     waveformRow.innerHTML = signalItem.createWaveformRowContent();
     if (viewerState.selectedSignal.includes(rowId)) {
       waveformRow.classList.add('is-selected');
     }
-    //console.log('finishRename');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }
 

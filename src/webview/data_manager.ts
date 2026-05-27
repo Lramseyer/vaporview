@@ -1,6 +1,6 @@
 import { type NetlistId, type SignalId, type RowId, type ValueChange, type EnumData, type EnumEntry, type QueueEntry, type SignalQueueEntry, type EnumQueueEntry, NameType, CollapseState, type BitRangeSource, type ValueChangeDataChunk, type CompressedValueChangeDataChunk, type EnumDataChunk } from '../common/types';
 import { ActionType, type EventHandler } from './event_handler';
-import { viewerState, viewport, DataType, dataManager, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, labelsPanel, getIndexInGroup, controlBar, rowHandler, events, vscodeWrapper } from './vaporview';
+import { viewerState, viewport, DataType, dataManager, updateDisplayedSignalsFlat, getChildrenByGroupId, getParentGroupId, labelsPanel, getIndexInGroup, controlBar, rowHandler, events, vscodeWrapper, config } from './vaporview';
 import { SignalGroup, NetlistVariable, RowItem, SignalSeparator, isAnalogSignal, CustomVariable } from './signal_item';
 
 import * as LZ4 from 'lz4js';
@@ -282,6 +282,14 @@ export class WaveformDataManager {
     this.clearTempWaveformData(signalId);
   }
 
+  removeGlitchTransitions(valueChangeData: ValueChange[]): ValueChange[] {
+    if (!config.removeGlitchTransitions) {
+      return valueChangeData;
+    }
+
+    return valueChangeData;
+  }
+
   updateWaveform(signalId: SignalId, valueChangeData: ValueChange[], min: number, max: number) {
 
     const rowIdList    = this.valueChangeDataTemp[signalId].rowIdList;
@@ -294,7 +302,7 @@ export class WaveformDataManager {
     }
 
     this.valueChangeData[signalId] = {
-      valueChangeData: valueChangeData,
+      valueChangeData: this.removeGlitchTransitions(valueChangeData),
       formattedValues: {},
       signalWidth:    signalWidth,
       min:            min,

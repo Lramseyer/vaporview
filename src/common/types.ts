@@ -110,6 +110,7 @@ export interface ConfigSettingsMessage {
   rulerLines?: boolean;
   fillMultiBitValues?: boolean;
   multiBitFixedHeight?: boolean;
+  removeGlitchTransitions?: boolean;
   enableAnimations?: boolean;
   animationDuration?: number;
   overrideDevicePixelRatio?: boolean;

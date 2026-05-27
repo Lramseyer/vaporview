@@ -32,6 +32,7 @@ export class Configuration {
   rulerLines: boolean               = true;
   fillMultiBitValues: boolean       = false;
   multiBitFixedHeight: boolean      = true;
+  removeGlitchTransitions: boolean  = false;
   enableAnimations: boolean         = true;
   animationDuration: number         = 50;
   overrideDevicePixelRatio: boolean = false;
@@ -81,6 +82,11 @@ export class Configuration {
 
     if (settings.disableAnalogRendererOptimizations !== undefined) {
       this.disableAnalogRendererOptimizations = settings.disableAnalogRendererOptimizations;
+    }
+
+    if (settings.removeGlitchTransitions !== undefined) {
+      this.removeGlitchTransitions = settings.removeGlitchTransitions;
+      viewport.renderAllWaveforms(true);
     }
 
     // Animation Settings

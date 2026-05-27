@@ -794,6 +794,7 @@ export class NetlistSearchQuickPick {
   private pendingQuery: string | undefined;
   private searchScopeId: number | undefined;
   private searchScopeName: string = "Top Level";
+  private searchScopeTextLength: number = 0;
 
   constructor() {
     this.quickPick = vscode.window.createQuickPick<NetlistQuickPickItem>();
@@ -817,10 +818,12 @@ export class NetlistSearchQuickPick {
 
   private updateSearchScope(scopeId: number | undefined) {
     this.searchScopeId = scopeId;
+    this.searchScopeTextLength = 0;
     if (!scopeId) {this.searchScopeName = "Searching Top Level:"; return;}
     const scope = this.document?.getNameFromNetlistId(scopeId);
     if (!scope) {this.searchScopeName = "Searching Unknown Scope:"; return;}
     this.searchScopeName = "Searching " + scope.name + ":";
+    this.searchScopeTextLength = scope.name.length;
   }
 
   private async applyFilter(query: string) {
@@ -854,14 +857,16 @@ export class NetlistSearchQuickPick {
       this.quickPick.title = `${this.searchScopeName} ${totalResults} ${resultString}`;
     }
 
+    const elipsis        = this.searchScopeTextLength > 0 ? ".." : "";
     this.quickPick.items = searchResult.searchResults.map(result => {
       const icon       = result.isVar ? getVarIcon(result.type) : getScopeIcon(result.type);
       const bitRange   = result.isVar ? bitRangeString(result.msb, result.lsb) : "";
       const paramValue = result.paramValue ? ": " + parseParamValue(result.paramValue) : "";
+      const detail     = result.instancePath.slice(this.searchScopeTextLength);
       return {
         label: result.instancePath.slice(result.instancePath.lastIndexOf(".") + 1) + bitRange,
         description: result.type + paramValue,
-        detail: result.instancePath,
+        detail: elipsis + detail,
         instancePath: result.instancePath,
         isVar: result.isVar,
         msb: result.msb || 0,

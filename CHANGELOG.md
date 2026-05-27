@@ -4,7 +4,7 @@
 
 - Floating/detached tabs now work properly
 - Added drag and drop support for .json viewer settings files
-- Update wellen to 0.21.1
+- Update wellen to 0.22.0
 
 ## 1.5.3 - 5/20/2026 - Latest Release
 

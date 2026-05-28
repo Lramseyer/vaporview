@@ -165,7 +165,7 @@
             "type": "boolean",
             "default": false,
             "scope": "application",
-            "description": "Remove glitch transitions (multiple value changes in a single time step) in the waveform viewer."
+            "description": "Remove glitch transitions (multiple value changes in a single time step) in the waveform viewer. Files must be reloaded for this setting to take effect."
           },
           "vaporview.fsdbReaderLibsPath": {
             "type": "string",

@@ -282,12 +282,37 @@ export class WaveformDataManager {
     this.clearTempWaveformData(signalId);
   }
 
+  // We need to remove glitch transitions (multiple value changes in a single time step) in the waveform viewer.
+  // 0 -> 1 -> 0 type changes shoudl be removed entirely.
+  // 0 -> 1 -> 0 -> 1 type changes should be converted to 0 -> 1 type changes.
   removeGlitchTransitions(valueChangeData: ValueChange[]): ValueChange[] {
     if (!config.removeGlitchTransitions) {
       return valueChangeData;
     }
 
-    return valueChangeData;
+    const result: ValueChange[] = [];
+    let nextTime         = -1
+    let nextValue        = "";
+    let lastWrittenTime  = -1;
+    let lastWrittenValue = "";
+
+    valueChangeData.forEach(([time, value]) => {
+
+      if (time !== nextTime && lastWrittenValue !== nextValue && nextTime >= 0) {
+        result.push([nextTime, nextValue]);
+        lastWrittenTime  = nextTime;
+        lastWrittenValue = nextValue;
+      }
+
+      nextTime  = time;
+      nextValue = value;
+    });
+
+    if (lastWrittenValue !== nextValue && nextTime >= 0) {
+      result.push([nextTime, nextValue]);
+    }
+
+    return result;
   }
 
   updateWaveform(signalId: SignalId, valueChangeData: ValueChange[], min: number, max: number) {

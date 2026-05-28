@@ -285,21 +285,17 @@ export class WasmFormatHandler implements WaveformFileParser {
     if (!this.wasmApi) { return []; }
     if (element.children.length > 0) { return element.children; }
 
-    //let scopePath = "";
-    //if (element.scopePath !== "") { scopePath += element.scopePath + "."; }
-    //scopePath += element.name;
-    const scopePath = element.scopePath.concat([element.name]); 
+    const scopePath    = element.scopePath.concat([element.name]); 
     let itemsRemaining = Infinity;
-    let startIndex = 0;
+    let startIndex     = 0;
+    let callLimit      = 255;
     const result: NetlistItem[] = [];
 
-    let callLimit = 255;
-    const varTable: Record<string, NetlistItem[]> = {};
     while (itemsRemaining > 0) {
-      const children = await this.wasmApi!.getchildren(element.netlistId, startIndex);
+      const children   = await this.wasmApi!.getchildren(element.netlistId, startIndex);
       const childItems = JSON.parse(children);
-      itemsRemaining = childItems.remainingItems;
-      startIndex += childItems.totalReturned;
+      itemsRemaining   = childItems.remainingItems;
+      startIndex      += childItems.totalReturned;
 
       const scopes: NetlistItem[] = childItems.scopes?.map((child: { name: string; type: string; id: number }) => {
         return createScope(child.name, child.type, scopePath, child.id, -1, this.uri);
@@ -309,46 +305,10 @@ export class WasmFormatHandler implements WaveformFileParser {
       }) || [];
 
       result.push(...scopes);
-
-      vars.forEach((varItem) => {
-        if (varTable[varItem.name] === undefined) {
-          varTable[varItem.name] = [varItem];
-        } else {
-          varTable[varItem.name].push(varItem);
-        }
-      });
+      result.push(...vars);
 
       callLimit--;
-      if (callLimit <= 0) { break; }
-    }
-
-    for (const [_key, value] of Object.entries(varTable)) {
-      if (value.length === 1) {
-        result.push(value[0]);
-      } else {
-        const varList = value;
-        const bitList: NetlistItem[] = [];
-        const busList: NetlistItem[] = [];
-        let maxWidth = 0;
-        let parent: NetlistItem | undefined;
-        varList.forEach((varItem) => {
-          if (varItem.width === 1) { bitList.push(varItem); }
-          else { busList.push(varItem); }
-        });
-        busList.forEach((busItem: NetlistItem) => {
-          if (busItem.width > maxWidth) {
-            maxWidth = busItem.width;
-            parent = busItem;
-          }
-          result.push(busItem);
-        });
-        if (parent !== undefined) {
-          parent.children = bitList;
-          parent.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
-        } else {
-          result.push(...bitList);
-        }
-      }
+      if (callLimit <= 0) {break;}
     }
 
     return result;

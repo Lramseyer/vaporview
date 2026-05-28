@@ -434,8 +434,13 @@ export class VaporviewStatusBar {
 
     if (w.selectedSignal || w.selectedSignal === 0) {
       const netlistData = document.netlistIdTable[w.selectedSignal];
-      const signalName = netlistData.name;
-      this.selectedSignalStatusBarItem.text = 'Selected signal: ' + signalName;
+
+      if (netlistData) {
+        const signalName = netlistData.name;
+        this.selectedSignalStatusBarItem.text = 'Selected signal: ' + signalName;
+      } else {
+        this.selectedSignalStatusBarItem.hide();
+      }
 
       if (event.transitionCount !== undefined && event.transitionCount !== null) {
         const plural = event.transitionCount === 1 ? ')' : 's)';

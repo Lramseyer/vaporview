@@ -1,6 +1,6 @@
 :root {
   --waveform-height: 28px;
-  --waveform-margin: 4px;
+  --waveform-padding: 4px;
   --ruler-height:    36px;
 }
 

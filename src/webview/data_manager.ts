@@ -291,7 +291,7 @@ export class WaveformDataManager {
     }
 
     const result: ValueChange[] = [];
-    let nextTime         = -1
+    let nextTime         = -1;
     let nextValue        = "";
     let lastWrittenTime  = -1;
     let lastWrittenValue = "";

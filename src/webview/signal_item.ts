@@ -318,7 +318,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
     canvas.classList.add('waveform-canvas');
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
-    const canvasHeight = (this.rowHeight * styles.rowHeight) - 8;
+    const canvasHeight = (this.rowHeight * styles.rowHeight) - (styles.rowPadding * 2);
     if (this.ctx) {
       viewport.resizeCanvas(canvas, this.ctx, viewport.viewerWidth, canvasHeight);
     }
@@ -433,7 +433,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
 
   public resize() {
     if (!this.canvas || !this.ctx) {return;}
-    const canvasHeight = (this.rowHeight * styles.rowHeight) - 8;
+    const canvasHeight = (this.rowHeight * styles.rowHeight) - (styles.rowPadding * 2);
     viewport.resizeCanvas(this.canvas, this.ctx, viewport.viewerWidth, canvasHeight);
   }
 
@@ -582,7 +582,7 @@ export class CustomVariable extends SignalItem implements RowItem {
     canvas.classList.add('waveform-canvas');
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
-    const canvasHeight = (this.rowHeight * styles.rowHeight) - 8;
+    const canvasHeight = (this.rowHeight * styles.rowHeight) - (styles.rowPadding * 2);
     if (this.ctx) {
       viewport.resizeCanvas(canvas, this.ctx, viewport.viewerWidth, canvasHeight);
     }
@@ -694,7 +694,7 @@ export class CustomVariable extends SignalItem implements RowItem {
 
   public resize() {
     if (!this.canvas || !this.ctx) {return;}
-    const canvasHeight = (this.rowHeight * styles.rowHeight) - 8;
+    const canvasHeight = (this.rowHeight * styles.rowHeight) - (styles.rowPadding * 2);
     viewport.resizeCanvas(this.canvas, this.ctx, viewport.viewerWidth, canvasHeight);
   }
 

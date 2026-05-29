@@ -144,7 +144,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     const rightJustify   = netlistData.valueFormat.rightJustify;
     const justifyDirection = rightJustify ? "right" : "left";
     const rowHeight      = netlistData.rowHeight * styles.rowHeight;
-    const canvasHeight   = rowHeight - 8;
+    const canvasHeight   = rowHeight - (styles.rowPadding * 2);
     const halfCanvasHeight = canvasHeight / 2;
 
     let elementWidth;
@@ -424,7 +424,7 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     const timeScrollRight  = viewport.timeScrollRight - timeScrollLeft;
     const valueIs9State    = netlistData.valueFormat.is9State;
     const rowHeight        = netlistData.rowHeight * styles.rowHeight;
-    const canvasHeight     = rowHeight - 8;
+    const canvasHeight     = rowHeight - (styles.rowPadding * 2);
 
     if (valueIs9State(initialValue)) {
       initialValue2state = 0;
@@ -522,7 +522,7 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     accumulatedPath.push([timeScrollRight + (15 * viewport.pixelTime), 1]);
     accumulatedPath.push([timeScrollRight + (15 * viewport.pixelTime), 0]);
 
-    const waveHeight = canvasHeight - 4;
+    const waveHeight = canvasHeight - styles.rowPadding;
     const waveOffset = waveHeight + (canvasHeight - waveHeight) / 2;
 
     ctx.clearRect(0, 0, viewport.viewerWidth, canvasHeight);
@@ -601,7 +601,7 @@ function createAnalogWaveform(valueChangeChunk: RenderBounds, netlistData: Netli
   const xzPath: number[][] = [];
   const valueIs9State    = netlistData.valueFormat.is9State;
   const rowHeight        = netlistData.rowHeight * styles.rowHeight;
-  const canvasHeight     = rowHeight - 8;
+  const canvasHeight     = rowHeight - (styles.rowPadding * 2);
   const verticalScale    = netlistData.verticalScale;
   const halfCanvasHeight = canvasHeight / 2;
 
@@ -701,7 +701,7 @@ function createAnalogWaveform(valueChangeChunk: RenderBounds, netlistData: Netli
 
   const drawColor  = netlistData.color;
   const xzColor    = styles.xzColor;
-  const waveHeight = canvasHeight - 4;
+  const waveHeight = canvasHeight - styles.rowPadding;
   const waveOffset = waveHeight + (canvasHeight - waveHeight) / 2;
   const yScale     = waveHeight * verticalScale / (max - min);
   const translateY = 0.5 + (max / (max - min)) * waveOffset;

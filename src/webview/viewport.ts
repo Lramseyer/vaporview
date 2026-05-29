@@ -739,7 +739,7 @@ export class Viewport {
     ctx.lineWidth = 1;
     ctx.strokeStyle = styles.rulerTextColor;
     ctx.font = styles.fontStyle;
-    ctx.fillStyle = styles.rulerTextColor;
+    ctx.fillStyle = styles.rulerGuideColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.clearRect(0, 0, this.viewerWidth, styles.rulerHeight);
@@ -1065,7 +1065,7 @@ export class Viewport {
     const element = netlistData.viewportElement;
     const rowHeight = (netlistData.rowHeight * styles.rowHeight);
     element.style.height = rowHeight + 'px';
-    const canvasHeight = rowHeight - 8;
+    const canvasHeight = rowHeight - (styles.rowPadding * 2);
     if (netlistData.ctx && netlistData.canvas) {
       this.resizeCanvas(netlistData.canvas, netlistData.ctx, this.viewerWidth, canvasHeight);
     }

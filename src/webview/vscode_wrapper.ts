@@ -184,6 +184,7 @@ export class ThemeColors {
   baselineOffset: number = 0;
   markerAnnotation: string = '';
   rowHeight: number = 28;
+  rowPadding: number = 4;
   rulerHeight: number = 36;
 
   constructor(
@@ -261,6 +262,7 @@ export class ThemeColors {
     }
 
     this.rowHeight   = parseInt(style.getPropertyValue('--waveform-height'));
+    this.rowPadding  = parseInt(style.getPropertyValue('--waveform-padding'));
     this.rulerHeight = parseInt(style.getPropertyValue('--ruler-height'));
   }
 

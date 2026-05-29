@@ -880,6 +880,7 @@ export class SignalGroup extends SignalItem implements RowItem {
   public expand() {
     this.collapseState = CollapseState.Expanded;
     labelsPanel.renderLabelsPanels();
+    labelsPanel.renderValueDisplay();
     this.showHideViewportRows();
   }
 
@@ -895,6 +896,7 @@ export class SignalGroup extends SignalItem implements RowItem {
       events.signalSelect(newSelection, lastSelected);
     }
     labelsPanel.renderLabelsPanels();
+    labelsPanel.renderValueDisplay();
     this.showHideViewportRows();
   }
 

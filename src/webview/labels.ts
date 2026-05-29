@@ -113,15 +113,21 @@ export class LabelsPanels {
   renderLabelsPanels() {
     if (this.events.isBatchMode) {return;}
     this.labelsList  = [];
-    const transitions: string[] = [];
     this.labelsList.push('<svg id="drag-divider" style="top: 0px; display:none; pointer-events: none;"><line x1="0" y1="0" x2="100%" y2="0"></line></svg>');
     this.labelsList.push('<div id="draggable-cursor-tag" class="draggable-label" style="position: fixed; top: 0px; display:none; pointer-events: none;"> </div>');
     viewerState.displayedSignals.forEach((rowId, index) => {
       const netlistData = rowHandler.rowItems[rowId];
       this.labelsList.push(netlistData.createLabelElement());
+    });
+    this.labels.innerHTML = this.labelsList.join('');
+  }
+
+  renderValueDisplay() {
+    const transitions: string[] = [];
+    viewerState.displayedSignals.forEach((rowId, index) => {
+      const netlistData = rowHandler.rowItems[rowId];
       transitions.push(netlistData.createValueDisplayElement());
     });
-    this.labels.innerHTML       = this.labelsList.join('');
     this.valueDisplay.innerHTML = transitions.join('');
   }
 
@@ -472,7 +478,10 @@ export class LabelsPanels {
 
   public dragEndExternal(event: MouseEvent | KeyboardEvent | null, abort: boolean) {
     this.clearDragHandler();
-    if (abort) {this.renderLabelsPanels();}
+    if (abort) {
+      this.renderLabelsPanels();
+      this.renderValueDisplay();
+    }
     return this.getDropIndex();
   }
 
@@ -506,6 +515,7 @@ export class LabelsPanels {
       vscodeWrapper.sendWebviewContext(StateChangeType.User);
     } else {
       this.renderLabelsPanels();
+      this.renderValueDisplay();
     }
   }
 
@@ -613,14 +623,17 @@ export class LabelsPanels {
 
   handleAddVariable(rowIdList: RowId[], updateFlag: boolean) {
     this.renderLabelsPanels();
+    this.renderValueDisplay();
   }
 
   handleRemoveVariable(rowId: RowId[], recursive: boolean) {
     this.renderLabelsPanels();
+    this.renderValueDisplay();
   }
 
   handleReorderSignals(rowIdList: number[], newGroupId: number, newIndex: number) {
     this.renderLabelsPanels();
+    this.renderValueDisplay();
   }
 
   handleMarkerSet(time: number, markerType: number) {
@@ -633,7 +646,7 @@ export class LabelsPanels {
         this.valueAtMarker[rowId] = signalItem.getValueAtTime(time);
       });
 
-      this.renderLabelsPanels();
+      this.renderValueDisplay();
     }
   }
 
@@ -658,13 +671,15 @@ export class LabelsPanels {
     });
     viewerState.lastSelectedSignal = lastRowId;
     this.renderLabelsPanels();
+    this.renderValueDisplay();
   }
 
   handleRedrawVariable(rowId: RowId) {
-    this.renderLabelsPanels();
+    this.renderValueDisplay();
   }
 
   handleUpdateColor() {
     this.renderLabelsPanels();
+    this.renderValueDisplay();
   }
 }

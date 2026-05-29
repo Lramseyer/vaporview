@@ -621,6 +621,7 @@ export function unload() {
   viewerState.zoomRatio            = 1;
   dataManager.unload();
   labelsPanel.renderLabelsPanels();
+  labelsPanel.renderValueDisplay();
   // we don't need to do anything to the viewport, because the ready message will reinitialize it
   vscodeWrapper.webviewReady();
 }

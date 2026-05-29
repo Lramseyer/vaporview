@@ -523,10 +523,10 @@ export class RowHandler {
     } catch (error) {console.error(error);}
 
     if (settings.markerTime !== undefined) {
-      this.events.markerSet(settings.markerTime, 0);
+      this.events.markerSet(settings.markerTime, 0, false);
     }
     if (settings.altMarkerTime !== undefined) {
-      this.events.markerSet(settings.altMarkerTime, 1);
+      this.events.markerSet(settings.altMarkerTime, 1, false);
     }
     if (settings.displayTimeUnit !== undefined) {
       viewport.updateUnits(settings.displayTimeUnit, false);

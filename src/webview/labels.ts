@@ -636,7 +636,7 @@ export class LabelsPanels {
     this.renderValueDisplay();
   }
 
-  handleMarkerSet(time: number, markerType: number) {
+  handleMarkerSet(time: number, markerType: number, dragging: boolean) {
 
     if (time > viewport.timeStop || time < 0) {return;}
 

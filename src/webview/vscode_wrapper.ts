@@ -500,7 +500,7 @@ export class VscodeWrapper {
 
   setMarker(time: number, markerType: number) {
     //console.log('handleMessage - setMarker');
-    this.events.markerSet(time, markerType);
+    this.events.markerSet(time, markerType, false);
     this.sendWebviewContext(StateChangeType.User);
   }
 
@@ -546,7 +546,8 @@ export class VscodeWrapper {
     this.emitRemoveVariableEvent(instancePathList, netlistIdList);
   }
 
-  handleMarkerSet(time: number, markerType: number) {
+  handleMarkerSet(time: number, markerType: number, dragging: boolean) {
+    if (dragging) {return;}
     if (time > viewport.timeStop || time < 0) {return;}
     this.emitMarkerSetEvent(time, viewport.timeUnit);
   }

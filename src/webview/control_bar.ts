@@ -155,7 +155,7 @@ export class ControlBar {
       nearestTime = Math.max(...nextTransitionTime);
     }
 
-    this.events.markerSet(nearestTime, 0);
+    this.events.markerSet(nearestTime, 0, false);
     //console.log('goToNextTransition');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }
@@ -351,7 +351,7 @@ export class ControlBar {
     const checkSearchValue = format.checkSearchValue;
   
     if (this.searchState === SearchState.Time && direction === 1) {
-      this.events.markerSet(parseInt(this.parsedSearchValue), 0);
+      this.events.markerSet(parseInt(this.parsedSearchValue), 0, false);
       updateState = true;
     } else {
       const signalWidth     = data.signalWidth;
@@ -371,7 +371,7 @@ export class ControlBar {
   
       for (let i = timeIndex + indexOffset; i >= 0; i+=direction) {
         if (checkSearchValue(this.parsedSearchValue, valueChangeData[i][1], formattedValues[i])) {
-          this.events.markerSet(valueChangeData[i][0], 0);
+          this.events.markerSet(valueChangeData[i][0], 0, false);
           updateState = true;
           break;
         }
@@ -426,7 +426,8 @@ export class ControlBar {
     }
   }
 
-  handleMarkerSet(time: number, markerType: number) {
+  handleMarkerSet(time: number, markerType: number, dragging: boolean) {
+    if (dragging) {return;}
     if (this.searchState === SearchState.Time) {
       this.searchBar.value = String(time);
       this.searchContainer.classList.remove('is-invalid');

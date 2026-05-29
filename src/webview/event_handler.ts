@@ -13,7 +13,7 @@ export enum ActionType {
 }
 
 interface ActionTypeMap {
-  [ActionType.MarkerSet]:        [time: number, markerType: number];
+  [ActionType.MarkerSet]:        [time: number, markerType: number, dragging: boolean];
   [ActionType.SignalSelect]:     [rowIdList: RowId[], lastSelected: RowId | null];
   [ActionType.ReorderSignals]:   [rowIdList: number[], newGroupId: number, newIndex: number];
   [ActionType.AddVariable]:      [rowIdList: RowId[], updateFlag: boolean];
@@ -52,8 +52,8 @@ export class EventHandler {
   }
 
   // Event calls
-  markerSet(time: number, markerType: number) {
-    this.fire(ActionType.MarkerSet, time, markerType);
+  markerSet(time: number, markerType: number, dragging: boolean) {
+    this.fire(ActionType.MarkerSet, time, markerType, dragging);
   }
 
   signalSelect(rowIdList: RowId[], lastSelected: RowId | null) {

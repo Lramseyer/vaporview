@@ -389,11 +389,11 @@ class VaporviewWebview {
     }
 
     if ((e.key === 'ArrowRight') && (viewerState.markerTime !== null)) {
-      if      (e.metaKey) {this.events.markerSet(this.viewport.timeStop, 0); updateState = true;}
+      if      (e.metaKey) {this.events.markerSet(this.viewport.timeStop, 0, false); updateState = true;}
       else if (e.altKey || e.ctrlKey) {/* Do nothing */}
       else                {controlBar.goToNextTransition(1, []);}
     } else if ((e.key === 'ArrowLeft') && (viewerState.markerTime !== null)) {
-      if      (e.metaKey) {this.events.markerSet(0, 0); updateState = true;}
+      if      (e.metaKey) {this.events.markerSet(0, 0, false); updateState = true;}
       else if (e.altKey || e.ctrlKey) {/* Do nothing */}
       else                {controlBar.goToNextTransition(-1, []);}
 
@@ -416,8 +416,8 @@ class VaporviewWebview {
     }
 
     // handle Home and End keys to move to the start and end of the waveform
-    else if (e.key === 'Home') {this.events.markerSet(0, 0); updateState = true;}
-    else if (e.key === 'End')  {this.events.markerSet(this.viewport.timeStop, 0); updateState = true;}
+    else if (e.key === 'Home') {this.events.markerSet(0, 0, false); updateState = true;}
+    else if (e.key === 'End')  {this.events.markerSet(this.viewport.timeStop, 0, false); updateState = true;}
 
     // "N" and Shift + "N" go to the next transition
     else if (e.key === 'n') {controlBar.goToNextTransition(1, []);}

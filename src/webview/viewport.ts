@@ -409,7 +409,7 @@ export class Viewport {
           if (linkClicked) {return;}
         }
         if (!(event.ctrlKey || event.shiftKey || event.metaKey)) {
-          this.events.markerSet(snapToTime, button);
+          this.events.markerSet(snapToTime, button, false);
           updateContext = true;
         }
       }
@@ -620,7 +620,7 @@ export class Viewport {
     }
   }
 
-  handleMarkerSet(time: number, markerType: number) {
+  handleMarkerSet(time: number, markerType: number, dragging: boolean) {
     if (time > this.timeStop || time < 0) {return;}
 
     const labelElement = markerType === 0 ? this.markerLabelElement : this.altMarkerLabelElement;

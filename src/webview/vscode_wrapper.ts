@@ -572,6 +572,10 @@ export class VscodeWrapper {
     }
   }
 
+  focusWebview() {
+    vscode.postMessage({command: 'focus',});
+  }
+
   sendWebviewContext(stateChangeType: number) {
     if (events.isBatchMode) {return;}
     if (!this.initComplete) {return;}

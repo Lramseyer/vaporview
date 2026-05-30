@@ -400,6 +400,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         case 'fetchDataFromFile':   {document.fetchData(e.requestList); break;}
         case 'close-webview':       {webviewPanel.dispose(); break;}
         case 'handleDrop':          {this.handleWebviewDrop(e); break;}
+        case 'focus':               {webviewPanel.reveal(); break;}
         default: {this.log.appendLine('Unknown message type from webview: ' + JSON.stringify(e)); break;}
       }
 

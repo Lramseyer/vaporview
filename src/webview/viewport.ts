@@ -55,11 +55,9 @@ export class Viewport {
   timeStop: number            = 0;
   timeTableCount: number      = 0;
 
-  scrollbarMoved: boolean     = false;
   scrollbarStartX: number     = 0;
   pointerStartX: number       = 0;
-  lastPointerX: number        = 0;
-  scrollbarPointerId: number | null = null;
+  pointerId: number | null    = null;
 
   // Zoom level variables
   zoomRatio: number           = 1;
@@ -457,31 +455,48 @@ export class Viewport {
   handleScrollbarDrag(event: PointerEvent) {
     event.preventDefault();
     event.stopPropagation();
-    this.scrollbarMoved  = false;
+    this.pointerId       = event.pointerId;
     this.scrollbarStartX = this.scrollbarPosition;
     this.pointerStartX   = event.clientX;
-    this.lastPointerX    = event.clientX;
     this.scrollbar.classList.add('is-dragging');
-    this.scrollbarPointerId = event.pointerId;
     this.scrollbar.setPointerCapture(event.pointerId);
-    this.scrollbar.addEventListener('pointermove', this.handleScrollbarMove);
-    this.scrollbar.addEventListener('pointerup', this.handleScrollbarPointerUp);
+    this.scrollbar.addEventListener('pointermove',   this.handleScrollbarMove);
+    this.scrollbar.addEventListener('pointerup',     this.handleScrollbarPointerUp);
     this.scrollbar.addEventListener('pointercancel', this.handleScrollbarPointerUp);
 
     viewerState.mouseupEventType = MouseUpEventType.Scroll;
   }
 
+  handleScrollbarMove(e: MouseEvent | PointerEvent) {
+    const newPosition   = e.clientX - this.pointerStartX + this.scrollbarStartX;
+    const newScrollLeft = Math.round((newPosition / this.maxScrollbarPosition) * this.maxScrollLeft);
+    // No need to clamp the value, because handleScrollEvent() clamps it for us
+    this.handleScrollEvent(newScrollLeft);
+  }
+
+  handleScrollbarPointerUp(event: PointerEvent) {
+    if (this.pointerId !== event.pointerId) {return;}
+    this.endScrollbarDrag();
+  }
+
+  endScrollbarDrag() {
+    this.scrollbar.classList.remove('is-dragging');
+    this.scrollbar.removeEventListener('pointermove',   this.handleScrollbarMove);
+    this.scrollbar.removeEventListener('pointerup',     this.handleScrollbarPointerUp);
+    this.scrollbar.removeEventListener('pointercancel', this.handleScrollbarPointerUp);
+    if (this.pointerId !== null) {
+      try {this.scrollbar.releasePointerCapture(this.pointerId);}
+      catch {/*ignore if capture already released*/}
+      this.pointerId = null;
+    }
+  }
+
   highlightZoom(abort: boolean) {
     this.updateOverlayCanvas();
     if (abort) {return;}
-    if (!this.highlightStartEvent || !this.highlightEndEvent) {return;}
+    if (!this.highlightStartEvent || !this.highlightEndEvent || abort) {return;}
     const timeStart = this.getTimeFromClick(this.highlightStartEvent);
     const timeEnd   = this.getTimeFromClick(this.highlightEndEvent);
-    const time      = Math.round((timeStart + timeEnd) / 2);
-    const width     = Math.abs((timeEnd - timeStart) * this.zoomRatio);
-    const amount    = Math.log2(width / this.viewerWidth);
-    //this.handleZoom(amount, time, this.halfViewerWidth);
-    //this.setViewportRange(timeStart, timeEnd);
     this.animateZoomRange(timeStart, timeEnd);
   }
 
@@ -514,37 +529,6 @@ export class Viewport {
         viewerState.mouseupEventType  = MouseUpEventType.HighlightZoom;
       }, 300);
     }
-  }
-
-  handleScrollbarMove(e: MouseEvent | PointerEvent) {
-    if (!this.scrollbarMoved) {
-      this.scrollbarMoved = e.clientX !== this.lastPointerX;
-      if (!this.scrollbarMoved) {return;}
-    }
-
-    this.lastPointerX   = e.clientX;
-    const newPosition   = e.clientX - this.pointerStartX + this.scrollbarStartX;
-    const newScrollLeft = Math.round((newPosition / this.maxScrollbarPosition) * this.maxScrollLeft);
-    // No need to clamp the value, because handleScrollEvent() clamps it for us
-    this.handleScrollEvent(newScrollLeft);
-  }
-
-  handleScrollbarPointerUp(event: PointerEvent) {
-    if (this.scrollbarPointerId !== event.pointerId) {return;}
-    this.endScrollbarDrag();
-  }
-
-  endScrollbarDrag() {
-    this.scrollbar.classList.remove('is-dragging');
-    this.scrollbar.removeEventListener('pointermove', this.handleScrollbarMove);
-    this.scrollbar.removeEventListener('pointerup', this.handleScrollbarPointerUp);
-    this.scrollbar.removeEventListener('pointercancel', this.handleScrollbarPointerUp);
-    if (this.scrollbarPointerId !== null) {
-      try {this.scrollbar.releasePointerCapture(this.scrollbarPointerId);}
-      catch {/*ignore if capture already released*/}
-      this.scrollbarPointerId = null;
-    }
-    this.scrollbarMoved = false;
   }
 
   updateMarker() {

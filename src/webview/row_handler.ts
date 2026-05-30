@@ -123,7 +123,9 @@ export class RowHandler {
         signal.type,
         signal.encoding as VariableEncoding,
         signal.signalWidth === 1 ? new BinaryWaveformRenderer() : new MultiBitWaveformRenderer(),
-        enumType || ""
+        enumType || "",
+        signal.msb,
+        signal.lsb,
       );
 
       this.rowItems[rowId] = varItem;
@@ -370,7 +372,7 @@ export class RowHandler {
     const sourceSignalId = source.signalId;
     const customSignalId = dataManager.newCustomSignal([source]);
     const width          = source.msb - source.lsb + 1;
-    const signalName     = source.name + bitRangeString(source.msb, source.lsb);
+    const signalName     = source.name + bitRangeString(source.msb, source.lsb, false);
     const renderType     = width === 1 ? new BinaryWaveformRenderer() : new MultiBitWaveformRenderer();
     const customVariable = new CustomVariable(rowId, [source], customSignalId, signalName, width, renderType);
     this.rowItems[rowId] = customVariable;
@@ -437,7 +439,7 @@ export class RowHandler {
     if (signalItem === undefined) {return;}
     if (!(signalItem instanceof NetlistVariable)) {return;}
     const signalWidth = signalItem.signalWidth;
-    const signalName = createInstancePath(signalItem.scopePath, signalItem.signalName) + bitRangeString(signalWidth - 1, 0);
+    const signalName = createInstancePath(signalItem.scopePath, signalItem.signalName) + bitRangeString(signalWidth - 1, 0, false);
 
     // Create a group for the bit slices
     this.events.enterBatchMode();
@@ -500,7 +502,7 @@ export class RowHandler {
         const bitRange = signal.source[0];
         const msb      = bitRange.msb;
         const lsb      = bitRange.lsb;
-        const name     = bitRange.name + bitRangeString(msb, lsb);
+        const name     = bitRange.name + bitRangeString(msb, lsb, false);
         const rowId    = this.addCustomVariable(name, undefined, parentGroupId, undefined, undefined, msb, lsb, bitRange);
         if (rowId === undefined) {return;}
         const displayFormat = Object.assign({rowId: rowId}, signal) as unknown as SetDisplayFormatMessage;

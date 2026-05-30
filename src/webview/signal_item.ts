@@ -5,7 +5,7 @@ import { EnumValueFormat, formatBinary, formatHex, formatString, type ValueForma
 import { type WaveformRenderer, setRenderBounds } from "./renderer";
 import type { WaveformData } from "./data_manager";
 import { labelsPanel } from "./vaporview";
-import { createInstancePath } from '../common/functions';
+import { bitRangeString, createInstancePath } from '../common/functions';
 import { ValueLinkEvent } from '../../packages/vaporview-api/types';
 
 export function htmlSafe(string: string) {
@@ -219,6 +219,8 @@ export class NetlistVariable extends SignalItem implements RowItem {
     public readonly encoding: VariableEncoding,
     public renderType: WaveformRenderer,
     public enumType: string,
+    public msb: number,
+    public lsb: number,
   ) {
     super();
 
@@ -261,7 +263,7 @@ export class NetlistVariable extends SignalItem implements RowItem {
 
   public createWaveformRowContent(): string {
     let result = "";
-    const signalName  = htmlSafe(this.signalName);
+    const signalName  = htmlSafe(this.signalName + bitRangeString(this.msb, this.lsb, true));
     if (this.nameType === NameType.fullPath) {
       const scopePath = htmlSafe(this.scopePath.join('.') + '.');
       result += `<p style="opacity:50%">${scopePath}</p><p>${signalName}</p>`;

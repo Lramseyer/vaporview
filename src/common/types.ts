@@ -162,6 +162,8 @@ export interface AddVariableSignal {
   signalWidth: number;
   type: string;
   encoding: string;
+  msb: number;
+  lsb: number;
 }
 
 export interface WebviewDropMessage {

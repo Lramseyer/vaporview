@@ -152,7 +152,7 @@ export function createVar(
   isFsdb: boolean,
   uri: vscode.Uri
 ) {
-  const field = bitRangeString(msb, lsb);
+  const field = bitRangeString(msb, lsb, false);
   let label = name;
 
   // field is already included in signal name for fsdb

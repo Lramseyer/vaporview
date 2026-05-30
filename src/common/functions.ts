@@ -6,7 +6,8 @@ export function createInstancePath(scopePath: string[], signalName: string): str
   }
 }
 
-export function bitRangeString(msb: number, lsb: number): string {
+export function bitRangeString(msb: number, lsb: number, hideBitZero: boolean): string {
+  if (hideBitZero && lsb === 0 && msb === 0) {return "";}
   if (msb < 0 || lsb < 0) {return "";}
   if (msb === lsb) {return "[" + msb + "]";}
   return "[" + msb + ":" + lsb + "]";

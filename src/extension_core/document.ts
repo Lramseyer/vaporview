@@ -636,6 +636,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
         type: metadata.type,
         encoding: metadata.encoding,
         enumType: metadata.enumType,
+        msb: metadata.msb,
+        lsb: metadata.lsb,
       });
     });
 
@@ -861,7 +863,7 @@ export class NetlistSearchQuickPick {
     const elipsis        = this.searchScopeTextLength > 0 ? ".." : "";
     this.quickPick.items = searchResult.searchResults.map(result => {
       const icon       = result.isVar ? getVarIcon(result.type) : getScopeIcon(result.type);
-      const bitRange   = result.isVar ? bitRangeString(result.msb, result.lsb) : "";
+      const bitRange   = result.isVar ? bitRangeString(result.msb, result.lsb, true) : "";
       const paramValue = result.paramValue ? ": " + parseParamValue(result.paramValue) : "";
       const detail     = result.instancePath.slice(this.searchScopeTextLength);
       return {

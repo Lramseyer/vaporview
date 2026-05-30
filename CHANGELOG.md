@@ -5,6 +5,7 @@
 - Updated search functionality to constrain search to a particular scope
 - Added user setting to remove glitch transitions
 - Deprecated feature which groups similar signals in the netlist view
+- Alt + Left/Right Arrow now moves secondary marker
 - Floating/detached tabs now work properly
 - Added drag and drop support for .json viewer settings files
 - Added user setting for default signal naming style in viewer

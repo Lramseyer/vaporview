@@ -480,9 +480,9 @@ export class VscodeWrapper {
 
   externalKeyDownHandler(e: ExternalKeyDownMessage) {
     switch (e.keyCommand) {
-      case 'nextEdge': {controlBar.goToNextTransition(1, []); break;}
-      case 'previousEdge': {controlBar.goToNextTransition(-1, []); break;}
-      case 'zoomToFit': {viewport.animateZoomRange(0, viewport.timeStop); break;}
+      //case 'nextEdge':     {controlBar.goToNextTransition(0, 1, []); break;}
+      //case 'previousEdge': {controlBar.goToNextTransition(0, -1, []); break;}
+      case 'zoomToFit':    {viewport.animateZoomRange(0, viewport.timeStop); break;}
       case 'increaseVerticalScale': {this.handleUpdateVerticalScale(e.event, 2); break;}
       case 'decreaseVerticalScale': {this.handleUpdateVerticalScale(e.event, 0.5); break;}
       case 'resetVerticalScale':    {this.handleUpdateVerticalScale(e.event, 0); break;}

@@ -260,13 +260,13 @@ export function registerVaporviewCommands(
   }));
 
   // #region Keybindings
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.nextEdge', (e: unknown) => {
-    viewerProvider.handleKeyBinding(e, "nextEdge");
-  }));
+  //context.subscriptions.push(vscode.commands.registerCommand('vaporview.nextEdge', (e: unknown) => {
+  //  viewerProvider.handleKeyBinding(e, "nextEdge");
+  //}));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.previousEdge', (e: unknown) => {
-    viewerProvider.handleKeyBinding(e, "previousEdge");
-  }));
+  //context.subscriptions.push(vscode.commands.registerCommand('vaporview.previousEdge', (e: unknown) => {
+  //  viewerProvider.handleKeyBinding(e, "previousEdge");
+  //}));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.zoomToFit', (e: unknown) => {
     viewerProvider.handleKeyBinding(e, "zoomToFit");

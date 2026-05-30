@@ -396,18 +396,6 @@
         "when": "activeCustomEditorId == 'vaporview.waveformViewer' && vaporview.netlistSearchable && vaporview.waveformViewerFocused"
       },
       {
-        "command": "vaporview.previousEdge",
-        "key": "ctrl+Left",
-        "mac": "alt+Left",
-        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
-      },
-      {
-        "command": "vaporview.nextEdge",
-        "key": "ctrl+Right",
-        "mac": "alt+Right",
-        "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
-      },
-      {
         "command": "vaporview.renameSignalGroup",
         "key": "F2",
         "mac": "F2",
@@ -1553,14 +1541,6 @@
         "command": "vaporview.reloadFile",
         "title": "Reload File",
         "icon": "$(sync)"
-      },
-      {
-        "command": "vaporview.nextEdge",
-        "title": "Reload File"
-      },
-      {
-        "command": "vaporview.previousEdge",
-        "title": "Reload File"
       },
       {
         "command": "vaporview.zoomToFit",

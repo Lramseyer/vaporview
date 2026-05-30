@@ -60,7 +60,8 @@ Vaporview allows you to connect to a remote machine and open up waveforms remote
 - **Alt + Up/Down Arrow** - Rearrange selected signal
 - **Ctrl/Cmd + A** - Select all signals
 - **Left/Right Arrow** - Move marker to previous/next value change of selected signal
-- **Alt + Click or Middle Click** - Set Alt-Marker
+- **Alt + Left/Right Arrow** - Move Alt-marker to previous/next value change of selected signal
+- **Alt + Click or Middle Click** - Set Alt-marker
 - **Home** and **End** - Scroll to the beginning and end (respectively) of the waveform
 - **Delete** or **Backspace** - Remove Selected Signal
 - **Ctrl/Cmd + Z** or **Ctrl/Cmd + Shift + Z** - Undo or Redo action

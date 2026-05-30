@@ -389,13 +389,16 @@ class VaporviewWebview {
     }
 
     if ((e.key === 'ArrowRight') && (viewerState.markerTime !== null)) {
+   
       if      (e.metaKey) {this.events.markerSet(this.viewport.timeStop, 0, false); updateState = true;}
-      else if (e.altKey || e.ctrlKey) {/* Do nothing */}
-      else                {controlBar.goToNextTransition(1, []);}
+      else if (e.ctrlKey) {/* Do nothing */}
+      else if (e.altKey)  {controlBar.goToNextTransition(1, 1, []);}
+      else                {controlBar.goToNextTransition(0, 1, []);}
     } else if ((e.key === 'ArrowLeft') && (viewerState.markerTime !== null)) {
       if      (e.metaKey) {this.events.markerSet(0, 0, false); updateState = true;}
-      else if (e.altKey || e.ctrlKey) {/* Do nothing */}
-      else                {controlBar.goToNextTransition(-1, []);}
+      else if (e.ctrlKey) {/* Do nothing */}
+      else if (e.altKey)  {controlBar.goToNextTransition(1, -1, []);}
+      else                {controlBar.goToNextTransition(0, -1, []);}
 
     // up and down arrow keys move the selected signal
     // alt + up and down arrow keys reorder the selected signal up and down
@@ -420,8 +423,8 @@ class VaporviewWebview {
     else if (e.key === 'End')  {this.events.markerSet(this.viewport.timeStop, 0, false); updateState = true;}
 
     // "N" and Shift + "N" go to the next transition
-    else if (e.key === 'n') {controlBar.goToNextTransition(1, []);}
-    else if (e.key === 'N') {controlBar.goToNextTransition(-1, []);}
+    else if (e.key === 'n') {controlBar.goToNextTransition(0, 1, []);}
+    else if (e.key === 'N') {controlBar.goToNextTransition(0, -1, []);}
 
     else if (e.key === 'a' && (e.ctrlKey || e.metaKey) && !controlBar.searchInFocus && !labelsPanel.renameActive) {
       e.preventDefault();

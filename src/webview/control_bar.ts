@@ -93,12 +93,12 @@ export class ControlBar {
     this.zoomInButton.addEventListener( 'click', () => {viewport.handleZoom(-1, (viewport.pseudoScrollLeft + viewport.halfViewerWidth) / viewport.zoomRatio, viewport.halfViewerWidth);});
     this.zoomOutButton.addEventListener('click', () => {viewport.handleZoom(1, (viewport.pseudoScrollLeft + viewport.halfViewerWidth) / viewport.zoomRatio, viewport.halfViewerWidth);});
     this.zoomFitButton.addEventListener('click', () => {viewport.animateZoomRange(0, viewport.timeStop);});
-    this.prevNegedge.addEventListener(  'click', () => {this.goToNextTransition(-1, ['0']);});
-    this.prevPosedge.addEventListener(  'click', () => {this.goToNextTransition(-1, ['1']);});
-    this.nextNegedge.addEventListener(  'click', () => {this.goToNextTransition( 1, ['0']);});
-    this.nextPosedge.addEventListener(  'click', () => {this.goToNextTransition( 1, ['1']);});
-    this.prevEdge.addEventListener(     'click', () => {this.goToNextTransition(-1, []);});
-    this.nextEdge.addEventListener(     'click', () => {this.goToNextTransition( 1, []);});
+    this.prevNegedge.addEventListener(  'click', () => {this.goToNextTransition(0, -1, ['0']);});
+    this.prevPosedge.addEventListener(  'click', () => {this.goToNextTransition(0, -1, ['1']);});
+    this.nextNegedge.addEventListener(  'click', () => {this.goToNextTransition(0,  1, ['0']);});
+    this.nextPosedge.addEventListener(  'click', () => {this.goToNextTransition(0,  1, ['1']);});
+    this.prevEdge.addEventListener(     'click', () => {this.goToNextTransition(0, -1, []);});
+    this.nextEdge.addEventListener(     'click', () => {this.goToNextTransition(0,  1, []);});
     this.autoReload.addEventListener(  'change', (e: Event) => {this.handleAutoReloadCheckbox(e);});
 
     // Search bar event handlers
@@ -132,17 +132,17 @@ export class ControlBar {
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
   }
 
-  goToNextTransition(direction: number, edge: string[]) {
+  goToNextTransition(markerType: number, direction: number, edge: string[]) {
     //console.log("Go to next transition: " + direction + ' ' + edge);
-    if (viewerState.markerTime === null) {return;}
+    let nearestTime = markerType === 0 ? viewerState.markerTime : viewerState.altMarkerTime;
+    if (nearestTime === null) {return;}
     if (viewerState.selectedSignal.length === 0) {return;}
 
-    let nearestTime = viewerState.markerTime;
     const nextTransitionTime: number[] = [];
     viewerState.selectedSignal.forEach((rowId) => {
-      if (viewerState.markerTime === null) {return;}
+      if (nearestTime === null) {return;}
       const data  = rowHandler.rowItems[rowId];
-      const time  = data.getNextEdge(viewerState.markerTime, direction, edge);
+      const time  = data.getNextEdge(nearestTime, direction, edge);
       if (time === null) {return;}
       nextTransitionTime.push(time);
     });
@@ -155,7 +155,7 @@ export class ControlBar {
       nearestTime = Math.max(...nextTransitionTime);
     }
 
-    this.events.markerSet(nearestTime, 0, false);
+    this.events.markerSet(nearestTime, markerType, false);
     //console.log('goToNextTransition');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
   }

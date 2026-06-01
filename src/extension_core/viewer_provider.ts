@@ -99,6 +99,7 @@ export class VaporviewDocumentCollection {
   public add(documentId: DocumentId, document: VaporviewDocument) {
     this._documents[documentId] = document;
     this._numDocuments++;
+    vscode.commands.executeCommand('setContext', 'vaporview.documentCount', this._numDocuments);
   }
 
   public get(documentId: DocumentId): VaporviewDocument | undefined {
@@ -108,6 +109,7 @@ export class VaporviewDocumentCollection {
   public remove(documentId: DocumentId) {
     delete this._documents[documentId];
     this._numDocuments--;
+    vscode.commands.executeCommand('setContext', 'vaporview.documentCount', this._numDocuments);
   }
 
   public getDocumentFromUri(uri: string): VaporviewDocument | undefined {

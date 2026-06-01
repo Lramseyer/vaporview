@@ -37,6 +37,13 @@ Vaporview is designed with the VSCode IDE experience in mind, so this document s
 
 Custom context [right click] menu commands can be added to vaporview components such as the netlist viewer and and waveform viewer, and those context menu items can call commands to other extensions.
 
+## Vaporview context keys
+
+Vaporview contributes context keys for other extensions to use in [when clause](https://code.visualstudio.com/api/references/when-clause-contexts) statements.
+
+- **vaporview.activated** - Set to true when extension gets activated
+- **vaporview.documentCount** - Number of open waveform viewer tabs in the session. Initializes to undefined
+
 ## Waveform Viewer Document (document webview)
 
 Custom context menu items can be added to the waveform viewer webview. All attributes listed below are usable by [when clause](https://code.visualstudio.com/api/references/when-clause-contexts) statements

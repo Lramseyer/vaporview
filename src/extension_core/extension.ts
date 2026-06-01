@@ -87,6 +87,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<Vaporv
 
   outputLog.appendLine('Vaporview Activated');
 
+  vscode.commands.executeCommand('setContext', 'vaporview.activated', true);
+
   const api: VaporviewApi = {
     // Events
     onDidSetMarker: markerSetEvent,
@@ -142,4 +144,5 @@ export default WaveformViewerProvider;
 export function deactivate() {
   // WCP server cleanup is handled by context subscriptions
   // All resources registered with context.subscriptions are automatically disposed
+  vscode.commands.executeCommand('setContext', 'vaporview.activated', undefined);
 }

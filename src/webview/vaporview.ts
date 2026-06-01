@@ -1,5 +1,5 @@
 import { type NetlistId, SignalId, type RowId, StateChangeType, type DocumentId, SavedNetlistVariable, SavedSignalSeparator, SavedSignalGroup, CollapseState, SavedCustomVariable, DefaultWebviewContext, SavedRowItem, InitMessage, WebviewStateEvent } from '../common/types';
-import { ActionType, EventHandler } from './event_handler';
+import { ActionType, EventHandler, DragController } from './event_handler';
 import { Viewport } from './viewport';
 import { LabelsPanels } from './labels';
 import { ControlBar } from './control_bar';
@@ -17,16 +17,6 @@ export enum DataType {
   Separator
 }
 
-export enum MouseUpEventType {
-  Rearrange,
-  DragAndDrop,
-  Resize,
-  Scroll,
-  HighlightZoom,
-  MarkerSet,
-  None,
-}
-
 let resizeDebounce: ReturnType<typeof setTimeout> | number = 0;
 
 export class ViewerState {
@@ -41,7 +31,6 @@ export class ViewerState {
   visibleSignalsFlat: RowId[]        = [];
   zoomRatio: number                  = 1;
   scrollLeft: number                 = 0;
-  mouseupEventType: MouseUpEventType = MouseUpEventType.None;
   autoReload: boolean                = false;
 }
 export const viewerState: ViewerState = new ViewerState();
@@ -213,12 +202,9 @@ export function createWebviewContext(): WebviewStateEvent {
 class VaporviewWebview {
 
   // HTML Elements
-  webview: HTMLElement;
   labelsScroll: HTMLElement;
   valuesScroll: HTMLElement;
   scrollArea: HTMLElement;
-  contentArea: HTMLElement;
-  scrollbar: HTMLElement;
 
   // Components
   viewport: Viewport;
@@ -244,20 +230,16 @@ class VaporviewWebview {
     const labelsScroll  = document.getElementById('waveform-labels-container');
     const valuesScroll  = document.getElementById('value-display-container');
     const scrollArea    = document.getElementById('scrollArea');
-    const contentArea   = document.getElementById('contentArea');
     const scrollbar     = document.getElementById('scrollbar');
 
     if (webview === null || labelsScroll === null || valuesScroll === null ||
-      scrollArea === null || contentArea === null || scrollbar === null) {
+      scrollArea === null || scrollbar === null) {
       throw new Error("Could not find all required elements");
     }
 
-    this.webview      = webview;
     this.labelsScroll = labelsScroll;
     this.valuesScroll = valuesScroll;
     this.scrollArea   = scrollArea;
-    this.contentArea  = contentArea;
-    this.scrollbar    = scrollbar;
 
     webview.style.gridTemplateColumns = `150px 50px auto`;
 
@@ -265,7 +247,6 @@ class VaporviewWebview {
     window.addEventListener('message', (e) => {vscodeWrapper.handleMessage(e);});
     window.addEventListener('keydown', (e) => {this.keyDownHandler(e);});
     window.addEventListener('keyup',   (e) => {this.keyUpHandler(e);});
-    window.addEventListener('mouseup', (e) => {this.handleMouseUp(e, false);});
     window.addEventListener('resize',  ()  => {this.handleResizeViewer();}, false);
     window.addEventListener('blur',    ()  => {this.handleFocusBlur(false);});
     window.addEventListener('focus',   ()  => {this.handleFocusBlur(true);});
@@ -273,8 +254,8 @@ class VaporviewWebview {
     this.scrollArea.addEventListener(  'scroll', () => {this.handleViewportScroll();});
     this.labelsScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, labelsScroll.scrollTop);});
     this.valuesScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, valuesScroll.scrollTop);});
-    this.webview.addEventListener('dragover', (e) => {labelsPanel.dragMoveExternal(e);});
-    this.webview.addEventListener('drop', (e) => {vscodeWrapper.handleDrop(e);});
+    webview.addEventListener('dragover', (e) => {labelsPanel.dragMoveExternal(e);});
+    webview.addEventListener('drop', (e) => {vscodeWrapper.handleDrop(e);});
 
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
@@ -433,7 +414,10 @@ class VaporviewWebview {
       updateState = true;
     }
 
-    else if (e.key === 'Escape') {this.handleMouseUp(e, true);}
+    else if (e.key === 'Escape') {
+      if (dragController.isActive) {dragController.cancel(e);}
+      else if (!labelsPanel.renameActive) {rowHandler.deselectAllSignals();}
+    }
     else if (e.key === 'Delete' || e.key === 'Backspace') {
       //viewerState.selectedSignal.forEach((rowId) => {
       //  const rowItem = rowHandler.rowItems[rowId];
@@ -520,37 +504,6 @@ class VaporviewWebview {
     vscodeWrapper.executeCommand('setContext', ['vaporview.waveformViewerFocused', state]);
   }
 
-  handleMouseUp(event: MouseEvent | KeyboardEvent, abort: boolean) {
-    //console.log('mouseup event type: ' + viewerState.mouseupEventType);
-    if (viewerState.mouseupEventType === MouseUpEventType.Rearrange) {
-      labelsPanel.dragEnd(event, abort);
-    } else if (viewerState.mouseupEventType === MouseUpEventType.DragAndDrop) {
-      labelsPanel.dragEndExternal(event, abort);
-    } else if (viewerState.mouseupEventType === MouseUpEventType.Resize) {
-      labelsPanel.resizeElement?.classList.remove('is-resizing');
-      labelsPanel.resizeElement?.classList.add('is-idle');
-      document.removeEventListener("mousemove", labelsPanel.resize, false);
-      this.handleResizeViewer();
-    } else if (viewerState.mouseupEventType === MouseUpEventType.Scroll) {
-      this.viewport.endScrollbarDrag();
-    } else if (viewerState.mouseupEventType === MouseUpEventType.HighlightZoom) {
-      document.removeEventListener('mousemove', viewport.drawHighlightZoomCanvas, false);
-      viewport.highlightListenerSet = false;
-      viewport.highlightZoom(abort);
-    } else if (viewerState.mouseupEventType === MouseUpEventType.MarkerSet) {
-      document.removeEventListener('mousemove', viewport.drawHighlightZoomCanvas, false);
-      if (viewport.highlightDebounce) { clearTimeout(viewport.highlightDebounce); }
-      if (viewport.highlightStartEvent) { viewport.handleScrollAreaClick(viewport.highlightStartEvent, 0); }
-      viewport.highlightListenerSet = false;
-      viewport.updateOverlayCanvas();
-    } else if (viewerState.mouseupEventType === MouseUpEventType.None && abort) {
-      if (!labelsPanel.renameActive) {
-        rowHandler.deselectAllSignals();
-      }
-    }
-    viewerState.mouseupEventType = MouseUpEventType.None;
-  }
-
   // #region Global Events
   handleResizeViewer() {
     clearTimeout(resizeDebounce);
@@ -579,7 +532,7 @@ class VaporviewWebview {
     // labelsScroll position = relative, which allows it to scroll past the bottom
     this.labelsScroll.scrollTop = this.scrollArea.scrollTop;
     viewport.renderAllWaveforms(false);
-    if (e instanceof MouseEvent) { labelsPanel.dragMove(e); }
+    dragController.contentMoved();
     this.viewport.updatePending = false;
   }
 
@@ -630,6 +583,7 @@ export function unload() {
 }
 
 export const events        = new EventHandler();
+export const dragController = new DragController();
 export const styles        = new ThemeColors(events);
 export const config        = new Configuration();
 export const vscodeWrapper = new VscodeWrapper(events);

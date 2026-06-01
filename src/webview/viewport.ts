@@ -1,7 +1,7 @@
 import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType, type DocumentId, type DefaultWebviewContext, type RulerContext, type WaveformDumpMetadata } from '../common/types';
 import { logScaleFromUnits } from '../common/functions';
 import { ActionType, type EventHandler } from './event_handler';
-import { viewerState, dataManager, updateDisplayedSignalsFlat, handleClickSelection, controlBar, MouseUpEventType } from "./vaporview";
+import { viewerState, dataManager, updateDisplayedSignalsFlat, handleClickSelection, controlBar, dragController } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer } from './renderer';
 import { labelsPanel, rowHandler, vscodeWrapper, styles, config } from "./vaporview";
@@ -31,7 +31,7 @@ export class Viewport {
 
   highlightEndEvent: MouseEvent | null    = null;
   highlightStartEvent: MouseEvent | null  = null;
-  highlightListenerSet      = false;
+  highlightIsZoom           = false;
   highlightDebounce: ReturnType<typeof setTimeout> | null    = null;
 
   // Scroll handler variables
@@ -57,7 +57,6 @@ export class Viewport {
 
   scrollbarStartX: number     = 0;
   pointerStartX: number       = 0;
-  pointerId: number | null    = null;
 
   // Zoom level variables
   zoomRatio: number           = 1;
@@ -141,7 +140,6 @@ export class Viewport {
     overlayCanvas.addEventListener("pointermove",    (e) => {this.handleMouseOver(e);});
 
     this.handleScrollbarMove = this.handleScrollbarMove.bind(this);
-    this.handleScrollbarPointerUp = this.handleScrollbarPointerUp.bind(this);
     this.handleContextMenu = this.handleContextMenu.bind(this);
     this.updateViewportWidth = this.updateViewportWidth.bind(this);
     this.handleZoom = this.handleZoom.bind(this);
@@ -354,16 +352,38 @@ export class Viewport {
   handleScrollAreaMouseDown(event: MouseEvent) {
     if (event.button === 1) {
       this.handleScrollAreaClick(event, 1);
-    } else if (event.button === 0) {
-      this.highlightStartEvent     = event;
-      viewerState.mouseupEventType = MouseUpEventType.MarkerSet;
+      return;
+    }
+    if (event.button !== 0) {return;}
 
-      if (!this.highlightListenerSet) {
-        const rowId = this.getRowIdFromMouseEvent(event);
-        if (rowId === null) {return;}
-        document.addEventListener('mousemove', this.drawHighlightZoomCanvas, false);
-        this.highlightListenerSet = true;
-      }
+    this.highlightStartEvent = event;
+    this.highlightEndEvent   = null;
+    this.highlightIsZoom     = false;
+    // A click in empty space below the waveforms still needs to deselect on release,
+    // but it must not draw a highlight rectangle.
+    const startRowId = this.getRowIdFromMouseEvent(event);
+
+    dragController.begin(event, {
+      kind: 'pointer',
+      focusOnStart: true,
+      onMove: (e) => {
+        if (startRowId === null) {return;}
+        this.drawHighlightZoomCanvas(e as MouseEvent);
+      },
+      onEnd: (e, abort) => this.endScrollAreaClickDrag(abort),
+    });
+  }
+
+  endScrollAreaClickDrag(abort: boolean) {
+    if (this.highlightDebounce) {
+      clearTimeout(this.highlightDebounce);
+      this.highlightDebounce = null;
+    }
+    if (this.highlightIsZoom) {
+      this.highlightZoom(abort);
+    } else {
+      if (this.highlightStartEvent) {this.handleScrollAreaClick(this.highlightStartEvent, 0);}
+      this.updateOverlayCanvas();
     }
   }
 
@@ -456,16 +476,16 @@ export class Viewport {
   handleScrollbarDrag(event: PointerEvent) {
     event.preventDefault();
     event.stopPropagation();
-    this.pointerId       = event.pointerId;
     this.scrollbarStartX = this.scrollbarPosition;
     this.pointerStartX   = event.clientX;
     this.scrollbar.classList.add('is-dragging');
-    this.scrollbar.setPointerCapture(event.pointerId);
-    this.scrollbar.addEventListener('pointermove',   this.handleScrollbarMove);
-    this.scrollbar.addEventListener('pointerup',     this.handleScrollbarPointerUp);
-    this.scrollbar.addEventListener('pointercancel', this.handleScrollbarPointerUp);
 
-    viewerState.mouseupEventType = MouseUpEventType.Scroll;
+    dragController.begin(event, {
+      kind: 'pointer',
+      capture: this.scrollbar,
+      onMove: (e) => this.handleScrollbarMove(e),
+      onEnd:  () => this.scrollbar.classList.remove('is-dragging'),
+    });
   }
 
   handleScrollbarMove(e: MouseEvent | PointerEvent) {
@@ -473,23 +493,6 @@ export class Viewport {
     const newScrollLeft = Math.round((newPosition / this.maxScrollbarPosition) * this.maxScrollLeft);
     // No need to clamp the value, because handleScrollEvent() clamps it for us
     this.handleScrollEvent(newScrollLeft);
-  }
-
-  handleScrollbarPointerUp(event: PointerEvent) {
-    if (this.pointerId !== event.pointerId) {return;}
-    this.endScrollbarDrag();
-  }
-
-  endScrollbarDrag() {
-    this.scrollbar.classList.remove('is-dragging');
-    this.scrollbar.removeEventListener('pointermove',   this.handleScrollbarMove);
-    this.scrollbar.removeEventListener('pointerup',     this.handleScrollbarPointerUp);
-    this.scrollbar.removeEventListener('pointercancel', this.handleScrollbarPointerUp);
-    if (this.pointerId !== null) {
-      try {this.scrollbar.releasePointerCapture(this.pointerId);}
-      catch {/*ignore if capture already released*/}
-      this.pointerId = null;
-    }
   }
 
   highlightZoom(abort: boolean) {
@@ -523,11 +526,11 @@ export class Viewport {
     ctx.fill();
     ctx.globalAlpha   = 1;
 
-    if (width > 5) {viewerState.mouseupEventType = MouseUpEventType.HighlightZoom;}
+    if (width > 5) {this.highlightIsZoom = true;}
 
     if (!this.highlightDebounce) {
       this.highlightDebounce = setTimeout(() => {
-        viewerState.mouseupEventType  = MouseUpEventType.HighlightZoom;
+        this.highlightIsZoom = true;
       }, 300);
     }
   }

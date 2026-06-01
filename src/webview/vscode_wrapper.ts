@@ -5,7 +5,7 @@ import { createInstancePath } from "../common/functions";
 import { QueueEntry, WindowMessageType, StateChangeType, NetlistId, RowId, ConfigSettingsMessage, ExternalKeyDownMessage, EmitEventMessage, WebviewDropMessage } from "../common/types";
 import { ActionType, type EventHandler } from './event_handler';
 import { SignalGroup, NetlistVariable, CustomVariable } from "./signal_item";
-import { viewerState, events, createWebviewContext, viewport, rowHandler, getParentGroupIdList, labelsPanel, dataManager, controlBar, styles, unload, init, revealSignal, config } from "./vaporview";
+import { viewerState, events, createWebviewContext, viewport, rowHandler, getParentGroupIdList, labelsPanel, dataManager, controlBar, styles, unload, init, revealSignal, config, dragController } from "./vaporview";
 import { copyWaveDrom } from "./wavedrom";
 
 import { differenceCiede2000, rgb } from "culori";
@@ -715,6 +715,7 @@ export class VscodeWrapper {
     const uriList = dataObj.map((d: { resource: vscodeTypes.Uri }) => {return d.resource;});
 
     const {newGroupId, newIndex} = labelsPanel.dragEndExternal(e, false);
+    dragController.markEnded();
 
     // get the group path for the new group id
     let groupPath: string[] = [];

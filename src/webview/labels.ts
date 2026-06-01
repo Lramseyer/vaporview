@@ -1,4 +1,4 @@
-import { viewport, viewerState, dataManager, getChildrenByGroupId, getIndexInGroup, handleClickSelection, rowHandler, vscodeWrapper, styles, MouseUpEventType} from './vaporview';
+import { viewport, viewerState, dataManager, getChildrenByGroupId, getIndexInGroup, handleClickSelection, rowHandler, vscodeWrapper, styles, dragController} from './vaporview';
 import { ActionType, type EventHandler } from './event_handler';
 import { ValueFormat } from './value_format';
 import { getParentGroupId } from './vaporview';
@@ -100,6 +100,10 @@ export class LabelsPanels {
     resize2.addEventListener("mousedown",   (e) => {this.handleResizeMousedown(e, resize2, 2);});
     // click and drag handlers to rearrange the order of waveform signals
     labels.addEventListener('mousedown', (e) => {this.dragStart(e);});
+    // Abort an in-progress external drag if the pointer leaves the webview or the
+    // native drag ends without a drop inside us (avoids a stale drop divider).
+    this.webview.addEventListener('dragleave', (e) => {this.handleExternalDragLeave(e);});
+    this.webview.addEventListener('dragend',   (e) => {if (dragController.isActive) {dragController.cancel(e);}});
 
     this.events.subscribe(ActionType.MarkerSet, this.handleMarkerSet);
     this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
@@ -293,11 +297,16 @@ export class LabelsPanels {
     if (this.dragFreezeTimeout) { clearTimeout(this.dragFreezeTimeout); }
     this.dragFreeze = true;
     this.dragFreezeTimeout = setTimeout(() => {this.dragFreeze = false;}, 100);
-    document.addEventListener('mousemove', this.dragMove);
-    viewerState.mouseupEventType = MouseUpEventType.Rearrange;
 
     this.initializeDragHandler(event);
     this.setIdleItemsState(rowIdList);
+
+    dragController.begin(event, {
+      kind: 'pointer',
+      focusOnStart: true,
+      onMove: (e) => this.dragMove(e),
+      onEnd:  (e, abort) => this.dragEnd(e, abort),
+    });
   }
 
   dragStartExternal(event: MouseEvent | DragEvent) {
@@ -305,7 +314,12 @@ export class LabelsPanels {
     this.initializeDragHandler(event);
     this.setIdleItemsState([]);
     this.defaultDragDividerY = this.labels.getBoundingClientRect().bottom + this.labelsScroll.scrollTop;
-    viewerState.mouseupEventType = MouseUpEventType.DragAndDrop;
+
+    dragController.begin(event, {
+      kind: 'external',
+      onMove: (e) => this.updateIdleItemsStateAndPosition(e),
+      onEnd:  (e, abort) => {this.dragEndExternal(e, abort);},
+    });
   }
 
   setDraggableItemClasses() {
@@ -485,9 +499,16 @@ export class LabelsPanels {
     return this.getDropIndex();
   }
 
+  handleExternalDragLeave(event: DragEvent) {
+    if (!dragController.isActive) {return;}
+    const rect = this.webview.getBoundingClientRect();
+    const outside = event.clientX < rect.left || event.clientX > rect.right ||
+                    event.clientY < rect.top  || event.clientY > rect.bottom;
+    if (outside) {dragController.cancel(event);}
+  }
+
   dragEnd(event: MouseEvent | KeyboardEvent | null, abort: boolean) {
 
-    document.removeEventListener('mousemove', this.dragMove);
     this.dragActive = false;
     if (!this.dragInProgress) {return;}
     if (!this.draggableItem) {return;}
@@ -520,7 +541,7 @@ export class LabelsPanels {
   }
 
   public showRenameInput(rowId: RowId) {
-    this.dragEnd(null, true); // Abort any drag operation
+    dragController.cancel(null); // Abort any drag operation
     const signalItem   = rowHandler.rowItems[rowId];
     const labelElement = document.getElementById(`label-${rowId}`);
     if (!labelElement) {return;}
@@ -595,11 +616,19 @@ export class LabelsPanels {
   handleResizeMousedown(event: MouseEvent, element: HTMLElement, index: number) {
     this.resizeIndex   = index;
     this.resizeElement = element;
-    //event.preventDefault();
     this.resizeElement.classList.remove('is-idle');
     this.resizeElement.classList.add('is-resizing');
-    document.addEventListener("mousemove", this.resize, false);
-    viewerState.mouseupEventType = MouseUpEventType.Resize;
+
+    dragController.begin(event, {
+      kind: 'pointer',
+      focusOnStart: true,
+      onMove: (e) => this.resize(e),
+      onEnd: () => {
+        this.resizeElement?.classList.remove('is-resizing');
+        this.resizeElement?.classList.add('is-idle');
+        this.events.resize();
+      },
+    });
   }
 
   // resize handler to handle resizing

@@ -675,6 +675,7 @@ export class LabelsPanels {
   }
 
   handleRedrawVariable(rowId: RowId) {
+    this.renderLabelsPanels();
     this.renderValueDisplay();
   }
 

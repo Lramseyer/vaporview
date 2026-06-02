@@ -550,7 +550,7 @@ body {
   color: var(--vscode-list-activeSelectionForeground);
   background-color: var(--vscode-list-activeSelectionBackground);
   border: 1px solid var(--vscode-focusBorder);
-  z-index: 10;
+  z-index: 100;
   align-items: center;
   user-select: none;
   border-radius: 10px;

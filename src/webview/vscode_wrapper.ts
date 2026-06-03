@@ -28,13 +28,14 @@ export enum OS {
 export class Configuration {
   touchpadScrolling: boolean        = false;
   autoTouchpadScrolling: boolean    = false;
-  touchpadPinchSensitivity: number   = 18;
+  touchpadPinchSensitivity: number  = 18;
   rulerLines: boolean               = true;
   fillMultiBitValues: boolean       = false;
   multiBitFixedHeight: boolean      = true;
   removeGlitchTransitions: boolean  = false;
   enableAnimations: boolean         = true;
   animationDuration: number         = 50;
+  useGlow: boolean                  = false;
   overrideDevicePixelRatio: boolean = false;
   userPixelRatio: number            = 1;
   disableAnalogRendererOptimizations: boolean = false;
@@ -95,6 +96,14 @@ export class Configuration {
     }
     if (settings.animationDuration !== undefined) {
       this.animationDuration = settings.animationDuration;
+    }
+
+    // Glow Settings
+    if (settings.useGlow !== undefined) {
+      this.useGlow        = settings.useGlow;
+      styles.textGlowBlur = settings.useGlow ? 3 : 0;
+      styles.glowBlur     = settings.useGlow ? 8 : 0;
+      viewport.renderAllWaveforms(true);
     }
 
     // Default Colors and Name Type
@@ -186,6 +195,8 @@ export class ThemeColors {
   rowHeight: number = 28;
   rowPadding: number = 4;
   rulerHeight: number = 36;
+  glowBlur: number = 0;       // waveform traces (canvas)
+  textGlowBlur: number = 0;   // bus value text (canvas)
 
   constructor(
     private events: EventHandler

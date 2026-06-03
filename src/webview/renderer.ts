@@ -105,6 +105,8 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     ctx.restore();
     ctx.strokeStyle = drawColor;
     ctx.lineWidth = 1;
+    ctx.shadowColor = drawColor;
+    ctx.shadowBlur  = styles.glowBlur;
     ctx.stroke();
     ctx.save();
     ctx.clip();
@@ -113,14 +115,19 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     ctx.lineTo(viewport.viewerWidth, 0.5);
     ctx.moveTo(0, canvasHeight - 0.5);
     ctx.lineTo(viewport.viewerWidth, canvasHeight - 0.5);
+    ctx.shadowColor = drawColor;
+    ctx.shadowBlur  = styles.glowBlur;
     ctx.stroke();
     ctx.restore();
     ctx.save();
+    ctx.shadowBlur  = 0;
   }
 
   private busValueNoDraw(ctx: CanvasRenderingContext2D, alpha: number, lineWidth: number, viewerWidth: number) {
     ctx.globalAlpha = alpha;
     ctx.lineWidth = lineWidth;
+    ctx.shadowColor = ctx.strokeStyle as string;
+    ctx.shadowBlur  = styles.glowBlur;
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(viewerWidth, 0);
@@ -300,12 +307,16 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
 
     if (fillShape) {
       ctx.fillStyle = drawColor;
+      ctx.shadowColor = drawColor;
+      ctx.shadowBlur  = styles.glowBlur;
       ctx.fill();
       ctx.restore();
       ctx.save();
       if (fixedHeight) {
         ctx.strokeStyle = drawColor;
         ctx.lineWidth = 1;
+        ctx.shadowColor = drawColor;
+        ctx.shadowBlur  = styles.glowBlur;
         ctx.stroke();
       }
     } else {
@@ -317,6 +328,8 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
 
     if (fixedHeight) {
       ctx.fillStyle = drawColor;
+      ctx.shadowColor = drawColor;
+      ctx.shadowBlur  = styles.glowBlur;
       ctx.beginPath();
       noDrawRanges.forEach(([start, end]) => {
         ctx.moveTo(start, minYPosition);
@@ -339,11 +352,15 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
 
     if (fillShape) {
       ctx.fillStyle = xzColor;
+      ctx.shadowColor = xzColor;
+      ctx.shadowBlur  = styles.glowBlur;
       ctx.fill();
       ctx.restore();
       if (fixedHeight) {
         ctx.strokeStyle = xzColor;
         ctx.lineWidth = 1;
+        ctx.shadowColor = xzColor;
+        ctx.shadowBlur  = styles.glowBlur;
         ctx.stroke();
       }
     } else {
@@ -353,11 +370,16 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     // Draw Text
     const textY = halfCanvasHeight + 1;
     const fontWeight = fillShape ? 'bold ' : '';
+    const textColor  = fillShape ? styles.backgroundColor : styles.textColor;
     ctx.save();
     ctx.translate(0.5, 0);
     
     ctx.font          = fontWeight + styles.fontStyle;
-    ctx.fillStyle     = fillShape ? styles.backgroundColor : styles.textColor;
+    ctx.fillStyle     = textColor;
+    // Glow the bus text in the trace color, but keep the glyphs readable by
+    // not blooming the (often dark) filled-shape text color.
+    ctx.shadowColor   = fillShape ? drawColor : textColor;
+    ctx.shadowBlur    = styles.textGlowBlur;
     ctx.textAlign     = 'center';
     ctx.textBaseline  = 'middle';
     ctx.imageSmoothingEnabled = false;
@@ -394,6 +416,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     }
 
     ctx.restore();
+    ctx.shadowBlur = 0;
   }
 }
 
@@ -539,6 +562,8 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     ctx.restore();
     ctx.lineWidth = 1;
     ctx.strokeStyle = drawColor;
+    ctx.shadowColor = drawColor;
+    ctx.shadowBlur  = styles.glowBlur;
     ctx.stroke();
 
     // NoDraw Elements
@@ -557,6 +582,8 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     ctx.strokeStyle = drawColor;
     ctx.fillStyle = drawColor;
     ctx.lineWidth = 1;
+    ctx.shadowColor = drawColor;
+    ctx.shadowBlur  = styles.glowBlur;
     ctx.fill();
     ctx.stroke();
 
@@ -575,7 +602,10 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     ctx.restore();
     ctx.lineWidth = 1;
     ctx.strokeStyle = xzColor;
+    ctx.shadowColor = xzColor;
+    ctx.shadowBlur  = styles.glowBlur;
     ctx.stroke();
+    ctx.shadowBlur  = 0;
   }
 }
 
@@ -720,6 +750,8 @@ function createAnalogWaveform(valueChangeChunk: RenderBounds, netlistData: Netli
   ctx.restore();
   ctx.lineWidth = 1;
   ctx.strokeStyle = drawColor;
+  ctx.shadowColor = drawColor;
+  ctx.shadowBlur  = styles.glowBlur;
   ctx.stroke();
 
   // NoDraw Elements
@@ -738,6 +770,8 @@ function createAnalogWaveform(valueChangeChunk: RenderBounds, netlistData: Netli
   ctx.strokeStyle = drawColor;
   ctx.fillStyle = drawColor;
   ctx.lineWidth = 1;
+  ctx.shadowColor = drawColor;
+  ctx.shadowBlur  = styles.glowBlur;
   ctx.fill();
   ctx.stroke();
 
@@ -756,7 +790,10 @@ function createAnalogWaveform(valueChangeChunk: RenderBounds, netlistData: Netli
   ctx.restore();
   ctx.lineWidth = 1;
   ctx.strokeStyle = xzColor;
+  ctx.shadowColor = xzColor;
+  ctx.shadowBlur  = styles.glowBlur;
   ctx.stroke();
+  ctx.shadowBlur  = 0;
 }
 
 const evalBinary16plusSigned = (v: string) => {

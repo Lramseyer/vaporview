@@ -356,15 +356,22 @@
             "scope": "application",
             "description": "Animation duration in milliseconds."
           },
-          "vaporview.overrideDevicePixelRatio": {
+          "vaporview.useGlow": {
             "order": 3,
+            "type": "boolean",
+            "default": false,
+            "scope": "application",
+            "description": "Enable glow effect for the waveform viewer. This is aesthetic only and will probably impact performance."
+          },
+          "vaporview.overrideDevicePixelRatio": {
+            "order": 4,
             "type": "boolean",
             "default": false,
             "scope": "application",
             "description": "Recommended: false (unchecked) - Override the device pixel ratio for the waveform viewer. This can be used to improve performance on high-DPI displays, or correct for incorrect device pixel ratio detection."
           },
           "vaporview.userPixelRatio": {
-            "order": 4,
+            "order": 5,
             "type": "number",
             "default": 1,
             "minimum": 0.1,
@@ -373,7 +380,7 @@
             "description": "Device pixel ratio for the waveform viewer. This is only used if 'Override Device Pixel Ratio' is enabled."
           },
           "vaporview.disableAnalogRendererOptimizations": {
-            "order": 5,
+            "order": 6,
             "type": "boolean",
             "default": false,
             "scope": "application",

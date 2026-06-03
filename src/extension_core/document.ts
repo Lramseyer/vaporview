@@ -241,6 +241,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       removeGlitchTransitions:            config.get('removeGlitchTransitions'),
       enableAnimations:                   config.get('enableAnimations'),
       animationDuration:                  config.get('animationDuration'),
+      useGlow:                            config.get('useGlow'),
       disableAnalogRendererOptimizations: config.get('disableAnalogRendererOptimizations'),
       defaultNameType:                    config.get('defaultNameType'),
       defaultSingleBitColor:              config.get('defaultSingleBitColor'),

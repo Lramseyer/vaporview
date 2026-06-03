@@ -113,6 +113,7 @@ export interface ConfigSettingsMessage {
   removeGlitchTransitions?: boolean;
   enableAnimations?: boolean;
   animationDuration?: number;
+  useGlow?: boolean;
   overrideDevicePixelRatio?: boolean;
   userPixelRatio?: number;
   disableAnalogRendererOptimizations?: boolean;

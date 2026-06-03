@@ -750,39 +750,39 @@
           "group": "2_variables@4"
         },
         {
-          "command": "vaporview.newSignalGroup",
-          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus",
-          "group": "3_groups@1"
-        },
-        {
-          "command": "vaporview.newGroupFromSelection",
-          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "3_groups@2"
-        },
-        {
           "command": "vaporview.renameSignalGroup",
           "when": "(webviewSection == 'signal-group' || webviewSection == 'signal-separator') && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "3_groups@3"
+          "group": "2_variables@5"
         },
         {
           "command": "vaporview.ungroupSignals",
           "when": "webviewSection == 'signal-group' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "3_groups@4"
+          "group": "2_variables@6"
         },
         {
           "command": "vaporview.deleteGroup",
           "when": "webviewSection == 'signal-group' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "3_groups@5"
-        },
-        {
-          "command": "vaporview.newSeparator",
-          "when": "(webviewSection == 'waveform-labels' || webviewSection == 'signal') && (activeCustomEditorId == 'vaporview.waveformViewer') && !inputFocus",
-          "group": "3_groups@6"
+          "group": "2_variables@7"
         },
         {
           "command": "vaporview.removeSeparator",
           "when": "webviewSection == 'signal-separator' && activeCustomEditorId == 'vaporview.waveformViewer'",
-          "group": "3_groups@7"
+          "group": "2_variables@8"
+        },
+        {
+          "command": "vaporview.newSignalGroup",
+          "when": "webviewSection != 'control-bar' && webviewSection != 'ruler' && activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus",
+          "group": "3_groups@1"
+        },
+        {
+          "command": "vaporview.newGroupFromSelection",
+          "when": "webviewSection != 'control-bar' && webviewSection != 'ruler' && activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus",
+          "group": "3_groups@2"
+        },
+        {
+          "command": "vaporview.newSeparator",
+          "when": "webviewSection != 'control-bar' && webviewSection != 'ruler' && activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus",
+          "group": "3_groups@6"
         },
         {
           "command": "vaporview.newSignalFromBitRange",
@@ -806,7 +806,7 @@
         },
         {
           "submenu": "vaporview.waveDrom",
-          "when": "webviewSection == 'signal' && activeCustomEditorId == 'vaporview.waveformViewer'",
+          "when": "webviewSection != 'control-bar' && webviewSection != 'ruler' && activeCustomEditorId == 'vaporview.waveformViewer' && !inputFocus",
           "group": "5_waveDrom"
         }
       ],
@@ -1112,20 +1112,16 @@
       ],
       "vaporview.waveDrom": [
         {
-          "command": "vaporview.copyWaveDrom",
-          "when": "webviewSection == 'signal'"
+          "command": "vaporview.copyWaveDrom"
         },
         {
-          "command": "vaporview.unsetWaveDromClock",
-          "when": "webviewSection == 'signal'"
+          "command": "vaporview.unsetWaveDromClock"
         },
         {
-          "command": "vaporview.setWaveDromClockRising",
-          "when": "webviewSection == 'signal' && width == '1'"
+          "command": "vaporview.setWaveDromClockRising"
         },
         {
-          "command": "vaporview.setWaveDromClockFalling",
-          "when": "webviewSection == 'signal' && width == '1'"
+          "command": "vaporview.setWaveDromClockFalling"
         }
       ]
     },

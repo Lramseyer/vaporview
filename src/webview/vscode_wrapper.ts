@@ -100,9 +100,8 @@ export class Configuration {
 
     // Glow Settings
     if (settings.useGlow !== undefined) {
-      this.useGlow        = settings.useGlow;
-      styles.textGlowBlur = settings.useGlow ? 3 : 0;
-      styles.glowBlur     = settings.useGlow ? 8 : 0;
+      this.useGlow = settings.useGlow;
+      styles.updateglowBlur();
       viewport.renderAllWaveforms(true);
     }
 
@@ -207,6 +206,11 @@ export class ThemeColors {
 
   handleUpdateColorTheme() {
     this.getThemeColors();
+  }
+
+  updateglowBlur() {
+    this.glowBlur     = config.useGlow ? 4 * viewport.pixelRatio : 0;
+    this.textGlowBlur = config.useGlow ? 3 * viewport.pixelRatio : 0;
   }
 
   getThemeColors() {

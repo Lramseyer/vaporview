@@ -205,6 +205,7 @@ export class Viewport {
     } else {
       this.pixelRatio = window.devicePixelRatio || 1;
     }
+    styles.updateglowBlur();
   }
 
   setRulerVscodeContext() {

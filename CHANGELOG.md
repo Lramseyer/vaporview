@@ -1,6 +1,6 @@
 # Change Log
 
-## 1.5.4
+## 1.5.4 - 6/4/2026 - Latest Release
 
 - Updated search functionality to constrain search to a particular scope
 - Added user setting to remove glitch transitions
@@ -15,7 +15,7 @@
   - Fixes crashes with VCD files with real typed parameters
 - Added when clause contexts for API
 
-## 1.5.3 - 5/20/2026 - Latest Release
+## 1.5.3 - 5/20/2026
 
 - Shift + Up/Down Arrow now adds to selection
 - Glitch transitions show all values in value display

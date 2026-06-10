@@ -73,12 +73,12 @@ export class Configuration {
     // Renderer Settings
     if (settings.fillMultiBitValues !== undefined) {
       this.fillMultiBitValues = settings.fillMultiBitValues;
-      viewport.renderAllWaveforms(true);
+      viewport.renderAllWaveforms();
     }
 
     if (settings.multiBitFixedHeight !== undefined) {
       this.multiBitFixedHeight = settings.multiBitFixedHeight;
-      viewport.renderAllWaveforms(true);
+      viewport.renderAllWaveforms();
     }
 
     if (settings.disableAnalogRendererOptimizations !== undefined) {
@@ -87,7 +87,7 @@ export class Configuration {
 
     if (settings.removeGlitchTransitions !== undefined) {
       this.removeGlitchTransitions = settings.removeGlitchTransitions;
-      viewport.renderAllWaveforms(true);
+      viewport.renderAllWaveforms();
     }
 
     // Animation Settings
@@ -102,7 +102,7 @@ export class Configuration {
     if (settings.useGlow !== undefined) {
       this.useGlow = settings.useGlow;
       styles.updateglowBlur();
-      viewport.renderAllWaveforms(true);
+      viewport.renderAllWaveforms();
     }
 
     // Default Colors and Name Type

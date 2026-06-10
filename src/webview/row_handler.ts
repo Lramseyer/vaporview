@@ -1,7 +1,7 @@
 import { type NetlistId, SignalId, type RowId, EnumData, EnumEntry, QueueEntry, SignalQueueEntry, type EnumQueueEntry, NameType, StateChangeType, CollapseState, VariableEncoding, type BitRangeSource, type SavedRowItem, type AddVariableSignal, type SetDisplayFormatMessage, type EditSignalGroupMessage } from '../common/types';
 import { bitRangeString, createInstancePath } from '../common/functions';
 import { ActionType, type EventHandler } from './event_handler';
-import { dataManager, viewerState, getParentGroupId, updateDisplayedSignalsFlat, labelsPanel, controlBar, getIndexInGroup, getChildrenByGroupId, viewport, vscodeWrapper, styles } from './vaporview';
+import { dataManager, viewerState, getParentGroupId, labelsPanel, controlBar, getIndexInGroup, getChildrenByGroupId, viewport, vscodeWrapper, styles } from './vaporview';
 import { NetlistVariable, type RowItem, SignalGroup, SignalSeparator, CustomVariable, isAnalogSignal } from './signal_item';
 import { BinaryWaveformRenderer, MultiBitWaveformRenderer, LinearWaveformRenderer } from './renderer';
 import type { WaveformData } from './data_manager';
@@ -79,6 +79,32 @@ export class RowHandler {
       const data = this.rowItems[rowId];
       if (!(data instanceof NetlistVariable)) {return false;}
       return data.netlistId === netlistId;
+    });
+  }
+
+  updateDisplayedSignalsFlat() {
+    viewerState.displayedSignalsFlat = [];
+    viewerState.visibleSignalsFlat = [];
+    viewerState.displayedSignals.forEach((rowId) => {
+      const signalItem = this.rowItems[rowId];
+      viewerState.displayedSignalsFlat = viewerState.displayedSignalsFlat.concat(signalItem.getFlattenedRowIdList(false, -1));
+      viewerState.visibleSignalsFlat = viewerState.visibleSignalsFlat.concat(signalItem.getFlattenedRowIdList(true, -1));
+    });
+    this.updateBounds();
+  }
+
+  updateBounds() {
+    viewerState.displayedSignalsFlat.forEach((rowId) => {
+      this.rowItems[rowId].topBounds = null;
+    });
+    let topBounds      = 0;
+    let bottomBounds   = 0;
+    viewerState.visibleSignalsFlat.forEach((rowId) => {
+      const rowItem     = this.rowItems[rowId];
+      const rowHeight   = rowItem.rowHeight * styles.rowHeight;
+      topBounds         = bottomBounds;
+      bottomBounds      = topBounds + rowHeight;
+      rowItem.topBounds = topBounds;
     });
   }
 
@@ -164,7 +190,7 @@ export class RowHandler {
 
     dataManager.requestData(signalIdList, enumTableList);
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowIdList);
-    updateDisplayedSignalsFlat();
+    this.updateDisplayedSignalsFlat();
     this.events.addVariable(rowIdList, updateFlag);
 
     let reorder = false;
@@ -261,7 +287,7 @@ export class RowHandler {
     this.groupIdTable[groupId] = rowId;
     this.rowItems[rowId] = groupItem;
 
-    updateDisplayedSignalsFlat();
+    this.updateDisplayedSignalsFlat();
     this.events.addVariable([rowId], false);
 
     let moveValid = true;
@@ -304,7 +330,7 @@ export class RowHandler {
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowId);
     const separatorItem = new SignalSeparator(rowId, name || "---");
     this.rowItems[rowId] = separatorItem;
-    updateDisplayedSignalsFlat();
+    this.updateDisplayedSignalsFlat();
     this.events.addVariable([rowId], false);
 
     let reorder = false;
@@ -405,7 +431,7 @@ export class RowHandler {
     }
 
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowId);
-    updateDisplayedSignalsFlat();
+    this.updateDisplayedSignalsFlat();
     this.events.addVariable([rowId], false);
 
     let reorder = false;
@@ -720,7 +746,7 @@ export class RowHandler {
       delete this.rowItems[id];
     });
 
-    updateDisplayedSignalsFlat();
+    this.updateDisplayedSignalsFlat();
     if (viewerState.displayedSignalsFlat.length === 0) {
       this.flushRowCache(false);
     }
@@ -875,7 +901,7 @@ export class RowHandler {
       newGroupChildren.splice(dropIndex + i, 0, rowId);
     });
 
-    updateDisplayedSignalsFlat();
+    this.updateDisplayedSignalsFlat();
     //console.log(filteredRowIdList);
   }
 
@@ -899,6 +925,7 @@ export class RowHandler {
     if (!(netlistData instanceof NetlistVariable) && !(netlistData instanceof CustomVariable)) {return;}
 
     let updateAllSelected = false;
+    let updateViewport = false;
     let updateSelected = false;
     let rowIdList = [rowId];
     let redrawList = [rowId];
@@ -914,6 +941,8 @@ export class RowHandler {
       if (message.rowHeight !== undefined) {
         data.rowHeight = message.rowHeight;
         viewport.updateElementHeight(rId);
+        this.updateBounds();
+        updateViewport = true;
         updateAllSelected = true;
       }
 
@@ -985,7 +1014,9 @@ export class RowHandler {
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
     netlistData.setSignalContextAttribute();
 
-    if (updateAllSelected && updateSelected) {redrawList = viewerState.selectedSignal;}
+    if (updateViewport) {
+      viewport.redrawViewport();
+    } else if (updateAllSelected && updateSelected) {redrawList = viewerState.selectedSignal;}
     redrawList.forEach((rId) => {
       this.events.redrawVariable(rId);
     });

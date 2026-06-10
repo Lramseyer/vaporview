@@ -323,7 +323,7 @@
           },
           "vaporview.customColor7": {
             "order": 13,
-              "type": "string",
+            "type": "string",
             "scope": "application",
             "default": "#d2a8ff",
             "description": "Fallback color for Color 7, must be a valid color name."

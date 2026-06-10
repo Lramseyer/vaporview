@@ -35,16 +35,6 @@ export class ViewerState {
 }
 export const viewerState: ViewerState = new ViewerState();
 
-export function updateDisplayedSignalsFlat() {
-  viewerState.displayedSignalsFlat = [];
-  viewerState.visibleSignalsFlat = [];
-  viewerState.displayedSignals.forEach((rowId) => {
-    const signalItem = rowHandler.rowItems[rowId];
-    viewerState.displayedSignalsFlat = viewerState.displayedSignalsFlat.concat(signalItem.getFlattenedRowIdList(false, -1));
-    viewerState.visibleSignalsFlat = viewerState.visibleSignalsFlat.concat(signalItem.getFlattenedRowIdList(true, -1));
-  });
-}
-
 export function getParentGroupId(rowId: RowId | null): number | null {
   if (rowId === null) {return null;}
   if (viewerState.displayedSignals.includes(rowId)) {
@@ -531,7 +521,7 @@ class VaporviewWebview {
     this.scrollArea.scrollTop   = scrollLevel + deltaY;
     // labelsScroll position = relative, which allows it to scroll past the bottom
     this.labelsScroll.scrollTop = this.scrollArea.scrollTop;
-    viewport.renderAllWaveforms(false);
+    viewport.renderAllWaveforms();
     dragController.contentMoved();
     this.viewport.updatePending = false;
   }
@@ -541,7 +531,7 @@ class VaporviewWebview {
     this.viewport.updatePending = true;
     this.labelsScroll.scrollTop = this.scrollArea.scrollTop;
     this.valuesScroll.scrollTop = this.scrollArea.scrollTop;
-    viewport.renderAllWaveforms(false);
+    viewport.renderAllWaveforms();
     this.viewport.updatePending = false;
   }
 }

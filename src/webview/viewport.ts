@@ -1,7 +1,7 @@
 import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType, type DocumentId, type DefaultWebviewContext, type RulerContext, type WaveformDumpMetadata } from '../common/types';
 import { logScaleFromUnits } from '../common/functions';
 import { ActionType, type EventHandler } from './event_handler';
-import { viewerState, dataManager, updateDisplayedSignalsFlat, handleClickSelection, controlBar, dragController } from "./vaporview";
+import { viewerState, dataManager, handleClickSelection, controlBar, dragController } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer } from './renderer';
 import { labelsPanel, rowHandler, vscodeWrapper, styles, config } from "./vaporview";
@@ -26,6 +26,8 @@ export class Viewport {
   overlayCanvas: CanvasRenderingContext2D;
   markerLabelElement: HTMLElement;
   altMarkerLabelElement: HTMLElement;
+  waveformsCanvasElement: HTMLElement;
+  waveformsCanvas: CanvasRenderingContext2D;
   netlistLinkElement: HTMLElement | null = null;
   valueLinkObject: NetlistVariable | null = null;
 
@@ -93,23 +95,26 @@ export class Viewport {
     const markerLabelElement = document.getElementById('main-marker-label');
     const altMarkerLabelElement = document.getElementById('alt-marker-label');
     const backgroundCanvas   = document.getElementById('viewport-background');
+    const waveformsCanvas    = document.getElementById('viewport-waveforms');
     const overlayCanvas      = document.getElementById('viewport-overlay');
 
     if (scrollArea === null || contentArea === null || scrollbar === null || 
       scrollbarContainer === null || scrollbarCanvas === null || 
       waveformArea === null || rulerElement === null || rulerCanvas === null ||
       markerLabelElement === null || altMarkerLabelElement === null ||
-      backgroundCanvas === null || overlayCanvas === null) {
+      backgroundCanvas === null || waveformsCanvas === null || overlayCanvas === null) {
       throw new Error('Viewport elements not found');
     }
 
     const canvasContext = (scrollbarCanvas as HTMLCanvasElement).getContext('2d');
     const rulerCanvasCtx = (rulerCanvas as HTMLCanvasElement).getContext('2d');
     const backgroundCanvasCtx = (backgroundCanvas as HTMLCanvasElement).getContext('2d');
+    const waveformsCanvasCtx = (waveformsCanvas as HTMLCanvasElement).getContext('2d');
     const overlayCanvasCtx = (overlayCanvas as HTMLCanvasElement).getContext('2d');
 
     if (canvasContext === null || rulerCanvasCtx === null || 
-      backgroundCanvasCtx === null || overlayCanvasCtx === null) {
+      backgroundCanvasCtx === null || overlayCanvasCtx === null ||
+      waveformsCanvasCtx === null) {
       throw new Error('Canvas context not found');
     }
 
@@ -127,6 +132,8 @@ export class Viewport {
     this.rulerCanvas            = rulerCanvasCtx;
     this.backgroundCanvasElement = backgroundCanvas;
     this.backgroundCanvas       = backgroundCanvasCtx;
+    this.waveformsCanvasElement = waveformsCanvas;
+    this.waveformsCanvas        = waveformsCanvasCtx;
     this.overlayCanvasElement   = overlayCanvas;
     this.overlayCanvas          = overlayCanvasCtx;
     this.scrollAreaBounds       = this.scrollArea.getBoundingClientRect();
@@ -279,13 +286,14 @@ export class Viewport {
   getRowIdFromMouseEvent(event: MouseEvent): RowId | null {
     const eventTop   = Math.round(event.pageY - this.scrollAreaBounds.top);
     const pageY      = eventTop + this.scrollArea.scrollTop - styles.rulerHeight;
-    let topBounds    = 0;
-    let bottomBounds = 0;
+
     for (const rowId of viewerState.visibleSignalsFlat) {
       const netlistData = rowHandler.rowItems[rowId];
       const rowHeight   = netlistData.rowHeight * styles.rowHeight;
-      topBounds    = bottomBounds;
-      bottomBounds += rowHeight;
+      const topBounds   = netlistData.topBounds;
+      if (topBounds === null) {continue;}
+
+      const bottomBounds= topBounds + rowHeight;
       if (pageY >= topBounds && pageY < bottomBounds) {
         return rowId;
       }
@@ -312,11 +320,11 @@ export class Viewport {
 
   setValueLinkCursor(keyDown: boolean) {
     if (this.valueLinkObject === null) {return;}
-    if (!this.valueLinkObject.canvas)  {return;}
+
     if (this.valueLinkObject.valueLinkIndex >= 0 && keyDown) {
-      this.valueLinkObject.canvas.classList.add('waveform-link');
+      this.overlayCanvasElement.classList.add('waveform-link');
     } else {
-      this.valueLinkObject.canvas.classList.remove('waveform-link');
+      this.overlayCanvasElement.classList.remove('waveform-link');
     }
   }
 
@@ -548,22 +556,22 @@ export class Viewport {
     this.updateOverlayCanvas();
   }
 
-  renderAllWaveforms(skipRendered: boolean) {
+  renderAllWaveforms() {
     if (this.events.isBatchMode) {return;}
     const viewerHeightMinusRuler = this.viewerHeight - styles.rulerHeight;
     const scrollTop    = this.scrollArea.scrollTop;
     const windowHeight = scrollTop + viewerHeightMinusRuler;
-    let topBounds      = 0;
-    let bottomBounds   = 0;
+
+    this.waveformsCanvas.clearRect(0, 0, this.viewerWidth, this.viewerHeight);
 
     viewerState.visibleSignalsFlat.forEach((rowId) => {
-      const netlistData = rowHandler.rowItems[rowId];
-      const rowHeight   = netlistData.rowHeight * styles.rowHeight;
-      topBounds         = bottomBounds;
-      bottomBounds      = topBounds + rowHeight;
-
-      if (!skipRendered && netlistData.wasRendered) {return;}
-      if (bottomBounds <= scrollTop || topBounds >= windowHeight) {
+      const netlistData  = rowHandler.rowItems[rowId];
+      const rowHeight    = netlistData.rowHeight * styles.rowHeight;
+      const topBounds    = netlistData.topBounds;
+      if (topBounds === null) {return;}
+      const bottomBounds = topBounds + rowHeight;
+      
+      if (bottomBounds <= scrollTop || topBounds >= windowHeight || topBounds < 0) {
         netlistData.wasRendered = false;
         return;
       }
@@ -588,7 +596,7 @@ export class Viewport {
       newChildren.push(element);
     });
     this.waveformArea.replaceChildren(...newChildren);
-    this.renderAllWaveforms(false);
+    this.renderAllWaveforms();
   }
 
   handleReorderSignals(rowIdList: number[], newGroupId: number, newIndex: number) {
@@ -598,7 +606,6 @@ export class Viewport {
 
   handleRemoveVariable(rowId: RowId[], recursive: boolean) {
 
-    //updateDisplayedSignalsFlat();
     this.updateSignalOrder();
     this.updateBackgroundCanvas(true);
     this.updateOverlayCanvas();
@@ -1041,7 +1048,7 @@ export class Viewport {
     this.updateMarker();
     this.updateRuler();
     this.updateBackgroundCanvas(false);
-    this.renderAllWaveforms(true);
+    this.renderAllWaveforms();
     this.updatePending = false;
   }
 
@@ -1053,12 +1060,9 @@ export class Viewport {
     const element = netlistData.viewportElement;
     const rowHeight = (netlistData.rowHeight * styles.rowHeight);
     element.style.height = rowHeight + 'px';
-    const canvasHeight = rowHeight - (styles.rowPadding * 2);
-    if (netlistData.ctx && netlistData.canvas) {
-      this.resizeCanvas(netlistData.canvas, netlistData.ctx, this.viewerWidth, canvasHeight);
-    }
+
     this.updateBackgroundCanvas(true);
-    this.renderAllWaveforms(false);
+    this.renderAllWaveforms();
     this.updateOverlayCanvas();
   }
 
@@ -1088,12 +1092,8 @@ export class Viewport {
     this.resizeCanvas(this.scrollbarCanvasElement, this.scrollbarCanvas, this.viewerWidth, 10);
     this.resizeCanvas(this.rulerCanvasElement, this.rulerCanvas, this.viewerWidth, styles.rulerHeight);
     this.resizeCanvas(this.backgroundCanvasElement, this.backgroundCanvas, this.viewerWidth, this.viewerHeight);
+    this.resizeCanvas(this.waveformsCanvasElement, this.waveformsCanvas, this.viewerWidth, this.viewerHeight);
     this.resizeCanvas(this.overlayCanvasElement, this.overlayCanvas, this.viewerWidth, this.viewerHeight);
-
-    // Update Waveform Canvas Dimensions
-    rowHandler.rowItems.forEach((netlistItem) => {
-      netlistItem.resize();
-    });
 
     if (this.minZoomRatio > this.zoomRatio) {
       this.handleZoom(1, 0, 0);

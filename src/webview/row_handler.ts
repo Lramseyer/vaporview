@@ -1,7 +1,7 @@
 import { type NetlistId, SignalId, type RowId, EnumData, EnumEntry, QueueEntry, SignalQueueEntry, type EnumQueueEntry, NameType, StateChangeType, CollapseState, VariableEncoding, type BitRangeSource, type SavedRowItem, type AddVariableSignal, type SetDisplayFormatMessage, type EditSignalGroupMessage } from '../common/types';
 import { bitRangeString, createInstancePath } from '../common/functions';
 import { ActionType, type EventHandler } from './event_handler';
-import { dataManager, viewerState, getParentGroupId, labelsPanel, controlBar, getIndexInGroup, getChildrenByGroupId, viewport, vscodeWrapper, styles } from './vaporview';
+import { dataManager, viewerState, getParentGroupId, labelsPanel, controlBar, getIndexInGroup, viewport, vscodeWrapper, styles } from './vaporview';
 import { NetlistVariable, type RowItem, SignalGroup, SignalSeparator, CustomVariable, isAnalogSignal } from './signal_item';
 import { BinaryWaveformRenderer, MultiBitWaveformRenderer, LinearWaveformRenderer } from './renderer';
 import type { WaveformData } from './data_manager';
@@ -72,6 +72,18 @@ export class RowHandler {
       }
     }
     return null;
+  }
+
+  getChildrenByGroupId(groupId: number) {
+    if (groupId === 0) {
+      return viewerState.displayedSignals;
+    }
+    const groupRowId = this.groupIdTable[groupId];
+    const groupItem = this.rowItems[groupRowId];
+    if (!(groupItem instanceof SignalGroup)) {
+      return [];
+    }
+    return groupItem.children;
   }
 
   getRowIdsFromNetlistId(netlistId: NetlistId): RowId[] {
@@ -264,7 +276,7 @@ export class RowHandler {
         targetRowId = viewerState.selectedSignal[0];
       }
       parentGroupId = getParentGroupId(targetRowId) || 0;
-      const parentGroupChildren = getChildrenByGroupId(parentGroupId);
+      const parentGroupChildren = this.getChildrenByGroupId(parentGroupId);
       if (targetRowId !== undefined) {
         index = parentGroupChildren.indexOf(targetRowId);
       }
@@ -338,7 +350,7 @@ export class RowHandler {
     const parentGroup = this.getGroupByIdOrName(groupPath, parentGroupId);
     if (eventRowId !== undefined) {
       parentGroupId = getParentGroupId(eventRowId) || 0;
-      const parentGroupChildren = getChildrenByGroupId(parentGroupId);
+      const parentGroupChildren = this.getChildrenByGroupId(parentGroupId);
       index = parentGroupChildren.indexOf(eventRowId) + 1;
       reorder = true;
     } else if (parentGroup !== null) {
@@ -443,7 +455,7 @@ export class RowHandler {
       reorder = true;
     } else if (eventRowId !== undefined) {
       parentGroupId = getParentGroupId(eventRowId) || 0;
-      const parentGroupChildren = getChildrenByGroupId(parentGroupId);
+      const parentGroupChildren = this.getChildrenByGroupId(parentGroupId);
       index = parentGroupChildren.indexOf(eventRowId) + 1;
       reorder = true;
     }
@@ -815,7 +827,7 @@ export class RowHandler {
 
   findGroupIdByName(name: string, parentGroupId: number): number {
     let result = -1;
-    const children = getChildrenByGroupId(parentGroupId);
+    const children = this.getChildrenByGroupId(parentGroupId);
     children.forEach((rowId) => {
       const rowItem = this.rowItems[rowId];
       if (rowItem instanceof SignalGroup && rowItem.label === name) {result = rowItem.groupId;}
@@ -871,7 +883,7 @@ export class RowHandler {
     let dropIndex = newIndex;
     const groupRowId = this.groupIdTable[newGroupId];
     const filteredRowIdList = this.removeChildrenFromSignalList(rowIdList);
-    const newGroupChildren = getChildrenByGroupId(newGroupId);
+    const newGroupChildren = this.getChildrenByGroupId(newGroupId);
 
     // Prevent moving a group into itself or one of its children
     let abort = false;
@@ -887,7 +899,7 @@ export class RowHandler {
     filteredRowIdList.forEach((rowId, i) => {
 
       const oldGroupId = getParentGroupId(rowId) || 0;
-      const oldGroupChildren = getChildrenByGroupId(oldGroupId);
+      const oldGroupChildren = this.getChildrenByGroupId(oldGroupId);
       const oldIndex = oldGroupChildren.indexOf(rowId);
       oldGroupChildren.splice(oldIndex, 1);
 
@@ -940,8 +952,8 @@ export class RowHandler {
       // Row height
       if (message.rowHeight !== undefined) {
         data.rowHeight = message.rowHeight;
-        viewport.updateElementHeight(rId);
         this.updateBounds();
+        viewport.updateElementHeight();
         updateViewport = true;
         updateAllSelected = true;
       }
@@ -1006,13 +1018,15 @@ export class RowHandler {
     // Edge guides
     if (message.annotateValue !== undefined) {
       viewport.annotateWaveform(rowId, message.annotateValue);
-      viewport.updateBackgroundCanvas(false);
+      viewport.updateBackgroundCanvas();
       viewport.updateOverlayCanvas();
     }
 
     //console.log('setDisplayFormat');
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
     netlistData.setSignalContextAttribute();
+
+    if (this.events.isBatchMode) {return;}
 
     if (updateViewport) {
       viewport.redrawViewport();

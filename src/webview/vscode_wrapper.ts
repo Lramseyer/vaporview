@@ -66,7 +66,7 @@ export class Configuration {
     if (settings.rulerLines !== undefined) {
       if (this.rulerLines !== settings.rulerLines) {
         this.rulerLines = settings.rulerLines;
-        viewport.updateBackgroundCanvas(false);
+        viewport.updateBackgroundCanvas();
       }
     }
 
@@ -190,7 +190,10 @@ export class ThemeColors {
   fontStyle: string = '12px Menlo';
   characterWidth: number = 7.69;
   baselineOffset: number = 0;
-  markerAnnotation: string = '';
+  markerAnnotation: string = 'white';
+  selectionBackgroundColor: string = 'blue';
+  selectionContrastBorder: string = 'white';
+  selectionBorderColor: string = 'white';
   rowHeight: number = 28;
   rowPadding: number = 4;
   rulerHeight: number = 36;
@@ -242,6 +245,11 @@ export class ThemeColors {
 
     // I calculated this as 174, 176, 173 @ 10% opacity in the default theme, but there was no CSS color that matched
     this.markerAnnotation = document.documentElement.style.getPropertyValue('--vscode-editorOverviewRuler-selectionHighlightForeground');
+
+    // Selection colors
+    this.selectionBackgroundColor = style.getPropertyValue('--vscode-list-activeSelectionBackground');
+    this.selectionContrastBorder = style.getPropertyValue('--vscode-contrastActiveBorder');
+    this.selectionBorderColor = style.getPropertyValue('--vscode-focusBorder');
 
     // Background Color
     this.backgroundColor = style.getPropertyValue('--vscode-editor-background');

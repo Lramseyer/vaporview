@@ -1,6 +1,6 @@
 import { type NetlistId, type RowId, type ValueChange, EnumData, EnumEntry, NameType, VariableEncoding, CollapseState, type BitRangeSource, type SignalSeparatorContext, type NetlistVariableContext, CustomVariableContext, SignalGroupContext, SavedRowItem, SavedSignalSeparator, SavedNetlistVariable, SavedCustomVariable, SavedSignalGroup } from '../common/types';
 import { ActionType, type EventHandler } from './event_handler';
-import { dataManager, viewport, viewerState, events, getRowHeightCssClass, rowHandler, vscodeWrapper, styles, config } from "./vaporview";
+import { dataManager, viewport, viewerState, events, rowHandler, vscodeWrapper, styles, config } from "./vaporview";
 import { EnumValueFormat, formatBinary, formatHex, formatString, type ValueFormat } from "./value_format";
 import { type WaveformRenderer, setRenderBounds } from "./renderer";
 import type { WaveformData } from "./data_manager";
@@ -19,6 +19,15 @@ export function htmlAttributeSafe(string: string) {
 export function isAnalogSignal(renderType: WaveformRenderer) {
   return renderType.id === 'linear' || renderType.id === 'linearSigned' ||
          renderType.id === 'stepped' || renderType.id === 'steppedSigned';
+}
+
+export function getRowHeightCssClass(height: number) {
+  switch (height) {
+    case 2:  {return "height2x";}
+    case 4:  {return "height4x";}
+    case 8:  {return "height8x";}
+    default: {return "height1x";}
+  }
 }
 
 function mouseOverHandler(event: MouseEvent, signalItem: NetlistVariable, checkBounds: boolean) {
@@ -104,7 +113,6 @@ export interface RowItem {
 
   createLabelElement(): string;
   createValueDisplayElement(): string;
-  createViewportElement(rowId: number): void;
   setSignalContextAttribute(): void;
   createWaveformRowContent(): string;
   getLabelText(): string;
@@ -158,14 +166,6 @@ export class SignalSeparator extends SignalItem implements RowItem {
     const selectorClass     = isSelectedClass + ' ' + lastSelectedClass;
     const result = `<div class="value-display-item ${selectorClass} ${height}" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}></div>`;
     return result;
-  }
-
-  public createViewportElement(rowId: number) {
-    const waveformContainer = document.createElement('div');
-    waveformContainer.setAttribute('id', 'waveform-' + rowId);
-    waveformContainer.classList.add('waveform-container');
-    //waveformContainer.setAttribute("data-vscode-context", this.vscodeContext);
-    this.viewportElement = waveformContainer;
   }
 
   public setSignalContextAttribute() {
@@ -309,15 +309,6 @@ export class NetlistVariable extends SignalItem implements RowItem {
     }).join(joinString);
 
     return `<div class="value-display-item ${selectorClass} ${height}" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}>${pElement}</div>`;
-  }
-
-  public createViewportElement(rowId: number) {
-
-    const waveformContainer = document.createElement('div');
-    waveformContainer.setAttribute('id', 'waveform-' + rowId);
-    waveformContainer.classList.add('waveform-container');
-    //waveformContainer.setAttribute("data-vscode-context", this.vscodeContext);
-    this.viewportElement = waveformContainer;
   }
 
   public setSignalContextAttribute() {
@@ -553,15 +544,6 @@ export class CustomVariable extends SignalItem implements RowItem {
       return `<div class="value-display-item ${selectorClass} ${height}" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}>${pElement}</div>`;
     }
 
-  public createViewportElement(rowId: number) {
-
-    const waveformContainer = document.createElement('div');
-    waveformContainer.setAttribute('id', 'waveform-' + rowId);
-    waveformContainer.classList.add('waveform-container');
-    //waveformContainer.setAttribute("data-vscode-context", this.vscodeContext);
-    this.viewportElement = waveformContainer;
-  }
-
   public setSignalContextAttribute() {
     const renderType = this.renderType.id;
     const isAnalog = isAnalogSignal(this.renderType);
@@ -735,14 +717,6 @@ export class SignalGroup extends SignalItem implements RowItem {
     return result;
   }
 
-  public createViewportElement(rowId: number) {
-    const waveformContainer = document.createElement('div');
-    waveformContainer.setAttribute('id', 'waveform-' + rowId);
-    waveformContainer.classList.add('waveform-container');
-    //waveformContainer.setAttribute("data-vscode-context", this.vscodeContext);
-    this.viewportElement = waveformContainer;
-  }
-
   public setSignalContextAttribute() {
     const context: SignalGroupContext = {
       webviewSection: "signal-group",
@@ -811,28 +785,21 @@ export class SignalGroup extends SignalItem implements RowItem {
 
   public showHideViewportRows() {
     //const childRows = this.getFlattenedRowIdList(false, -1);
-    const style = this.collapseState === CollapseState.Expanded ? 'flex' : 'none';
-    let childRows: number[] = [];
-    this.children.forEach((rowId) => {
-      const childRowItem = rowHandler.rowItems[rowId];
-      if (!childRowItem) {return;}
-      childRows = childRows.concat(childRowItem.getFlattenedRowIdList(true, -1));
-    });
-    childRows.forEach((rowId) => {
-      if (rowId === this.rowId) {return;} // Skip the group row itself
-      const viewportRow = document.getElementById(`waveform-${rowId}`);
-      if (!viewportRow) {return;}
-      //console.log('style', style);
-      viewportRow.style.display = style;
-      const signalItem = rowHandler.rowItems[rowId];
-      if (signalItem instanceof NetlistVariable || signalItem instanceof CustomVariable) {
-        signalItem.wasRendered = false; // Reset rendering state for child signals
-      }
-    });
+    //let childRows: number[] = [];
+    //this.children.forEach((rowId) => {
+    //  const childRowItem = rowHandler.rowItems[rowId];
+    //  if (!childRowItem) {return;}
+    //  childRows = childRows.concat(childRowItem.getFlattenedRowIdList(true, -1));
+    //});
+    //childRows.forEach((rowId) => {
+    //  if (rowId === this.rowId) {return;} // Skip the group row itself
+    //  const signalItem = rowHandler.rowItems[rowId];
+    //  if (signalItem instanceof NetlistVariable || signalItem instanceof CustomVariable) {
+    //    signalItem.wasRendered = false; // Reset rendering state for child signals
+    //  }
+    //});
     rowHandler.updateDisplayedSignalsFlat();
-    viewport.updateBackgroundCanvas(true);
-    viewport.updateOverlayCanvas();
-    viewport.renderAllWaveforms();
+    viewport.updateElementHeight();
   }
 
   public expand() {

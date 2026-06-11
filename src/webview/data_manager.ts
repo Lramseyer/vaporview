@@ -1,6 +1,6 @@
 import { type NetlistId, type SignalId, type RowId, type ValueChange, type EnumData, type EnumEntry, type QueueEntry, type SignalQueueEntry, type EnumQueueEntry, NameType, CollapseState, type BitRangeSource, type ValueChangeDataChunk, type CompressedValueChangeDataChunk, type EnumDataChunk } from '../common/types';
 import { ActionType, type EventHandler } from './event_handler';
-import { viewerState, viewport, DataType, dataManager, getChildrenByGroupId, getParentGroupId, labelsPanel, getIndexInGroup, controlBar, rowHandler, events, vscodeWrapper, config } from './vaporview';
+import { viewerState, viewport, DataType, dataManager, getParentGroupId, labelsPanel, controlBar, rowHandler, events, vscodeWrapper, config } from './vaporview';
 import { SignalGroup, NetlistVariable, RowItem, SignalSeparator, isAnalogSignal, CustomVariable } from './signal_item';
 
 import * as LZ4 from 'lz4js';

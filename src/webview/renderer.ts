@@ -21,9 +21,8 @@ export interface WaveformRenderer {
 
 function clipCanvas(ctx: CanvasRenderingContext2D, signalItem: NetlistVariable | CustomVariable, canvasHeight: number,  viewerWidth: number) {
   const topBounds    = signalItem.topBounds;
-  const scrollTop    = viewport.scrollArea.scrollTop;
   if (topBounds === null) {return;}
-  const windowTop    = styles.rulerHeight - scrollTop + topBounds + styles.rowPadding;
+  const windowTop    = topBounds + styles.rowPadding - viewport.pseudoScrollTop;
 
   ctx.rect(0, windowTop, viewerWidth, canvasHeight);
   ctx.clip();

@@ -1,4 +1,4 @@
-import { DocumentId, RowId } from '../common/types';
+import { DocumentId, RowId, CollapseState } from '../common/types';
 
 export enum ActionType {
   MarkerSet,

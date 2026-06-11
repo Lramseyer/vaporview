@@ -1,4 +1,4 @@
-import { viewport, viewerState, dataManager, getChildrenByGroupId, getIndexInGroup, handleClickSelection, rowHandler, vscodeWrapper, styles, dragController} from './vaporview';
+import { viewport, viewerState, dataManager, getIndexInGroup, handleClickSelection, rowHandler, vscodeWrapper, styles, dragController} from './vaporview';
 import { ActionType, type EventHandler } from './event_handler';
 import { ValueFormat } from './value_format';
 import { getParentGroupId } from './vaporview';
@@ -89,6 +89,7 @@ export class LabelsPanels {
     this.handleAddVariable     = this.handleAddVariable.bind(this);
     this.handleRedrawVariable  = this.handleRedrawVariable.bind(this);
     this.handleUpdateColor     = this.handleUpdateColor.bind(this);
+    this.handleExitBatchMode   = this.handleExitBatchMode.bind(this);
 
     // Event handlers to handle clicking on a waveform label to select a signal
     //labels.addEventListener(      'click', (e) => this.clickLabel(e));
@@ -112,6 +113,7 @@ export class LabelsPanels {
     this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
     this.events.subscribe(ActionType.RedrawVariable, this.handleRedrawVariable);
     this.events.subscribe(ActionType.UpdateColorTheme, this.handleUpdateColor);
+    this.events.subscribe(ActionType.ExitBatchMode, this.handleExitBatchMode);
   }
 
   renderLabelsPanels() {
@@ -651,6 +653,7 @@ export class LabelsPanels {
   }
 
   handleAddVariable(rowIdList: RowId[], updateFlag: boolean) {
+    if (this.events.isBatchMode) {return;}
     this.renderLabelsPanels();
     this.renderValueDisplay();
   }
@@ -661,6 +664,12 @@ export class LabelsPanels {
   }
 
   handleReorderSignals(rowIdList: number[], newGroupId: number, newIndex: number) {
+    if (this.events.isBatchMode) {return;}
+    this.renderLabelsPanels();
+    this.renderValueDisplay();
+  }
+
+  handleExitBatchMode() {
     this.renderLabelsPanels();
     this.renderValueDisplay();
   }

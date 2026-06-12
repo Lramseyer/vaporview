@@ -1,4 +1,3 @@
-//import { NetlistData } from './vaporview';
 import type { ValueChange } from '../common/types';
 import { NetlistVariable, type CustomVariable } from './signal_item';
 import { dataManager, viewport, styles, config } from './vaporview';

@@ -1,6 +1,6 @@
 import { EnumQueueEntry, SignalId, type RowId, StateChangeType } from '../common/types';
 import { ActionType, type EventHandler } from './event_handler';
-import { vscodeWrapper, viewerState, viewport, dataManager, rowHandler, config} from './vaporview';
+import { vscodeWrapper, viewerState, viewport, rowHandler, config} from './vaporview';
 import { CustomVariable, NetlistVariable } from './signal_item';
 
 enum ButtonState {

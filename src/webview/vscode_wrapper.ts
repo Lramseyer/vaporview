@@ -447,6 +447,11 @@ export class VscodeWrapper {
   private initComplete: boolean = false;
 
   constructor(private events: EventHandler) {
+
+    window.addEventListener('message', (e) => {this.handleMessage(e);});
+    window.addEventListener('blur',    ()  => {this.handleFocusBlur(false);});
+    window.addEventListener('focus',   ()  => {this.handleFocusBlur(true);});
+
     this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
     this.handleMarkerSet    = this.handleMarkerSet.bind(this);
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
@@ -593,6 +598,10 @@ export class VscodeWrapper {
     if (rowIdList.length === 1) {
       this.emitSignalSelectEvent(instancePathList, netlistIdList);
     }
+  }
+
+  handleFocusBlur(state: boolean) {
+    this.executeCommand('setContext', ['vaporview.waveformViewerFocused', state]);
   }
 
   focusWebview() {

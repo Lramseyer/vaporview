@@ -1,4 +1,4 @@
-import { viewport, viewerState, dataManager, getIndexInGroup, handleClickSelection, rowHandler, vscodeWrapper, styles, dragController} from './vaporview';
+import { viewport, viewerState, dataManager, getIndexInGroup, handleClickSelection, rowHandler, vscodeWrapper, styles, dragController, revealSignal} from './vaporview';
 import { ActionType, type EventHandler } from './event_handler';
 import { ValueFormat } from './value_format';
 import { getParentGroupId } from './vaporview';
@@ -68,6 +68,8 @@ export class LabelsPanels {
        resize2 === null) {
       throw new Error("Could not find all required elements");
     }
+
+    webview.style.gridTemplateColumns = `150px 50px auto`;
 
     this.webview      = webview;
     this.labels       = labels;
@@ -707,7 +709,14 @@ export class LabelsPanels {
     rowIdList.forEach((rowId) => {
       this.selectRowId(rowId, true);
     });
+
     viewerState.lastSelectedSignal = lastRowId;
+    viewerState.selectedSignal     = rowIdList;
+
+    if (rowIdList.length > 0) {
+      revealSignal(rowIdList[0]);
+    }
+
     this.renderLabelsPanels();
     this.renderValueDisplay();
   }

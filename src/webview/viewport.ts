@@ -111,8 +111,8 @@ export class Viewport {
   constructor(
     private events: EventHandler,
   ) {
-    const labelsScroll        = document.getElementById('waveform-labels-container');
-    const valuesScroll        = document.getElementById('value-display-container');
+    const labelsScroll        = document.getElementById('waveform-labels');
+    const valuesScroll        = document.getElementById('value-display');
     const scrollArea          = document.getElementById('scrollArea');
     const contentArea         = document.getElementById('contentArea');
     const horizontalScrollbar = document.getElementById('horizontal-scrollbar-slider');
@@ -1144,10 +1144,7 @@ export class Viewport {
   updateElementHeight() {
 
     this.updateWaveformsHeight();
-    this.updateSelectionCanvas(viewerState.selectedSignal, viewerState.lastSelectedSignal);
-    this.updateBackgroundCanvas();
-    this.renderAllWaveforms();
-    this.updateOverlayCanvas();
+    this.handleScrollEvent(this.pseudoScrollLeft, this.pseudoScrollTop);
   }
 
   handleRedrawSignal(rowId: RowId) {
@@ -1183,8 +1180,8 @@ export class Viewport {
       this.handleZoom(1, 0, 0);
     } else {
       this.updateHorizontalScrollbar();
-      this.handleScrollEvent(this.pseudoScrollLeft, this.labelsScroll.scrollTop);
     }
+    this.handleScrollEvent(this.pseudoScrollLeft, this.pseudoScrollTop);
     this.updateVerticalScrollbar();
   }
 
@@ -1195,13 +1192,13 @@ export class Viewport {
     this.timeScrollRight    = this.timeScrollLeft + this.viewerWidthTime;
     this.updatescrollbarPositionX();
 
-    const clampedScrollTop = Math.max(Math.min(newScrollTop, this.maxScrollTop), 0);
+    const clampedScrollTop = Math.max(Math.min(Math.round(newScrollTop), this.maxScrollTop), 0);
     if (clampedScrollTop !== this.pseudoScrollTop) {
       this.pseudoScrollTop = clampedScrollTop;
       this.updateSelectionCanvas(viewerState.selectedSignal, viewerState.lastSelectedSignal);
       this.updatescrollbarPositionY();
-      this.labelsScroll.scrollTop = newScrollTop;
-      this.valuesScroll.scrollTop = newScrollTop;
+      this.labelsScroll.style.top = -clampedScrollTop + 'px';
+      this.valuesScroll.style.top = -clampedScrollTop + 'px';
       dragController.contentMoved();
     }
 

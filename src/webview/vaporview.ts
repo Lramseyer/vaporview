@@ -8,8 +8,6 @@ import { WaveformDataManager } from './data_manager';
 import { NetlistVariable, SignalGroup, type RowItem } from './signal_item';
 import { Configuration, OS, ThemeColors, VscodeWrapper } from './vscode_wrapper';
 
-let resizeDebounce: ReturnType<typeof setTimeout> | number = 0;
-
 export class ViewerState {
   uri: string | null                 = null;
   documentId: DocumentId             = "";
@@ -164,23 +162,20 @@ class VaporviewWebview {
 
   constructor(private events: EventHandler) {
 
-    // Assuming you have a reference to the webview element
-    const webview      = document.getElementById('vaporview-top');
-    const labelsScroll = document.getElementById('waveform-labels-container');
-    const valuesScroll = document.getElementById('value-display-container');
+    const labelsScroll = document.getElementById('waveform-labels');
+    const valuesScroll = document.getElementById('value-display');
     const scrollArea   = document.getElementById('scrollArea');
 
     if (labelsScroll === null || valuesScroll === null || scrollArea === null) {
       throw new Error("Could not find all required elements");
     }
 
-    // #region Primitive Handlers
     window.addEventListener('keydown',     (e) => {this.keyDownHandler(e);});
     window.addEventListener('keyup',       (e) => {this.keyUpHandler(e);});
     window.addEventListener('resize',      ()  => {events.resize();}, false);
     scrollArea.addEventListener('wheel',   (e) => {this.scrollHandler(e);});
-    labelsScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, labelsScroll.scrollTop);});
-    valuesScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, valuesScroll.scrollTop);});
+    labelsScroll.addEventListener('wheel', (e) => {viewport.handleScrollEvent(viewport.pseudoScrollLeft, viewport.pseudoScrollTop + e.deltaY);});
+    valuesScroll.addEventListener('wheel', (e) => {viewport.handleScrollEvent(viewport.pseudoScrollLeft, viewport.pseudoScrollTop + e.deltaY);});
     document.addEventListener('dragover',  (e) => {labelsPanel.dragMoveExternal(e);});
     document.addEventListener('drop',      (e) => {vscodeWrapper.handleDrop(e);});
   }
@@ -357,6 +352,10 @@ class VaporviewWebview {
     }
   }
 
+  keyUpHandler(e: KeyboardEvent) {
+    if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(false);}
+  }
+
   addToSelection(rowId: RowId) {
     const newSelection = viewerState.selectedSignal;
     if (!viewerState.selectedSignal.includes(rowId)) {
@@ -416,14 +415,6 @@ class VaporviewWebview {
     }
 
     this.events.reorderSignals([rowId], parentGroupId, newIndex);
-  }
-
-  keyUpHandler(e: KeyboardEvent) {
-    if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(false);}
-  }
-
-  syncVerticalScroll(e: WheelEvent | { deltaY: number }, scrollLevel: number) {
-    viewport.handleScrollEvent(viewport.pseudoScrollLeft, scrollLevel + e.deltaY);
   }
 }
 

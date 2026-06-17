@@ -652,6 +652,7 @@ export class LabelsPanels {
       this.webview.style.gridTemplateColumns = `${column1}px ${newWidth}px auto`;
       this.resize2.style.left = `${newPosition}px`;
     }
+    this.events.resize();
   }
 
   handleAddVariable(rowIdList: RowId[], updateFlag: boolean) {

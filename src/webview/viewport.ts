@@ -106,6 +106,7 @@ export class Viewport {
   pixelRatio: number          = 1;
   updatePending: boolean      = false;
   scrollEventPending: boolean = false;
+  resizePending: boolean      = false;
   hoverItemRowId: RowId | null = null;
 
   constructor(
@@ -291,7 +292,7 @@ export class Viewport {
     canvasElement.setAttribute("height", `${height * this.pixelRatio}`);
     canvasElement.style.width  = `${width}px`;
     canvasElement.style.height = `${height}px`;
-    ctx.scale(this.pixelRatio, this.pixelRatio);
+    ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
   }
 
   handleAddVariable(rowIdList: RowId[], updateFlag: boolean) {
@@ -1155,10 +1156,19 @@ export class Viewport {
   }
 
   updateViewportWidth() {
+    if (this.resizePending) { return; }
+    this.resizePending = true;
+    requestAnimationFrame(() => {
+      this.resizePending = false;
+      this._doUpdateViewportWidth();
+    });
+  }
+
+  private _doUpdateViewportWidth() {
 
     this.setPixelRatio();
-    this.scrollbarCanvasElement.setAttribute("width",  `0`);
-    this.scrollbarCanvasElement.style.width  = `0px`;
+    //this.scrollbarCanvasElement.setAttribute("width",  `0`);
+    //this.scrollbarCanvasElement.style.width  = `0px`;
     this.scrollAreaBounds = this.scrollArea.getBoundingClientRect();
     this.viewerWidth      = this.scrollAreaBounds.width - 10;
     this.viewerHeight     = this.scrollAreaBounds.height - styles.rulerHeight;

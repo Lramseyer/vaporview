@@ -1170,7 +1170,7 @@ export class Viewport {
     //this.scrollbarCanvasElement.setAttribute("width",  `0`);
     //this.scrollbarCanvasElement.style.width  = `0px`;
     this.scrollAreaBounds = this.scrollArea.getBoundingClientRect();
-    this.viewerWidth      = this.scrollAreaBounds.width - 10;
+    this.viewerWidth      = this.scrollAreaBounds.width - styles.scrollbarWidth;
     this.viewerHeight     = this.scrollAreaBounds.height - styles.rulerHeight;
     this.halfViewerWidth  = this.viewerWidth / 2;
     this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth, 0));
@@ -1179,7 +1179,7 @@ export class Viewport {
     this.minZoomRatio     = this.viewerWidth / this.timeStop;
 
     // Update Ruler Canvas, Background Canvas, and Scrollbar Canvas Dimensions
-    this.resizeCanvas(this.scrollbarCanvasElement, this.scrollbarCanvas, this.viewerWidth, 10);
+    this.resizeCanvas(this.scrollbarCanvasElement, this.scrollbarCanvas, this.viewerWidth, styles.scrollbarHeight);
     this.resizeCanvas(this.rulerCanvasElement, this.rulerCanvas, this.viewerWidth, styles.rulerHeight);
     this.resizeCanvas(this.selectionCanvasElement, this.selectionCanvas, this.viewerWidth, this.viewerHeight);
     this.resizeCanvas(this.backgroundCanvasElement, this.backgroundCanvas, this.viewerWidth, this.viewerHeight);

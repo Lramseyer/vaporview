@@ -1,7 +1,9 @@
 :root {
-  --waveform-height: 28px;
-  --waveform-padding: 4px;
-  --ruler-height:    36px;
+  --waveform-height:  28px;
+  --waveform-padding:  4px;
+  --ruler-height:     36px;
+  --scrollbar-width:  14px;
+  --scrollbar-height: 12px;
 }
 
 .height1x {
@@ -38,7 +40,7 @@ body {
   display: grid;
   height: 100%;
 
-  grid-template-rows:  32px auto 10px;
+  grid-template-rows:  32px auto;
   grid-template-columns: 150px 50px auto;
   overflow: hidden;
 }
@@ -498,8 +500,8 @@ body {
   margin-left: 1px;
   display: grid;
 
-  grid-template-rows: var(--ruler-height) auto 10px;
-  grid-template-columns: auto 10px;
+  grid-template-rows: var(--ruler-height) auto var(--scrollbar-height);
+  grid-template-columns: auto var(--scrollbar-width);
 }
 
 #ruler {
@@ -596,7 +598,7 @@ body {
   bottom : 0px;
   left: 0px;
 
-  height: 10px;
+  height: var(--scrollbar-height);
   width: 17px;
 }
 
@@ -614,7 +616,7 @@ body {
   left: 0px;
 
   height: 17px;
-  width: 10px;
+  width: var(--scrollbar-width);
 }
 
 .scrollbar {

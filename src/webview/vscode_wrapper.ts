@@ -197,6 +197,8 @@ export class ThemeColors {
   rowHeight: number = 28;
   rowPadding: number = 4;
   rulerHeight: number = 36;
+  scrollbarHeight: number = 12;
+  scrollbarWidth: number = 14;
   glowBlur: number = 0;       // waveform traces (canvas)
   textGlowBlur: number = 0;   // bus value text (canvas)
 
@@ -287,6 +289,8 @@ export class ThemeColors {
     this.rowHeight   = parseInt(style.getPropertyValue('--waveform-height'));
     this.rowPadding  = parseInt(style.getPropertyValue('--waveform-padding'));
     this.rulerHeight = parseInt(style.getPropertyValue('--ruler-height'));
+    this.scrollbarHeight = parseInt(style.getPropertyValue('--scrollbar-height'));
+    this.scrollbarWidth  = parseInt(style.getPropertyValue('--scrollbar-width'));
   }
 
   // We're not done selecting a color palette here! We need to filter out

@@ -525,7 +525,8 @@ export class RowHandler {
         labelsPanel.cancelRename();
         this.addSignalList(signal.children, groupId);
         if (signal.collapseState === CollapseState.Collapsed && groupItem instanceof SignalGroup) {
-          groupItem.collapse();
+          //groupItem.collapse();
+          groupItem.collapseState = signal.collapseState;
         }
       } else if (signal.dataType === 'signal-separator') {
         this.addSeparator(signal.label, undefined, parentGroupId, undefined, false);
@@ -952,10 +953,12 @@ export class RowHandler {
       // Row height
       if (message.rowHeight !== undefined) {
         data.rowHeight = message.rowHeight;
-        this.updateBounds();
-        viewport.updateElementHeight();
-        updateViewport = true;
-        updateAllSelected = true;
+        if (!this.events.isBatchMode) {
+          this.updateBounds();
+          viewport.updateElementHeight();
+          updateViewport = true;
+          updateAllSelected = true;
+        }
       }
 
       if (!(data instanceof NetlistVariable) && !(data instanceof CustomVariable)) {return;}

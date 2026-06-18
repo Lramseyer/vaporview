@@ -1202,7 +1202,7 @@ export class Viewport {
     this.timeScrollRight    = this.timeScrollLeft + this.viewerWidthTime;
     this.updatescrollbarPositionX();
 
-    const clampedScrollTop = Math.max(Math.min(Math.round(newScrollTop), this.maxScrollTop), 0);
+    const clampedScrollTop = Math.max(Math.min(newScrollTop, this.maxScrollTop), 0);
     if (clampedScrollTop !== this.pseudoScrollTop) {
       this.pseudoScrollTop = clampedScrollTop;
       this.updateSelectionCanvas(viewerState.selectedSignal, viewerState.lastSelectedSignal);

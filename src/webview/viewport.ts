@@ -684,6 +684,7 @@ export class Viewport {
   handleReorderSignals(rowIdList: number[], newGroupId: number, newIndex: number) {
     if (this.events.isBatchMode) {return;}
     this.renderAllWaveforms();
+    this.updateSelectionCanvas(viewerState.selectedSignal, viewerState.lastSelectedSignal);
   }
 
   handleRemoveVariable(rowId: RowId[], recursive: boolean) {

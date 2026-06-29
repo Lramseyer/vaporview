@@ -317,7 +317,7 @@ export class Viewport {
   }
 
   getRowIdFromMouseEvent(event: MouseEvent): RowId | null {
-    const eventTop   = Math.round(event.pageY - this.scrollAreaBounds.top - styles.rulerHeight);
+    const eventTop   = Math.round(event.pageY - this.scrollAreaBounds.top);
     const pageY      = eventTop + this.pseudoScrollTop;
 
     for (const rowId of viewerState.visibleSignalsFlat) {
@@ -1172,7 +1172,7 @@ export class Viewport {
     //this.scrollbarCanvasElement.style.width  = `0px`;
     this.scrollAreaBounds = this.scrollArea.getBoundingClientRect();
     this.viewerWidth      = this.scrollAreaBounds.width - styles.scrollbarWidth;
-    this.viewerHeight     = this.scrollAreaBounds.height - styles.rulerHeight;
+    this.viewerHeight     = this.scrollAreaBounds.height;
     this.halfViewerWidth  = this.viewerWidth / 2;
     this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth, 0));
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;

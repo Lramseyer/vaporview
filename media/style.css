@@ -516,9 +516,7 @@ body {
 #ruler {
   height: var(--ruler-height);
   z-index: 30;
-  position: sticky;
-  top: 0;
-  background: var(--vscode-editor-background);
+  position: relative;
   max-height: var(--ruler-height);
   overflow: hidden;
 

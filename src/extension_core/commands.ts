@@ -557,6 +557,10 @@ export function registerVaporviewCommands(
     vscode.commands.executeCommand('workbench.action.openSettings', "vaporview");
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.showReadme', () => {
+    vscode.commands.executeCommand('extension.open', 'lramseyer.vaporview');
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.dummy', (e: unknown) => {
     outputLog.appendLine("Command called: 'vaporview.dummy' " + JSON.stringify(e));
   }));

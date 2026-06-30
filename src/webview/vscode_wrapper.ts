@@ -66,19 +66,19 @@ export class Configuration {
     if (settings.rulerLines !== undefined) {
       if (this.rulerLines !== settings.rulerLines) {
         this.rulerLines = settings.rulerLines;
-        viewport.updateBackgroundCanvas(false);
+        viewport.updateBackgroundCanvas();
       }
     }
 
     // Renderer Settings
     if (settings.fillMultiBitValues !== undefined) {
       this.fillMultiBitValues = settings.fillMultiBitValues;
-      viewport.renderAllWaveforms(true);
+      viewport.renderAllWaveforms();
     }
 
     if (settings.multiBitFixedHeight !== undefined) {
       this.multiBitFixedHeight = settings.multiBitFixedHeight;
-      viewport.renderAllWaveforms(true);
+      viewport.renderAllWaveforms();
     }
 
     if (settings.disableAnalogRendererOptimizations !== undefined) {
@@ -87,7 +87,7 @@ export class Configuration {
 
     if (settings.removeGlitchTransitions !== undefined) {
       this.removeGlitchTransitions = settings.removeGlitchTransitions;
-      viewport.renderAllWaveforms(true);
+      viewport.renderAllWaveforms();
     }
 
     // Animation Settings
@@ -102,7 +102,7 @@ export class Configuration {
     if (settings.useGlow !== undefined) {
       this.useGlow = settings.useGlow;
       styles.updateglowBlur();
-      viewport.renderAllWaveforms(true);
+      viewport.renderAllWaveforms();
     }
 
     // Default Colors and Name Type
@@ -190,10 +190,15 @@ export class ThemeColors {
   fontStyle: string = '12px Menlo';
   characterWidth: number = 7.69;
   baselineOffset: number = 0;
-  markerAnnotation: string = '';
+  markerAnnotation: string = 'white';
+  selectionBackgroundColor: string = 'blue';
+  selectionContrastBorder: string = 'white';
+  selectionBorderColor: string = 'white';
   rowHeight: number = 28;
   rowPadding: number = 4;
   rulerHeight: number = 36;
+  scrollbarHeight: number = 12;
+  scrollbarWidth: number = 14;
   glowBlur: number = 0;       // waveform traces (canvas)
   textGlowBlur: number = 0;   // bus value text (canvas)
 
@@ -243,6 +248,11 @@ export class ThemeColors {
     // I calculated this as 174, 176, 173 @ 10% opacity in the default theme, but there was no CSS color that matched
     this.markerAnnotation = document.documentElement.style.getPropertyValue('--vscode-editorOverviewRuler-selectionHighlightForeground');
 
+    // Selection colors
+    this.selectionBackgroundColor = style.getPropertyValue('--vscode-list-activeSelectionBackground');
+    this.selectionContrastBorder = style.getPropertyValue('--vscode-contrastActiveBorder');
+    this.selectionBorderColor = style.getPropertyValue('--vscode-focusBorder');
+
     // Background Color
     this.backgroundColor = style.getPropertyValue('--vscode-editor-background');
 
@@ -279,6 +289,8 @@ export class ThemeColors {
     this.rowHeight   = parseInt(style.getPropertyValue('--waveform-height'));
     this.rowPadding  = parseInt(style.getPropertyValue('--waveform-padding'));
     this.rulerHeight = parseInt(style.getPropertyValue('--ruler-height'));
+    this.scrollbarHeight = parseInt(style.getPropertyValue('--scrollbar-height'));
+    this.scrollbarWidth  = parseInt(style.getPropertyValue('--scrollbar-width'));
   }
 
   // We're not done selecting a color palette here! We need to filter out
@@ -439,6 +451,11 @@ export class VscodeWrapper {
   private initComplete: boolean = false;
 
   constructor(private events: EventHandler) {
+
+    window.addEventListener('message', (e) => {this.handleMessage(e);});
+    window.addEventListener('blur',    ()  => {this.handleFocusBlur(false);});
+    window.addEventListener('focus',   ()  => {this.handleFocusBlur(true);});
+
     this.handleRemoveVariable = this.handleRemoveVariable.bind(this);
     this.handleMarkerSet    = this.handleMarkerSet.bind(this);
     this.handleSignalSelect = this.handleSignalSelect.bind(this);
@@ -585,6 +602,10 @@ export class VscodeWrapper {
     if (rowIdList.length === 1) {
       this.emitSignalSelectEvent(instancePathList, netlistIdList);
     }
+  }
+
+  handleFocusBlur(state: boolean) {
+    this.executeCommand('setContext', ['vaporview.waveformViewerFocused', state]);
   }
 
   focusWebview() {

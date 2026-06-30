@@ -1,4 +1,4 @@
-import { viewport, viewerState, dataManager, getChildrenByGroupId, getIndexInGroup, handleClickSelection, rowHandler, vscodeWrapper, styles, dragController} from './vaporview';
+import { viewport, viewerState, dataManager, getIndexInGroup, handleClickSelection, rowHandler, vscodeWrapper, styles, dragController, revealSignal} from './vaporview';
 import { ActionType, type EventHandler } from './event_handler';
 import { ValueFormat } from './value_format';
 import { getParentGroupId } from './vaporview';
@@ -69,6 +69,8 @@ export class LabelsPanels {
       throw new Error("Could not find all required elements");
     }
 
+    webview.style.gridTemplateColumns = `150px 50px auto`;
+
     this.webview      = webview;
     this.labels       = labels;
     this.valueDisplay = valueDisplay;
@@ -89,6 +91,7 @@ export class LabelsPanels {
     this.handleAddVariable     = this.handleAddVariable.bind(this);
     this.handleRedrawVariable  = this.handleRedrawVariable.bind(this);
     this.handleUpdateColor     = this.handleUpdateColor.bind(this);
+    this.handleExitBatchMode   = this.handleExitBatchMode.bind(this);
 
     // Event handlers to handle clicking on a waveform label to select a signal
     //labels.addEventListener(      'click', (e) => this.clickLabel(e));
@@ -112,6 +115,7 @@ export class LabelsPanels {
     this.events.subscribe(ActionType.RemoveVariable, this.handleRemoveVariable);
     this.events.subscribe(ActionType.RedrawVariable, this.handleRedrawVariable);
     this.events.subscribe(ActionType.UpdateColorTheme, this.handleUpdateColor);
+    this.events.subscribe(ActionType.ExitBatchMode, this.handleExitBatchMode);
   }
 
   renderLabelsPanels() {
@@ -136,14 +140,12 @@ export class LabelsPanels {
   }
 
   clickValueDisplay(event: MouseEvent) {
-    const labelsList   = Array.from(this.valueDisplay.querySelectorAll('.value-display-item'));
-    const clickedLabel = (event.target as HTMLElement)?.closest('.value-display-item') ?? null;
-    const itemIndex    = clickedLabel ? labelsList.indexOf(clickedLabel) : -1;
-    if (itemIndex === -1) {
+    const clickedLabel = (event.target as HTMLElement)?.closest('.value-display-item') as HTMLElement | null;
+    const rowId = this.getRowIdFromElement(clickedLabel);
+    if (rowId === null || isNaN(rowId)) {
       rowHandler.deselectAllSignals();
       return;
     }
-    const rowId = viewerState.displayedSignals[itemIndex];
     //this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
     handleClickSelection(event, rowId);
   }
@@ -648,9 +650,11 @@ export class LabelsPanels {
       this.webview.style.gridTemplateColumns = `${column1}px ${newWidth}px auto`;
       this.resize2.style.left = `${newPosition}px`;
     }
+    this.events.resize();
   }
 
   handleAddVariable(rowIdList: RowId[], updateFlag: boolean) {
+    if (this.events.isBatchMode) {return;}
     this.renderLabelsPanels();
     this.renderValueDisplay();
   }
@@ -661,6 +665,12 @@ export class LabelsPanels {
   }
 
   handleReorderSignals(rowIdList: number[], newGroupId: number, newIndex: number) {
+    if (this.events.isBatchMode) {return;}
+    this.renderLabelsPanels();
+    this.renderValueDisplay();
+  }
+
+  handleExitBatchMode() {
     this.renderLabelsPanels();
     this.renderValueDisplay();
   }
@@ -698,7 +708,14 @@ export class LabelsPanels {
     rowIdList.forEach((rowId) => {
       this.selectRowId(rowId, true);
     });
+
     viewerState.lastSelectedSignal = lastRowId;
+    viewerState.selectedSignal     = rowIdList;
+
+    if (rowIdList.length > 0) {
+      revealSignal(rowIdList[0]);
+    }
+
     this.renderLabelsPanels();
     this.renderValueDisplay();
   }

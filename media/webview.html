@@ -158,29 +158,36 @@
       <div id="resize-1" class="resize-bar is-idle"></div>
       <div id="resize-2" class="resize-bar is-idle"></div>
     </div>
+    <div id="waveform-labels-spacer" class="ruler-spacer"> </div>
     <div id="waveform-labels-container" class="labels-container">
-      <div id="waveform-labels-spacer" class="ruler-spacer"> </div>
       <div id="waveform-labels" class="labels-group"> </div>
     </div>
+    <div id="value-display-spacer" class="ruler-spacer"></div>
     <div id="value-display-container" class="labels-container">
-      <div class="ruler-spacer"></div>
       <div id="value-display" data-vscode-context='{"webviewSection":"value-display"}'></div>
     </div>
-    <div id="scrollArea" data-vscode-context='{"webviewSection":"viewport"}'>
-      <canvas id="viewport-background"></canvas>
-      <canvas id="viewport-overlay"></canvas>
-      <div id="contentArea" tabindex="0">
-        <div id="ruler">
-          <div id="main-marker-label" class="time-marker-label" style="left: 0px; display:none"></div>
-          <div id="alt-marker-label" class="time-marker-label" style="left: 0px; display:none"></div>
-          <canvas id="rulerCanvas"></canvas>
-        </div>
-        <div id="waveformArea"></div>
-      </div>
+    <div id="ruler">
+      <div id="main-marker-label" class="time-marker-label" style="left: 0px; display:none"></div>
+      <div id="alt-marker-label" class="time-marker-label" style="left: 0px; display:none"></div>
+      <canvas id="rulerCanvas"></canvas>
     </div>
-    <div id="scrollbarContainer">
-      <canvas id="scrollbarAreaCanvas"></canvas>
-      <div id="scrollbar"></div>
+    <div id="scrollArea" data-vscode-context='{"webviewSection":"viewport"}'>
+      <div id="contentArea" tabindex="0">
+        <div id="netlist-link">
+          <p>Add signals from the </p><p id="netlist-link-text"><u>Netlist View</u></p>
+        </div>
+        <canvas id="viewport-selection"></canvas>
+        <canvas id="viewport-background"></canvas>
+        <canvas id="viewport-waveforms"></canvas>
+        <canvas id="viewport-overlay"></canvas>
+      </div>
+      <div id="horizontal-scrollbar">
+        <canvas id="scrollbarAreaCanvas"></canvas>
+        <div id="horizontal-scrollbar-slider" class="scrollbar"></div>
+      </div>
+      <div id="vertical-scrollbar">
+        <div id="vertical-scrollbar-slider" class="scrollbar"></div>
+      </div>
     </div>
   </div>
   <script src="${webAssets.jsFileUri}"></script>

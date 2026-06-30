@@ -1,4 +1,3 @@
-//import { NetlistData } from './vaporview';
 import type { ValueChange } from '../common/types';
 import { NetlistVariable, type CustomVariable } from './signal_item';
 import { dataManager, viewport, styles, config } from './vaporview';
@@ -17,6 +16,17 @@ export interface RenderBounds {
 export interface WaveformRenderer {
   id: string;
   draw(valueChangeChunk: RenderBounds, netlistData: NetlistVariable | CustomVariable): void;
+}
+
+function clipCanvas(ctx: CanvasRenderingContext2D, signalItem: NetlistVariable | CustomVariable, canvasHeight: number,  viewerWidth: number) {
+  const topBounds    = signalItem.topBounds;
+  if (topBounds === null) {return;}
+  const windowTop    = topBounds + styles.rowPadding - viewport.pseudoScrollTop;
+
+  ctx.rect(0, windowTop, viewerWidth, canvasHeight);
+  ctx.clip();
+  ctx.translate(0, windowTop);
+  ctx.clearRect(0, 0, viewerWidth, canvasHeight);
 }
 
 export function setRenderBounds(netlistData: NetlistVariable | CustomVariable, waveformData: WaveformData) {
@@ -135,7 +145,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
   }
 
   public draw(valueChangeChunk: RenderBounds, netlistData: NetlistVariable | CustomVariable) {
-    const ctx            = netlistData.ctx;
+    const ctx            = viewport.waveformsCanvas;
     if (!ctx) {return;}
     const transitionData = valueChangeChunk.valueChanges;
     const formattedValues = valueChangeChunk.formattedValues;
@@ -277,7 +287,8 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
       textElements.push(this.busValue(time, elementWidth, parsedValue, rightJustify));
     }
 
-    ctx.clearRect(0, 0, viewport.viewerWidth, canvasHeight);
+    ctx.save();
+    clipCanvas(ctx, netlistData, canvasHeight, viewport.viewerWidth);
     ctx.save();
     ctx.translate(0, halfCanvasHeight);
 
@@ -416,6 +427,8 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     }
 
     ctx.restore();
+    ctx.restore();
+    ctx.restore();
     ctx.shadowBlur = 0;
   }
 }
@@ -426,7 +439,7 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
 
   public draw(valueChangeChunk: RenderBounds, netlistData: NetlistVariable | CustomVariable) {
 
-    const ctx            = netlistData.ctx;
+    const ctx            = viewport.waveformsCanvas;
     if (!ctx) {return;}
     const transitionData = valueChangeChunk.valueChanges;
     const initialState   = valueChangeChunk.initialState;
@@ -548,7 +561,8 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     const waveHeight = canvasHeight - styles.rowPadding;
     const waveOffset = waveHeight + (canvasHeight - waveHeight) / 2;
 
-    ctx.clearRect(0, 0, viewport.viewerWidth, canvasHeight);
+    ctx.save();
+    clipCanvas(ctx, netlistData, canvasHeight, viewport.viewerWidth);
     ctx.save();
     ctx.strokeStyle = drawColor;
     ctx.fillStyle   = drawColor;
@@ -606,12 +620,13 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     ctx.shadowBlur  = styles.glowBlur;
     ctx.stroke();
     ctx.shadowBlur  = 0;
+    ctx.restore();
   }
 }
 
 function createAnalogWaveform(valueChangeChunk: RenderBounds, netlistData: NetlistVariable | CustomVariable, stepped: boolean, evalCoordinates: (v: string) => number) {
 
-  const ctx              = netlistData.ctx;
+  const ctx              = viewport.waveformsCanvas;
   if (!ctx) {return;}
   const transitionData   = valueChangeChunk.valueChanges;
   const initialState     = valueChangeChunk.initialState;
@@ -736,7 +751,8 @@ function createAnalogWaveform(valueChangeChunk: RenderBounds, netlistData: Netli
   const yScale     = waveHeight * verticalScale / (max - min);
   const translateY = 0.5 + (max / (max - min)) * waveOffset;
 
-  ctx.clearRect(0, 0, viewport.viewerWidth, canvasHeight);
+  ctx.save();
+  clipCanvas(ctx, netlistData, canvasHeight, viewport.viewerWidth);
   ctx.save();
   ctx.strokeStyle = drawColor;
   ctx.fillStyle   = drawColor;
@@ -794,6 +810,7 @@ function createAnalogWaveform(valueChangeChunk: RenderBounds, netlistData: Netli
   ctx.shadowBlur  = styles.glowBlur;
   ctx.stroke();
   ctx.shadowBlur  = 0;
+  ctx.restore();
 }
 
 const evalBinary16plusSigned = (v: string) => {

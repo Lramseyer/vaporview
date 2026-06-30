@@ -1,32 +1,54 @@
 import { NetlistId, SignalId, type RowId, EnumData, EnumEntry, StateChangeType, type DocumentId, type DefaultWebviewContext, type RulerContext, type WaveformDumpMetadata } from '../common/types';
 import { logScaleFromUnits } from '../common/functions';
 import { ActionType, type EventHandler } from './event_handler';
-import { viewerState, dataManager, updateDisplayedSignalsFlat, handleClickSelection, controlBar, dragController } from "./vaporview";
+import { viewerState, dataManager, handleClickSelection, controlBar, dragController } from "./vaporview";
 import { ValueFormat } from './value_format';
 import { WaveformRenderer } from './renderer';
 import { labelsPanel, rowHandler, vscodeWrapper, styles, config } from "./vaporview";
 import { CustomVariable, NetlistVariable, SignalItem, VariableItem } from "./signal_item";
 
+// Describes the axis-specific bits of a scrollbar so the horizontal and
+// vertical scrollbars can share a single set of drag/click handlers.
+interface ScrollAxis {
+  slider: HTMLElement;
+  clientCoord: (e: { clientX: number; clientY: number }) => number;
+  boundsOffset: () => number;  // origin of the scrollbar track in client coords
+  position: () => number;      // current slider position (px)
+  maxPosition: () => number;   // max slider travel (px)
+  maxScroll: () => number;     // max content scroll
+  size: () => number;          // slider length (px)
+  hidden: () => boolean;
+  scrollTo: (value: number) => void; // apply a content-scroll value on this axis
+}
+
 export class Viewport {
 
+  labelsScroll: HTMLElement;
+  valuesScroll: HTMLElement;
   scrollArea: HTMLElement;
   scrollAreaBounds: DOMRect;
   contentArea: HTMLElement;
-  waveformArea: HTMLElement;
-  scrollbar: HTMLElement;
-  scrollbarContainer: HTMLElement;
+  horizontalScrollbar: HTMLElement;
+  ScrollbarContainerH: HTMLElement;
+  verticalScrollbar: HTMLElement;
+  ScrollbarContainerV: HTMLElement;
   scrollbarCanvasElement: HTMLElement;
   scrollbarCanvas: CanvasRenderingContext2D;
   rulerElement: HTMLElement;
   rulerCanvasElement: HTMLElement;
   rulerCanvas: CanvasRenderingContext2D;
+  selectionCanvasElement: HTMLElement;
+  selectionCanvas: CanvasRenderingContext2D;
   backgroundCanvasElement: HTMLElement;
   backgroundCanvas: CanvasRenderingContext2D;
   overlayCanvasElement: HTMLElement;
   overlayCanvas: CanvasRenderingContext2D;
   markerLabelElement: HTMLElement;
   altMarkerLabelElement: HTMLElement;
-  netlistLinkElement: HTMLElement | null = null;
+  waveformsCanvasElement: HTMLElement;
+  waveformsCanvas: CanvasRenderingContext2D;
+  netlistLinkElement: HTMLElement;
+  linkText: HTMLElement;
   valueLinkObject: NetlistVariable | null = null;
 
   highlightEndEvent: MouseEvent | null    = null;
@@ -37,14 +59,13 @@ export class Viewport {
   // Scroll handler variables
   pseudoScrollLeft: number    = 0;
   viewerWidth: number         = 0;
-  viewerHeight: number        = 0;
-  waveformsHeight: number     = styles.rulerHeight;
+  rulerWidth: number          = 0;
   halfViewerWidth: number     = 0;
   maxScrollLeft: number       = 0;
-  maxScrollbarPosition: number = 0;
+  maxscrollbarPositionX: number = 0;
   scrollbarWidth: number      = 17;
-  scrollbarPosition: number   = 0;
-  scrollbarHidden: boolean    = true;
+  scrollbarPositionX: number  = 0;
+  scrollbarHiddenX: boolean   = true;
   timeScrollLeft: number      = 0;
   viewerWidthTime: number     = 0;
   timeScrollRight: number     = 0;
@@ -54,9 +75,18 @@ export class Viewport {
   displayTimeUnit: string     = 'ns';
   timeStop: number            = 0;
   timeTableCount: number      = 0;
+  // Shared drag state for whichever scrollbar is currently being dragged
+  scrollbarDragStart: number  = 0;
+  pointerDragStart: number    = 0;
 
-  scrollbarStartX: number     = 0;
-  pointerStartX: number       = 0;
+  pseudoScrollTop: number     = 0;
+  viewerHeight: number        = 0;
+  waveformsHeight: number     = 0;
+  maxScrollTop: number        = 0;
+  maxScrollbarPositionY: number = 0;
+  scrollbarHeight: number      = 17;
+  scrollbarPositionY: number   = 0;
+  scrollbarHiddenY: boolean    = true;
 
   // Zoom level variables
   zoomRatio: number           = 1;
@@ -77,69 +107,97 @@ export class Viewport {
   pixelRatio: number          = 1;
   updatePending: boolean      = false;
   scrollEventPending: boolean = false;
+  resizePending: boolean      = false;
   hoverItemRowId: RowId | null = null;
 
   constructor(
     private events: EventHandler,
   ) {
-    const scrollArea         = document.getElementById('scrollArea');
-    const contentArea        = document.getElementById('contentArea');
-    const waveformArea       = document.getElementById('waveformArea');
-    const scrollbar          = document.getElementById('scrollbar');
-    const scrollbarContainer = document.getElementById('scrollbarContainer');
-    const scrollbarCanvas    = document.getElementById('scrollbarAreaCanvas');
-    const rulerElement       = document.getElementById('ruler');
-    const rulerCanvas        = document.getElementById('rulerCanvas');
-    const markerLabelElement = document.getElementById('main-marker-label');
+    const labelsScroll        = document.getElementById('waveform-labels');
+    const valuesScroll        = document.getElementById('value-display');
+    const scrollArea          = document.getElementById('scrollArea');
+    const contentArea         = document.getElementById('contentArea');
+    const horizontalScrollbar = document.getElementById('horizontal-scrollbar-slider');
+    const ScrollbarContainerH = document.getElementById('horizontal-scrollbar');
+    const verticalScrollbar   = document.getElementById('vertical-scrollbar-slider');
+    const ScrollbarContainerV = document.getElementById('vertical-scrollbar');
+    const scrollbarCanvas     = document.getElementById('scrollbarAreaCanvas');
+    const rulerElement        = document.getElementById('ruler');
+    const rulerCanvas         = document.getElementById('rulerCanvas');
+    const markerLabelElement  = document.getElementById('main-marker-label');
     const altMarkerLabelElement = document.getElementById('alt-marker-label');
-    const backgroundCanvas   = document.getElementById('viewport-background');
-    const overlayCanvas      = document.getElementById('viewport-overlay');
+    const netlistLinkElement  = document.getElementById('netlist-link');
+    const linkText            = document.getElementById('netlist-link-text');
+    const selectionCanvas     = document.getElementById('viewport-selection');
+    const backgroundCanvas    = document.getElementById('viewport-background');
+    const waveformsCanvas     = document.getElementById('viewport-waveforms');
+    const overlayCanvas       = document.getElementById('viewport-overlay');
 
-    if (scrollArea === null || contentArea === null || scrollbar === null || 
-      scrollbarContainer === null || scrollbarCanvas === null || 
-      waveformArea === null || rulerElement === null || rulerCanvas === null ||
+    if (
+      labelsScroll === null || valuesScroll === null ||
+      scrollArea === null || contentArea === null || horizontalScrollbar === null || 
+      ScrollbarContainerH === null || verticalScrollbar === null || ScrollbarContainerV === null || scrollbarCanvas === null || 
+      rulerElement === null || rulerCanvas === null ||
       markerLabelElement === null || altMarkerLabelElement === null ||
-      backgroundCanvas === null || overlayCanvas === null) {
+      netlistLinkElement === null || linkText === null ||
+      backgroundCanvas === null || waveformsCanvas === null || 
+      overlayCanvas === null || selectionCanvas === null) {
       throw new Error('Viewport elements not found');
     }
 
     const canvasContext = (scrollbarCanvas as HTMLCanvasElement).getContext('2d');
     const rulerCanvasCtx = (rulerCanvas as HTMLCanvasElement).getContext('2d');
     const backgroundCanvasCtx = (backgroundCanvas as HTMLCanvasElement).getContext('2d');
+    const waveformsCanvasCtx = (waveformsCanvas as HTMLCanvasElement).getContext('2d');
     const overlayCanvasCtx = (overlayCanvas as HTMLCanvasElement).getContext('2d');
+    const selectionCanvasCtx = (selectionCanvas as HTMLCanvasElement).getContext('2d');
 
     if (canvasContext === null || rulerCanvasCtx === null || 
-      backgroundCanvasCtx === null || overlayCanvasCtx === null) {
+      backgroundCanvasCtx === null || overlayCanvasCtx === null ||
+      waveformsCanvasCtx === null || selectionCanvasCtx === null) {
       throw new Error('Canvas context not found');
     }
 
+    this.labelsScroll           = labelsScroll;
+    this.valuesScroll           = valuesScroll;
     this.scrollArea             = scrollArea;
     this.contentArea            = contentArea;
-    this.waveformArea           = waveformArea;
-    this.scrollbar              = scrollbar;
+    this.horizontalScrollbar    = horizontalScrollbar;
     this.markerLabelElement     = markerLabelElement;
     this.altMarkerLabelElement  = altMarkerLabelElement;
-    this.scrollbarContainer     = scrollbarContainer;
+    this.ScrollbarContainerH    = ScrollbarContainerH;
     this.scrollbarCanvasElement = scrollbarCanvas;
     this.scrollbarCanvas        = canvasContext;
+    this.verticalScrollbar      = verticalScrollbar;
+    this.ScrollbarContainerV    = ScrollbarContainerV;
     this.rulerElement           = rulerElement;
     this.rulerCanvasElement     = rulerCanvas;
     this.rulerCanvas            = rulerCanvasCtx;
+    this.selectionCanvasElement = selectionCanvas;
+    this.selectionCanvas        = selectionCanvasCtx;
+    this.netlistLinkElement     = netlistLinkElement;
+    this.linkText               = linkText;
     this.backgroundCanvasElement = backgroundCanvas;
     this.backgroundCanvas       = backgroundCanvasCtx;
+    this.waveformsCanvasElement = waveformsCanvas;
+    this.waveformsCanvas        = waveformsCanvasCtx;
     this.overlayCanvasElement   = overlayCanvas;
     this.overlayCanvas          = overlayCanvasCtx;
     this.scrollAreaBounds       = this.scrollArea.getBoundingClientRect();
 
     // click handler to handle clicking inside the waveform viewer
     // gets the absolute x position of the click relative to the scrollable content
+    const horizontalAxis = this.horizontalAxis();
+    const verticalAxis   = this.verticalAxis();
     overlayCanvas.addEventListener('mousedown',      (e) => {this.handleScrollAreaMouseDown(e);});
-    scrollbar.addEventListener('pointerdown',        (e) => {this.handleScrollbarDrag(e);});
-    scrollbarContainer.addEventListener('pointerdown', (e) => {this.handleScrollbarContainerClick(e);});
+    horizontalScrollbar.addEventListener('pointerdown', (e) => {this.handleScrollbarDrag(e, horizontalAxis);});
+    ScrollbarContainerH.addEventListener('pointerdown', (e) => {this.handleScrollbarContainerClick(e, horizontalAxis);});
+    verticalScrollbar.addEventListener('pointerdown',   (e) => {this.handleScrollbarDrag(e, verticalAxis);});
+    ScrollbarContainerV.addEventListener('pointerdown', (e) => {this.handleScrollbarContainerClick(e, verticalAxis);});
     overlayCanvas.addEventListener('contextmenu',    (e) => {this.handleContextMenu(e);});
     overlayCanvas.addEventListener("pointermove",    (e) => {this.handleMouseOver(e);});
+    linkText.addEventListener('click',               (e) => {vscodeWrapper.executeCommand("waveformViewerNetlistView.focus", []);});
 
-    this.handleScrollbarMove = this.handleScrollbarMove.bind(this);
     this.handleContextMenu = this.handleContextMenu.bind(this);
     this.updateViewportWidth = this.updateViewportWidth.bind(this);
     this.handleZoom = this.handleZoom.bind(this);
@@ -166,8 +224,11 @@ export class Viewport {
   }
 
   handleExitBatchMode() {
-    this.updateSignalOrder();
-    this.updateBackgroundCanvas(true);
+    const totalSignals = viewerState.displayedSignalsFlat.length;
+    this.netlistLinkElement.style.display = totalSignals > 0 ? 'none' : 'flex';
+    this.updateSelectionCanvas(viewerState.selectedSignal, viewerState.lastSelectedSignal);
+    this.updateWaveformsHeight();
+    this.updateBackgroundCanvas();
     this.redrawViewport();
     this.handleSignalSelect(viewerState.selectedSignal, viewerState.lastSelectedSignal);
   }
@@ -184,12 +245,12 @@ export class Viewport {
     this.pixelTime        = 1 / this.zoomRatio;
     this.maxZoomRatio     = this.zoomRatio * 256;
     this.adjustedLogTimeScale   = 0;
-    this.waveformArea.innerHTML = '';
     this.updateUnits(this.timeUnit, false);
     this.setRulerVscodeContext();
-    this.addNetlistLink();
+    this.netlistLinkElement.style.display = 'flex';
     this.updateViewportWidth();
-    this.updateScrollbarResize();
+    this.updateHorizontalScrollbar();
+    this.updateVerticalScrollbar();
     this.handleZoom(-4, 0, 0);
   }
 
@@ -232,42 +293,22 @@ export class Viewport {
     canvasElement.setAttribute("height", `${height * this.pixelRatio}`);
     canvasElement.style.width  = `${width}px`;
     canvasElement.style.height = `${height}px`;
-    ctx.scale(this.pixelRatio, this.pixelRatio);
+    ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
   }
 
   handleAddVariable(rowIdList: RowId[], updateFlag: boolean) {
+    if (this.events.isBatchMode) {return;}
     rowIdList.forEach((rowId) => {
       if (!rowHandler.rowItems[rowId]) {return;}
-      this.removeNetlistLink();
+      this.netlistLinkElement.style.display = 'none';
       const netlistData = rowHandler.rowItems[rowId];
-      netlistData.createViewportElement(rowId);
-      if (netlistData.viewportElement === null) {return;}
-      this.waveformArea.appendChild(netlistData.viewportElement);
+
       if (updateFlag) {netlistData.renderWaveform();}
     });
-    this.updateBackgroundCanvas(true);
+    this.updateWaveformsHeight();
+    this.updateSelectionCanvas(viewerState.selectedSignal, viewerState.lastSelectedSignal);
+    this.updateBackgroundCanvas();
     this.updateOverlayCanvas();
-  }
-
-  addNetlistLink() {
-    this.waveformArea.innerHTML = `
-    <div class="waveform-container" id="netlist-link">
-      <p>Add signals from the </p><p id="netlist-link-text"><u>Netlist View</u></p>
-    </div>`;
-    this.netlistLinkElement = document.getElementById('netlist-link');
-    const linkText = document.getElementById('netlist-link-text');
-    if (linkText) {
-      linkText.addEventListener('click', () => {
-        vscodeWrapper.executeCommand("waveformViewerNetlistView.focus", []);
-      });
-    }
-  }
-
-  removeNetlistLink() {
-    if (this.netlistLinkElement) {
-      this.netlistLinkElement.remove();
-      this.netlistLinkElement = null;
-    }
   }
 
   getTimeFromClick(event: MouseEvent) {
@@ -278,14 +319,12 @@ export class Viewport {
 
   getRowIdFromMouseEvent(event: MouseEvent): RowId | null {
     const eventTop   = Math.round(event.pageY - this.scrollAreaBounds.top);
-    const pageY      = eventTop + this.scrollArea.scrollTop - styles.rulerHeight;
-    let topBounds    = 0;
-    let bottomBounds = 0;
+    const pageY      = eventTop + this.pseudoScrollTop;
+
     for (const rowId of viewerState.visibleSignalsFlat) {
-      const netlistData = rowHandler.rowItems[rowId];
-      const rowHeight   = netlistData.rowHeight * styles.rowHeight;
-      topBounds    = bottomBounds;
-      bottomBounds += rowHeight;
+      const bounds = this.getRowIdBounds(rowId);
+      if (bounds === null) {continue;}
+      const [topBounds, bottomBounds] = bounds;
       if (pageY >= topBounds && pageY < bottomBounds) {
         return rowId;
       }
@@ -298,25 +337,47 @@ export class Viewport {
     return Math.max(Math.min(x, this.viewerWidth + clamp), -clamp);
   }
 
+  updateWaveformsHeight() {
+    const index  = viewerState.displayedSignalsFlat.length - 1;
+    const rowId  = viewerState.displayedSignalsFlat[index];
+    const bounds = this.getRowIdBounds(rowId);
+    if (bounds === null) {
+      this.waveformsHeight = 0;
+    } else {
+      this.waveformsHeight = bounds[1];
+    }
+    this.updateVerticalScrollbar();
+  }
+
   isInView(time: number) {
     return (time >= this.timeScrollLeft && time <= this.timeScrollRight);
+  }
+
+  getRowIdBounds(rowId: RowId): [number, number] | null {
+    const netlistData = rowHandler.rowItems[rowId];
+    if (!netlistData) {return null;}
+    const topBounds = netlistData.topBounds;
+    if (topBounds === null) {return null;}
+    const rowHeight = netlistData.rowHeight * styles.rowHeight;
+    const bottomBounds = topBounds + rowHeight;
+    return [topBounds, bottomBounds];
   }
 
   moveViewToTime(time: number) {
     const moveViewer = !(this.isInView(time));
     if (moveViewer) {
-      this.handleScrollEvent((time * this.zoomRatio) - this.halfViewerWidth);
+      this.handleScrollEvent((time * this.zoomRatio) - this.halfViewerWidth, this.pseudoScrollTop);
     }
     return moveViewer;
   }
 
   setValueLinkCursor(keyDown: boolean) {
     if (this.valueLinkObject === null) {return;}
-    if (!this.valueLinkObject.canvas)  {return;}
+
     if (this.valueLinkObject.valueLinkIndex >= 0 && keyDown) {
-      this.valueLinkObject.canvas.classList.add('waveform-link');
+      this.overlayCanvasElement.classList.add('waveform-link');
     } else {
-      this.valueLinkObject.canvas.classList.remove('waveform-link');
+      this.overlayCanvasElement.classList.remove('waveform-link');
     }
   }
 
@@ -445,54 +506,96 @@ export class Viewport {
     }
   }
 
-  updateScrollbarResize() {
+  updateHorizontalScrollbar() {
     this.scrollbarWidth        = Math.max(Math.round((this.viewerWidth ** 2) / (this.timeStop * this.zoomRatio)), 17);
-    this.maxScrollbarPosition  = Math.max(this.viewerWidth - this.scrollbarWidth, 0);
-    this.updateScrollBarPosition();
-    this.scrollbar.style.width  = this.scrollbarWidth + 'px';
-    this.scrollbar.style.height = 10 + 'px';
+    this.maxscrollbarPositionX = Math.max(this.viewerWidth - this.scrollbarWidth, 0);
+    this.updatescrollbarPositionX();
+    this.horizontalScrollbar.style.width = this.scrollbarWidth + 'px';
     this.updateScrollContainer();
   }
 
-  updateScrollBarPosition() {
-    this.scrollbarHidden         = this.maxScrollLeft === 0;
-    this.scrollbarPosition       = Math.round((this.pseudoScrollLeft / this.maxScrollLeft) * this.maxScrollbarPosition);
-    this.scrollbar.style.display = this.scrollbarHidden ? 'none' : 'block';
-    this.scrollbar.style.left    = this.scrollbarPosition + 'px';
+  updatescrollbarPositionX() {
+    this.scrollbarHiddenX         = this.maxScrollLeft === 0;
+    this.scrollbarPositionX       = Math.round((this.pseudoScrollLeft / this.maxScrollLeft) * this.maxscrollbarPositionX);
+    this.horizontalScrollbar.style.display = this.scrollbarHiddenX ? 'none' : 'block';
+    this.horizontalScrollbar.style.left    = this.scrollbarPositionX + 'px';
   }
 
-  handleScrollbarContainerClick(e: PointerEvent) {
+  updateVerticalScrollbar() {
+    this.maxScrollTop           = Math.max(this.waveformsHeight - this.viewerHeight, 0);
+    this.scrollbarHeight        = Math.max(Math.round((this.viewerHeight ** 2) / this.waveformsHeight), 17);
+    this.maxScrollbarPositionY  = Math.max(this.viewerHeight - this.scrollbarHeight, 0);
+    this.updatescrollbarPositionY();
+    this.verticalScrollbar.style.height = this.scrollbarHeight + 'px';
+  }
+
+  updatescrollbarPositionY() {
+    this.scrollbarHiddenY         = this.maxScrollTop === 0;
+    this.scrollbarPositionY       = Math.round((this.pseudoScrollTop / this.maxScrollTop) * this.maxScrollbarPositionY);
+    this.verticalScrollbar.style.display = this.scrollbarHiddenY ? 'none' : 'block';
+    this.verticalScrollbar.style.top     = this.scrollbarPositionY + 'px';
+  }
+
+  horizontalAxis(): ScrollAxis {
+    return {
+      slider:       this.horizontalScrollbar,
+      clientCoord:  (e) => e.clientX,
+      boundsOffset: () => this.scrollAreaBounds.left,
+      position:     () => this.scrollbarPositionX,
+      maxPosition:  () => this.maxscrollbarPositionX,
+      maxScroll:    () => this.maxScrollLeft,
+      size:         () => this.scrollbarWidth,
+      hidden:       () => this.scrollbarHiddenX,
+      scrollTo:     (v) => this.handleScrollEvent(v, this.pseudoScrollTop),
+    };
+  }
+
+  verticalAxis(): ScrollAxis {
+    return {
+      slider:       this.verticalScrollbar,
+      clientCoord:  (e) => e.clientY,
+      boundsOffset: () => this.scrollAreaBounds.top,
+      position:     () => this.scrollbarPositionY,
+      maxPosition:  () => this.maxScrollbarPositionY,
+      maxScroll:    () => this.maxScrollTop,
+      size:         () => this.scrollbarHeight,
+      hidden:       () => this.scrollbarHiddenY,
+      scrollTo:     (v) => this.handleScrollEvent(this.pseudoScrollLeft, v),
+    };
+  }
+
+  handleScrollbarContainerClick(e: PointerEvent, axis: ScrollAxis) {
     e.preventDefault();
-    if (this.scrollbarHidden) {return;}
-    const scrollbarX      = e.clientX - this.scrollAreaBounds.left;
-    const newPosition     = Math.min(Math.max(0, scrollbarX - (this.scrollbarWidth / 2)), this.maxScrollbarPosition);
-    const newScrollLeft   = Math.round((newPosition / this.maxScrollbarPosition) * this.maxScrollLeft);
-    this.handleScrollEvent(newScrollLeft);
+    if (axis.hidden()) {return;}
+    const coord       = axis.clientCoord(e) - axis.boundsOffset();
+    const newPosition = Math.min(Math.max(0, coord - (axis.size() / 2)), axis.maxPosition());
+    const newScroll   = Math.round((newPosition / axis.maxPosition()) * axis.maxScroll());
+    axis.scrollTo(newScroll);
 
     // roll this event into the scrollbar drag event
-    this.handleScrollbarDrag(e);
+    this.handleScrollbarDrag(e, axis);
   }
 
-  handleScrollbarDrag(event: PointerEvent) {
+  handleScrollbarDrag(event: PointerEvent, axis: ScrollAxis) {
     event.preventDefault();
     event.stopPropagation();
-    this.scrollbarStartX = this.scrollbarPosition;
-    this.pointerStartX   = event.clientX;
-    this.scrollbar.classList.add('is-dragging');
+    this.scrollbarDragStart = axis.position();
+    this.pointerDragStart   = axis.clientCoord(event);
+    axis.slider.classList.add('is-dragging');
 
     dragController.begin(event, {
       kind: 'pointer',
-      capture: this.scrollbar,
-      onMove: (e) => this.handleScrollbarMove(e),
-      onEnd:  () => this.scrollbar.classList.remove('is-dragging'),
+      capture: axis.slider,
+      onMove: (e) => this.handleScrollbarMove(e, axis),
+      onEnd:  () => axis.slider.classList.remove('is-dragging'),
     });
   }
 
-  handleScrollbarMove(e: MouseEvent | PointerEvent) {
-    const newPosition   = e.clientX - this.pointerStartX + this.scrollbarStartX;
-    const newScrollLeft = Math.round((newPosition / this.maxScrollbarPosition) * this.maxScrollLeft);
+  handleScrollbarMove(e: MouseEvent | PointerEvent, axis: ScrollAxis) {
+    const newPosition = axis.clientCoord(e) - this.pointerDragStart + this.scrollbarDragStart;
+    const newScroll   = Math.round((newPosition / axis.maxPosition()) * axis.maxScroll());
     // No need to clamp the value, because handleScrollEvent() clamps it for us
-    this.handleScrollEvent(newScrollLeft);
+    axis.scrollTo(newScroll);
   }
 
   highlightZoom(abort: boolean) {
@@ -522,7 +625,7 @@ export class Viewport {
     const elementLeft = left - this.scrollAreaBounds.left;
     ctx.fillStyle     = styles.highlightColor;
     ctx.globalAlpha   = 0.5;
-    ctx.roundRect(elementLeft, styles.rulerHeight, width, this.contentArea.clientHeight - styles.rulerHeight, 2);
+    ctx.roundRect(elementLeft, 0, width, this.waveformsHeight, 2);
     ctx.fill();
     ctx.globalAlpha   = 1;
 
@@ -548,22 +651,21 @@ export class Viewport {
     this.updateOverlayCanvas();
   }
 
-  renderAllWaveforms(skipRendered: boolean) {
+  renderAllWaveforms() {
     if (this.events.isBatchMode) {return;}
-    const viewerHeightMinusRuler = this.viewerHeight - styles.rulerHeight;
-    const scrollTop    = this.scrollArea.scrollTop;
-    const windowHeight = scrollTop + viewerHeightMinusRuler;
-    let topBounds      = 0;
-    let bottomBounds   = 0;
+
+    const scrollTop    = this.pseudoScrollTop;
+    const windowHeight = scrollTop + this.viewerHeight;
+
+    this.waveformsCanvas.clearRect(0, 0, this.viewerWidth, this.viewerHeight);
 
     viewerState.visibleSignalsFlat.forEach((rowId) => {
+      const bounds = this.getRowIdBounds(rowId);
+      if (bounds === null) {return;}
+      const [topBounds, bottomBounds] = bounds;
       const netlistData = rowHandler.rowItems[rowId];
-      const rowHeight   = netlistData.rowHeight * styles.rowHeight;
-      topBounds         = bottomBounds;
-      bottomBounds      = topBounds + rowHeight;
 
-      if (!skipRendered && netlistData.wasRendered) {return;}
-      if (bottomBounds <= scrollTop || topBounds >= windowHeight) {
+      if (bottomBounds <= scrollTop || topBounds >= windowHeight || topBounds < 0) {
         netlistData.wasRendered = false;
         return;
       }
@@ -577,34 +679,25 @@ export class Viewport {
     const netlistData = rowHandler.rowItems[rowId];
     if (!netlistData) {return;}
     this.annotateTime = netlistData.getAllEdges(valueList);
-    this.updateBackgroundCanvas(false);
-  }
-
-  updateSignalOrder() {
-    const newChildren: HTMLElement[] = [];
-    viewerState.displayedSignalsFlat.forEach((rowId, i) => {
-      const element = rowHandler.rowItems[rowId].viewportElement;
-      if (!element) {return;}
-      newChildren.push(element);
-    });
-    this.waveformArea.replaceChildren(...newChildren);
-    this.renderAllWaveforms(false);
+    this.updateBackgroundCanvas();
   }
 
   handleReorderSignals(rowIdList: number[], newGroupId: number, newIndex: number) {
     if (this.events.isBatchMode) {return;}
-    this.updateSignalOrder();
+    this.renderAllWaveforms();
+    this.updateSelectionCanvas(viewerState.selectedSignal, viewerState.lastSelectedSignal);
   }
 
   handleRemoveVariable(rowId: RowId[], recursive: boolean) {
 
-    //updateDisplayedSignalsFlat();
-    this.updateSignalOrder();
-    this.updateBackgroundCanvas(true);
+    this.updateWaveformsHeight();
+    this.renderAllWaveforms();
+    this.updateSelectionCanvas(viewerState.selectedSignal, viewerState.lastSelectedSignal);
+    this.updateBackgroundCanvas();
     this.updateOverlayCanvas();
 
-    if (this.waveformArea.children.length === 0) {
-      this.addNetlistLink();
+    if (viewerState.displayedSignalsFlat.length === 0) {
+      this.netlistLinkElement.style.display = 'flex';
     }
   }
 
@@ -652,27 +745,36 @@ export class Viewport {
   }
 
   handleSignalSelect(rowIdList: RowId[], lastSelected: RowId | null) {
+    this.updateSelectionCanvas(rowIdList, lastSelected);
+  }
 
-    viewerState.selectedSignal.forEach((rowId) => {
-      const element = document.getElementById('waveform-' + rowId);
-      if (element) {
-        element.classList.remove('is-selected');
-      }
-    });
-    if (viewerState.lastSelectedSignal !== null) {
-      const element = document.getElementById('waveform-' + viewerState.lastSelectedSignal);
-      if (element) {element.classList.remove('last-selected');}
-    }
-
+  updateSelectionCanvas(rowIdList: RowId[], lastSelected: RowId | null) {
+    const ctx = this.selectionCanvas;
+    ctx.clearRect(0, 0, this.viewerWidth, this.viewerHeight);
+    ctx.fillStyle = styles.selectionBackgroundColor;
+    ctx.strokeStyle = styles.selectionContrastBorder;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([1, 1]);
+    const yOffset = this.pseudoScrollTop;
     rowIdList.forEach((rowId) => {
-      const element = document.getElementById('waveform-' + rowId);
-      if (element) {element.classList.add('is-selected');}
+      const bounds = this.getRowIdBounds(rowId);
+      if (bounds === null) {return;}
+      const topBounds = bounds[0];
+      const screenTop = topBounds - yOffset;
+      const height    = styles.rowHeight * rowHandler.rowItems[rowId].rowHeight;
+      ctx.fillRect(0, screenTop, this.viewerWidth, height);
     });
-
-    if (lastSelected !== null) {
-      const element = document.getElementById('waveform-' + lastSelected);
-      if (element) {element.classList.add('last-selected');}
-    }
+    ctx.setLineDash([]);
+    ctx.strokeStyle = styles.selectionBorderColor;
+    if (lastSelected === null) {return;}
+    const bounds = this.getRowIdBounds(lastSelected);
+    if (bounds === null) {return;}
+    ctx.beginPath();
+    ctx.moveTo(0, bounds[0] + 0.5 - yOffset);
+    ctx.lineTo(this.viewerWidth, bounds[0] - yOffset);
+    ctx.moveTo(0, bounds[1] - 0.5 - yOffset);
+    ctx.lineTo(this.viewerWidth, bounds[1] - yOffset);
+    ctx.stroke();
   }
 
   scaleTime(time: number) {
@@ -730,11 +832,11 @@ export class Viewport {
     ctx.fillStyle = styles.rulerGuideColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.clearRect(0, 0, this.viewerWidth, styles.rulerHeight);
+    ctx.clearRect(0, 0, this.rulerWidth, styles.rulerHeight);
 
     // Draw the Ticks
     ctx.beginPath();
-    while (tickX <= this.viewerWidth) {
+    while (tickX <= this.rulerWidth) {
       ctx.arc(tickX, 30, 1, 0, twoPi);
       tickX += this.rulerTickSpacing;
     }
@@ -742,7 +844,7 @@ export class Viewport {
 
     ctx.globalAlpha = alpha;
     ctx.beginPath();
-    while (tickXalt <= this.viewerWidth) {
+    while (tickXalt <= this.rulerWidth) {
       ctx.arc(tickXalt, 30, 1, 0, twoPi);
       tickXalt += this.rulerTickSpacing;
     }
@@ -759,7 +861,7 @@ export class Viewport {
 
     this.rulerLineX = [];
     ctx.fillStyle = styles.rulerTextColor;
-    while (numberX <= this.viewerWidth + 50) {
+    while (numberX <= this.rulerWidth + 50) {
       if (this.adjustedLogTimeScale > 0) {
         valueString = (number * this.timeScale * scale).toString();
       } else {
@@ -781,17 +883,13 @@ export class Viewport {
       number += this.rulerNumberIncrement;
       setIndex += 1;
     }
-    
+
     ctx.globalAlpha = 1;
   }
 
-  updateBackgroundCanvas(updateViewportHeight: boolean) {
+  updateBackgroundCanvas() {
 
     if (this.events.isBatchMode) {return;}
-
-    if (updateViewportHeight) {
-      this.waveformsHeight = this.contentArea.getBoundingClientRect().height;
-    }
 
     const ctx = this.backgroundCanvas;
     ctx.strokeStyle = styles.rulerGuideColor;
@@ -880,7 +978,7 @@ export class Viewport {
       }
       const markerX = this.getViewportLeft(viewerState.markerTime, 100);
       ctx.beginPath();
-      ctx.moveTo(markerX, styles.rulerHeight);
+      ctx.moveTo(markerX, 0);
       ctx.lineTo(markerX, this.waveformsHeight);
       ctx.stroke();
     }
@@ -889,7 +987,7 @@ export class Viewport {
       ctx.setLineDash([6, 2, 2, 2]);
       const altMarkerX = this.getViewportLeft(viewerState.altMarkerTime, 100);
       ctx.beginPath();
-      ctx.moveTo(altMarkerX, styles.rulerHeight);
+      ctx.moveTo(altMarkerX, 0);
       ctx.lineTo(altMarkerX, this.waveformsHeight);
       ctx.stroke();
     }
@@ -943,7 +1041,7 @@ export class Viewport {
     //console.log('zoom ratio: ' + this.zoomRatio + ' base zoom: ' + baseZoom);
 
     this.updateRulerSpacing();
-    this.updateScrollbarResize();
+    this.updateHorizontalScrollbar();
     this.redrawViewport();
   }
 
@@ -961,7 +1059,7 @@ export class Viewport {
     this.defaultPixelTime = newPixelTime;
     this.updateRulerSpacing();
     this.updateRuler();
-    this.updateBackgroundCanvas(false);
+    this.updateBackgroundCanvas();
     if (updateState) {
       vscodeWrapper.sendWebviewContext(StateChangeType.User);
     }
@@ -1040,26 +1138,16 @@ export class Viewport {
     this.updatePending = true;
     this.updateMarker();
     this.updateRuler();
-    this.updateBackgroundCanvas(false);
-    this.renderAllWaveforms(true);
+    this.updateSelectionCanvas(viewerState.selectedSignal, viewerState.lastSelectedSignal);
+    this.updateBackgroundCanvas();
+    this.renderAllWaveforms();
     this.updatePending = false;
   }
 
-  updateElementHeight(rowId: RowId) {
-    const netlistData = rowHandler.rowItems[rowId];
-    if (!netlistData) {return;}
-    if (!(netlistData instanceof NetlistVariable) && !(netlistData instanceof CustomVariable)) {return;}
-    if (netlistData.viewportElement === null) {return;}
-    const element = netlistData.viewportElement;
-    const rowHeight = (netlistData.rowHeight * styles.rowHeight);
-    element.style.height = rowHeight + 'px';
-    const canvasHeight = rowHeight - (styles.rowPadding * 2);
-    if (netlistData.ctx && netlistData.canvas) {
-      this.resizeCanvas(netlistData.canvas, netlistData.ctx, this.viewerWidth, canvasHeight);
-    }
-    this.updateBackgroundCanvas(true);
-    this.renderAllWaveforms(false);
-    this.updateOverlayCanvas();
+  updateElementHeight() {
+
+    this.updateWaveformsHeight();
+    this.handleScrollEvent(this.pseudoScrollLeft, this.pseudoScrollTop);
   }
 
   handleRedrawSignal(rowId: RowId) {
@@ -1067,17 +1155,26 @@ export class Viewport {
     if (!signalItem) {return;}
     labelsPanel.valueAtMarker[rowId] = signalItem.getValueAtTime(viewerState.markerTime);
     signalItem.renderWaveform();
-    signalItem.viewportElement?.setAttribute('data-vscode-context', signalItem.vscodeContext);
   }
 
   updateViewportWidth() {
+    if (this.resizePending) { return; }
+    this.resizePending = true;
+    requestAnimationFrame(() => {
+      this.resizePending = false;
+      this._doUpdateViewportWidth();
+    });
+  }
+
+  private _doUpdateViewportWidth() {
 
     this.setPixelRatio();
-    this.scrollbarCanvasElement.setAttribute("width",  `0`);
-    this.scrollbarCanvasElement.style.width  = `0px`;
+    //this.scrollbarCanvasElement.setAttribute("width",  `0`);
+    //this.scrollbarCanvasElement.style.width  = `0px`;
     this.scrollAreaBounds = this.scrollArea.getBoundingClientRect();
-    this.viewerWidth      = this.scrollAreaBounds.width - 10;
+    this.viewerWidth      = this.scrollAreaBounds.width - styles.scrollbarWidth;
     this.viewerHeight     = this.scrollAreaBounds.height;
+    this.rulerWidth       = this.viewerWidth + styles.scrollbarWidth;
     this.halfViewerWidth  = this.viewerWidth / 2;
     this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth, 0));
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
@@ -1085,30 +1182,38 @@ export class Viewport {
     this.minZoomRatio     = this.viewerWidth / this.timeStop;
 
     // Update Ruler Canvas, Background Canvas, and Scrollbar Canvas Dimensions
-    this.resizeCanvas(this.scrollbarCanvasElement, this.scrollbarCanvas, this.viewerWidth, 10);
-    this.resizeCanvas(this.rulerCanvasElement, this.rulerCanvas, this.viewerWidth, styles.rulerHeight);
+    this.resizeCanvas(this.scrollbarCanvasElement, this.scrollbarCanvas, this.viewerWidth, styles.scrollbarHeight);
+    this.resizeCanvas(this.rulerCanvasElement, this.rulerCanvas, this.rulerWidth, styles.rulerHeight);
+    this.resizeCanvas(this.selectionCanvasElement, this.selectionCanvas, this.viewerWidth, this.viewerHeight);
     this.resizeCanvas(this.backgroundCanvasElement, this.backgroundCanvas, this.viewerWidth, this.viewerHeight);
+    this.resizeCanvas(this.waveformsCanvasElement, this.waveformsCanvas, this.viewerWidth, this.viewerHeight);
     this.resizeCanvas(this.overlayCanvasElement, this.overlayCanvas, this.viewerWidth, this.viewerHeight);
-
-    // Update Waveform Canvas Dimensions
-    rowHandler.rowItems.forEach((netlistItem) => {
-      netlistItem.resize();
-    });
 
     if (this.minZoomRatio > this.zoomRatio) {
       this.handleZoom(1, 0, 0);
     } else {
-      this.updateScrollbarResize();
-      this.handleScrollEvent(this.pseudoScrollLeft);
+      this.updateHorizontalScrollbar();
     }
+    this.handleScrollEvent(this.pseudoScrollLeft, this.pseudoScrollTop);
+    this.updateVerticalScrollbar();
   }
 
-  handleScrollEvent(newScrollLeft: number) {
+  handleScrollEvent(newScrollLeft: number, newScrollTop: number) {
     const clampedScrollLeft = Math.max(Math.min(newScrollLeft, this.maxScrollLeft), 0);
     this.pseudoScrollLeft   = clampedScrollLeft;
     this.timeScrollLeft     = this.pseudoScrollLeft * this.pixelTime;
     this.timeScrollRight    = this.timeScrollLeft + this.viewerWidthTime;
-    this.updateScrollBarPosition();
+    this.updatescrollbarPositionX();
+
+    const clampedScrollTop = Math.max(Math.min(newScrollTop, this.maxScrollTop), 0);
+    if (clampedScrollTop !== this.pseudoScrollTop) {
+      this.pseudoScrollTop = clampedScrollTop;
+      this.updateSelectionCanvas(viewerState.selectedSignal, viewerState.lastSelectedSignal);
+      this.updatescrollbarPositionY();
+      this.labelsScroll.style.top = -clampedScrollTop + 'px';
+      this.valuesScroll.style.top = -clampedScrollTop + 'px';
+      dragController.contentMoved();
+    }
 
     if (this.scrollEventPending) {return;}
     this.scrollEventPending = true;

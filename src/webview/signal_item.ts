@@ -1,6 +1,6 @@
 import { type NetlistId, type RowId, type ValueChange, EnumData, EnumEntry, NameType, VariableEncoding, CollapseState, type BitRangeSource, type SignalSeparatorContext, type NetlistVariableContext, CustomVariableContext, SignalGroupContext, SavedRowItem, SavedSignalSeparator, SavedNetlistVariable, SavedCustomVariable, SavedSignalGroup } from '../common/types';
 import { ActionType, type EventHandler } from './event_handler';
-import { dataManager, viewport, viewerState, updateDisplayedSignalsFlat, events, getRowHeightCssClass, rowHandler, vscodeWrapper, styles, config } from "./vaporview";
+import { dataManager, viewport, viewerState, events, rowHandler, vscodeWrapper, styles, config } from "./vaporview";
 import { EnumValueFormat, formatBinary, formatHex, formatString, type ValueFormat } from "./value_format";
 import { type WaveformRenderer, setRenderBounds } from "./renderer";
 import type { WaveformData } from "./data_manager";
@@ -19,6 +19,15 @@ export function htmlAttributeSafe(string: string) {
 export function isAnalogSignal(renderType: WaveformRenderer) {
   return renderType.id === 'linear' || renderType.id === 'linearSigned' ||
          renderType.id === 'stepped' || renderType.id === 'steppedSigned';
+}
+
+export function getRowHeightCssClass(height: number) {
+  switch (height) {
+    case 2:  {return "height2x";}
+    case 4:  {return "height4x";}
+    case 8:  {return "height8x";}
+    default: {return "height1x";}
+  }
 }
 
 function mouseOverHandler(event: MouseEvent, signalItem: NetlistVariable, checkBounds: boolean) {
@@ -72,6 +81,7 @@ export abstract class SignalItem {
   public wasRendered: boolean = false;
   public rowHeight: number = 1;
   public isSelected: boolean = false;
+  public topBounds: number | null = null;
   public abstract readonly rowId: RowId;
 
   public abstract createLabelElement(): string
@@ -87,7 +97,6 @@ export abstract class SignalItem {
   public handleValueLink(time: number, snapToTime: number) {return false;}
   public getAllEdges(valueList: string[]): number[] {return [];}
   public getNextEdge(time: number, direction: number, valueList: string[]): number | null {return null;}
-  public resize() {return;}
   public dispose() {return;}
 }
 
@@ -100,10 +109,10 @@ export interface RowItem {
   rowHeight: number;
   isSelected: boolean;
   netlistId?: NetlistId;
+  topBounds: number | null;
 
   createLabelElement(): string;
   createValueDisplayElement(): string;
-  createViewportElement(rowId: number): void;
   setSignalContextAttribute(): void;
   createWaveformRowContent(): string;
   getLabelText(): string;
@@ -122,7 +131,6 @@ export interface RowItem {
 
   renderWaveform(): void;
   handleValueLink(time: number, snapToTime: number): boolean;
-  resize(): void;
 
   dispose(): void;
 }
@@ -160,14 +168,6 @@ export class SignalSeparator extends SignalItem implements RowItem {
     return result;
   }
 
-  public createViewportElement(rowId: number) {
-    const waveformContainer = document.createElement('div');
-    waveformContainer.setAttribute('id', 'waveform-' + rowId);
-    waveformContainer.classList.add('waveform-container');
-    //waveformContainer.setAttribute("data-vscode-context", this.vscodeContext);
-    this.viewportElement = waveformContainer;
-  }
-
   public setSignalContextAttribute() {
     const context: SignalSeparatorContext = {
       webviewSection: "signal-separator",
@@ -199,8 +199,6 @@ export class NetlistVariable extends SignalItem implements RowItem {
   public color: string = "";
   public rowHeight: number = 1;
   public wasRendered: boolean = false;
-  public canvas: HTMLCanvasElement | null = null;
-  public ctx: CanvasRenderingContext2D | null = null;
   public verticalScale: number = 1;
   public nameType: NameType = NameType.fullPath;
   public customName: string = "";
@@ -313,25 +311,6 @@ export class NetlistVariable extends SignalItem implements RowItem {
     return `<div class="value-display-item ${selectorClass} ${height}" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}>${pElement}</div>`;
   }
 
-  public createViewportElement(rowId: number) {
-
-    const canvas = document.createElement('canvas');
-    canvas.setAttribute('id', 'waveform-canvas-' + rowId);
-    canvas.classList.add('waveform-canvas');
-    this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
-    const canvasHeight = (this.rowHeight * styles.rowHeight) - (styles.rowPadding * 2);
-    if (this.ctx) {
-      viewport.resizeCanvas(canvas, this.ctx, viewport.viewerWidth, canvasHeight);
-    }
-    const waveformContainer = document.createElement('div');
-    waveformContainer.setAttribute('id', 'waveform-' + rowId);
-    waveformContainer.classList.add('waveform-container');
-    waveformContainer.appendChild(canvas);
-    //waveformContainer.setAttribute("data-vscode-context", this.vscodeContext);
-    this.viewportElement = waveformContainer;
-  }
-
   public setSignalContextAttribute() {
     const renderType = this.renderType.id;
     const isAnalog = isAnalogSignal(this.renderType);
@@ -393,7 +372,6 @@ export class NetlistVariable extends SignalItem implements RowItem {
     const data = dataManager.valueChangeData[this.signalId];
 
     if (!data) {return;}
-    if (!this.ctx) {return;}
 
     const valueChangeChunk = setRenderBounds(this, data);
     this.renderType.draw(valueChangeChunk, this);
@@ -431,12 +409,6 @@ export class NetlistVariable extends SignalItem implements RowItem {
     if (this.signalId === undefined) {return null;}
     const data = dataManager.valueChangeData[this.signalId];
     return dataManager.getNextEdge(data, time, direction, valueList);
-  }
-
-  public resize() {
-    if (!this.canvas || !this.ctx) {return;}
-    const canvasHeight = (this.rowHeight * styles.rowHeight) - (styles.rowPadding * 2);
-    viewport.resizeCanvas(this.canvas, this.ctx, viewport.viewerWidth, canvasHeight);
   }
 
   handleValueLinkMouseOver(event: MouseEvent) {
@@ -485,9 +457,6 @@ export class NetlistVariable extends SignalItem implements RowItem {
   }
 
   public dispose() {
-    this.canvas?.remove();
-    this.canvas = null;
-    this.ctx = null;
     this.labelElement = null;
     this.valueDisplayElement = null;
     this.viewportElement = null;
@@ -504,8 +473,6 @@ export class CustomVariable extends SignalItem implements RowItem {
   public color: string = "";
   public rowHeight: number = 1;
   public wasRendered: boolean = false;
-  public canvas: HTMLCanvasElement | null = null;
-  public ctx: CanvasRenderingContext2D | null = null;
   public verticalScale: number = 1;
   public nameType: NameType = NameType.fullPath;
   public customName: string = "";
@@ -577,25 +544,6 @@ export class CustomVariable extends SignalItem implements RowItem {
       return `<div class="value-display-item ${selectorClass} ${height}" id="value-${this.rowId}" data-vscode-context=${this.vscodeContext}>${pElement}</div>`;
     }
 
-  public createViewportElement(rowId: number) {
-
-    const canvas = document.createElement('canvas');
-    canvas.setAttribute('id', 'waveform-canvas-' + rowId);
-    canvas.classList.add('waveform-canvas');
-    this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
-    const canvasHeight = (this.rowHeight * styles.rowHeight) - (styles.rowPadding * 2);
-    if (this.ctx) {
-      viewport.resizeCanvas(canvas, this.ctx, viewport.viewerWidth, canvasHeight);
-    }
-    const waveformContainer = document.createElement('div');
-    waveformContainer.setAttribute('id', 'waveform-' + rowId);
-    waveformContainer.classList.add('waveform-container');
-    waveformContainer.appendChild(canvas);
-    //waveformContainer.setAttribute("data-vscode-context", this.vscodeContext);
-    this.viewportElement = waveformContainer;
-  }
-
   public setSignalContextAttribute() {
     const renderType = this.renderType.id;
     const isAnalog = isAnalogSignal(this.renderType);
@@ -652,7 +600,6 @@ export class CustomVariable extends SignalItem implements RowItem {
     const data = dataManager.customValueChangeData[this.customSignalId];
 
     if (!data) {return;}
-    if (!this.ctx) {return;}
     const valueChangeData = data.valueChangeData;
     if (valueChangeData.length === 0) {return;}
 
@@ -694,12 +641,6 @@ export class CustomVariable extends SignalItem implements RowItem {
     return dataManager.getNextEdge(data, time, direction, valueList);
   }
 
-  public resize() {
-    if (!this.canvas || !this.ctx) {return;}
-    const canvasHeight = (this.rowHeight * styles.rowHeight) - (styles.rowPadding * 2);
-    viewport.resizeCanvas(this.canvas, this.ctx, viewport.viewerWidth, canvasHeight);
-  }
-
   //handleValueLinkMouseOver(event: MouseEvent) {
   //  mouseOverHandler(event, this, true);
   //}
@@ -709,9 +650,6 @@ export class CustomVariable extends SignalItem implements RowItem {
   //}
 
   public dispose() {
-    this.canvas?.remove();
-    this.canvas = null;
-    this.ctx = null;
     this.labelElement = null;
     this.valueDisplayElement = null;
     this.viewportElement = null;
@@ -777,14 +715,6 @@ export class SignalGroup extends SignalItem implements RowItem {
       });
     }
     return result;
-  }
-
-  public createViewportElement(rowId: number) {
-    const waveformContainer = document.createElement('div');
-    waveformContainer.setAttribute('id', 'waveform-' + rowId);
-    waveformContainer.classList.add('waveform-container');
-    //waveformContainer.setAttribute("data-vscode-context", this.vscodeContext);
-    this.viewportElement = waveformContainer;
   }
 
   public setSignalContextAttribute() {
@@ -855,28 +785,21 @@ export class SignalGroup extends SignalItem implements RowItem {
 
   public showHideViewportRows() {
     //const childRows = this.getFlattenedRowIdList(false, -1);
-    const style = this.collapseState === CollapseState.Expanded ? 'flex' : 'none';
-    let childRows: number[] = [];
-    this.children.forEach((rowId) => {
-      const childRowItem = rowHandler.rowItems[rowId];
-      if (!childRowItem) {return;}
-      childRows = childRows.concat(childRowItem.getFlattenedRowIdList(true, -1));
-    });
-    childRows.forEach((rowId) => {
-      if (rowId === this.rowId) {return;} // Skip the group row itself
-      const viewportRow = document.getElementById(`waveform-${rowId}`);
-      if (!viewportRow) {return;}
-      //console.log('style', style);
-      viewportRow.style.display = style;
-      const signalItem = rowHandler.rowItems[rowId];
-      if (signalItem instanceof NetlistVariable || signalItem instanceof CustomVariable) {
-        signalItem.wasRendered = false; // Reset rendering state for child signals
-      }
-      viewport.updateBackgroundCanvas(true);
-      viewport.updateOverlayCanvas();
-    });
-    updateDisplayedSignalsFlat();
-    viewport.renderAllWaveforms(false);
+    //let childRows: number[] = [];
+    //this.children.forEach((rowId) => {
+    //  const childRowItem = rowHandler.rowItems[rowId];
+    //  if (!childRowItem) {return;}
+    //  childRows = childRows.concat(childRowItem.getFlattenedRowIdList(true, -1));
+    //});
+    //childRows.forEach((rowId) => {
+    //  if (rowId === this.rowId) {return;} // Skip the group row itself
+    //  const signalItem = rowHandler.rowItems[rowId];
+    //  if (signalItem instanceof NetlistVariable || signalItem instanceof CustomVariable) {
+    //    signalItem.wasRendered = false; // Reset rendering state for child signals
+    //  }
+    //});
+    rowHandler.updateDisplayedSignalsFlat();
+    viewport.updateElementHeight();
   }
 
   public expand() {

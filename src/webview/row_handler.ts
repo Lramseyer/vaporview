@@ -1,7 +1,7 @@
 import { type NetlistId, SignalId, type RowId, EnumData, EnumEntry, QueueEntry, SignalQueueEntry, type EnumQueueEntry, NameType, StateChangeType, CollapseState, VariableEncoding, type BitRangeSource, type SavedRowItem, type AddVariableSignal, type SetDisplayFormatMessage, type EditSignalGroupMessage } from '../common/types';
 import { bitRangeString, createInstancePath } from '../common/functions';
 import { ActionType, type EventHandler } from './event_handler';
-import { dataManager, viewerState, getParentGroupId, updateDisplayedSignalsFlat, labelsPanel, controlBar, getIndexInGroup, getChildrenByGroupId, viewport, vscodeWrapper, styles } from './vaporview';
+import { dataManager, viewerState, getParentGroupId, labelsPanel, controlBar, getIndexInGroup, viewport, vscodeWrapper, styles } from './vaporview';
 import { NetlistVariable, type RowItem, SignalGroup, SignalSeparator, CustomVariable, isAnalogSignal } from './signal_item';
 import { BinaryWaveformRenderer, MultiBitWaveformRenderer, LinearWaveformRenderer } from './renderer';
 import type { WaveformData } from './data_manager';
@@ -74,11 +74,49 @@ export class RowHandler {
     return null;
   }
 
+  getChildrenByGroupId(groupId: number) {
+    if (groupId === 0) {
+      return viewerState.displayedSignals;
+    }
+    const groupRowId = this.groupIdTable[groupId];
+    const groupItem = this.rowItems[groupRowId];
+    if (!(groupItem instanceof SignalGroup)) {
+      return [];
+    }
+    return groupItem.children;
+  }
+
   getRowIdsFromNetlistId(netlistId: NetlistId): RowId[] {
     return viewerState.displayedSignalsFlat.filter((rowId) => {
       const data = this.rowItems[rowId];
       if (!(data instanceof NetlistVariable)) {return false;}
       return data.netlistId === netlistId;
+    });
+  }
+
+  updateDisplayedSignalsFlat() {
+    viewerState.displayedSignalsFlat = [];
+    viewerState.visibleSignalsFlat = [];
+    viewerState.displayedSignals.forEach((rowId) => {
+      const signalItem = this.rowItems[rowId];
+      viewerState.displayedSignalsFlat = viewerState.displayedSignalsFlat.concat(signalItem.getFlattenedRowIdList(false, -1));
+      viewerState.visibleSignalsFlat = viewerState.visibleSignalsFlat.concat(signalItem.getFlattenedRowIdList(true, -1));
+    });
+    this.updateBounds();
+  }
+
+  updateBounds() {
+    viewerState.displayedSignalsFlat.forEach((rowId) => {
+      this.rowItems[rowId].topBounds = null;
+    });
+    let topBounds      = 0;
+    let bottomBounds   = 0;
+    viewerState.visibleSignalsFlat.forEach((rowId) => {
+      const rowItem     = this.rowItems[rowId];
+      const rowHeight   = rowItem.rowHeight * styles.rowHeight;
+      topBounds         = bottomBounds;
+      bottomBounds      = topBounds + rowHeight;
+      rowItem.topBounds = topBounds;
     });
   }
 
@@ -164,7 +202,7 @@ export class RowHandler {
 
     dataManager.requestData(signalIdList, enumTableList);
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowIdList);
-    updateDisplayedSignalsFlat();
+    this.updateDisplayedSignalsFlat();
     this.events.addVariable(rowIdList, updateFlag);
 
     let reorder = false;
@@ -238,7 +276,7 @@ export class RowHandler {
         targetRowId = viewerState.selectedSignal[0];
       }
       parentGroupId = getParentGroupId(targetRowId) || 0;
-      const parentGroupChildren = getChildrenByGroupId(parentGroupId);
+      const parentGroupChildren = this.getChildrenByGroupId(parentGroupId);
       if (targetRowId !== undefined) {
         index = parentGroupChildren.indexOf(targetRowId);
       }
@@ -261,7 +299,7 @@ export class RowHandler {
     this.groupIdTable[groupId] = rowId;
     this.rowItems[rowId] = groupItem;
 
-    updateDisplayedSignalsFlat();
+    this.updateDisplayedSignalsFlat();
     this.events.addVariable([rowId], false);
 
     let moveValid = true;
@@ -304,7 +342,7 @@ export class RowHandler {
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowId);
     const separatorItem = new SignalSeparator(rowId, name || "---");
     this.rowItems[rowId] = separatorItem;
-    updateDisplayedSignalsFlat();
+    this.updateDisplayedSignalsFlat();
     this.events.addVariable([rowId], false);
 
     let reorder = false;
@@ -312,7 +350,7 @@ export class RowHandler {
     const parentGroup = this.getGroupByIdOrName(groupPath, parentGroupId);
     if (eventRowId !== undefined) {
       parentGroupId = getParentGroupId(eventRowId) || 0;
-      const parentGroupChildren = getChildrenByGroupId(parentGroupId);
+      const parentGroupChildren = this.getChildrenByGroupId(parentGroupId);
       index = parentGroupChildren.indexOf(eventRowId) + 1;
       reorder = true;
     } else if (parentGroup !== null) {
@@ -405,7 +443,7 @@ export class RowHandler {
     }
 
     viewerState.displayedSignals = viewerState.displayedSignals.concat(rowId);
-    updateDisplayedSignalsFlat();
+    this.updateDisplayedSignalsFlat();
     this.events.addVariable([rowId], false);
 
     let reorder = false;
@@ -417,7 +455,7 @@ export class RowHandler {
       reorder = true;
     } else if (eventRowId !== undefined) {
       parentGroupId = getParentGroupId(eventRowId) || 0;
-      const parentGroupChildren = getChildrenByGroupId(parentGroupId);
+      const parentGroupChildren = this.getChildrenByGroupId(parentGroupId);
       index = parentGroupChildren.indexOf(eventRowId) + 1;
       reorder = true;
     }
@@ -487,7 +525,8 @@ export class RowHandler {
         labelsPanel.cancelRename();
         this.addSignalList(signal.children, groupId);
         if (signal.collapseState === CollapseState.Collapsed && groupItem instanceof SignalGroup) {
-          groupItem.collapse();
+          //groupItem.collapse();
+          groupItem.collapseState = signal.collapseState;
         }
       } else if (signal.dataType === 'signal-separator') {
         this.addSeparator(signal.label, undefined, parentGroupId, undefined, false);
@@ -720,7 +759,7 @@ export class RowHandler {
       delete this.rowItems[id];
     });
 
-    updateDisplayedSignalsFlat();
+    this.updateDisplayedSignalsFlat();
     if (viewerState.displayedSignalsFlat.length === 0) {
       this.flushRowCache(false);
     }
@@ -789,7 +828,7 @@ export class RowHandler {
 
   findGroupIdByName(name: string, parentGroupId: number): number {
     let result = -1;
-    const children = getChildrenByGroupId(parentGroupId);
+    const children = this.getChildrenByGroupId(parentGroupId);
     children.forEach((rowId) => {
       const rowItem = this.rowItems[rowId];
       if (rowItem instanceof SignalGroup && rowItem.label === name) {result = rowItem.groupId;}
@@ -845,7 +884,7 @@ export class RowHandler {
     let dropIndex = newIndex;
     const groupRowId = this.groupIdTable[newGroupId];
     const filteredRowIdList = this.removeChildrenFromSignalList(rowIdList);
-    const newGroupChildren = getChildrenByGroupId(newGroupId);
+    const newGroupChildren = this.getChildrenByGroupId(newGroupId);
 
     // Prevent moving a group into itself or one of its children
     let abort = false;
@@ -861,7 +900,7 @@ export class RowHandler {
     filteredRowIdList.forEach((rowId, i) => {
 
       const oldGroupId = getParentGroupId(rowId) || 0;
-      const oldGroupChildren = getChildrenByGroupId(oldGroupId);
+      const oldGroupChildren = this.getChildrenByGroupId(oldGroupId);
       const oldIndex = oldGroupChildren.indexOf(rowId);
       oldGroupChildren.splice(oldIndex, 1);
 
@@ -875,7 +914,7 @@ export class RowHandler {
       newGroupChildren.splice(dropIndex + i, 0, rowId);
     });
 
-    updateDisplayedSignalsFlat();
+    this.updateDisplayedSignalsFlat();
     //console.log(filteredRowIdList);
   }
 
@@ -899,6 +938,7 @@ export class RowHandler {
     if (!(netlistData instanceof NetlistVariable) && !(netlistData instanceof CustomVariable)) {return;}
 
     let updateAllSelected = false;
+    let updateViewport = false;
     let updateSelected = false;
     let rowIdList = [rowId];
     let redrawList = [rowId];
@@ -913,8 +953,12 @@ export class RowHandler {
       // Row height
       if (message.rowHeight !== undefined) {
         data.rowHeight = message.rowHeight;
-        viewport.updateElementHeight(rId);
-        updateAllSelected = true;
+        if (!this.events.isBatchMode) {
+          this.updateBounds();
+          viewport.updateElementHeight();
+          updateViewport = true;
+          updateAllSelected = true;
+        }
       }
 
       if (!(data instanceof NetlistVariable) && !(data instanceof CustomVariable)) {return;}
@@ -977,7 +1021,7 @@ export class RowHandler {
     // Edge guides
     if (message.annotateValue !== undefined) {
       viewport.annotateWaveform(rowId, message.annotateValue);
-      viewport.updateBackgroundCanvas(false);
+      viewport.updateBackgroundCanvas();
       viewport.updateOverlayCanvas();
     }
 
@@ -985,7 +1029,11 @@ export class RowHandler {
     vscodeWrapper.sendWebviewContext(StateChangeType.User);
     netlistData.setSignalContextAttribute();
 
-    if (updateAllSelected && updateSelected) {redrawList = viewerState.selectedSignal;}
+    if (this.events.isBatchMode) {return;}
+
+    if (updateViewport) {
+      viewport.redrawViewport();
+    } else if (updateAllSelected && updateSelected) {redrawList = viewerState.selectedSignal;}
     redrawList.forEach((rId) => {
       this.events.redrawVariable(rId);
     });

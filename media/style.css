@@ -1,7 +1,9 @@
 :root {
-  --waveform-height: 28px;
-  --waveform-padding: 4px;
-  --ruler-height:    36px;
+  --waveform-height:  28px;
+  --waveform-padding:  4px;
+  --ruler-height:     36px;
+  --scrollbar-width:  14px;
+  --scrollbar-height: 12px;
 }
 
 .height1x {
@@ -38,7 +40,7 @@ body {
   display: grid;
   height: 100%;
 
-  grid-template-rows:  32px auto 10px;
+  grid-template-rows: 32px var(--ruler-height) auto;
   grid-template-columns: 150px 50px auto;
   overflow: hidden;
 }
@@ -307,197 +309,16 @@ body {
   display: none;
 }
 
+.ruler-spacer {
+
+  background-color: var(--vscode-editor-background);
+  z-index:    9;
+}
+
 .child-group {
   margin-left: 8px;
   border-left: 1px solid var(--vscode-editorIndentGuide-background1);
   padding-left: 4px;
-}
-
-#waveform-labels-container {
-  position: relative;
-  grid-column-start: 1;
-  grid-column-end: 2;
-  grid-row-start: 2;
-  grid-row-end: 4;
-  overflow: hidden;
-}
-
-#waveform-labels-spacer {
-  display: flex;
-  flex-direction: row;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-.resize-bar {
-  border-left: 1px solid var(--vscode-editorIndentGuide-background1);
-  animation-duration: 100ms;
-  position: absolute;
-  height: 100%;
-  z-index: 35;
-  width: 4px;
-}
-
-#resize-1 {
-  left: 150px;
-}
-
-#value-display-container {
-  position: relative;
-  grid-column-start: 2;
-  grid-column-end: 3;
-  grid-row-start: 2;
-  grid-row-end: 4;
-  color: var(--vscode-debugTokenExpression-number);
-  overflow: hidden;
-}
-
-#resize-2 {
-  left: 200px;
-}
-
-@keyframes highlight-resize-bar {
-  0% {
-    border-left: 1px solid var(--vscode-editorIndentGuide-background1);
-  }
-  100% {
-    border-left: 4px solid var(--vscode-sash-hoverBorder);
-  }
-}
-
-.resize-bar.is-idle:hover {
-  animation-delay: 500ms;
-  animation-iteration-count: 1;
-  animation: highlight-resize-bar 100ms forwards;
-  cursor: w-resize;
-}
-
-.is-resizing {
-  cursor: w-resize;
-  border-left: 4px solid var(--vscode-sash-hoverBorder);
-}
-
-/* Viewport */
-
-#scrollArea {
-  position: relative;
-  overflow-x: hidden;
-  overflow-y: scroll;
-  grid-column-start: 3;
-  grid-row-start: 2;
-  grid-row-end: 4;
-  margin-left: 1px;
-}
-
-#viewport-background {
-  position: fixed;
-  width: 100%;
-  height: 100%;
-  /*background-color: var(--vscode-editor-background);*/
-  z-index: 1;
-}
-
-#viewport-overlay {
-  position: fixed;
-  width: 100%;
-  height: 100%;
-  z-index: 5;
-}
-
-#scrollbarContainer {
-  position: relative;
-  grid-column-start: 3;
-  grid-row-start: 3;
-  margin-left: 1px;
-  z-index: 100;
-}
-
-#scrollbarAreaCanvas {
-  display: block;
-}
-
-#displayedContent {
-  display: inherit;
-}
-
-#contentArea {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  flex-wrap: nowrap;
-  min-width: fit-content;
-  height: fit-content;
-}
-
-#contentArea:focus-visible {
-  outline: none;
-}
-
-#netlist-link {
-  user-select: none;
-  white-space: pre;
-  color: var(--vscode-foreground);
-  font-family: var(--vscode-font-family);
-  font-size: var(--vscode-font-size);
-  padding: 0px 8px 0px 8px;
-  z-index: 50;
-}
-
-#netlist-link-text {
-  color: var(--vscode-textLink-foreground);
-  text-decoration: none;
-  cursor: pointer;
-}
-
-#scrollbar {
-  position: absolute;
-  bottom : 0px;
-  left: 0px;
-
-  height: 10px;
-  width: 17px;
-  background-color: var(--vscode-scrollbarSlider-background);
-}
-
-#scrollbar:hover {
-  background-color: var(--vscode-scrollbarSlider-hoverBackground);
-}
-
-#scrollbar.is-dragging {
-  background-color: var(--vscode-scrollbarSlider-activeBackground);
-}
-
-#time-ruler {
-  display: flex;
-  align-items: center;
-  border-top: 1px solid #ddd;
-  padding-top: 5px;
-  height: 50px;
-}
-
-#waveform-labels {
-  color: var(--vscode-textLink-foreground);
-  position: relative;
-}
-
-.missing-signal {
-  color: var(--vscode-list-errorForeground);
-}
-
-.waveform-row {
-  /*min-height:  var(--waveform-height);
-  max-height:  var(--waveform-height);*/
-  display:         flex;
-  align-items:     center;
-  justify-content: right;
-  padding-right:   4px;
-  box-sizing: border-box;
-  -webkit-box-sizing: border-box;
-  font-size:       var(--vscode-editor-font-size);
-  font-family:     var(--vscode-editor-font-family);
-  position:        relative;
-  user-select:     none;
-  overflow:        hidden;
 }
 
 #drag-divider {
@@ -598,22 +419,248 @@ body {
   white-space:     nowrap;
 }
 
-.ruler-spacer {
-  min-height: var(--ruler-height);
-  position:   sticky;
-  top:        0;
-  background-color: var(--vscode-editor-background);
-  z-index:    9;
+#waveform-labels-container {
+  position: relative;
+  grid-column-start: 1;
+  grid-column-end: 2;
+  grid-row-start: 3;
+  grid-row-end: 4;
+  overflow: hidden;
+}
+
+#waveform-labels-spacer {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+  grid-column-start: 1;
+  grid-column-end: 2;
+  grid-row-start: 2;
+  grid-row-end: 3;
+}
+
+#value-display-spacer {
+  grid-column-start: 2;
+  grid-column-end: 3;
+  grid-row-start: 2;
+  grid-row-end: 3;
+}
+
+.resize-bar {
+  border-left: 1px solid var(--vscode-editorIndentGuide-background1);
+  animation-duration: 100ms;
+  position: absolute;
+  height: 100%;
+  z-index: 35;
+  width: 4px;
+}
+
+#resize-1 {
+  left: 150px;
+}
+
+#value-display {
+  position: relative;
+}
+
+#value-display-container {
+  position: relative;
+  grid-column-start: 2;
+  grid-column-end: 3;
+  grid-row-start: 3;
+  grid-row-end: 4;
+  color: var(--vscode-debugTokenExpression-number);
+  overflow: hidden;
+}
+
+#resize-2 {
+  left: 200px;
+}
+
+@keyframes highlight-resize-bar {
+  0% {
+    border-left: 1px solid var(--vscode-editorIndentGuide-background1);
+  }
+  100% {
+    border-left: 4px solid var(--vscode-sash-hoverBorder);
+  }
+}
+
+.resize-bar.is-idle:hover {
+  animation-delay: 500ms;
+  animation-iteration-count: 1;
+  animation: highlight-resize-bar 100ms forwards;
+  cursor: w-resize;
+}
+
+.is-resizing {
+  cursor: w-resize;
+  border-left: 4px solid var(--vscode-sash-hoverBorder);
+}
+
+/* Viewport */
+
+#scrollArea {
+  position: relative;
+  overflow: hidden;
+  grid-column-start: 3;
+  grid-row-start: 3;
+  grid-row-end: 4;
+  margin-left: 1px;
+  display: grid;
+
+  grid-template-rows: auto var(--scrollbar-height);
+  grid-template-columns: auto var(--scrollbar-width);
 }
 
 #ruler {
   height: var(--ruler-height);
   z-index: 30;
-  position: sticky;
-  top: 0;
-  background: var(--vscode-editor-background);
+  position: relative;
   max-height: var(--ruler-height);
   overflow: hidden;
+
+  grid-column-start: 3;
+  grid-column-end: 4;
+  grid-row-start: 2;
+  grid-row-end: 3;
+}
+
+#viewport-selection {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  /*background-color: var(--vscode-editor-background);*/
+  z-index: -1;
+}
+
+#viewport-background {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  /*background-color: var(--vscode-editor-background);*/
+  z-index: 1;
+}
+
+#viewport-waveforms {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+}
+
+#viewport-overlay {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+}
+
+#contentArea {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+
+  grid-column-start: 1;
+  grid-column-end: 2;
+  grid-row-start: 1;
+  grid-row-end: 3;
+}
+
+#contentArea:focus-visible {
+  outline: none;
+}
+
+#netlist-link {
+  user-select: none;
+  white-space: pre;
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  padding: 0px 8px 0px 8px;
+  z-index: 150;
+  display: none;
+}
+
+#netlist-link-text {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+#horizontal-scrollbar {
+  position: relative;
+  grid-column-start: 1;
+  grid-row-start: 2;
+  margin-left: 1px;
+  z-index: 100;
+}
+
+#scrollbarAreaCanvas {
+  display: block;
+}
+
+#horizontal-scrollbar-slider {
+  position: absolute;
+  bottom : 0px;
+  left: 0px;
+
+  height: var(--scrollbar-height);
+  width: 17px;
+}
+
+#vertical-scrollbar {
+  position: relative;
+  grid-column-start: 2;
+  grid-row-start: 1;
+  grid-row-end: 3;
+  z-index: 100;
+}
+
+#vertical-scrollbar-slider {
+  position: absolute;
+  top : 0px;
+  left: 0px;
+
+  height: 17px;
+  width: var(--scrollbar-width);
+}
+
+.scrollbar {
+  background-color: var(--vscode-scrollbarSlider-background);
+}
+
+.scrollbar:hover {
+  background-color: var(--vscode-scrollbarSlider-hoverBackground);
+}
+
+.scrollbar.is-dragging {
+  background-color: var(--vscode-scrollbarSlider-activeBackground);
+}
+
+#waveform-labels {
+  color: var(--vscode-textLink-foreground);
+  position: relative;
+}
+
+.missing-signal {
+  color: var(--vscode-list-errorForeground);
+}
+
+.waveform-row {
+  /*min-height:  var(--waveform-height);
+  max-height:  var(--waveform-height);*/
+  display:         flex;
+  align-items:     center;
+  justify-content: right;
+  padding-right:   4px;
+  box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  font-size:       var(--vscode-editor-font-size);
+  font-family:     var(--vscode-editor-font-family);
+  position:        relative;
+  user-select:     none;
+  overflow:        hidden;
 }
 
 .waveform-container {
@@ -631,6 +678,8 @@ body {
 .waveform-link {
   cursor: pointer;
 }
+
+/* Selection styles */
 
 .last-selected {
   border-top: 1px solid var(--vscode-focusBorder) !important;

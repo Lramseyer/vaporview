@@ -1,23 +1,12 @@
-import { type NetlistId, SignalId, type RowId, StateChangeType, type DocumentId, SavedNetlistVariable, SavedSignalSeparator, SavedSignalGroup, CollapseState, SavedCustomVariable, DefaultWebviewContext, SavedRowItem, InitMessage, WebviewStateEvent } from '../common/types';
-import { ActionType, EventHandler, DragController } from './event_handler';
+import { type RowId, StateChangeType, type DocumentId, CollapseState, DefaultWebviewContext, SavedRowItem, InitMessage, WebviewStateEvent } from '../common/types';
+import { EventHandler, DragController } from './event_handler';
 import { Viewport } from './viewport';
 import { LabelsPanels } from './labels';
 import { ControlBar } from './control_bar';
 import { RowHandler } from './row_handler';
 import { WaveformDataManager } from './data_manager';
-import { NetlistVariable, CustomVariable, SignalGroup, SignalSeparator, type RowItem } from './signal_item';
-import { copyWaveDrom } from './wavedrom';
+import { NetlistVariable, SignalGroup, type RowItem } from './signal_item';
 import { Configuration, OS, ThemeColors, VscodeWrapper } from './vscode_wrapper';
-
-export enum DataType {
-  None,
-  Variable,
-  Custom,
-  Group,
-  Separator
-}
-
-let resizeDebounce: ReturnType<typeof setTimeout> | number = 0;
 
 export class ViewerState {
   uri: string | null                 = null;
@@ -34,16 +23,6 @@ export class ViewerState {
   autoReload: boolean                = false;
 }
 export const viewerState: ViewerState = new ViewerState();
-
-export function updateDisplayedSignalsFlat() {
-  viewerState.displayedSignalsFlat = [];
-  viewerState.visibleSignalsFlat = [];
-  viewerState.displayedSignals.forEach((rowId) => {
-    const signalItem = rowHandler.rowItems[rowId];
-    viewerState.displayedSignalsFlat = viewerState.displayedSignalsFlat.concat(signalItem.getFlattenedRowIdList(false, -1));
-    viewerState.visibleSignalsFlat = viewerState.visibleSignalsFlat.concat(signalItem.getFlattenedRowIdList(true, -1));
-  });
-}
 
 export function getParentGroupId(rowId: RowId | null): number | null {
   if (rowId === null) {return null;}
@@ -86,18 +65,6 @@ export function getIndexInGroup(rowId: RowId, groupId: number | null) {
   return groupItem.children.indexOf(rowId);
 }
 
-export function getChildrenByGroupId(groupId: number) {
-  if (groupId === 0) {
-    return viewerState.displayedSignals;
-  }
-  const groupRowId = rowHandler.groupIdTable[groupId];
-  const groupItem = rowHandler.rowItems[groupRowId];
-  if (!(groupItem instanceof SignalGroup)) {
-    return [];
-  }
-  return groupItem.children;
-}
-
 export function revealSignal(rowId: RowId) {
   if (rowId === null) {return;}
 
@@ -113,21 +80,19 @@ export function revealSignal(rowId: RowId) {
     }
   });
 
-  const labelElement = document.getElementById(`label-${rowId}`);
-  const labelsPanel  = vaporview.labelsScroll;
-  if (!labelElement) {return;}
-  const labelBounds  = labelElement.getBoundingClientRect();
-  const windowBounds = labelsPanel.getBoundingClientRect();
-  let newScrollTop   = labelsPanel.scrollTop;
+  const labelBounds = viewport.getRowIdBounds(rowId);
+  if (labelBounds === null) {return;}
+  const scrollTop  = viewport.pseudoScrollTop;
+  let newScrollTop = scrollTop;
 
-  if (labelBounds.top < windowBounds.top + styles.rulerHeight) {
-    newScrollTop = Math.max(0, labelsPanel.scrollTop + (labelBounds.top - (windowBounds.top + styles.rulerHeight)));
-  } else if (labelBounds.bottom > windowBounds.bottom) {
-    newScrollTop = Math.min(labelsPanel.scrollHeight - labelsPanel.clientHeight, labelsPanel.scrollTop + (labelBounds.bottom - windowBounds.bottom) + styles.rowHeight);
+  if (labelBounds[0] - scrollTop < 0) {
+    newScrollTop = Math.max(0, labelBounds[0]);
+  } else if (labelBounds[1] - scrollTop > viewport.viewerHeight) {
+    newScrollTop = Math.min(viewport.maxScrollTop, labelBounds[1] - (viewport.viewerHeight));
   }
 
-  if (newScrollTop !== labelsPanel.scrollTop) {
-    vaporview.syncVerticalScroll({deltaY: 0}, newScrollTop);
+  if (newScrollTop !== viewport.pseudoScrollTop) {
+    viewport.handleScrollEvent(viewport.pseudoScrollLeft, newScrollTop);
   }
 }
 
@@ -152,15 +117,6 @@ export function handleClickSelection(event: MouseEvent, rowId: RowId) {
   events.signalSelect(newSelection, rowId);
   //console.log('handleClickSelection');
   vscodeWrapper.sendWebviewContext(StateChangeType.User);
-}
-
-export function getRowHeightCssClass(height: number) {
-  switch (height) {
-    case 2:  {return "height2x";}
-    case 4:  {return "height4x";}
-    case 8:  {return "height8x";}
-    default: {return "height1x";}
-  }
 }
 
 // ----------------------------------------------------------------------------
@@ -191,9 +147,9 @@ export function createWebviewContext(): WebviewStateEvent {
     selectedSignal: selectedNetlistId,
     selectedSignalCount: viewerState.selectedSignal.length,
     transitionCount: dataManager.getTransitionCount(),
-    zoomRatio: vaporview.viewport.zoomRatio,
+    zoomRatio: viewport.zoomRatio,
     defaultPixelTime: viewport.defaultPixelTime * 100,
-    scrollLeft: Math.round(vaporview.viewport.timeScrollLeft),
+    scrollLeft: Math.round(viewport.timeScrollLeft),
     autoReload: viewerState.autoReload,
     displayedSignals: signalList,
   };
@@ -201,64 +157,27 @@ export function createWebviewContext(): WebviewStateEvent {
 
 class VaporviewWebview {
 
-  // HTML Elements
-  labelsScroll: HTMLElement;
-  valuesScroll: HTMLElement;
-  scrollArea: HTMLElement;
-
-  // Components
-  viewport: Viewport;
-  controlBar: ControlBar;
-
-  // event handler variables
-  events: EventHandler;
-
   lastIsTouchpad: boolean = false;
   touchpadCheckTimer: number = 0;
 
-  constructor(
-    events: EventHandler, 
-    viewport: Viewport, 
-    controlBar: ControlBar
-  ) {
+  constructor(private events: EventHandler) {
 
-    this.events     = events;
-    this.viewport   = viewport;
-    this.controlBar = controlBar;
-    // Assuming you have a reference to the webview element
-    const webview       = document.getElementById('vaporview-top');
-    const labelsScroll  = document.getElementById('waveform-labels-container');
-    const valuesScroll  = document.getElementById('value-display-container');
-    const scrollArea    = document.getElementById('scrollArea');
-    const scrollbar     = document.getElementById('scrollbar');
+    const labelsScroll = document.getElementById('waveform-labels');
+    const valuesScroll = document.getElementById('value-display');
+    const scrollArea   = document.getElementById('scrollArea');
 
-    if (webview === null || labelsScroll === null || valuesScroll === null ||
-      scrollArea === null || scrollbar === null) {
+    if (labelsScroll === null || valuesScroll === null || scrollArea === null) {
       throw new Error("Could not find all required elements");
     }
 
-    this.labelsScroll = labelsScroll;
-    this.valuesScroll = valuesScroll;
-    this.scrollArea   = scrollArea;
-
-    webview.style.gridTemplateColumns = `150px 50px auto`;
-
-    // #region Primitive Handlers
-    window.addEventListener('message', (e) => {vscodeWrapper.handleMessage(e);});
-    window.addEventListener('keydown', (e) => {this.keyDownHandler(e);});
-    window.addEventListener('keyup',   (e) => {this.keyUpHandler(e);});
-    window.addEventListener('resize',  ()  => {this.handleResizeViewer();}, false);
-    window.addEventListener('blur',    ()  => {this.handleFocusBlur(false);});
-    window.addEventListener('focus',   ()  => {this.handleFocusBlur(true);});
-    this.scrollArea.addEventListener(  'wheel', (e) => {this.scrollHandler(e);});
-    this.scrollArea.addEventListener(  'scroll', () => {this.handleViewportScroll();});
-    this.labelsScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, labelsScroll.scrollTop);});
-    this.valuesScroll.addEventListener('wheel', (e) => {this.syncVerticalScroll(e, valuesScroll.scrollTop);});
-    webview.addEventListener('dragover', (e) => {labelsPanel.dragMoveExternal(e);});
-    webview.addEventListener('drop', (e) => {vscodeWrapper.handleDrop(e);});
-
-    this.handleSignalSelect = this.handleSignalSelect.bind(this);
-    this.events.subscribe(ActionType.SignalSelect, this.handleSignalSelect);
+    window.addEventListener('keydown',     (e) => {this.keyDownHandler(e);});
+    window.addEventListener('keyup',       (e) => {this.keyUpHandler(e);});
+    window.addEventListener('resize',      ()  => {events.resize();}, false);
+    scrollArea.addEventListener('wheel',   (e) => {this.scrollHandler(e);});
+    labelsScroll.addEventListener('wheel', (e) => {viewport.handleScrollEvent(viewport.pseudoScrollLeft, viewport.pseudoScrollTop + e.deltaY);});
+    valuesScroll.addEventListener('wheel', (e) => {viewport.handleScrollEvent(viewport.pseudoScrollLeft, viewport.pseudoScrollTop + e.deltaY);});
+    document.addEventListener('dragover',  (e) => {labelsPanel.dragMoveExternal(e);});
+    document.addEventListener('drop',      (e) => {vscodeWrapper.handleDrop(e);});
   }
 
   // Function to test whether or not the user is using a touchpad
@@ -301,16 +220,17 @@ class VaporviewWebview {
 
     if (e.shiftKey) {
       e.stopPropagation();
-      this.scrollArea.scrollTop      += deltaY || deltaX;
-      this.labelsScroll.scrollTop     = this.scrollArea.scrollTop;
-      this.valuesScroll.scrollTop = this.scrollArea.scrollTop;
+      const delta = deltaY || deltaX;
+      const newScrollTop = viewport.pseudoScrollTop + delta;
+      viewport.handleScrollEvent(viewport.pseudoScrollLeft, newScrollTop);
+
     } else if (e.ctrlKey || (e.metaKey && config.os === OS.Mac)) {
-      if      (this.viewport.updatePending) {return;}
+      if      (viewport.updatePending) {return;}
       // Touchpad mode detection returns false positives with pinches, so we
       // just clamp the deltaY value to prevent zooming in/out too fast
       const bounds      = viewport.scrollAreaBounds;
       const pixelLeft   = Math.round(e.pageX - bounds.left);
-      const time        = Math.round((pixelLeft + this.viewport.pseudoScrollLeft) * this.viewport.pixelTime);
+      const time        = Math.round((pixelLeft + viewport.pseudoScrollLeft) * viewport.pixelTime);
       const zoomOffset  = Math.min(touchpadPinchDivider, Math.max(-touchpadPinchDivider, deltaY));
 
       //if (deltaY !== zoomOffset) {console.log('deltaY: ' + deltaY + '; zoomOffset: ' + zoomOffset);}
@@ -325,24 +245,21 @@ class VaporviewWebview {
 
     } else {
       //if (isTouchpad) {
-      //  this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + e.deltaX);
+      //  viewport.handleScrollEvent(viewport.pseudoScrollLeft + e.deltaX);
       //  this.scrollArea.scrollTop       += e.deltaY;
       //  this.labelsScroll.scrollTop      = this.scrollArea.scrollTop;
       //  this.valuesScroll.scrollTop  = this.scrollArea.scrollTop;
       //} else {
-      //  this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + deltaY);
+      //  viewport.handleScrollEvent(viewport.pseudoScrollLeft + deltaY);
       //}
 
       const isTouchpad = config.autoTouchpadScrolling ? this.isTouchpad(e) : config.touchpadScrolling;
       this.touchpadCheckTimer = performance.now() + 100;
 
       if (e.deltaX !== 0 || isTouchpad) {
-        this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + deltaX);
-        this.scrollArea.scrollTop  += e.deltaY;
-        this.labelsScroll.scrollTop = this.scrollArea.scrollTop;
-        this.valuesScroll.scrollTop = this.scrollArea.scrollTop;
+        viewport.handleScrollEvent(viewport.pseudoScrollLeft + deltaX, viewport.pseudoScrollTop + e.deltaY);
       } else {
-        this.viewport.handleScrollEvent(this.viewport.pseudoScrollLeft + deltaY);
+        viewport.handleScrollEvent(viewport.pseudoScrollLeft + deltaY, viewport.pseudoScrollTop);
       }
     }
   }
@@ -356,7 +273,7 @@ class VaporviewWebview {
 
     // debug handler to print the data cache
     if (e.key === 'd' && e.ctrlKey) {
-      console.log(this.viewport.updatePending);
+      console.log(viewport.updatePending);
       console.log(viewerState);
       console.log(rowHandler.rowItems);
     }
@@ -371,7 +288,7 @@ class VaporviewWebview {
 
     if ((e.key === 'ArrowRight') && (viewerState.markerTime !== null)) {
    
-      if      (e.metaKey) {this.events.markerSet(this.viewport.timeStop, 0, false); updateState = true;}
+      if      (e.metaKey) {this.events.markerSet(viewport.timeStop, 0, false); updateState = true;}
       else if (e.ctrlKey) {/* Do nothing */}
       else if (e.altKey)  {controlBar.goToNextTransition(1, 1, []);}
       else                {controlBar.goToNextTransition(0, 1, []);}
@@ -401,7 +318,7 @@ class VaporviewWebview {
 
     // handle Home and End keys to move to the start and end of the waveform
     else if (e.key === 'Home') {this.events.markerSet(0, 0, false); updateState = true;}
-    else if (e.key === 'End')  {this.events.markerSet(this.viewport.timeStop, 0, false); updateState = true;}
+    else if (e.key === 'End')  {this.events.markerSet(viewport.timeStop, 0, false); updateState = true;}
 
     // "N" and Shift + "N" go to the next transition
     else if (e.key === 'n') {controlBar.goToNextTransition(0, 1, []);}
@@ -433,6 +350,10 @@ class VaporviewWebview {
       //console.log('keyDownHandler');
       vscodeWrapper.sendWebviewContext(StateChangeType.User);
     }
+  }
+
+  keyUpHandler(e: KeyboardEvent) {
+    if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(false);}
   }
 
   addToSelection(rowId: RowId) {
@@ -495,55 +416,6 @@ class VaporviewWebview {
 
     this.events.reorderSignals([rowId], parentGroupId, newIndex);
   }
-
-  keyUpHandler(e: KeyboardEvent) {
-    if (e.key === 'Control' || e.key === 'Meta') {viewport.setValueLinkCursor(false);}
-  }
-
-  handleFocusBlur(state: boolean) {
-    vscodeWrapper.executeCommand('setContext', ['vaporview.waveformViewerFocused', state]);
-  }
-
-  // #region Global Events
-  handleResizeViewer() {
-    clearTimeout(resizeDebounce);
-    resizeDebounce = setTimeout(() => this.events.resize(), 100);
-  }
-
-  handleSignalSelect(rowIdList: RowId[], lastSelected: RowId | null = null) {
-
-    viewerState.lastSelectedSignal = lastSelected;
-    viewerState.selectedSignal     = rowIdList;
-
-    if (rowIdList.length > 0) {
-      revealSignal(rowIdList[0]);
-    }
-  }
-
-// #region Helper Functions
-
-  syncVerticalScroll(e: WheelEvent | { deltaY: number }, scrollLevel: number) {
-    const deltaY = e.deltaY;
-    if (this.viewport.updatePending) {return;}
-    this.viewport.updatePending = true;
-    this.labelsScroll.scrollTop = scrollLevel + deltaY;
-    this.valuesScroll.scrollTop = scrollLevel + deltaY;
-    this.scrollArea.scrollTop   = scrollLevel + deltaY;
-    // labelsScroll position = relative, which allows it to scroll past the bottom
-    this.labelsScroll.scrollTop = this.scrollArea.scrollTop;
-    viewport.renderAllWaveforms(false);
-    dragController.contentMoved();
-    this.viewport.updatePending = false;
-  }
-
-  handleViewportScroll() {
-    if (this.viewport.updatePending) {return;}
-    this.viewport.updatePending = true;
-    this.labelsScroll.scrollTop = this.scrollArea.scrollTop;
-    this.valuesScroll.scrollTop = this.scrollArea.scrollTop;
-    viewport.renderAllWaveforms(false);
-    this.viewport.updatePending = false;
-  }
 }
 
 export function init(message: InitMessage) {
@@ -592,7 +464,7 @@ export const rowHandler    = new RowHandler(events);
 export const controlBar    = new ControlBar(events);
 export const viewport      = new Viewport(events);
 export const labelsPanel   = new LabelsPanels(events);
-const vaporview            = new VaporviewWebview(events, viewport, controlBar);
+const vaporview            = new VaporviewWebview(events);
 
 vscodeWrapper.webviewReady();
 
@@ -604,4 +476,3 @@ vscodeWrapper.webviewReady();
 //  }
 //  return text;
 //}
-

@@ -12,7 +12,7 @@ use lazy_static::lazy_static;
 use std::sync::Mutex;
 use std::sync::Arc;
 use std::cmp::max;
-use wellen::{FileFormat, Hierarchy, ScopeOrVar, ScopeRef, Signal, SignalRef, SignalSource, TimeTable, TimescaleUnit, WellenError, VarRef, Var, Scope};
+use wellen::{FileFormat, Hierarchy, Item, ScopeRef, Signal, SignalRef, SignalSource, TimeTable, TimescaleUnit, WellenError, VarRef, Var, Scope};
 use wellen::viewers::{read_body, read_header, ReadBodyContinuation, HeaderResult};
 use wellen::LoadOptions;
 use core::ops::Index;
@@ -425,29 +425,15 @@ fn scope_search_entry(scope_data: &Scope, hierarchy: &Hierarchy) -> SearchEntry 
 
 fn get_all_vars<'h>(hierarchy: &'h Hierarchy, scope: Option<&'h Scope>) -> Box<dyn Iterator<Item = &'h Var> + 'h> {
   match scope {
-    None => Box::new(hierarchy.all_vars()),
-    Some(s) => {
-      let direct_vars = s.vars(hierarchy).map(move |vr| hierarchy.index(vr));
-      let child_vars = s.scopes(hierarchy)
-        .map(move |sr| hierarchy.index(sr))
-        .flat_map(move |child| get_all_vars(hierarchy, Some(child)));
-      Box::new(direct_vars.chain(child_vars))
-    }
+    None => Box::new(hierarchy.all_vars().map(move |v| hierarchy.index(v))),
+    Some(s) => Box::new(s.all_vars(hierarchy).map(move |v| hierarchy.index(v)))
   }
 }
 
 fn get_all_scopes<'h>(hierarchy: &'h Hierarchy, scope: Option<&'h Scope>) -> Box<dyn Iterator<Item = &'h Scope> + 'h> {
   match scope {
-    None => Box::new(hierarchy.all_scopes()),
-    Some(s) => {
-      Box::new(
-        s.scopes(hierarchy)
-          .map(move |sr| hierarchy.index(sr))
-          .flat_map(move |child| {
-            std::iter::once(child).chain(get_all_scopes(hierarchy, Some(child)))
-          })
-      )
-    }
+    None => Box::new(hierarchy.all_scopes().map(move |s| hierarchy.index(s))),
+    Some(s) => Box::new(s.all_scopes(hierarchy).map(move |sr| hierarchy.index(sr)))
   }
 }
 
@@ -456,7 +442,7 @@ fn search<'h>(
   scope_path: Vec<&str>,
   iter_scopes: impl Iterator<Item = &'h Scope>,
   iter_vars: Option<impl Iterator<Item = &'h Var>>,
-  search_results: &mut Vec<ScopeOrVar<'h>>,
+  search_results: &mut Vec<Item<'h>>,
 ) {
 
   if scope_path.is_empty() { return; }
@@ -468,7 +454,7 @@ fn search<'h>(
     let name = scope_data.name(hierarchy).to_string().to_lowercase();
     if name.contains(&search_string) {
       if search_depth == 0 {
-        search_results.push(ScopeOrVar::Scope(scope_data));
+        search_results.push(Item::Scope(scope_data));
       } else {
         // Collect children before recursing to avoid overlapping borrows
         let search_scope_path = new_scope_path.clone();
@@ -492,7 +478,7 @@ fn search<'h>(
     for var_data in iter_vars {
       let name = var_data.name(hierarchy).to_string().to_lowercase();
       if name.contains(&search_string) {
-        search_results.push(ScopeOrVar::Var(var_data));
+        search_results.push(Item::Var(var_data));
       }
     }
   }
@@ -573,8 +559,8 @@ impl Guest for Filecontext {
     // Get Parameter Signal IDs
     let mut global_param_id_list = _param_id_list.lock().unwrap();
     let signal_list = hierarchy.all_vars()
-      .filter(|var| {var.var_type() == wellen::VarType::Parameter})
-      .map(|var| {var.signal_ref()})
+      .filter(|var_ref| { hierarchy.index(*var_ref).var_type() == wellen::VarType::Parameter })
+      .map(|var_ref| { hierarchy.index(var_ref).signal_ref() })
       .collect::<Vec<SignalRef>>();
 
     *global_param_id_list = Some(signal_list);
@@ -970,7 +956,7 @@ impl Guest for Filecontext {
       }
     }
 
-    let mut search_results: Vec<ScopeOrVar> = Vec::new();
+    let mut search_results: Vec<Item> = Vec::new();
     let lower_query = searchquery.to_lowercase();
     let scope_path = lower_query.split(".").collect::<Vec<&str>>();
 
@@ -990,8 +976,8 @@ impl Guest for Filecontext {
       .take(return_amount)
       .map(|s| {
         match s {
-          ScopeOrVar::Scope(s) => {scope_search_entry(s, hierarchy)},
-          ScopeOrVar::Var(v) => {var_search_entry(v, hierarchy)},
+          Item::Scope(s) => {scope_search_entry(s, hierarchy)},
+          Item::Var(v) => {var_search_entry(v, hierarchy)},
         }
       }).collect::<Vec<SearchEntry>>();
     let result: SearchResult = SearchResult { total_results: total, search_results: results_slice };

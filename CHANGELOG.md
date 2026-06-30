@@ -1,5 +1,10 @@
 # Change Log
 
+# 1.6.0 - Upcoming release
+
+- Merge waveform canvases and rows into a single canvas
+- Update wellen to 0.25.5
+
 ## 1.5.4 - 6/4/2026 - Latest Release
 
 - Updated search functionality to constrain search to a particular scope

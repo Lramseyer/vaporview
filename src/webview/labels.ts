@@ -140,14 +140,12 @@ export class LabelsPanels {
   }
 
   clickValueDisplay(event: MouseEvent) {
-    const labelsList   = Array.from(this.valueDisplay.querySelectorAll('.value-display-item'));
-    const clickedLabel = (event.target as HTMLElement)?.closest('.value-display-item') ?? null;
-    const itemIndex    = clickedLabel ? labelsList.indexOf(clickedLabel) : -1;
-    if (itemIndex === -1) {
+    const clickedLabel = (event.target as HTMLElement)?.closest('.value-display-item') as HTMLElement | null;
+    const rowId = this.getRowIdFromElement(clickedLabel);
+    if (rowId === null || isNaN(rowId)) {
       rowHandler.deselectAllSignals();
       return;
     }
-    const rowId = viewerState.displayedSignals[itemIndex];
     //this.events.dispatch(ActionType.SignalSelect, [rowId], rowId);
     handleClickSelection(event, rowId);
   }

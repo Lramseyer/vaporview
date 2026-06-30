@@ -59,6 +59,7 @@ export class Viewport {
   // Scroll handler variables
   pseudoScrollLeft: number    = 0;
   viewerWidth: number         = 0;
+  rulerWidth: number          = 0;
   halfViewerWidth: number     = 0;
   maxScrollLeft: number       = 0;
   maxscrollbarPositionX: number = 0;
@@ -831,11 +832,11 @@ export class Viewport {
     ctx.fillStyle = styles.rulerGuideColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.clearRect(0, 0, this.viewerWidth, styles.rulerHeight);
+    ctx.clearRect(0, 0, this.rulerWidth, styles.rulerHeight);
 
     // Draw the Ticks
     ctx.beginPath();
-    while (tickX <= this.viewerWidth) {
+    while (tickX <= this.rulerWidth) {
       ctx.arc(tickX, 30, 1, 0, twoPi);
       tickX += this.rulerTickSpacing;
     }
@@ -843,7 +844,7 @@ export class Viewport {
 
     ctx.globalAlpha = alpha;
     ctx.beginPath();
-    while (tickXalt <= this.viewerWidth) {
+    while (tickXalt <= this.rulerWidth) {
       ctx.arc(tickXalt, 30, 1, 0, twoPi);
       tickXalt += this.rulerTickSpacing;
     }
@@ -860,7 +861,7 @@ export class Viewport {
 
     this.rulerLineX = [];
     ctx.fillStyle = styles.rulerTextColor;
-    while (numberX <= this.viewerWidth + 50) {
+    while (numberX <= this.rulerWidth + 50) {
       if (this.adjustedLogTimeScale > 0) {
         valueString = (number * this.timeScale * scale).toString();
       } else {
@@ -1173,6 +1174,7 @@ export class Viewport {
     this.scrollAreaBounds = this.scrollArea.getBoundingClientRect();
     this.viewerWidth      = this.scrollAreaBounds.width - styles.scrollbarWidth;
     this.viewerHeight     = this.scrollAreaBounds.height;
+    this.rulerWidth       = this.viewerWidth + styles.scrollbarWidth;
     this.halfViewerWidth  = this.viewerWidth / 2;
     this.maxScrollLeft    = Math.round(Math.max((this.timeStop * this.zoomRatio) - this.viewerWidth, 0));
     this.viewerWidthTime  = this.viewerWidth * this.pixelTime;
@@ -1181,7 +1183,7 @@ export class Viewport {
 
     // Update Ruler Canvas, Background Canvas, and Scrollbar Canvas Dimensions
     this.resizeCanvas(this.scrollbarCanvasElement, this.scrollbarCanvas, this.viewerWidth, styles.scrollbarHeight);
-    this.resizeCanvas(this.rulerCanvasElement, this.rulerCanvas, this.viewerWidth, styles.rulerHeight);
+    this.resizeCanvas(this.rulerCanvasElement, this.rulerCanvas, this.rulerWidth, styles.rulerHeight);
     this.resizeCanvas(this.selectionCanvasElement, this.selectionCanvas, this.viewerWidth, this.viewerHeight);
     this.resizeCanvas(this.backgroundCanvasElement, this.backgroundCanvas, this.viewerWidth, this.viewerHeight);
     this.resizeCanvas(this.waveformsCanvasElement, this.waveformsCanvas, this.viewerWidth, this.viewerHeight);

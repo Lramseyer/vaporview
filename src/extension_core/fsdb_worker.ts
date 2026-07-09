@@ -15,7 +15,10 @@ interface FsdbAddon {
 
 let fsdbAddon: FsdbAddon | null = null;
 try {
+    // This is now a user setting
+    // const addonPath = vscode.workspace.getConfiguration('vaporview').get('fsdbAddonPath');
     fsdbAddon = require('../build/Release/fsdb_reader.node');
+    // fsdbAddon = require(addonPath);
 } catch (error: unknown) {
     process.send!({ command: 'require-failed', error: error });
 }

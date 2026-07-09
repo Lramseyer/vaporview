@@ -46,11 +46,11 @@ This "compiles" Typescript into Javascript.
 
 ## (Optional) Build FSDB addon
 
-To read FSDB, you will need to compile FSDB addon node module
+To read FSDB, you will need to compile FSDB addon node module. This does not require you to rebuild Vaporview.
 
 ### Specify FSDB reader path
 
-Modify `binding.pyg` to your path:
+Modify `binding.gyp` to your path:
 
 ```
 {
@@ -104,7 +104,7 @@ vsce package
 
 ### Read FSDB
 
-In setting, speficy `"vaporview.fsdbReaderLibsPath"` to find the FSDB reader
+In your VScode settings, speficy `"vaporview.fsdbReaderLibsPath"` to find the FSDB reader libs and `"vaporview.fsdbAddonPath"` to find the compiled addon plugin.
 
 e.g.
 ```

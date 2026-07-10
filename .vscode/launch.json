@@ -17,6 +17,30 @@
 			"env": {
 				"LD_LIBRARY_PATH": "/home/heyfey/verdi/2022.06/share/FsdbReader/linux64" // path to find libnffr.so, libnsys.so
 			}
+		},
+		{
+			"type": "extensionHost",
+			"request": "launch",
+			"name": "Launch Web Extension Host",
+			"args": [
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--extensionDevelopmentKind=web"
+			],
+			"outFiles": [
+				"${workspaceFolder}/dist/*.js"
+			],
+			"sourceMaps": true,
+			"preLaunchTask": "npm: build"
+		},
+		{
+			"type": "chrome",
+			"request": "launch",
+			"name": "Run in Browser (vscode.dev)",
+			"url": "http://localhost:3000",
+			"preLaunchTask": "serve-web",
+			"presentation": {
+				"group": "web"
+			}
 		}
 	]
 }

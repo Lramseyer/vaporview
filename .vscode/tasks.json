@@ -1,0 +1,24 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "serve-web",
+			"type": "npm",
+			"script": "serve-web",
+			"isBackground": true,
+			"presentation": {
+				"reveal": "never",
+				"group": "web"
+			},
+			"problemMatcher": {
+				"owner": "vscode-test-web",
+				"pattern": [{"regexp": ".", "file": 1, "location": 2, "message": 3}],
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "^@vscode/test-web",
+					"endsPattern": "^Listening on"
+				}
+			}
+		}
+	]
+}

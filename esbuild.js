@@ -59,6 +59,19 @@ const workerConfig = {
   target: 'es2020', // Modern browsers support WASM
 };
 
+const workerWebConfig = {
+  ...commonConfig,
+  entryPoints: ['src/extension_core/worker.ts'],
+  format: 'iife',
+  platform: 'browser',
+  outfile: 'dist/worker.web.js',
+  // Mark Node.js built-ins as external so require() calls throw at runtime
+  // (caught by the try/catch in worker.ts) rather than causing build errors.
+  external: ['fs', 'worker_threads'],
+  plugins: [esbuildProblemMatcherPlugin],
+  target: 'es2020',
+};
+
 const fsdbWorkerConfig = {
   ...commonConfig,
   entryPoints: ['src/extension_core/fsdb_worker.ts'],
@@ -85,15 +98,17 @@ const webviewConfig = {
 async function main() {
   try {
     if (watch) {
-      const extensionCtx = await esbuild.context(extensionConfig);
-      const webviewCtx = await esbuild.context(webviewConfig);
-      const workerCtx = await esbuild.context(workerConfig);
-      const fsdbWorkerCtx = await esbuild.context(fsdbWorkerConfig);
+      const extensionCtx    = await esbuild.context(extensionConfig);
+      const webviewCtx      = await esbuild.context(webviewConfig);
+      const workerCtx       = await esbuild.context(workerConfig);
+      const workerWebCtx    = await esbuild.context(workerWebConfig);
+      const fsdbWorkerCtx   = await esbuild.context(fsdbWorkerConfig);
 
       await Promise.all([
         extensionCtx.watch(),
         webviewCtx.watch(),
         workerCtx.watch(),
+        workerWebCtx.watch(),
         fsdbWorkerCtx.watch()
       ]);
     } else {
@@ -101,6 +116,7 @@ async function main() {
         esbuild.build(extensionConfig),
         esbuild.build(webviewConfig),
         esbuild.build(workerConfig),
+        esbuild.build(workerWebConfig),
         esbuild.build(fsdbWorkerConfig)
       ]);
     }

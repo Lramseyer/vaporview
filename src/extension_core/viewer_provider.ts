@@ -3,7 +3,6 @@ import { type DocumentId, type NetlistId, SignalGroupWebviewContext, SignalId, S
 import { decodeNetlistUri } from '../../packages/vaporview-api';
 import type { VariableActionArgs, VariableAction, SetMarkerArgs, AddVariableByPathArgs, SavedRowItem, ValueLinkEvent, RulerContext, RulerWebviewContext } from '../../packages/vaporview-api/types';
 import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
-import { Worker } from 'worker_threads';
 import * as fs from 'fs';
 import { } from './extension';
 import { VaporviewDocument, NetlistSearchQuickPick, type WaveformFileParser, type WebviewStateSettings } from './document';
@@ -335,7 +334,11 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     this.netlistView.onDidCollapseElement(this.handleNetlistCollapseElement);
     this.netlistView.onDidChangeSelection(this.handleNetlistViewSelectionChanged, this, this._context.subscriptions);
 
-    this.wasmWorkerFile = vscode.Uri.joinPath(this._context.extensionUri, 'dist', 'worker.js').fsPath;
+    const extensionUri  = this._context.extensionUri;
+    const isWeb         = extensionUri.scheme !== 'file';
+    const workerFile    = isWeb ? 'worker.web.js' : 'worker.js';
+    const workerUri     = vscode.Uri.joinPath(extensionUri, 'dist', workerFile);
+    this.wasmWorkerFile = isWeb ? workerUri.toString() : workerUri.fsPath;
     this.quickPick = new NetlistSearchQuickPick();
   }
 

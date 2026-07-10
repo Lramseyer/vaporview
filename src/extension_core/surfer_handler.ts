@@ -1,174 +1,60 @@
 import * as vscode from 'vscode';
-import { Worker } from 'worker_threads';
-import type { EnumQueueEntry, SignalId, ValueChangeDataChunk, CompressedValueChangeDataChunk, EnumDataChunk, WaveformDumpMetadata } from '../common/types';
-
+import type { SignalId, ValueChangeDataChunk } from '../common/types';
 import type { VaporviewDocumentDelegate } from './viewer_provider';
-import { filehandler } from './filehandler';
 import { type NetlistItem, createScope, createVar } from './tree_view';
-import type { WaveformFileParser, NetlistSearchResult } from './document';
-import type { ValuesAtTimeResult } from '../../packages/vaporview-api/types';
+import { WasmWorkerBase, createWorker, type WorkerLike } from './wasm_handler';
 
+const CHUNK_SIZE = 1024 * 32;
 
-export class SurferFormatHandler implements WaveformFileParser {
-  private providerDelegate: VaporviewDocumentDelegate;
-  private uri: vscode.Uri;
-  private serverUrl: string;
-  private bearerToken?: string;
-  private wasmWorker: Worker;
-  private wasmModule: WebAssembly.Module;
-  private wasmApi: filehandler.Exports.Promisified | undefined;
+const enum ChunkType {
+  Hierarchy = 0,
+  TimeTable = 1,
+  Signals   = 2,
+}
 
-  // Top level netlist items
-  private netlistTop: NetlistItem[] = [];
-  public netlistSearchable: boolean = false;
-  private parametersLoaded: boolean = false;
+export class SurferFormatHandler extends WasmWorkerBase {
+  private readonly serverUrl:    string;
+  private readonly bearerToken?: string;
 
-  public postMessageToWebview = (_message: Record<string, unknown>) => {};
-  public metadata: WaveformDumpMetadata = {
-    timeTableLoaded: false,
-    scopeCount: 0,
-    netlistIdCount: 0,
-    signalIdCount: 0,
-    timeTableCount: 0,
-    timeEnd: 0,
-    minTimeStep: 1,
-    timeScale: 1,
-    timeUnit: "ns",
-  };
-
-  constructor(
+  private constructor(
     providerDelegate: VaporviewDocumentDelegate,
-    uri: vscode.Uri,
-    serverUrl: string,
-    wasmWorker: Worker,
-    wasmModule: WebAssembly.Module,
+    uri:          vscode.Uri,
+    serverUrl:    string,
+    wasmWorker:   WorkerLike,
+    onMessage:    (handler: (data: unknown) => void) => void,
     bearerToken?: string,
   ) {
-    this.providerDelegate = providerDelegate;
-    this.uri = uri;
-    this.serverUrl = serverUrl;
-    this.wasmWorker = wasmWorker;
-    this.wasmModule = wasmModule;
+    super(providerDelegate, uri, wasmWorker, onMessage);
+    this.serverUrl   = serverUrl;
     this.bearerToken = bearerToken;
   }
 
   static async create(
     providerDelegate: VaporviewDocumentDelegate,
-    uri: vscode.Uri,
-    serverUrl: string,
+    uri:            vscode.Uri,
+    serverUrl:      string,
     wasmWorkerFile: string,
-    wasmModule: WebAssembly.Module,
-    bearerToken?: string,
+    wasmModule:     WebAssembly.Module,
+    bearerToken?:   string,
   ): Promise<SurferFormatHandler> {
-    const wasmWorker = new Worker(wasmWorkerFile);
-    const handler = new SurferFormatHandler(providerDelegate, uri, serverUrl, wasmWorker, wasmModule, bearerToken);
-    await handler.initWasmApi();
+    const { worker, onMessage } = createWorker(wasmWorkerFile);
+    const handler = new SurferFormatHandler(
+      providerDelegate, uri, serverUrl, worker, onMessage, bearerToken);
+    await handler.init(wasmModule);
     return handler;
   }
 
-  private async initWasmApi() {
-    this.wasmApi = await filehandler._.bind(this.service, this.wasmModule, this.wasmWorker);
-  }
-
-  // WASM service callbacks
-  private readonly service: filehandler.Imports.Promisified = {
-    log: (msg: string) => { console.log(msg); },
-    outputlog: (msg: string) => { this.providerDelegate.logOutputChannel(msg); },
-    fsread: (fd: number, offset: bigint, length: number): Uint8Array => {
-      // Remote server doesn't use direct file reads, return empty buffer
-      return new Uint8Array(Math.max(0, length));
-    },
-    getsize: (fd: number): bigint => {
-      // Remote server doesn't use direct file access
-      return BigInt(0);
-    },
-    setscopetop: (name: string, id: number, tpe: string) => {
-      const scope = createScope(name, tpe, [], id, -1, this.uri);
-      this.netlistTop.push(scope);
-    },
-    setvartop: (name: string, id: number, signalid: number, tpe: string, encoding: string, width: number, msb: number, lsb: number, enumtype: string) => {
-      const varItem = createVar(name, "", tpe, encoding, [], id, signalid, width, msb, lsb, enumtype, false /*isFsdb*/, this.uri);
-      this.netlistTop.push(varItem);
-    },
-    setmetadata: (scopecount: number, varcount: number, timescale: number, timeunit: string) => {
-      this.metadata.scopeCount = scopecount;
-      this.metadata.netlistIdCount = varcount;
-      this.metadata.timeScale = timescale;
-      this.metadata.timeUnit = timeunit;
-    },
-    setchunksize: (chunksize: bigint, timeend: bigint, timetablelength: bigint) => {
-      this.metadata.timeEnd = Number(timeend);
-      this.metadata.timeTableCount = Number(timetablelength);
-      this.metadata.minTimeStep = Number(chunksize);
-      this.metadata.timeTableLoaded = true;
-    },
-    sendtransitiondatachunk: (signalid: number, totalchunks: number, chunknum: number, min: number, max: number, transitionData: string) => {
-      this.postMessageToWebview({
-        command: 'update-waveform-chunk',
-        signalId: signalid,
-        transitionDataChunk: transitionData,
-        totalChunks: totalchunks,
-        chunkNum: chunknum,
-        min: min,
-        max: max
-      } as ValueChangeDataChunk);
-    },
-    sendenumdata: (name: string, totalchunks: number, chunknum: number, data: string) => {
-      this.postMessageToWebview({
-        command: 'update-enum-chunk',
-        enumName: name,
-        enumDataChunk: data,
-        totalChunks: totalchunks,
-        chunkNum: chunknum,
-      } as EnumDataChunk);
-    },
-    sendcompressedtransitiondata: (signalid: number, signalwidth: number, totalchunks: number, chunknum: number, min: number, max: number, compresseddata: Uint8Array, originalsize: number) => {
-      this.postMessageToWebview({
-        command: 'update-waveform-chunk-compressed',
-        signalId: signalid,
-        signalWidth: signalwidth,
-        compressedDataChunk: Array.from(compresseddata),
-        totalChunks: totalchunks,
-        chunkNum: chunknum,
-        min: min,
-        max: max,
-        originalSize: originalsize
-      } as CompressedValueChangeDataChunk);
-    }
-  };
-
-  async _load(): Promise<void> {
-    this.providerDelegate.logOutputChannel("Connecting to remote server: " + this.serverUrl);
-
-    await vscode.window.withProgress({
-      location: vscode.ProgressLocation.Notification,
-      title: "Connecting to remote server " + this.serverUrl,
-      cancellable: false
-    }, async () => {
-      try {
-        await loadRemoteHierarchy(this.serverUrl, this.wasmApi!, this.bearerToken);
-        await loadRemoteTimeTable(this.serverUrl, this.wasmApi!, this.bearerToken);
-      } catch (error) {
-        this.providerDelegate.logOutputChannel("Failed to connect to remote server: " + error);
-        throw error;
-      }
-    });
-
-    this.loadTopLevelParameters();
-  }
-
   async loadNetlist(): Promise<void> {
-    this.providerDelegate.logOutputChannel("Connecting to remote server: " + this.serverUrl);
-
+    this.providerDelegate.logOutputChannel('Connecting to remote server: ' + this.serverUrl);
     await vscode.window.withProgress({
-      location: vscode.ProgressLocation.Notification,
-      title: "Connecting to remote server " + this.serverUrl,
-      cancellable: false
+      location:    vscode.ProgressLocation.Notification,
+      title:       'Connecting to remote server ' + this.serverUrl,
+      cancellable: false,
     }, async () => {
       try {
-        await loadRemoteHierarchy(this.serverUrl, this.wasmApi!, this.bearerToken);
+        await this._loadRemoteHierarchy();
       } catch (error) {
-        this.providerDelegate.logOutputChannel("Failed to connect to remote server: " + error);
+        this.providerDelegate.logOutputChannel('Failed to connect to remote server: ' + error);
         throw error;
       }
     });
@@ -176,74 +62,68 @@ export class SurferFormatHandler implements WaveformFileParser {
   }
 
   async loadBody(): Promise<void> {
-
     try {
-      await loadRemoteTimeTable(this.serverUrl, this.wasmApi!, this.bearerToken);
+      await this._loadRemoteTimeTable();
     } catch (error) {
-      this.providerDelegate.logOutputChannel("Failed to connect to remote server: " + error);
+      this.providerDelegate.logOutputChannel('Failed to connect to remote server: ' + error);
       throw error;
     }
-
-    this.loadTopLevelParameters();
+    await this.loadTopLevelParameters();
   }
 
-  private getParametersInTreeData(treeData: NetlistItem[]): NetlistItem[] {
-    const result: NetlistItem[] = [];
-    treeData.forEach((item) => {
-      if (item.type === 'Parameter') {
-        result.push(item);
-      }
-      if (item.children.length > 0) {
-        result.push(...this.getParametersInTreeData(item.children as NetlistItem[]));
-      }
-    });
-    return result;
+  async getSignalData(signalIdList: SignalId[]): Promise<void> {
+    try {
+      await this._loadRemoteSignals(signalIdList);
+    } catch (error) {
+      this.providerDelegate.logOutputChannel('Failed to get signal data from remote server: ' + error);
+      signalIdList.forEach(signalId => {
+        this.postMessageToWebview({
+          command:             'update-waveform-chunk',
+          signalId:            signalId,
+          transitionDataChunk: '[]',
+          totalChunks:         1,
+          chunkNum:            0,
+          min:                 0,
+          max:                 1,
+        } as ValueChangeDataChunk);
+      });
+    }
   }
 
-  private async loadTopLevelParameters() {
-    if (!this.wasmApi) { return; }
-    if (this.parametersLoaded) { return; }
-
-    const parameterItems = this.getParametersInTreeData(this.netlistTop);
-    const signalIdList = parameterItems.map((param) => param.signalId);
-    const params = await this.wasmApi!.getparametervalues(new Uint32Array(signalIdList));
-    const parameterValues = JSON.parse(params);
-    parameterItems.forEach((param) => {
-      const paramValue = parameterValues.find((entry: [number, string]) => entry[0] === param.signalId);
-      if (paramValue) {
-        param.setParamAndTooltip(paramValue[1]);
-      }
-    });
-    this.parametersLoaded = true;
-  }
-
+  // Override to deduplicate bits of same-name buses returned by the remote server
   async getChildren(element: NetlistItem | undefined): Promise<NetlistItem[]> {
     if (!element) { return this.netlistTop; }
-    if (!this.wasmApi) { return []; }
     if (element.children.length > 0) { return element.children; }
 
-    //let scopePath = "";
-    //if (element.scopePath !== "") { scopePath += element.scopePath + "."; }
-    //scopePath += element.name;
-    const scopePath = element.scopePath.concat([element.name]); 
+    const scopePath    = element.scopePath.concat([element.name]);
     let itemsRemaining = Infinity;
-    let startIndex = 0;
+    let startIndex     = 0;
+    let callLimit      = 255;
     const result: NetlistItem[] = [];
-
-    let callLimit = 255;
     const varTable: Record<string, NetlistItem[]> = {};
-    while (itemsRemaining > 0) {
-      const children = await this.wasmApi!.getchildren(element.netlistId, startIndex);
-      const childItems = JSON.parse(children);
-      itemsRemaining = childItems.remainingItems;
-      startIndex += childItems.totalReturned;
 
-      childItems.scopes.forEach((child: { name: string; type: string; id: number }) => {
+    while (itemsRemaining > 0) {
+      const response   = await this.sendCommand('getchildren', {
+        netlistId: element.netlistId, startIndex,
+      });
+      const childItems = JSON.parse(response.result as string);
+      itemsRemaining   = childItems.remainingItems;
+      startIndex      += childItems.totalReturned;
+
+      (childItems.scopes as { name: string; type: string; id: number }[])?.forEach((child) => {
         result.push(createScope(child.name, child.type, scopePath, child.id, -1, this.uri));
       });
-      childItems.vars.forEach((child: { name: string; paramValue: string; type: string; encoding: string; netlistId: number; signalId: number; width: number; msb: number; lsb: number; enumType: string }) => {
+      (childItems.vars as {
+        name: string; paramValue: string; type: string; encoding: string;
+        netlistId: number; signalId: number; width: number;
+        msb: number; lsb: number; enumType: string;
+      }[])?.forEach((child) => {
         const encoding = child.encoding.split('(')[0];
-        const varItem = createVar(child.name, child.paramValue, child.type, encoding, scopePath, child.netlistId, child.signalId, child.width, child.msb, child.lsb, child.enumType, false /*isFsdb*/, this.uri);
+        const varItem  = createVar(
+          child.name, child.paramValue, child.type, encoding,
+          scopePath, child.netlistId, child.signalId,
+          child.width, child.msb, child.lsb, child.enumType, false /*isFsdb*/, this.uri,
+        );
         if (varTable[child.name] === undefined) {
           varTable[child.name] = [varItem];
         } else {
@@ -255,28 +135,24 @@ export class SurferFormatHandler implements WaveformFileParser {
       if (callLimit <= 0) { break; }
     }
 
-    for (const [_key, value] of Object.entries(varTable)) {
+    for (const value of Object.values(varTable)) {
       if (value.length === 1) {
         result.push(value[0]);
       } else {
-        const varList = value;
-        const bitList: NetlistItem[] = [];
-        const busList: NetlistItem[] = [];
+        const bitList:  NetlistItem[] = [];
+        const busList:  NetlistItem[] = [];
         let maxWidth = 0;
         let parent: NetlistItem | undefined;
-        varList.forEach((varItem) => {
+        value.forEach((varItem) => {
           if (varItem.width === 1) { bitList.push(varItem); }
           else { busList.push(varItem); }
         });
-        busList.forEach((busItem: NetlistItem) => {
-          if (busItem.width > maxWidth) {
-            maxWidth = busItem.width;
-            parent = busItem;
-          }
+        busList.forEach((busItem) => {
+          if (busItem.width > maxWidth) { maxWidth = busItem.width; parent = busItem; }
           result.push(busItem);
         });
         if (parent !== undefined) {
-          parent.children = bitList;
+          parent.children       = bitList;
           parent.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
         } else {
           result.push(...bitList);
@@ -287,142 +163,63 @@ export class SurferFormatHandler implements WaveformFileParser {
     return result;
   }
 
-  async getSignalData(signalIdList: SignalId[]): Promise<void> {
-    try {
-      await loadRemoteSignals(this.serverUrl, this.wasmApi!, this.bearerToken, signalIdList);
-    } catch (error) {
-      this.providerDelegate.logOutputChannel("Failed to get signal data from remote server: " + error);
-      // Send empty signal data for failed signals
-      signalIdList.forEach(signalId => {
-        this.postMessageToWebview({
-          command: 'update-waveform-chunk',
-          signalId: signalId,
-          transitionDataChunk: '[]',
-          totalChunks: 1,
-          chunkNum: 0,
-          min: 0,
-          max: 1
-        });
-      });
-    }
-  }
+  // ── HTTP helpers ─────────────────────────────────────────────────────────────
 
-  async getEnumData(enumList: EnumQueueEntry[]): Promise<void> {
-    const netlistIdList = enumList.map((entry) => entry.netlistId);
-    this.wasmApi!.getenumdata(new Uint32Array(netlistIdList));
-  }
-
-  async getValuesAtTime(time: number, instancePaths: string[]): Promise<ValuesAtTimeResult[]> {
-    if (!this.wasmApi) { return []; }
-    try {
-      const result = await this.wasmApi!.getvaluesattime(BigInt(time), instancePaths.join(" "));
-      return JSON.parse(result);
-    } catch (error) {
-      this.providerDelegate.logOutputChannel("Failed to get values at time from remote server: " + error);
-      return [];
-    }
-  }
-
-  public async searchNetlist(searchString: string, scopeId: number): Promise<NetlistSearchResult> {
-    const resultJson = await this.wasmApi!.searchnetlist(searchString, scopeId);
-    try {
-      return JSON.parse(resultJson) as NetlistSearchResult;
-    } catch {
-      return { totalResults: 0, searchResults: [] };
-    }
-  }
-
-  async unload(): Promise<void> {
-    if (this.wasmApi) {
-      await this.wasmApi!.unload();
-    }
-    this.parametersLoaded = false;
-    this.netlistTop = [];
-  }
-
-  dispose(): void {
-    this.unload();
-    this.wasmWorker.terminate();
-  }
-}
-
-// Chunk size for data transfer
-// Can't be too big or the wasm will crash
-const CHUNK_SIZE = 1024 * 32;
-
-enum ChunkType {
-    Hierarchy = 0,
-    TimeTable = 1,
-    Signals = 2,
-}
-
-async function sendDataInChunks(
-    data: Uint8Array,
-    sendChunkFn: (chunk: Uint8Array, chunkIndex: number, totalChunks: number) => void
-): Promise<void> {
-    const totalChunks = Math.ceil(data.length / CHUNK_SIZE);
-    
-    for (let i = 0; i < totalChunks; i++) {
-        const start = i * CHUNK_SIZE;
-        const end = Math.min(start + CHUNK_SIZE, data.length);
-        const chunk = data.slice(start, end);
-        
-        sendChunkFn(chunk, i, totalChunks);
-    }
-}
-
-async function httpFetch(server: string, path: string, bearerToken?: string): Promise<Response> {
+  private async _httpFetch(path: string): Promise<Response> {
     const headers: Record<string, string> = {};
-    if (bearerToken) {
-        headers['Authorization'] = `Bearer ${bearerToken}`;
+    if (this.bearerToken) {
+      headers['Authorization'] = `Bearer ${this.bearerToken}`;
     }
-    const response = await fetch(`${server}/${path}`, { headers });
+    const response = await fetch(`${this.serverUrl}/${path}`, { headers });
     if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
     return response;
-}
+  }
 
-// get_status does have real use in the extension but is here for completeness
-export async function loadRemoteStatus(server: string, wasmApi: filehandler.Exports | filehandler.Exports.Promisified, bearerToken?: string): Promise<string> {
-    const status = await httpFetch(server, 'get_status', bearerToken);
-    const statusText = await status.text();
-    const statusBytes = new TextEncoder().encode(statusText);
-    const ret = wasmApi.loadremotestatus(statusBytes);
-    return ret;
-}
+  private async _sendChunks(
+    data:      Uint8Array,
+    chunkType: ChunkType,
+  ): Promise<void> {
+    const totalChunks = Math.ceil(data.length / CHUNK_SIZE);
+    for (let i = 0; i < totalChunks; i++) {
+      const chunk = data.slice(i * CHUNK_SIZE, Math.min((i + 1) * CHUNK_SIZE, data.length));
+      await this.sendCommand('loadremotechunk', {
+        chunkType,
+        chunkData:   chunk,
+        chunkIndex:  i,
+        totalChunks,
+      }, [chunk.buffer]);
+    }
+  }
 
-export async function loadRemoteHierarchy(server: string, wasmApi: filehandler.Exports | filehandler.Exports.Promisified, bearerToken?: string): Promise<void> {
-    const hierarchy = await httpFetch(server, 'get_hierarchy', bearerToken);
-    const hierarchyBytes = await hierarchy.arrayBuffer();
-    const hierarchyUint8Array = new Uint8Array(hierarchyBytes);
-    
-    await sendDataInChunks(hierarchyUint8Array, (chunk, chunkIndex, totalChunks) => {
-        wasmApi.loadremotechunk(ChunkType.Hierarchy, chunk, chunkIndex, totalChunks);
-    });
-    
-}
+  async loadRemoteStatus(): Promise<string> {
+    const response     = await this._httpFetch('get_status');
+    const statusText   = await response.text();
+    const statusBytes  = new TextEncoder().encode(statusText);
+    const result       = await this.sendCommand('loadremotestatus', { status: statusBytes }, [statusBytes.buffer]);
+    return result.result as string;
+  }
 
-export async function loadRemoteTimeTable(server: string, wasmApi: filehandler.Exports | filehandler.Exports.Promisified, bearerToken?: string): Promise<void> {
-    const timeTable = await httpFetch(server, 'get_time_table', bearerToken);
-    const timeTableBytes = await timeTable.arrayBuffer();
-    const timeTableUint8Array = new Uint8Array(timeTableBytes);
-    
-    await sendDataInChunks(timeTableUint8Array, (chunk, chunkIndex, totalChunks) => {
-        wasmApi.loadremotechunk(ChunkType.TimeTable, chunk, chunkIndex, totalChunks);
-    });
-}
+  private async _loadRemoteHierarchy(): Promise<void> {
+    const response = await this._httpFetch('get_hierarchy');
+    const bytes    = new Uint8Array(await response.arrayBuffer());
+    await this._sendChunks(bytes, ChunkType.Hierarchy);
+  }
 
-export async function loadRemoteSignals(server: string, wasmApi: filehandler.Exports | filehandler.Exports.Promisified, bearerToken?: string, signalIds?: number[]): Promise<void> {
+  private async _loadRemoteTimeTable(): Promise<void> {
+    const response = await this._httpFetch('get_time_table');
+    const bytes    = new Uint8Array(await response.arrayBuffer());
+    await this._sendChunks(bytes, ChunkType.TimeTable);
+  }
+
+  private async _loadRemoteSignals(signalIds?: SignalId[]): Promise<void> {
     let path = 'get_signals';
     if (signalIds && signalIds.length > 0) {
-        path += '/' + signalIds.join('/');
+      path += '/' + signalIds.join('/');
     }
-    const signals = await httpFetch(server, path, bearerToken);
-    const signalsBytes = await signals.arrayBuffer();
-    const signalsUint8Array = new Uint8Array(signalsBytes);
-    
-    await sendDataInChunks(signalsUint8Array, (chunk, chunkIndex, totalChunks) => {
-        wasmApi.loadremotechunk(ChunkType.Signals, chunk, chunkIndex, totalChunks);
-    });
+    const response = await this._httpFetch(path);
+    const bytes    = new Uint8Array(await response.arrayBuffer());
+    await this._sendChunks(bytes, ChunkType.Signals);
+  }
 }

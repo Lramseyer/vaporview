@@ -10,8 +10,6 @@ import { WasmFormatHandler } from './wasm_handler';
 import { FsdbFormatHandler } from './fsdb_handler';
 import { SurferFormatHandler } from './surfer_handler';
 import { NetlistTreeDataProvider, type NetlistItem, netlistItemDragAndDropController, VaporviewStatusBar } from './tree_view';
-import path from 'path';
-import { dirname } from 'path';
 
 // vscode-shiki-bridge is ESM-only, but esbuild aliases it to dist/index.cjs
 // (see esbuild.js). A static import fails TS module resolution, and a dynamic
@@ -548,13 +546,13 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     let uri = saveFileUri;
     if (!saveFileUri && autosaveOff) {
-      const filePath = document.uri.fsPath;
-      const fileName = path.basename(filePath);
+      const docUri = document.uri;
+      const fileName = docUri.path.substring(docUri.path.lastIndexOf('/') + 1);
       const saveFileName = fileName.replace(/\.[^/.]+$/, '') + '.json' || 'untitled.json';
       uri = await vscode.window.showSaveDialog({
         saveLabel: 'Save settings',
         filters: {JSON: ['json']},
-        defaultUri: vscode.Uri.file(path.join(dirname(filePath), saveFileName)),
+        defaultUri: vscode.Uri.joinPath(docUri, '..', saveFileName),
       });
     }
 

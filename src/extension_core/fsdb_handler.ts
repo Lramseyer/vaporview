@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import type { EnumQueueEntry, SignalId, NetlistId, ValueChangeDataChunk, WaveformDumpMetadata } from '../common/types';
 import { type ChildProcess, fork } from 'child_process';
-import * as path from 'path';
 
 import type { VaporviewDocumentDelegate } from './viewer_provider';
 import { type NetlistItem, createScope, createVar } from './tree_view';
@@ -133,7 +132,7 @@ export class FsdbFormatHandler implements WaveformFileParser {
 
     // Create FSDB worker that loads FSDB using node-addon-api
     const fsdbReaderLibsPath = vscode.workspace.getConfiguration('vaporview').get('fsdbReaderLibsPath');
-    this.fsdbWorker = fork(path.resolve(__dirname, 'fsdb_worker.js'), {
+    this.fsdbWorker = fork(vscode.Uri.joinPath(vscode.Uri.file(__dirname), 'fsdb_worker.js').fsPath, {
       env: {
         ...process.env,
         LD_LIBRARY_PATH: `${process.env.LD_LIBRARY_PATH ? process.env.LD_LIBRARY_PATH + ':' : ''}${fsdbReaderLibsPath}`

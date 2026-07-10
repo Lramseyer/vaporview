@@ -1,6 +1,4 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
-
 import { SignalGroupWebviewContext } from '../common/types';
 import type {
   NetlistId,
@@ -15,8 +13,8 @@ import type {
 } from '../../packages/vaporview-api/types';
 import { VaporviewDocumentCollection, WaveformViewerProvider, type RenameSignalGroupArgs } from './viewer_provider';
 import type { NetlistItem } from './tree_view';
-import { wcpDefaultPort, WCPServer } from './wcp_server';
-import { dirname } from 'path';
+import type { WCPServer } from './wcp_server';
+const wcpDefaultPort = 54322;
 
 // Context menu args for signal group operations (newSignalGroup, newSeparator, etc.)
 interface SignalGroupCommandArgs {
@@ -238,13 +236,13 @@ export function registerVaporviewCommands(
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.saveViewerSettings', async (e: { documentId: string }) => {
     const document = viewerProvider.getDocumentFromId(e.documentId);
     if (!document) {return;}
-    const filePath = document.uri.fsPath;
-    const fileName = path.basename(filePath);
+    const docUri = document.uri;
+    const fileName = docUri.path.substring(docUri.path.lastIndexOf('/') + 1);
     const saveFileName = fileName.replace(/\.[^/.]+$/, '') + '.json' || 'untitled.json';
     const uri = await vscode.window.showSaveDialog({
       saveLabel: 'Save settings',
       filters: {JSON: ['json']},
-      defaultUri: vscode.Uri.file(path.join(dirname(filePath), saveFileName)),
+      defaultUri: vscode.Uri.joinPath(docUri, '..', saveFileName),
     });
     if (uri) {
       viewerProvider.saveSettingsToFile(document, uri);
@@ -590,13 +588,18 @@ export function registerVaporviewCommands(
 
   // WCP Server commands
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.wcp.start', async () => {
+    if (vscode.env.uiKind === vscode.UIKind.Web) {
+      vscode.window.showErrorMessage('WCP server is not available in VS Code Web');
+      return;
+    }
     if (wcpServer && wcpServer.getIsRunning()) {
       vscode.window.showInformationMessage(`WCP server is already running on port ${wcpServer.getPort()}`);
       return;
     }
-    
+
     const port = vscode.workspace.getConfiguration('vaporview').get<number>('wcp.port', wcpDefaultPort);
-    wcpServer = new WCPServer(viewerProvider, context, port);
+    const { WCPServer: WCPServerClass } = await import('./wcp_server.js');
+    wcpServer = new WCPServerClass(viewerProvider, context, port);
     try {
       const actualPort = await wcpServer.start();
       vscode.window.showInformationMessage(`WCP server started on port ${actualPort}`);

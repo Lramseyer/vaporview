@@ -49,6 +49,23 @@ const extensionConfig = {
   plugins: [esbuildProblemMatcherPlugin],
 };
 
+const extensionWebConfig = {
+  ...commonConfig,
+  entryPoints: ['src/extension_core/extension.ts'],
+  format: 'cjs',
+  platform: 'browser',
+  outfile: 'dist/extension.web.js',
+  // Mark Node.js built-ins as external — guarded by vscode.env.uiKind checks
+  // (or unused code paths) so they are never actually required at runtime in
+  // a web context.
+  external: ['vscode', 'net', 'fs', 'child_process', 'util'],
+  alias: {
+    'vscode-shiki-bridge': './node_modules/vscode-shiki-bridge/dist/index.cjs',
+    'jsonc-parser': './node_modules/jsonc-parser/lib/esm/main.js',
+  },
+  plugins: [esbuildProblemMatcherPlugin],
+};
+
 const workerConfig = {
   ...commonConfig,
   entryPoints: ['src/extension_core/worker.ts'],
@@ -99,6 +116,7 @@ async function main() {
   try {
     if (watch) {
       const extensionCtx    = await esbuild.context(extensionConfig);
+      const extensionWebCtx = await esbuild.context(extensionWebConfig);
       const webviewCtx      = await esbuild.context(webviewConfig);
       const workerCtx       = await esbuild.context(workerConfig);
       const workerWebCtx    = await esbuild.context(workerWebConfig);
@@ -106,6 +124,7 @@ async function main() {
 
       await Promise.all([
         extensionCtx.watch(),
+        extensionWebCtx.watch(),
         webviewCtx.watch(),
         workerCtx.watch(),
         workerWebCtx.watch(),
@@ -114,6 +133,7 @@ async function main() {
     } else {
       await Promise.all([
         esbuild.build(extensionConfig),
+        esbuild.build(extensionWebConfig),
         esbuild.build(webviewConfig),
         esbuild.build(workerConfig),
         esbuild.build(workerWebConfig),

@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import { TimestampLinkProvider, NetlistLinkProvider } from './terminal_links';
 import { registerVaporviewCommands } from './commands';
 import { WaveformViewerProvider, VaporviewDocumentCollection } from './viewer_provider';
-import { updateWCPServerFromConfiguration, WCPServer } from './wcp_server';
+import type { WCPServer } from './wcp_server';
 import type {
   VaporviewApi,
   OpenFileArgs,
@@ -44,26 +44,31 @@ export async function activate(context: vscode.ExtensionContext): Promise<Vaporv
     }
   );
 
-  // Initialize WCP Server
+  // Initialize WCP Server (Node.js only — not available in VS Code Web)
   let wcpServer: WCPServer | null = null;
-  updateWCPServerFromConfiguration(wcpServer, viewerProvider, context);
 
-  // Store wcpServer reference for cleanup
-  context.subscriptions.push({
-    dispose: () => {
-      if (wcpServer) {
-        wcpServer.stop();
-        wcpServer = null;
+  if (vscode.env.uiKind !== vscode.UIKind.Web) {
+    const { updateWCPServerFromConfiguration } = await import('./wcp_server.js');
+    updateWCPServerFromConfiguration(wcpServer, viewerProvider, context);
+
+    context.subscriptions.push({
+      dispose: () => {
+        if (wcpServer) {
+          wcpServer.stop();
+          wcpServer = null;
+        }
       }
-    }
-  });
+    });
+
+    context.subscriptions.push(vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('vaporview.wcp.enabled') || e.affectsConfiguration('vaporview.wcp.port')) {
+        updateWCPServerFromConfiguration(wcpServer, viewerProvider, context);
+      }
+    }));
+  }
 
   // Listen for configuration changes
   context.subscriptions.push(vscode.workspace.onDidChangeConfiguration((e) => {
-    if (e.affectsConfiguration('vaporview.wcp.enabled') || e.affectsConfiguration('vaporview.wcp.port')) {
-      updateWCPServerFromConfiguration(wcpServer, viewerProvider, context);
-    }
-
     if (e.affectsConfiguration('workbench.colorTheme')) {
       documentCollection.getTokenColorsForTheme();
     }

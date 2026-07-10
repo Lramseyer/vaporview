@@ -34,7 +34,7 @@
     "vscode": "^1.102.0"
   },
   "main": "./dist/extension",
-  "browser": "./dist/extension",
+  "browser": "./dist/extension.web",
   "activationEvents": [],
   "extensionKind": [
     "workspace"

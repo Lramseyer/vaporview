@@ -3,7 +3,6 @@ import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type E
 import type { GetValuesAtTimeArgs, SignalEvent, ValuesAtTimeResult } from '../../packages/vaporview-api/types';
 import { bitRangeString, logScaleFromUnits, parseParamValue, toStringWithCommas } from '../common/functions';
 import { NetlistLinkProvider } from './terminal_links';
-import * as path from 'path';
 import type { VaporviewDocumentCollection, VaporviewDocumentDelegate } from './viewer_provider';
 import { getVarIcon, getScopeIcon, type NetlistItem } from './tree_view';
 import type { FsdbFormatHandler } from './fsdb_handler';
@@ -491,7 +490,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     if (this.uri.scheme !== 'file') { return; }
 
     const settings = vscode.workspace.getConfiguration('vaporview');
-    const pattern = new vscode.RelativePattern(path.dirname(this.uri.fsPath), path.basename(this.uri.fsPath));
+    const fileName = this.uri.path.substring(this.uri.path.lastIndexOf('/') + 1);
+    const pattern = new vscode.RelativePattern(vscode.Uri.joinPath(this.uri, '..'), fileName);
     const watcher = vscode.workspace.createFileSystemWatcher(pattern);
     this.webviewContext.autoReload = settings.get('defaultAutoReload') || false;
     const scheduleReload = () => {

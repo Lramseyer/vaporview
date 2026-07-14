@@ -1,8 +1,19 @@
 import * as vscode from 'vscode';
 import type { EnumQueueEntry, SignalId, NetlistId, ValueChangeDataChunk, WaveformDumpMetadata } from '../common/types';
-import { type ChildProcess, fork } from 'child_process';
+import type { ChildProcess } from 'child_process';
 
 import type { VaporviewDocumentDelegate } from './viewer_provider';
+
+type ChildProcessFork = typeof import('child_process').fork;
+
+function getChildProcessFork(): ChildProcessFork | undefined {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require('child_process').fork as ChildProcessFork;
+  } catch {
+    return undefined;
+  }
+}
 import { type NetlistItem, createScope, createVar } from './tree_view';
 import type { WaveformFileParser, NetlistSearchResult, NetlistSearchEntry } from './document';
 import type { ValuesAtTimeResult } from '../../packages/vaporview-api/types';
@@ -132,7 +143,12 @@ export class FsdbFormatHandler implements WaveformFileParser {
 
     // Create FSDB worker that loads FSDB using node-addon-api
     const fsdbReaderLibsPath = vscode.workspace.getConfiguration('vaporview').get('fsdbReaderLibsPath');
-    this.fsdbWorker = fork(vscode.Uri.joinPath(vscode.Uri.file(__dirname), 'fsdb_worker.js').fsPath, {
+    const forkFn = getChildProcessFork();
+    if (!forkFn) {
+      vscode.window.showErrorMessage('FSDB support is unavailable in the web extension host.');
+      return;
+    }
+    this.fsdbWorker = forkFn(vscode.Uri.joinPath(vscode.Uri.file(__dirname), 'fsdb_worker.js').fsPath, {
       env: {
         ...process.env,
         LD_LIBRARY_PATH: `${process.env.LD_LIBRARY_PATH ? process.env.LD_LIBRARY_PATH + ':' : ''}${fsdbReaderLibsPath}`

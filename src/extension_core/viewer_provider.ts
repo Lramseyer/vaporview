@@ -3,7 +3,9 @@ import { type DocumentId, type NetlistId, SignalGroupWebviewContext, SignalId, S
 import { decodeNetlistUri } from '../../packages/vaporview-api';
 import type { VariableActionArgs, VariableAction, SetMarkerArgs, AddVariableByPathArgs, SavedRowItem, ValueLinkEvent, RulerContext, RulerWebviewContext } from '../../packages/vaporview-api/types';
 import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
+
 import * as fs from 'fs';
+
 import { } from './extension';
 import { VaporviewDocument, NetlistSearchQuickPick, type WaveformFileParser, type WebviewStateSettings } from './document';
 import { WasmFormatHandler } from './wasm_handler';
@@ -363,6 +365,10 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     } else {
       const fileType = uri.fsPath.split('.').pop()?.toLocaleLowerCase() || '';
       if (fileType === 'fsdb') {
+        if (vscode.env.uiKind === vscode.UIKind.Web) {
+          vscode.window.showErrorMessage('FSDB support is unavailable on VScode web.');
+          throw new Error('FSDB support is unavailable on VScode web.');
+        }
         handler = new FsdbFormatHandler(delegate, uri, async () => null);
       } else {
         handler = await WasmFormatHandler.create(delegate, uri, fileType, this.wasmWorkerFile, this.wasmModule);
@@ -635,7 +641,9 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     } else {
       // check the directory for a file with the same name as the document, but with the extension .vaporview.json
       const filePath = uri.fsPath.match(/^(.*)\.[^.]+$/)?.[1] + '.json';
-      if (fs.existsSync(filePath)) {
+      const fileExists = filePath ? vscode.workspace.fs.stat(vscode.Uri.file(filePath)) : false;
+      // check if file exists, and if so, prompt the user to load it
+      if (fileExists) {
         const fileUri = vscode.Uri.file(filePath);
         const promptLoadSettings = vscode.workspace.getConfiguration('vaporview').get('promptLoadSettings');
 

@@ -1,13 +1,13 @@
 import { filehandler } from './filehandler';
 
 // Platform-specific handles, filled in lazily on first use
-let _parentPort: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
+let parentPort: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
 let _fsReadSync:  ((fd: number, buf: Uint8Array, offset: number, length: number, position: number) => number) | null = null;
 let _fsFstatSync: ((fd: number) => { size: number }) | null = null;
 
 try {
   const wt = require('worker_threads') as typeof import('worker_threads');
-  _parentPort = wt.parentPort;
+  parentPort = wt.parentPort;
 } catch { /* browser worker – communicates via globalThis/self */ }
 
 try {
@@ -17,16 +17,16 @@ try {
 } catch { /* browser worker – no fs module, uses in-memory buffer */ }
 
 function postMsg(data: Record<string, unknown>, transfer: Transferable[] = []): void {
-  if (_parentPort !== null) {
-    _parentPort.postMessage(data, transfer);
+  if (parentPort !== null) {
+    parentPort.postMessage(data, transfer);
   } else {
     (self as unknown as DedicatedWorkerGlobalScope).postMessage(data, transfer);
   }
 }
 
 function onMsg(handler: (data: unknown) => void): void {
-  if (_parentPort !== null) {
-    _parentPort.on('message', handler);
+  if (parentPort !== null) {
+    parentPort.on('message', handler);
   } else {
     (self as unknown as DedicatedWorkerGlobalScope).addEventListener(
       'message', (e: MessageEvent) => handler(e.data));

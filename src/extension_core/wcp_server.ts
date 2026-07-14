@@ -2,14 +2,33 @@
 // Based on WCP specification: https://gitlab.com/waveform-control-protocol/wcp
 // Reference implementation: https://gitlab.com/surfer-project/surfer/-/tree/main/libsurfer/src/wcp
 
-import * as net from 'net';
 import * as vscode from 'vscode';
-import * as fs from 'fs';
 import { scaleFromUnits } from '../common/functions';
 import type { WaveformViewerProvider } from './viewer_provider';
 import type { VaporviewDocument } from './document';
 import {  } from './tree_view';
 import type { VariableActionArgs, ViewerState, SetMarkerArgs, GetValuesAtTimeArgs, SavedRowItem } from '../../packages/vaporview-api/types';
+
+type NodeFsModule = typeof import('fs');
+type NodeNetModule = typeof import('net');
+
+function getNodeFsModule(): NodeFsModule | undefined {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require('fs') as NodeFsModule;
+  } catch {
+    return undefined;
+  }
+}
+
+function getNodeNetModule(): NodeNetModule | undefined {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require('net') as NodeNetModule;
+  } catch {
+    return undefined;
+  }
+}
 
 // #region WCP param interfaces
 interface WCPParamsWithUri {
@@ -181,7 +200,7 @@ export interface WCPResponse {
 }
 
 interface WCPConnection {
-  socket: net.Socket;
+  socket: { end(): void; on(event: string, listener: (...args: unknown[]) => void): unknown; write(data: string, encoding?: string): boolean; remoteAddress?: string; remotePort?: number; };
   buffer: string;
   remoteAddress: string;
 }
@@ -207,7 +226,7 @@ export function updateWCPServerFromConfiguration(wcpServer: WCPServer | null, vi
 
 // #region WCPServer
 export class WCPServer {
-  private server: net.Server | null = null;
+  private server: { close(): void; listen(port: number, host: string, callback?: () => void): void; on(event: string, listener: (...args: unknown[]) => void): unknown; address(): { port: number } | string | null; } | null = null;
   private port: number;
   private viewerProvider: WaveformViewerProvider;
   private context: vscode.ExtensionContext;
@@ -229,8 +248,14 @@ export class WCPServer {
       return this.port;
     }
 
+    const netModule = getNodeNetModule();
+    if (!netModule) {
+      this.viewerProvider.log.appendLine('WCP server unavailable in the web extension host.');
+      return this.port;
+    }
+
     return new Promise((resolve, reject) => {
-      this.server = net.createServer((socket) => {
+      this.server = netModule.createServer((socket) => {
         this.handleConnection(socket);
       });
 
@@ -244,14 +269,15 @@ export class WCPServer {
         resolve(this.port);
       });
 
-      this.server.on('error', (err: NodeJS.ErrnoException) => {
-        this.viewerProvider.log.appendLine(`Failed to start WCP server: ${err.message}`);
-        if (err.code === 'EADDRINUSE') {
+      this.server.on('error', (err: unknown) => {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        this.viewerProvider.log.appendLine(`Failed to start WCP server: ${errorMessage}`);
+        if (err && typeof err === 'object' && 'code' in err && err.code === 'EADDRINUSE') {
           this.viewerProvider.log.appendLine(`WCP server port ${this.port} is already in use`);
-          reject(err);
+          reject(err as unknown as Error);
         } else {
-          this.viewerProvider.log.appendLine(`WCP server error: ${err.message}`);
-          reject(err);
+          this.viewerProvider.log.appendLine(`WCP server error: ${errorMessage}`);
+          reject(err as unknown as Error);
         }
       });
     });
@@ -288,8 +314,8 @@ export class WCPServer {
     return this.connections.size;
   }
 
-  private handleConnection(socket: net.Socket): void {
-    const remoteAddress = `${socket.remoteAddress}:${socket.remotePort}`;
+  private handleConnection(socket: { remoteAddress?: string; remotePort?: number; on(event: string, listener: (...args: unknown[]) => void): unknown; write(data: string, encoding?: string): boolean; end(): void; }): void {
+    const remoteAddress = `${socket.remoteAddress ?? 'unknown'}:${socket.remotePort ?? 'unknown'}`;
     this.viewerProvider.log.appendLine(`WCP client connected from ${remoteAddress}`);
 
     const connection: WCPConnection = {
@@ -300,12 +326,15 @@ export class WCPServer {
 
     this.connections.add(connection);
 
-    socket.on('data', (data: Buffer) => {
-      this.handleData(connection, data);
+    socket.on('data', (data: unknown) => {
+      if (data instanceof Buffer) {
+        this.handleData(connection, data);
+      }
     });
 
-    socket.on('error', (err: Error) => {
-      this.viewerProvider.log.appendLine(`WCP connection error from ${remoteAddress}: ${err.message}`);
+    socket.on('error', (err: unknown) => {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      this.viewerProvider.log.appendLine(`WCP connection error from ${remoteAddress}: ${errorMessage}`);
     });
 
     socket.on('close', () => {
@@ -1239,8 +1268,13 @@ export class WCPServer {
     const uri = vscode.Uri.file(parsed.fsPath);
 
     // Check if file exists (WCP spec: respond instantly if file is found)
+    const fsModule = getNodeFsModule();
+    if (!fsModule) {
+      throw new Error(`File not found: ${uri.fsPath}`);
+    }
+
     try {
-      await fs.promises.access(uri.fsPath, fs.constants.F_OK);
+      await fsModule.promises.access(uri.fsPath, fsModule.constants.F_OK);
     } catch {
       throw new Error(`File not found: ${uri.fsPath}`);
     }

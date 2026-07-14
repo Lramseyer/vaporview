@@ -1,12 +1,21 @@
 import * as vscode from 'vscode';
-import { promisify } from 'util';
-import * as fs from 'fs';
 
 import type { EnumQueueEntry, SignalId, ValueChangeDataChunk, CompressedValueChangeDataChunk, EnumDataChunk, WaveformDumpMetadata } from '../common/types';
 import type { VaporviewDocumentDelegate } from './viewer_provider';
 import { type NetlistItem, createScope, createVar } from './tree_view';
 import type { WaveformFileParser, NetlistSearchResult } from './document';
 import type { ValuesAtTimeResult } from '../../packages/vaporview-api/types';
+
+type NodeFsModule = typeof import('fs');
+
+function getNodeFsModule(): NodeFsModule | undefined {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require('fs') as NodeFsModule;
+  } catch {
+    return undefined;
+  }
+}
 
 // #region fsWrapper
 interface fsWrapper {
@@ -27,9 +36,13 @@ const nodeFsWrapper: fsWrapper = {
   fileSize: 0,
   bufferSize: 60 * 1024,
   loadFile: async (uri: vscode.Uri, fileType: string) => {
-    const open                 = promisify(fs.open);
-    const stats                = fs.statSync(uri.fsPath);
-    nodeFsWrapper.fd           = await open(uri.fsPath, 'r');
+    const fsModule = getNodeFsModule();
+    if (!fsModule) {
+      throw new Error('Node fs module unavailable');
+    }
+
+    const stats                = fsModule.statSync(uri.fsPath);
+    nodeFsWrapper.fd           = fsModule.openSync(uri.fsPath, 'r');
     nodeFsWrapper.fileSize     = stats.size;
     const fstMaxStaticLoadSize = vscode.workspace.getConfiguration('vaporview').get('fstMaxStaticLoadSize');
     const maxStaticSize        = Number(fstMaxStaticLoadSize) * 1048576;
@@ -39,7 +52,13 @@ const nodeFsWrapper: fsWrapper = {
       nodeFsWrapper.bufferSize = 8192;
     }
   },
-  close: promisify(fs.close) as unknown as (fd: number) => void,
+  close: (fd: number) => {
+    const fsModule = getNodeFsModule();
+    if (!fsModule) {
+      return;
+    }
+    fsModule.closeSync(fd);
+  },
 };
 
 const workspaceFsWrapper: fsWrapper = {
@@ -57,9 +76,10 @@ const workspaceFsWrapper: fsWrapper = {
 };
 
 export const getFsWrapper = async (uri: vscode.Uri): Promise<fsWrapper> => {
-  if (uri.scheme === 'file') {
+  const fsModule = getNodeFsModule();
+  if (uri.scheme === 'file' && fsModule) {
     try {
-      const fileStats = await fs.promises.stat(uri.fsPath);
+      const fileStats = await fsModule.promises.stat(uri.fsPath);
       if (fileStats.isFile()) {
         return nodeFsWrapper;
       }

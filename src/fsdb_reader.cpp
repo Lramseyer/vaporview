@@ -1,6 +1,6 @@
 #include <napi.h>
 
-#include <sstream>
+#include <cstdint>
 #include <stack>
 #include <string>
 #include <vector>
@@ -22,7 +22,7 @@ const int TRUE = 1;
 const int FALSE = 0;
 #endif
 
-static void __DumpScope(fsdbTreeCBDataScope *scope);
+static void __RecordScope(fsdbTreeCBDataScope *scope);
 static void __DumpVar(fsdbTreeCBDataVar *var);
 static void __DumpArray(fsdbTreeCBDataArrayBegin *array);
 static void __EndArray();
@@ -31,17 +31,54 @@ static bool_T MyTreeCB(fsdbTreeCBType cb_type, void *client_data,
 static void __PrintTimeValChng(ffrVCTrvsHdl vc_trvs_hdl, fsdbTag64 *time,
                                byte_T *vc_ptr, const Napi::CallbackInfo &info,
                                Napi::Array &result, double &min, double &max);
+static const char *ScopeTypeToString(uint8_t type);
+static Napi::Object MakeScopeObject(Napi::Env env, uint32_t scopeIdx);
 
 std::string fsdb_name;
 
 ffrObject *fsdb_obj = nullptr;
 
-// Logical offsets in scope 'Top'
+// Logical offsets for ffrReadVarByLogUOff, indexed by scopeOffsetIdx
 static std::vector<fsdbLUOff> scope_offset;
 
-static std::vector<std::string> scope_path_stack;
+// Compact native hierarchy: built once during readScopes, queried lazily from JS.
+// Avoids materializing millions of NetlistItems / IPC messages in the extension host.
+enum ScopeType : uint8_t {
+  kScopeModule = 0,
+  kScopeTask,
+  kScopeFunction,
+  kScopeBegin,
+  kScopeFork,
+  kScopeUnknown,
+};
+
+struct ScopeNode {
+  std::string name;
+  ScopeType type;
+};
+
+static std::vector<ScopeNode> scope_nodes;
+// CSR adjacency: children of scope i are children_flat[children_begin[i] .. children_begin[i+1])
+static std::vector<uint32_t> children_flat;
+static std::vector<uint32_t> children_begin;
+// Temporary during walk; flattened into CSR at end of readScopes.
+static std::vector<std::vector<uint32_t>> scope_children_build;
+static std::vector<uint32_t> top_scopes;
+static std::vector<uint32_t> scope_index_stack;
+
 static std::string scope_path;
 static std::stack<uint_T> arraysize_stack;
+
+// Max child scopes returned per getScopeChildren call (pagination).
+static const uint32_t kMaxScopesPerPage = 2000;
+
+// Tree-walk mode:
+// - building_scope_index: ffrReadScopeTree() — record hierarchy only (ignore vars)
+// - otherwise: ffrReadVarByLogUOff() — emit this scope's vars/arrays/structs.
+//   Nested module SCOPE depth is skipped; STRUCT/RECORD are emitted so JS can
+//   nest them (otherwise identical leaf names like aw_ready collide).
+static bool building_scope_index = false;
+static int module_depth = 0;
 
 // Not using atomic here. Note that we assume all addon call will be
 // synchronous, put "await" for all addon calls if not sure what you're doing
@@ -49,11 +86,11 @@ unsigned int netlistId = 0;
 Napi::Env env_global = nullptr;
 
 // Object from node.js area
-Napi::Function fsdbScopeCallback;
-Napi::Function fsdbUpscopeCallback;
 Napi::Function fsdbVarCallback;
 Napi::Function fsdbArrayBeginCallback;
 Napi::Function fsdbArrayEndCallback;
+Napi::Function fsdbStructBeginCallback;
+Napi::Function fsdbStructEndCallback;
 
 bool CHECK_LENGTH(const Napi::Env &env, const Napi::CallbackInfo &info,
                   size_t size) {
@@ -132,18 +169,129 @@ void openFsdb(const Napi::CallbackInfo &info) {
   }
 }
 
-void readScopes(const Napi::CallbackInfo &info) {
+static void clearScopeIndex() {
+  scope_offset.clear();
+  scope_nodes.clear();
+  children_flat.clear();
+  children_begin.clear();
+  scope_children_build.clear();
+  top_scopes.clear();
+  scope_index_stack.clear();
+  building_scope_index = false;
+  module_depth = 0;
+}
+
+static void flattenScopeChildren() {
+  children_begin.resize(scope_children_build.size() + 1);
+  size_t total = 0;
+  for (size_t i = 0; i < scope_children_build.size(); i++) {
+    children_begin[i] = static_cast<uint32_t>(total);
+    total += scope_children_build[i].size();
+  }
+  children_begin[scope_children_build.size()] = static_cast<uint32_t>(total);
+
+  children_flat.clear();
+  children_flat.reserve(total);
+  for (auto &kids : scope_children_build) {
+    children_flat.insert(children_flat.end(), kids.begin(), kids.end());
+  }
+  // Free the temporary vector-of-vectors; CSR is the long-lived index.
+  std::vector<std::vector<uint32_t>>().swap(scope_children_build);
+}
+
+// Walk the full FSDB scope tree once, keeping only a compact native index.
+// Top-level scopes are returned; nested scopes are fetched via getScopeChildren.
+Napi::Array readScopes(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
   env_global = env;
-  if (!CHECK_LENGTH(env, info, 2)) return;
-  if (!CHECK_FUNCTION(env, info[0])) return;
-  if (!CHECK_FUNCTION(env, info[1])) return;
 
-  fsdbScopeCallback = info[0].As<Napi::Function>();
-  fsdbUpscopeCallback = info[1].As<Napi::Function>();
+  clearScopeIndex();
+  netlistId = 0;
 
+  building_scope_index = true;
+  module_depth = 0;
   fsdb_obj->ffrSetTreeCBFunc(MyTreeCB, NULL);
   fsdb_obj->ffrReadScopeTree();
+  building_scope_index = false;
+  flattenScopeChildren();
+
+  // Reserve [0, scopeCount) for scope netlistIds; vars allocate after that.
+  netlistId = static_cast<unsigned int>(scope_nodes.size());
+
+  Napi::Array result = Napi::Array::New(env, top_scopes.size());
+  for (uint32_t i = 0; i < top_scopes.size(); i++) {
+    result.Set(i, MakeScopeObject(env, top_scopes[i]));
+  }
+  return result;
+}
+
+Napi::Object getScopeChildren(const Napi::CallbackInfo &info) {
+  Napi::Env env = info.Env();
+  Napi::Object result = Napi::Object::New(env);
+  result.Set("scopes", Napi::Array::New(env, 0));
+  result.Set("totalReturned", Napi::Number::New(env, 0));
+  result.Set("remainingItems", Napi::Number::New(env, 0));
+
+  if (!CHECK_LENGTH(env, info, 2)) return result;
+  if (!CHECK_NUMBER(env, info[0])) return result;
+  if (!CHECK_NUMBER(env, info[1])) return result;
+
+  size_t scopeOffsetIdx =
+      static_cast<size_t>(info[0].As<Napi::Number>().Uint32Value());
+  uint32_t startIndex = info[1].As<Napi::Number>().Uint32Value();
+
+  if (scopeOffsetIdx + 1 >= children_begin.size()) {
+    return result;
+  }
+
+  uint32_t childStart = children_begin[scopeOffsetIdx];
+  uint32_t childEnd = children_begin[scopeOffsetIdx + 1];
+  uint32_t total = childEnd - childStart;
+  if (startIndex >= total) {
+    return result;
+  }
+
+  uint32_t available = total - startIndex;
+  uint32_t toReturn =
+      available > kMaxScopesPerPage ? kMaxScopesPerPage : available;
+
+  Napi::Array scopes = Napi::Array::New(env, toReturn);
+  for (uint32_t i = 0; i < toReturn; i++) {
+    scopes.Set(i, MakeScopeObject(env, children_flat[childStart + startIndex + i]));
+  }
+
+  result.Set("scopes", scopes);
+  result.Set("totalReturned", Napi::Number::New(env, toReturn));
+  result.Set("remainingItems", Napi::Number::New(env, available - toReturn));
+  return result;
+}
+
+static Napi::Object MakeScopeObject(Napi::Env env, uint32_t scopeIdx) {
+  Napi::Object obj = Napi::Object::New(env);
+  const ScopeNode &node = scope_nodes[scopeIdx];
+  obj.Set("name", Napi::String::New(env, node.name));
+  obj.Set("type", Napi::String::New(env, ScopeTypeToString(node.type)));
+  // Use scopeOffsetIdx as the stable netlistId for scopes.
+  obj.Set("netlistId", Napi::Number::New(env, scopeIdx));
+  obj.Set("scopeOffsetIdx", Napi::Number::New(env, scopeIdx));
+  return obj;
+}
+
+static const char *ScopeTypeToString(uint8_t type) {
+  switch (type) {
+    case kScopeModule:
+      return "module";
+    case kScopeTask:
+      return "task";
+    case kScopeFunction:
+      return "function";
+    case kScopeBegin:
+      return "begin";
+    case kScopeFork:
+      return "fork";
+    default:
+      return "unknown_scope_type";
+  }
 }
 
 ulong_T combineTime(uint_T H, uint_T L) {
@@ -208,15 +356,31 @@ void readMetadata(const Napi::CallbackInfo &info) {
   setChunkSize.Call(args2);
 }
 
+static void __DumpStructBegin(const char *name, const char *type) {
+  std::vector<Napi::Value> args;
+  args.push_back(Napi::String::New(env_global, name ? name : ""));
+  args.push_back(Napi::String::New(env_global, type));
+  args.push_back(Napi::String::New(env_global, scope_path));
+  args.push_back(Napi::Number::New(env_global, netlistId));
+  fsdbStructBeginCallback.Call(args);
+  netlistId++;
+}
+
+static void __DumpStructEnd() {
+  fsdbStructEndCallback.Call(std::vector<Napi::Value>());
+}
+
 void readVars(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
   env_global = env;
-  if (!CHECK_LENGTH(env, info, 5)) return;
+  if (!CHECK_LENGTH(env, info, 7)) return;
   if (!CHECK_STRING(env, info[0])) return;
   if (!CHECK_NUMBER(env, info[1])) return;
   if (!CHECK_FUNCTION(env, info[2])) return;
   if (!CHECK_FUNCTION(env, info[3])) return;
   if (!CHECK_FUNCTION(env, info[4])) return;
+  if (!CHECK_FUNCTION(env, info[5])) return;
+  if (!CHECK_FUNCTION(env, info[6])) return;
 
   scope_path = info[0].As<Napi::String>();
   size_t scopeOffsetIdx =
@@ -224,6 +388,19 @@ void readVars(const Napi::CallbackInfo &info) {
   fsdbVarCallback = info[2].As<Napi::Function>();
   fsdbArrayBeginCallback = info[3].As<Napi::Function>();
   fsdbArrayEndCallback = info[4].As<Napi::Function>();
+  fsdbStructBeginCallback = info[5].As<Napi::Function>();
+  fsdbStructEndCallback = info[6].As<Napi::Function>();
+
+  if (scopeOffsetIdx >= scope_offset.size()) {
+    Napi::TypeError::New(env, "scopeOffsetIdx out of range")
+        .ThrowAsJavaScriptException();
+    return;
+  }
+
+  // Do not mutate the scope index while reading vars. Nested module SCOPE
+  // depth is skipped; STRUCT/RECORD are forwarded to JS for nesting.
+  building_scope_index = false;
+  module_depth = 0;
 
   if (FSDB_RC_FAILURE ==
       fsdb_obj->ffrReadVarByLogUOff(&scope_offset[scopeOffsetIdx])) {
@@ -248,6 +425,8 @@ static bool_T MyTreeCB(fsdbTreeCBType cb_type, void *client_data,
   // fsdbTreeCBDataUpscope *pUpscope;
   fsdbTreeCBDataVar *pVar;
   fsdbTreeCBDataArrayBegin *pArray;
+  fsdbTreeCBDataStructBegin *pStruct;
+  fsdbTreeCBDataRecordBegin *pRecord;
 
   switch (cb_type) {
     case FSDB_TREE_CBT_BEGIN_TREE:
@@ -255,26 +434,34 @@ static bool_T MyTreeCB(fsdbTreeCBType cb_type, void *client_data,
       break;
 
     case FSDB_TREE_CBT_SCOPE:
-      // The first time 'Top' is entered, record its logical offset.
-      // Other logical offsets of 'Top' will be known when an
-      // UPSCOPE sets the current traverse point to 'Top'.
       pScope = (fsdbTreeCBDataScope *)tree_cb_data;
-      scope_offset.push_back(pScope->var_start_log_uoff);
-      __DumpScope(pScope);
+      if (building_scope_index) {
+        // Record logical offset and compact hierarchy node; no JS/IPC per scope.
+        scope_offset.push_back(pScope->var_start_log_uoff);
+        __RecordScope(pScope);
+      } else {
+        // Nested module under the scope being read — skip its contents.
+        module_depth++;
+      }
       break;
 
     case FSDB_TREE_CBT_UPSCOPE:
-      // pUpscope = (fsdbTreeCBDataUpscope *)tree_cb_data;
-      // scope_offset.push_back(pUpscope->var_start_log_uoff);
-      // fprintf(stderr, "<Upscope>\n");
-
-      fsdbUpscopeCallback.Call(std::vector<Napi::Value>());
-      scope_path_stack.pop_back();
+      if (building_scope_index) {
+        if (!scope_index_stack.empty()) {
+          scope_index_stack.pop_back();
+        }
+      } else if (module_depth > 0) {
+        module_depth--;
+      }
       break;
 
     case FSDB_TREE_CBT_VAR:
-      pVar = (fsdbTreeCBDataVar *)tree_cb_data;
-      __DumpVar(pVar);
+      // Scope-tree indexing must ignore vars (callbacks are not installed).
+      // Struct fields are emitted; JS nests them under STRUCT/RECORD scopes.
+      if (!building_scope_index && module_depth == 0) {
+        pVar = (fsdbTreeCBDataVar *)tree_cb_data;
+        __DumpVar(pVar);
+      }
       break;
 
     case FSDB_TREE_CBT_END_TREE:
@@ -282,26 +469,42 @@ static bool_T MyTreeCB(fsdbTreeCBType cb_type, void *client_data,
       break;
 
     case FSDB_TREE_CBT_ARRAY_BEGIN:
-      pArray = (fsdbTreeCBDataArrayBegin *)tree_cb_data;
-      __DumpArray(pArray);
+      if (!building_scope_index && module_depth == 0) {
+        pArray = (fsdbTreeCBDataArrayBegin *)tree_cb_data;
+        __DumpArray(pArray);
+      }
       break;
 
     case FSDB_TREE_CBT_ARRAY_END:
-      __EndArray();
+      if (!building_scope_index && module_depth == 0) {
+        __EndArray();
+      }
       break;
 
     case FSDB_TREE_CBT_RECORD_BEGIN:
-      // fprintf(stderr, "<BeginRecord>\n");
+      if (!building_scope_index && module_depth == 0) {
+        pRecord = (fsdbTreeCBDataRecordBegin *)tree_cb_data;
+        __DumpStructBegin(pRecord->name, "vhdlrecord");
+      }
       break;
 
     case FSDB_TREE_CBT_RECORD_END:
-      // fprintf(stderr, "<EndRecord>\n\n");
+      if (!building_scope_index && module_depth == 0) {
+        __DumpStructEnd();
+      }
       break;
 
     case FSDB_TREE_CBT_STRUCT_BEGIN:
+      if (!building_scope_index && module_depth == 0) {
+        pStruct = (fsdbTreeCBDataStructBegin *)tree_cb_data;
+        __DumpStructBegin(pStruct->name, "struct");
+      }
       break;
 
     case FSDB_TREE_CBT_STRUCT_END:
+      if (!building_scope_index && module_depth == 0) {
+        __DumpStructEnd();
+      }
       break;
 
     case FSDB_TREE_CBT_FILE_TYPE:
@@ -326,65 +529,39 @@ static bool_T MyTreeCB(fsdbTreeCBType cb_type, void *client_data,
   return TRUE;
 }
 
-static std::string joinScopePath(std::vector<std::string> &scope_path_stack) {
-  if (scope_path_stack.empty()) {
-    return "";
-  }
-  std::ostringstream oss;
-  oss << scope_path_stack[0];  // Add the first item without a leading
-                               // delimiter
-
-  // Append the rest with a delimiter "."
-  for (size_t i = 1; i < scope_path_stack.size(); i++) {
-    oss << "." << scope_path_stack[i];
-  }
-
-  return oss.str();
-}
-
-static void __DumpScope(fsdbTreeCBDataScope *scope) {
-  str_T type;
-
+static void __RecordScope(fsdbTreeCBDataScope *scope) {
+  ScopeType type;
   switch (scope->type) {
     case FSDB_ST_VCD_MODULE:
-      type = (str_T) "module";
+      type = kScopeModule;
       break;
-
     case FSDB_ST_VCD_TASK:
-      type = (str_T) "task";
+      type = kScopeTask;
       break;
-
     case FSDB_ST_VCD_FUNCTION:
-      type = (str_T) "function";
+      type = kScopeFunction;
       break;
-
     case FSDB_ST_VCD_BEGIN:
-      type = (str_T) "begin";
+      type = kScopeBegin;
       break;
-
     case FSDB_ST_VCD_FORK:
-      type = (str_T) "fork";
+      type = kScopeFork;
       break;
-
     default:
-      type = (str_T) "unknown_scope_type";
+      type = kScopeUnknown;
       break;
   }
 
-  // fprintf(stderr, "<Scope> name:%s  type:%s\n", scope->name, type);
+  uint32_t idx = static_cast<uint32_t>(scope_nodes.size());
+  scope_nodes.push_back(ScopeNode{std::string(scope->name), type});
+  scope_children_build.emplace_back();
 
-  // scope_path_stack.push_back(scope->name);
-  std::string path = joinScopePath(scope_path_stack);
-  scope_path_stack.push_back(scope->name);
-
-  std::vector<Napi::Value> args;
-  args.push_back(Napi::String::New(env_global, scope->name));
-  args.push_back(Napi::String::New(env_global, type));
-  args.push_back(Napi::String::New(env_global, path));
-  args.push_back(Napi::Number::New(env_global, netlistId));
-  args.push_back(Napi::Number::New(env_global, scope_offset.size() - 1));
-  fsdbScopeCallback.Call(args);
-  netlistId++;
+  if (scope_index_stack.empty()) {
+    top_scopes.push_back(idx);
+  } else {
+    scope_children_build[scope_index_stack.back()].push_back(idx);
+  }
+  scope_index_stack.push_back(idx);
 }
 
 static void __DumpVar(fsdbTreeCBDataVar *var) {
@@ -988,8 +1165,7 @@ Napi::Array getValuesAtTime(const Napi::CallbackInfo &info) {
 }
 
 void unload(const Napi::CallbackInfo &info) {
-  scope_offset.clear();
-  scope_path_stack.clear();
+  clearScopeIndex();
   std::stack<uint_T> s;
   arraysize_stack.swap(s);  // clear the stack
   env_global = nullptr;
@@ -1008,6 +1184,8 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
               Napi::Function::New(env, readMetadata));
   exports.Set(Napi::String::New(env, "readScopes"),
               Napi::Function::New(env, readScopes));
+  exports.Set(Napi::String::New(env, "getScopeChildren"),
+              Napi::Function::New(env, getScopeChildren));
   exports.Set(Napi::String::New(env, "readVars"),
               Napi::Function::New(env, readVars));
   exports.Set(Napi::String::New(env, "loadSignals"),

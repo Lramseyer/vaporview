@@ -155,12 +155,17 @@ export function createVar(
   const field = bitRangeString(msb, lsb, false);
   let label = name;
 
-  // field is already included in signal name for fsdb
-  if (!isFsdb) label = name + field;
-
-  if (isFsdb) { // remove field from signal name for fsdb to align with wellen
-    const regex  = /\[(\d+:)?(\d+)\]$/;
-    name = name.replace(regex, '');
+  if (isFsdb) {
+    // Prefer FSDB's own [msb:lsb] suffix when present; otherwise add it so
+    // bit-selects with the same base name are distinguishable in the tree.
+    const regex = /\[(\d+:)?(\d+)\]$/;
+    const stripped = name.replace(regex, '');
+    if (stripped === name && field !== '') {
+      label = name + field;
+    }
+    name = stripped;
+  } else {
+    label = name + field;
   }
 
   let variableEncoding = VariableEncoding.none;

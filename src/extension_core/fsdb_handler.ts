@@ -7,7 +7,7 @@ import type { VaporviewDocumentDelegate } from './viewer_provider';
 import { type NetlistItem, createScope, createVar } from './tree_view';
 import type { WaveformFileParser, NetlistSearchResult, NetlistSearchEntry } from './document';
 import type { ValuesAtTimeResult } from '../../packages/vaporview-api/types';
-import type { FsdbWaveformData, FsdbWorkerCommand } from './fsdb_types';
+import type { FsdbScopeChildrenResult, FsdbScopeInfo, FsdbWaveformData, FsdbWorkerCommand } from './fsdb_types';
 
 // Response to a callFsdbWorkerTask request (matched by id)
 type FsdbWorkerResponse = {
@@ -20,19 +20,6 @@ type FsdbWorkerResponse = {
 type FsdbRequireFailedMessage = {
   command: 'require-failed';
   error: { code?: string };
-};
-
-type FsdbScopeCallbackMessage = {
-  command: 'fsdb-scope-callback';
-  name: string;
-  type: string;
-  path: string;
-  netlistId: number;
-  scopeOffsetIdx: number;
-};
-
-type FsdbUpscopeCallbackMessage = {
-  command: 'fsdb-upscope-callback';
 };
 
 type FsdbSetMetadataMessage = {
@@ -75,15 +62,27 @@ type FsdbArrayEndCallbackMessage = {
   size: number;
 };
 
+type FsdbStructBeginCallbackMessage = {
+  command: 'fsdb-struct-begin-callback';
+  name: string;
+  type: string;
+  path: string;
+  netlistId: number;
+};
+
+type FsdbStructEndCallbackMessage = {
+  command: 'fsdb-struct-end-callback';
+};
+
 type FsdbWorkerCallback =
   | FsdbRequireFailedMessage
-  | FsdbScopeCallbackMessage
-  | FsdbUpscopeCallbackMessage
   | FsdbSetMetadataMessage
   | FsdbSetChunkSizeMessage
   | FsdbVarCallbackMessage
   | FsdbArrayBeginCallbackMessage
-  | FsdbArrayEndCallbackMessage;
+  | FsdbArrayEndCallbackMessage
+  | FsdbStructBeginCallbackMessage
+  | FsdbStructEndCallbackMessage;
 
 type FsdbWorkerMessage = FsdbWorkerResponse | FsdbWorkerCallback;
 
@@ -92,8 +91,12 @@ export class FsdbFormatHandler implements WaveformFileParser {
   private providerDelegate: VaporviewDocumentDelegate;
   private uri: vscode.Uri;
   private fsdbWorker: ChildProcess | undefined = undefined;
-  private fsdbTopModuleCount: number = 0;
   private fsdbCurrentScope: NetlistItem | undefined = undefined;
+  // Vars collected for the in-flight readVars call (avoids races on children.push).
+  private fsdbVarsBuffer: NetlistItem[] = [];
+  // Nest STRUCT/RECORD/array children while reading vars for a scope.
+  private fsdbChildrenStack: NetlistItem[][] = [];
+  private fsdbStructNameStack: string[] = [];
   // Need a reference to findTreeItem for getValuesAtTime
   public findTreeItemFn: (scopePath: string, msb: number | undefined, lsb: number | undefined) => Promise<NetlistItem | null>;
 
@@ -101,6 +104,8 @@ export class FsdbFormatHandler implements WaveformFileParser {
   public netlistSearchable: boolean = false;
   private netlistTop: NetlistItem[] = [];
   private parametersLoaded: boolean = false;
+  // VS Code may call getChildren concurrently while expanding; coalesce loads.
+  private childrenLoadInFlight = new Map<NetlistItem, Promise<NetlistItem[]>>();
 
   public postMessageToWebview = (_message: Record<string, unknown>) => {};
   public metadata: WaveformDumpMetadata = {
@@ -152,9 +157,13 @@ export class FsdbFormatHandler implements WaveformFileParser {
       title: "Reading Scopes for " + this.uri.fsPath,
       cancellable: false
     }, async () => {
-      await this.callFsdbWorkerTask({
+      const response = await this.callFsdbWorkerTask({
         command: 'readScopes'
       });
+      const topScopes = (response.result as FsdbScopeInfo[]) ?? [];
+      this.netlistTop = topScopes.map((scope) =>
+        createScope(scope.name, scope.type, [], scope.netlistId, scope.scopeOffsetIdx, this.uri)
+      );
     });
 
     await vscode.window.withProgress({
@@ -205,14 +214,6 @@ export class FsdbFormatHandler implements WaveformFileParser {
         vscode.window.showErrorMessage("Failed to load FSDB reader, is vaporview.fsdbReaderLibsPath properly set? (" + errorCode + ")");
         break;
       }
-      case 'fsdb-scope-callback': {
-        this.fsdbScopeCallback(message.name, message.type, message.path, message.netlistId, message.scopeOffsetIdx);
-        break;
-      }
-      case 'fsdb-upscope-callback': {
-        this.fsdbUpscopeCallback();
-        break;
-      }
       case 'setMetadata': {
         this.metadata.scopeCount = message.scopecount;
         this.metadata.netlistIdCount = message.varcount;
@@ -237,6 +238,14 @@ export class FsdbFormatHandler implements WaveformFileParser {
       }
       case 'fsdb-array-end-callback': {
         this.fsdbArrayEndCallback(message.size);
+        break;
+      }
+      case 'fsdb-struct-begin-callback': {
+        this.fsdbStructBeginCallback(message.name, message.type, message.path, message.netlistId);
+        break;
+      }
+      case 'fsdb-struct-end-callback': {
+        this.fsdbStructEndCallback();
         break;
       }
     }
@@ -267,6 +276,9 @@ export class FsdbFormatHandler implements WaveformFileParser {
   private async fsdbReadVars(element: NetlistItem | undefined) {
     if (!element) return;
     this.fsdbCurrentScope = element;
+    this.fsdbVarsBuffer = [];
+    this.fsdbChildrenStack = [this.fsdbVarsBuffer];
+    this.fsdbStructNameStack = [];
 
     let scopePath = "";
     if (element.scopePath.length !== 0) { scopePath += element.scopePath.join(".") + "."; }
@@ -277,14 +289,132 @@ export class FsdbFormatHandler implements WaveformFileParser {
       scopePath: scopePath,
       scopeOffsetIdx: element.scopeOffsetIdx
     });
+
+    element.children.push(...this.fsdbVarsBuffer);
+    this.fsdbVarsBuffer = [];
+    this.fsdbChildrenStack = [];
+    this.fsdbStructNameStack = [];
+  }
+
+  private fsdbCurrentChildren(): NetlistItem[] {
+    return this.fsdbChildrenStack[this.fsdbChildrenStack.length - 1];
+  }
+
+  private async fsdbReadChildScopes(element: NetlistItem): Promise<NetlistItem[]> {
+    // VHDL array scopes are synthetic (scopeOffsetIdx === -1) and have no FSDB children.
+    if (element.scopeOffsetIdx < 0) {
+      return [];
+    }
+
+    const scopePath = element.scopePath.concat([element.name]);
+    const result: NetlistItem[] = [];
+    let itemsRemaining = Infinity;
+    let startIndex = 0;
+    let callLimit = 255;
+
+    while (itemsRemaining > 0) {
+      const response = await this.callFsdbWorkerTask({
+        command: 'getScopeChildren',
+        scopeOffsetIdx: element.scopeOffsetIdx,
+        startIndex: startIndex
+      });
+      const childItems = (response.result as FsdbScopeChildrenResult) ?? {
+        scopes: [],
+        totalReturned: 0,
+        remainingItems: 0
+      };
+      itemsRemaining = childItems.remainingItems;
+      startIndex += childItems.totalReturned;
+
+      for (const child of childItems.scopes) {
+        result.push(createScope(child.name, child.type, scopePath, child.netlistId, child.scopeOffsetIdx, this.uri));
+      }
+
+      callLimit--;
+      if (callLimit <= 0) { break; }
+    }
+
+    return result;
+  }
+
+  // Group same-named bit selects under a bus parent (matches surfer/wasm netlist UX).
+  private mergeDuplicateFsdbVars(children: NetlistItem[]): NetlistItem[] {
+    const scopes: NetlistItem[] = [];
+    const varTable: Record<string, NetlistItem[]> = {};
+    const seenSignalIds = new Set<number>();
+
+    for (const child of children) {
+      if (child.contextValue === 'netlistScope') {
+        scopes.push(child);
+        continue;
+      }
+      // Exact duplicates from concurrent getChildren / double readVars.
+      if (seenSignalIds.has(child.signalId)) { continue; }
+      seenSignalIds.add(child.signalId);
+
+      const key = child.name;
+      if (varTable[key] === undefined) {
+        varTable[key] = [child];
+      } else {
+        varTable[key].push(child);
+      }
+    }
+
+    const result: NetlistItem[] = [...scopes];
+    for (const vars of Object.values(varTable)) {
+      if (vars.length === 1) {
+        result.push(vars[0]);
+        continue;
+      }
+
+      const bitList: NetlistItem[] = [];
+      const busList: NetlistItem[] = [];
+      let parent: NetlistItem | undefined;
+      let maxWidth = 0;
+      for (const varItem of vars) {
+        if (varItem.width === 1) { bitList.push(varItem); }
+        else { busList.push(varItem); }
+      }
+      for (const busItem of busList) {
+        if (busItem.width > maxWidth) {
+          maxWidth = busItem.width;
+          parent = busItem;
+        }
+        result.push(busItem);
+      }
+      if (parent !== undefined) {
+        parent.children = bitList;
+        parent.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+      } else {
+        result.push(...bitList);
+      }
+    }
+
+    return result;
+  }
+
+  private async loadScopeChildren(element: NetlistItem): Promise<NetlistItem[]> {
+    // Load child scopes first, then vars (mirrors previous order: scopes then signals).
+    const childScopes = await this.fsdbReadChildScopes(element);
+    element.children = childScopes;
+    await this.fsdbReadVars(element);
+    element.children = this.mergeDuplicateFsdbVars(element.children);
+    element.fsdbVarLoaded = true;
+    return element.children;
   }
 
   async getChildren(element: NetlistItem | undefined): Promise<NetlistItem[]> {
     if (!element) { return this.netlistTop; }
     if (element.fsdbVarLoaded) { return element.children; }
-    await this.fsdbReadVars(element);
-    element.fsdbVarLoaded = true;
-    return element.children;
+
+    const inFlight = this.childrenLoadInFlight.get(element);
+    if (inFlight) { return inFlight; }
+
+    const loadPromise = this.loadScopeChildren(element).finally(() => {
+      this.childrenLoadInFlight.delete(element);
+    });
+    this.childrenLoadInFlight.set(element, loadPromise);
+    return loadPromise;
   }
 
   async getSignalData(signalIdList: SignalId[]): Promise<void> {
@@ -379,10 +509,10 @@ export class FsdbFormatHandler implements WaveformFileParser {
       this.fsdbWorker.disconnect();
       this.fsdbWorker = undefined;
     }
-    this.fsdbTopModuleCount = 0;
     this.fsdbCurrentScope = undefined;
     this.parametersLoaded = false;
     this.netlistTop = [];
+    this.childrenLoadInFlight.clear();
   }
 
   dispose(): void {
@@ -390,45 +520,56 @@ export class FsdbFormatHandler implements WaveformFileParser {
   }
 
   // FSDB callback methods
-  private fsdbScopeCallback(name: string, type: string, path: string, netlistId: number, scopeOffsetIdx: number) {
-    const scopePath = path.split('.');
-    this.netlistTop.push(createScope(name, type, scopePath, netlistId, scopeOffsetIdx, this.uri));
+  private fsdbPathToScopePath(path: string): string[] {
+    return path.length === 0 ? [] : path.split('.');
   }
 
-  private fsdbUpscopeCallback() {
-    const scope = this.netlistTop.pop()!;
-    if (this.netlistTop.length === this.fsdbTopModuleCount) {
-      this.netlistTop.push(scope);
-      this.fsdbTopModuleCount++;
-    } else {
-      this.netlistTop[this.netlistTop.length - 1].children.push(scope);
-    }
+  private fsdbGroupScopePath(path: string): string[] {
+    return this.fsdbPathToScopePath(path).concat(this.fsdbStructNameStack);
   }
 
   private fsdbVarCallback(name: string, type: string, encoding: string, path: string, netlistId: NetlistId, signalId: SignalId, width: number, msb: number, lsb: number) {
     const enumType = "";
     const paramValue = "";
-    const scopePath = path.split('.');
+    const scopePath = this.fsdbGroupScopePath(path);
     const varItem = createVar(name, paramValue, type, encoding, scopePath, netlistId, signalId, width, msb, lsb, enumType, true /*isFsdb*/, this.uri);
-    this.fsdbCurrentScope!.children.push(varItem);
-    //this.delegate.netlistIdTable[varItem.netlistId] = varItem;
+    this.fsdbCurrentChildren().push(varItem);
   }
 
   private fsdbArrayBeginCallback(name: string, path: string, netlistId: number) {
-    const scopePath = path.split('.');
-    this.fsdbCurrentScope!.children.push(createScope(name, "vhdlarray", scopePath, netlistId, -1, this.uri));
+    const scopePath = this.fsdbGroupScopePath(path);
+    const arrayScope = createScope(name, "vhdlarray", scopePath, netlistId, -1, this.uri);
+    this.fsdbCurrentChildren().push(arrayScope);
+    this.fsdbChildrenStack.push(arrayScope.children);
+    this.fsdbStructNameStack.push(name);
   }
 
-  private fsdbArrayEndCallback(size: number) {
-    const arrayElements = [];
-    for (let i = 0; i < size; i++) {
-      const element = this.fsdbCurrentScope!.children.pop()!;
-      arrayElements.push(element);
+  private fsdbArrayEndCallback(_size: number) {
+    this.fsdbChildrenStack.pop();
+    this.fsdbStructNameStack.pop();
+    const parentChildren = this.fsdbCurrentChildren();
+    const arrayScope = parentChildren[parentChildren.length - 1];
+    if (arrayScope) {
+      arrayScope.fsdbVarLoaded = true;
     }
-    const array = this.fsdbCurrentScope!.children.pop()!;
-    array.children.push(...arrayElements.reverse());
-    array.fsdbVarLoaded = true;
-    this.fsdbCurrentScope!.children.unshift(array);
+  }
+
+  private fsdbStructBeginCallback(name: string, type: string, path: string, netlistId: number) {
+    const scopePath = this.fsdbGroupScopePath(path);
+    const structScope = createScope(name, type, scopePath, netlistId, -1, this.uri);
+    this.fsdbCurrentChildren().push(structScope);
+    this.fsdbChildrenStack.push(structScope.children);
+    this.fsdbStructNameStack.push(name);
+  }
+
+  private fsdbStructEndCallback() {
+    this.fsdbChildrenStack.pop();
+    this.fsdbStructNameStack.pop();
+    const parentChildren = this.fsdbCurrentChildren();
+    const structScope = parentChildren[parentChildren.length - 1];
+    if (structScope) {
+      structScope.fsdbVarLoaded = true;
+    }
   }
 
   // TODO: @heyfey - implement netlist search

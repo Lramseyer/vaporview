@@ -91,7 +91,6 @@ export class FsdbFormatHandler implements WaveformFileParser {
   private providerDelegate: VaporviewDocumentDelegate;
   private uri: vscode.Uri;
   private fsdbWorker: ChildProcess | undefined = undefined;
-  private fsdbCurrentScope: NetlistItem | undefined = undefined;
   // Vars collected for the in-flight readVars call (avoids races on children.push).
   private fsdbVarsBuffer: NetlistItem[] = [];
   // Nest STRUCT/RECORD/array children while reading vars for a scope.
@@ -104,8 +103,11 @@ export class FsdbFormatHandler implements WaveformFileParser {
   public netlistSearchable: boolean = false;
   private netlistTop: NetlistItem[] = [];
   private parametersLoaded: boolean = false;
-  // VS Code may call getChildren concurrently while expanding; coalesce loads.
+  // VS Code may call getChildren concurrently while expanding; coalesce loads
+  // per element and serialize them globally, since the readVars callback state
+  // (fsdbVarsBuffer/fsdbChildrenStack) is shared across the whole handler.
   private childrenLoadInFlight = new Map<NetlistItem, Promise<NetlistItem[]>>();
+  private childrenLoadChain: Promise<unknown> = Promise.resolve();
 
   public postMessageToWebview = (_message: Record<string, unknown>) => {};
   public metadata: WaveformDumpMetadata = {
@@ -275,7 +277,6 @@ export class FsdbFormatHandler implements WaveformFileParser {
 
   private async fsdbReadVars(element: NetlistItem | undefined) {
     if (!element) return;
-    this.fsdbCurrentScope = element;
     this.fsdbVarsBuffer = [];
     this.fsdbChildrenStack = [this.fsdbVarsBuffer];
     this.fsdbStructNameStack = [];
@@ -290,7 +291,9 @@ export class FsdbFormatHandler implements WaveformFileParser {
       scopeOffsetIdx: element.scopeOffsetIdx
     });
 
-    element.children.push(...this.fsdbVarsBuffer);
+    // concat instead of push(...spread): spreading very large var lists can
+    // overflow the argument limit on huge scopes.
+    element.children = element.children.concat(this.fsdbVarsBuffer);
     this.fsdbVarsBuffer = [];
     this.fsdbChildrenStack = [];
     this.fsdbStructNameStack = [];
@@ -341,16 +344,18 @@ export class FsdbFormatHandler implements WaveformFileParser {
   private mergeDuplicateFsdbVars(children: NetlistItem[]): NetlistItem[] {
     const scopes: NetlistItem[] = [];
     const varTable: Record<string, NetlistItem[]> = {};
-    const seenSignalIds = new Set<number>();
+    const seenVars = new Set<string>();
 
     for (const child of children) {
       if (child.contextValue === 'netlistScope') {
         scopes.push(child);
         continue;
       }
-      // Exact duplicates from concurrent getChildren / double readVars.
-      if (seenSignalIds.has(child.signalId)) { continue; }
-      seenSignalIds.add(child.signalId);
+      // Drop exact duplicates from a double readVars, but keep aliased vars
+      // (different names sharing a signalId) by keying on label too.
+      const varKey = child.signalId + ':' + child.label;
+      if (seenVars.has(varKey)) { continue; }
+      seenVars.add(varKey);
 
       const key = child.name;
       if (varTable[key] === undefined) {
@@ -385,6 +390,9 @@ export class FsdbFormatHandler implements WaveformFileParser {
       if (parent !== undefined) {
         parent.children = bitList;
         parent.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+        // Mark loaded so expanding the bus doesn't trigger a scope load that
+        // would wipe the nested bits and readVars an invalid scopeOffsetIdx.
+        parent.fsdbVarLoaded = true;
       } else {
         result.push(...bitList);
       }
@@ -410,9 +418,13 @@ export class FsdbFormatHandler implements WaveformFileParser {
     const inFlight = this.childrenLoadInFlight.get(element);
     if (inFlight) { return inFlight; }
 
-    const loadPromise = this.loadScopeChildren(element).finally(() => {
-      this.childrenLoadInFlight.delete(element);
-    });
+    // Chain onto the previous load so only one readVars runs at a time.
+    const loadPromise = this.childrenLoadChain
+      .then(() => this.loadScopeChildren(element))
+      .finally(() => {
+        this.childrenLoadInFlight.delete(element);
+      });
+    this.childrenLoadChain = loadPromise.catch(() => {});
     this.childrenLoadInFlight.set(element, loadPromise);
     return loadPromise;
   }
@@ -509,10 +521,13 @@ export class FsdbFormatHandler implements WaveformFileParser {
       this.fsdbWorker.disconnect();
       this.fsdbWorker = undefined;
     }
-    this.fsdbCurrentScope = undefined;
     this.parametersLoaded = false;
     this.netlistTop = [];
     this.childrenLoadInFlight.clear();
+    this.childrenLoadChain = Promise.resolve();
+    this.fsdbVarsBuffer = [];
+    this.fsdbChildrenStack = [];
+    this.fsdbStructNameStack = [];
   }
 
   dispose(): void {

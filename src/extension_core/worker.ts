@@ -1,20 +1,30 @@
+// Must be imported BEFORE filehandler — installs the browser RAL before
+// @vscode/wasm-component-model modules initialize.  See browser-ral-init.ts.
+import './browser-ral-init';
 import { filehandler } from './filehandler';
 
 // Platform-specific handles, filled in lazily on first use
 let parentPort: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
-let _fsReadSync:  ((fd: number, buf: Uint8Array, offset: number, length: number, position: number) => number) | null = null;
-let _fsFstatSync: ((fd: number) => { size: number }) | null = null;
 
 try {
   const wt = require('worker_threads') as typeof import('worker_threads');
   parentPort = wt.parentPort;
 } catch { /* browser worker – communicates via globalThis/self */ }
 
-try {
-  const fsmod = require('fs') as typeof import('fs');
-  _fsReadSync  = (fd, buf, offset, length, position) => fsmod.readSync(fd, buf, offset, length, position);
-  _fsFstatSync = (fd) => fsmod.fstatSync(fd);
-} catch { /* browser worker – no fs module, uses in-memory buffer */ }
+// Lazy-loaded Node.js fs module — null when running in the browser worker host.
+// Loaded on first openFile command for a 'file' scheme URI; never at module startup.
+type FsMod = typeof import('fs');
+let _fsmod: FsMod | null = null;
+
+function tryLoadFsmod(): FsMod | null {
+  if (_fsmod !== null) { return _fsmod; }
+  try {
+    _fsmod = require('fs') as FsMod; // eslint-disable-line @typescript-eslint/no-var-requires
+    return _fsmod;
+  } catch {
+    return null;
+  }
+}
 
 function postMsg(data: Record<string, unknown>, transfer: Transferable[] = []): void {
   if (parentPort !== null) {
@@ -33,11 +43,80 @@ function onMsg(handler: (data: unknown) => void): void {
   }
 }
 
-// Mutable worker state
+// Reusable read buffer for the Node.js path – avoids an allocation per fsread call
+let readBuf = new Uint8Array(65536);
+
+// #region fsWrapper
+
+interface FsWrapper {
+  type: 'nodeFs' | 'workspace';
+  loadStatic: boolean;
+  fd: number;
+  fileSize: number;
+  bufferSize: number;
+  fileData?: Uint8Array;
+  open: (fsPath: string, fileType: string, fstMaxStaticLoadSize: number) => boolean;
+  readSlice: (offset: number, length: number) => Uint8Array;
+  getSize: () => bigint;
+  close: () => void;
+}
+
+const nodeFsWrapper: FsWrapper = {
+  type: 'nodeFs',
+  loadStatic: false,
+  fd: 0,
+  fileSize: 0,
+  bufferSize: 60 * 1024,
+  open: (fsPath, fileType, fstMaxStaticLoadSize) => {
+    const fsmod = tryLoadFsmod();
+    if (fsmod === null) { return false; }
+    try {
+      nodeFsWrapper.fd       = fsmod.openSync(fsPath, 'r');
+      const stats            = fsmod.fstatSync(nodeFsWrapper.fd);
+      nodeFsWrapper.fileSize = stats.size;
+      nodeFsWrapper.loadStatic = nodeFsWrapper.fileSize < fstMaxStaticLoadSize * 1048576;
+      nodeFsWrapper.bufferSize = (fileType === 'fst' && !nodeFsWrapper.loadStatic) ? 8192 : 60 * 1024;
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  readSlice: (offset, length) => {
+    if (length > readBuf.length) { readBuf = new Uint8Array(length); }
+    _fsmod!.readSync(nodeFsWrapper.fd, readBuf, 0, length, offset);
+    return readBuf.subarray(0, length);
+  },
+  getSize: () => BigInt(_fsmod!.fstatSync(nodeFsWrapper.fd).size),
+  close: () => { try { _fsmod!.closeSync(nodeFsWrapper.fd); } catch { /* ignore */ } },
+};
+
+const workspaceFsWrapper: FsWrapper = {
+  type: 'workspace',
+  loadStatic: true,
+  fd: 0,
+  fileSize: 0,
+  bufferSize: 60 * 1024,
+  open: () => false, // workspace files are read by the main thread via vscode.workspace.fs
+  readSlice: (offset, length) => {
+    const data = workspaceFsWrapper.fileData!;
+    return data.subarray(offset, Math.min(offset + length, data.length));
+  },
+  getSize: () => BigInt(workspaceFsWrapper.fileData?.byteLength ?? 0),
+  close: () => {},
+};
+
+// Adapted from the VSCode hex editor extension source
+function getFsWrapper(fsPath: string, scheme: string, fileType: string, fstMaxStaticLoadSize: number): FsWrapper {
+  if (scheme === 'file' && nodeFsWrapper.open(fsPath, fileType, fstMaxStaticLoadSize)) {
+    return nodeFsWrapper;
+  }
+  return workspaceFsWrapper;
+}
+
+// #region Worker state
+
 let wasmExports: filehandler.Exports | null = null;
-let activeNodeFd: number | null = null;   // Node.js OS file descriptor
-let activeBuffer: Uint8Array | null = null; // In-memory buffer (browser / static-load)
-let readBuf = new Uint8Array(65536);    // Reusable read buffer (Node.js path)
+let activeFs: FsWrapper | null = null;
 
 // Synchronous service – called directly by WASM in the same thread, zero cross-thread overhead
 const service: filehandler.Imports = {
@@ -45,24 +124,11 @@ const service: filehandler.Imports = {
   outputlog: (msg) => postMsg({ type: 'outputlog', msg }),
 
   fsread: (_fd, offset, length) => {
-    if (_fsReadSync !== null && activeNodeFd !== null) {
-      if (length > readBuf.length) { readBuf = new Uint8Array(length); }
-      _fsReadSync(activeNodeFd, readBuf, 0, length, Number(offset));
-      return readBuf.subarray(0, length);
-    }
-    if (activeBuffer !== null) {
-      const off = Number(offset);
-      return activeBuffer.subarray(off, Math.min(off + length, activeBuffer.length));
-    }
-    return new Uint8Array(0);
+    if (activeFs === null) { return new Uint8Array(0); }
+    return activeFs.readSlice(Number(offset), length);
   },
 
-  getsize: (_fd) => {
-    if (_fsFstatSync !== null && activeNodeFd !== null) {
-      return BigInt(_fsFstatSync(activeNodeFd).size);
-    }
-    return activeBuffer !== null ? BigInt(activeBuffer.byteLength) : BigInt(0);
-  },
+  getsize: (_fd) => activeFs?.getSize() ?? BigInt(0),
 
   setscopetop: (name, id, tpe) =>
     postMsg({ type: 'setscopetop', name, id, tpe }),
@@ -105,30 +171,40 @@ async function handleMessage(raw: unknown): Promise<void> {
         postMsg({ type: 'init-done', requestId });
         break;
       }
-      case 'setNodeFd': {
-        activeNodeFd = msg.fd as number;
-        activeBuffer = null;
-        postMsg({ type: 'setNodeFd-done', requestId });
+      case 'openFile': {
+        activeFs = getFsWrapper(
+          msg.fsPath as string,
+          msg.scheme as string,
+          msg.fileType as string,
+          msg.fstMaxStaticLoadSize as number,
+        );
+        postMsg({ type: 'openFile-done', requestId,
+          fsType:     activeFs.type,
+          loadStatic: activeFs.loadStatic,
+        });
         break;
       }
       case 'setFileBuffer': {
-        activeBuffer = msg.fileBuffer as Uint8Array;
-        activeNodeFd = null;
+        workspaceFsWrapper.fileData = msg.fileBuffer as Uint8Array;
+        workspaceFsWrapper.fileSize = workspaceFsWrapper.fileData.byteLength;
+        activeFs = workspaceFsWrapper;
         postMsg({ type: 'setFileBuffer-done', requestId });
         break;
       }
       case 'clearFile': {
-        activeNodeFd = null;
-        activeBuffer = null;
+        activeFs?.close();
+        activeFs = null;
+        workspaceFsWrapper.fileData = undefined;
+        workspaceFsWrapper.fileSize = 0;
         postMsg({ type: 'clearFile-done', requestId });
         break;
       }
       case 'loadfile': {
         wasmExports!.loadfile(
-          BigInt(msg.size as number),
-          msg.fd as number,
-          msg.loadStatic as boolean,
-          msg.bufferSize as number,
+          BigInt(activeFs!.fileSize),
+          activeFs!.fd,
+          activeFs!.loadStatic,
+          activeFs!.bufferSize,
         );
         postMsg({ type: 'loadfile-done', requestId });
         break;
@@ -140,8 +216,6 @@ async function handleMessage(raw: unknown): Promise<void> {
       }
       case 'unload': {
         wasmExports!.unload();
-        activeNodeFd = null;
-        activeBuffer = null;
         postMsg({ type: 'unload-done', requestId });
         break;
       }

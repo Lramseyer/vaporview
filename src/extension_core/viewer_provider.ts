@@ -4,8 +4,6 @@ import { decodeNetlistUri } from '../../packages/vaporview-api';
 import type { VariableActionArgs, VariableAction, SetMarkerArgs, AddVariableByPathArgs, SavedRowItem, ValueLinkEvent, RulerContext, RulerWebviewContext } from '../../packages/vaporview-api/types';
 import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
 
-import * as fs from 'fs';
-
 import { } from './extension';
 import { VaporviewDocument, NetlistSearchQuickPick, type WaveformFileParser, type WebviewStateSettings } from './document';
 import { WasmFormatHandler } from './wasm_handler';
@@ -156,6 +154,7 @@ export class VaporviewDocumentCollection {
   async getTokenColorsForTheme() {
 
     try {
+    console.log("getting color theme data")
     const [themeName, themeData] = await getUserTheme();
 
     const scopeList = [
@@ -335,10 +334,25 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     this.netlistView.onDidChangeSelection(this.handleNetlistViewSelectionChanged, this, this._context.subscriptions);
 
     const extensionUri  = this._context.extensionUri;
-    const isWeb         = extensionUri.scheme !== 'file';
-    const workerFile    = isWeb ? 'worker.web.js' : 'worker.js';
-    const workerUri     = vscode.Uri.joinPath(extensionUri, 'dist', workerFile);
+    // Neither extensionUri.scheme nor vscode.env.uiKind reliably distinguish
+    // VS Code Desktop (regular Node.js ext host) from VS Code Desktop running
+    // a web extension (--extensionDevelopmentKind=web, Electron Web Worker host)
+    // or a true browser host (vscode.dev / vscode-test-web).
+    //
+    // The only reliable signal: VS Code's web extension host runs inside a
+    // DedicatedWorkerGlobalScope, where `importScripts` is always defined.
+    // The regular Node.js extension host is a plain Node.js process where it
+    // is undefined.
+    const isWebWorkerHost = typeof (globalThis as Record<string, unknown>)['importScripts'] === 'function';
+    const isWeb           = isWebWorkerHost || extensionUri.scheme !== 'file';
+    const workerFile      = isWeb ? 'worker.web.js' : 'worker.js';
+    const workerUri       = vscode.Uri.joinPath(extensionUri, 'dist', workerFile);
+    // Always pass a URL string in web contexts so createWorker() knows to bypass
+    // worker_threads (which VS Code's web-ext host monkey-patches to use
+    // importScripts internally, making fsPath invalid).
+    // In plain desktop mode use fsPath so Node.js worker_threads can open it directly.
     this.wasmWorkerFile = isWeb ? workerUri.toString() : workerUri.fsPath;
+    this.log.appendLine(`[worker] extensionUri.scheme=${extensionUri.scheme} uiKind=${vscode.env.uiKind} isWebWorkerHost=${isWebWorkerHost} isWeb=${isWeb} wasmWorkerFile=${this.wasmWorkerFile}`);
     this.quickPick = new NetlistSearchQuickPick();
   }
 
@@ -439,7 +453,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     // Setup initial content for the webview
     webviewPanel.webview.options = { enableScripts: true, };
-    webviewPanel.webview.html    = this.getHtmlContent(webviewPanel.webview);
+    webviewPanel.webview.html    = await this.getHtmlContent(webviewPanel.webview);
 
     this.onDidChangeViewStateActive(document, webviewPanel);
   }
@@ -1483,15 +1497,16 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
   // To do: implement nonce with this HTML:
   //<script nonce="${nonce}" src="${scriptUri}"></script>
-  private getHtmlContent(webview: vscode.Webview): string {
+  private async getHtmlContent(webview: vscode.Webview): Promise<string> {
 
     const extensionUri = this._context.extensionUri;
-    const htmlFile     = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'webview.html'));
+    const htmlFileUri  = vscode.Uri.joinPath(extensionUri, 'media', 'webview.html');
     const svgIconsUri  = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'src', 'webview', 'icons.svg'));
     const jsFileUri    = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'dist', 'webview.js'));
     const cssFileUri   = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'style.css'));
     const codiconsUri  = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.css'));
-    let htmlContent    = fs.readFileSync(htmlFile.fsPath, 'utf8');
+    const fileBytes    = await vscode.workspace.fs.readFile(htmlFileUri);
+    let htmlContent    = new TextDecoder('utf-8').decode(fileBytes);
 
     htmlContent = htmlContent.replace('${webAssets.svgIconsUri}', svgIconsUri.toString());
     htmlContent = htmlContent.replace('${webAssets.jsFileUri}', jsFileUri.toString());

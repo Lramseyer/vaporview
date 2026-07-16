@@ -6,88 +6,6 @@ import { type NetlistItem, createScope, createVar } from './tree_view';
 import type { WaveformFileParser, NetlistSearchResult } from './document';
 import type { ValuesAtTimeResult } from '../../packages/vaporview-api/types';
 
-type NodeFsModule = typeof import('fs');
-
-function getNodeFsModule(): NodeFsModule | undefined {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return require('fs') as NodeFsModule;
-  } catch {
-    return undefined;
-  }
-}
-
-// #region fsWrapper
-interface fsWrapper {
-  type: 'nodeFs' | 'workspace';
-  loadStatic: boolean;
-  fd: number;
-  fileSize: number;
-  bufferSize: number;
-  fileData?: Uint8Array;
-  loadFile: (uri: vscode.Uri, fileType: string) => Promise<void>;
-  close: (fd: number) => void;
-}
-
-const nodeFsWrapper: fsWrapper = {
-  type: 'nodeFs',
-  loadStatic: false,
-  fd: 0,
-  fileSize: 0,
-  bufferSize: 60 * 1024,
-  loadFile: async (uri: vscode.Uri, fileType: string) => {
-    const fsModule = getNodeFsModule();
-    if (!fsModule) {
-      throw new Error('Node fs module unavailable');
-    }
-
-    const stats                = fsModule.statSync(uri.fsPath);
-    nodeFsWrapper.fd           = fsModule.openSync(uri.fsPath, 'r');
-    nodeFsWrapper.fileSize     = stats.size;
-    const fstMaxStaticLoadSize = vscode.workspace.getConfiguration('vaporview').get('fstMaxStaticLoadSize');
-    const maxStaticSize        = Number(fstMaxStaticLoadSize) * 1048576;
-    nodeFsWrapper.loadStatic   = (stats.size < maxStaticSize);
-
-    if (fileType === 'fst' && nodeFsWrapper.loadStatic === false) {
-      nodeFsWrapper.bufferSize = 8192;
-    }
-  },
-  close: (fd: number) => {
-    const fsModule = getNodeFsModule();
-    if (!fsModule) {
-      return;
-    }
-    fsModule.closeSync(fd);
-  },
-};
-
-const workspaceFsWrapper: fsWrapper = {
-  type: 'workspace',
-  loadStatic: true,
-  fd: 0,
-  fileSize: 0,
-  bufferSize: 60 * 1024,
-  loadFile: async (uri: vscode.Uri, _fileType: string) => {
-    const stats                  = await vscode.workspace.fs.stat(uri);
-    workspaceFsWrapper.fileData  = await vscode.workspace.fs.readFile(uri);
-    workspaceFsWrapper.fileSize  = stats.size;
-  },
-  close: (_fd: number) => { /* no-op for workspace files */ },
-};
-
-export const getFsWrapper = async (uri: vscode.Uri): Promise<fsWrapper> => {
-  const fsModule = getNodeFsModule();
-  if (uri.scheme === 'file' && fsModule) {
-    try {
-      const fileStats = await fsModule.promises.stat(uri.fsPath);
-      if (fileStats.isFile()) {
-        return nodeFsWrapper;
-      }
-    } catch { /* probably not node.js, or file does not exist */ }
-  }
-  return workspaceFsWrapper;
-};
-
 // #region Worker infrastructure
 
 export interface WorkerLike {
@@ -99,20 +17,28 @@ export function createWorker(workerFile: string): {
   worker: WorkerLike;
   onMessage: (handler: (data: unknown) => void) => void;
 } {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const wt = require('worker_threads') as typeof import('worker_threads');
-    const w = new wt.Worker(workerFile);
-    const worker: WorkerLike = {
-      postMessage(data: unknown, transfer?: Transferable[]): void {
-        // Only ArrayBuffer is passed as a transferable, which satisfies both
-        // the browser Transferable and the Node.js worker_threads Transferable types.
-        w.postMessage(data, (transfer ?? []) as ArrayBuffer[]);
-      },
-      terminate(): void { w.terminate(); },
-    };
-    return { worker, onMessage: (handler) => w.on('message', handler) };
-  } catch { /* not Node.js – fall through to browser Worker */ }
+  // If workerFile is a plain filesystem path (no scheme), try the Node.js
+  // worker_threads API first.  A URL (contains "://") means we are in a web /
+  // Electron web-extension-host context: skip worker_threads entirely because
+  // VS Code's web-ext host monkey-patches it to use importScripts internally,
+  // which rejects filesystem paths and some custom URI schemes.
+  const isUrl = workerFile.includes('://');
+  if (!isUrl) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const wt = require('worker_threads') as typeof import('worker_threads');
+      const w = new wt.Worker(workerFile);
+      const worker: WorkerLike = {
+        postMessage(data: unknown, transfer?: Transferable[]): void {
+          // Only ArrayBuffer is passed as a transferable, which satisfies both
+          // the browser Transferable and the Node.js worker_threads Transferable types.
+          w.postMessage(data, (transfer ?? []) as ArrayBuffer[]);
+        },
+        terminate(): void { w.terminate(); },
+      };
+      return { worker, onMessage: (handler) => w.on('message', handler) };
+    } catch { /* not Node.js – fall through to browser Worker */ }
+  }
 
   // Browser Worker (VSCode web extension host)
   const w = new Worker(workerFile);
@@ -382,20 +308,17 @@ export abstract class WasmWorkerBase implements WaveformFileParser {
 // #region WasmFormatHandler
 
 export class WasmFormatHandler extends WasmWorkerBase {
-  private readonly fileType:  string;
-  private readonly fileReader: fsWrapper;
+  private readonly fileType: string;
 
   private constructor(
     providerDelegate: VaporviewDocumentDelegate,
-    uri:         vscode.Uri,
-    fileType:    string,
-    fileReader:  fsWrapper,
-    wasmWorker:  WorkerLike,
-    onMessage:   (handler: (data: unknown) => void) => void,
+    uri:       vscode.Uri,
+    fileType:  string,
+    wasmWorker: WorkerLike,
+    onMessage:  (handler: (data: unknown) => void) => void,
   ) {
     super(providerDelegate, uri, wasmWorker, onMessage);
-    this.fileType   = fileType;
-    this.fileReader = fileReader;
+    this.fileType = fileType;
   }
 
   static async create(
@@ -405,46 +328,44 @@ export class WasmFormatHandler extends WasmWorkerBase {
     wasmWorkerFile: string,
     wasmModule:     WebAssembly.Module,
   ): Promise<WasmFormatHandler> {
-    const fileReader        = await getFsWrapper(uri);
     const { worker, onMessage } = createWorker(wasmWorkerFile);
-    const handler           = new WasmFormatHandler(
-      providerDelegate, uri, fileType, fileReader, worker, onMessage);
+    const handler = new WasmFormatHandler(providerDelegate, uri, fileType, worker, onMessage);
     await handler.init(wasmModule);
     return handler;
   }
 
   async loadNetlist(): Promise<void> {
-    this.providerDelegate.logOutputChannel(
-      'Using ' + this.fileReader.type + ' - Loading ' + this.fileType + ' file: ' + this.uri.fsPath);
-    await this.fileReader.loadFile(this.uri, this.fileType);
-
-    if (this.fileType === 'fst' && this.fileReader.loadStatic === false) {
-      const fstMaxStaticLoadSize = vscode.workspace.getConfiguration('vaporview').get('fstMaxStaticLoadSize');
-      this.providerDelegate.logOutputChannel(
-        this.uri.fsPath + ' is larger than the max static load size of ' + fstMaxStaticLoadSize +
-        ' MB. File will be loaded dynamically. Configure max load size in the settings menu');
-    }
+    const fstMaxStaticLoadSize = Number(vscode.workspace.getConfiguration('vaporview').get('fstMaxStaticLoadSize'));
 
     await vscode.window.withProgress({
       location:    vscode.ProgressLocation.Notification,
       title:       'Parsing Netlist for ' + this.uri.fsPath,
       cancellable: false,
     }, async () => {
-      if (this.fileReader.type === 'nodeFs') {
-        // Pass the already-opened OS file descriptor; the worker thread shares
-        // the same process fd table so it can call fs.readSync with this fd.
-        await this.sendCommand('setNodeFd', { fd: this.fileReader.fd });
-      } else {
-        // Transfer the in-memory buffer to the worker (zero-copy).
-        const buf = this.fileReader.fileData!;
-        await this.sendCommand('setFileBuffer', { fileBuffer: buf }, [buf.buffer]);
-      }
-      await this.sendCommand('loadfile', {
-        size:       this.fileReader.fileSize,
-        fd:         this.fileReader.fd,
-        loadStatic: this.fileReader.loadStatic,
-        bufferSize: this.fileReader.bufferSize,
+      // Worker detects whether Node.js fs is available and opens the file itself.
+      // If the scheme is not 'file' or fs is unavailable (browser host), it signals
+      // the main thread to read via the VS Code workspace fs API instead.
+      const openResult = await this.sendCommand('openFile', {
+        fsPath:              this.uri.fsPath,
+        scheme:              this.uri.scheme,
+        fileType:            this.fileType,
+        fstMaxStaticLoadSize,
       });
+
+      const fsType = openResult.fsType as string;
+      this.providerDelegate.logOutputChannel(
+        'Using ' + fsType + ' - Loading ' + this.fileType + ' file: ' + this.uri.fsPath);
+
+      if (fsType === 'workspace') {
+        const fileData = await vscode.workspace.fs.readFile(this.uri);
+        await this.sendCommand('setFileBuffer', { fileBuffer: fileData }, [fileData.buffer]);
+      } else if (this.fileType === 'fst' && !(openResult.loadStatic as boolean)) {
+        this.providerDelegate.logOutputChannel(
+          this.uri.fsPath + ' is larger than the max static load size of ' + fstMaxStaticLoadSize +
+          ' MB. File will be loaded dynamically. Configure max load size in the settings menu');
+      }
+
+      await this.sendCommand('loadfile');
     });
     this.netlistSearchable = true;
   }
@@ -475,7 +396,6 @@ export class WasmFormatHandler extends WasmWorkerBase {
 
   async unload(): Promise<void> {
     await super.unload();
-    this.fileReader.close(this.fileReader.fd);
     await this.sendCommand('clearFile');
   }
 }

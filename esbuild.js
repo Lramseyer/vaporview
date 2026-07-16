@@ -58,12 +58,21 @@ const extensionWebConfig = {
   // Mark Node.js built-ins as external — guarded by vscode.env.uiKind checks
   // (or unused code paths) so they are never actually required at runtime in
   // a web context.
-  external: ['vscode', 'net', 'fs', 'child_process', 'util'],
+  external: ['vscode', 'net', 'fs', 'child_process', 'util', 'worker_threads'],
   alias: {
     'vscode-shiki-bridge': './node_modules/vscode-shiki-bridge/dist/index.cjs',
     'jsonc-parser': './node_modules/jsonc-parser/lib/esm/main.js',
   },
   plugins: [esbuildProblemMatcherPlugin],
+};
+
+// Aliases for @vscode/wasm-component-model internal sub-paths used by
+// browser-ral-init.ts.  Needed in both worker builds so the file compiles.
+// The Node.js build's init code is guarded by `typeof importScripts` so the
+// browser-only paths are bundled but never executed on Node.js.
+const wasmRalAliases = {
+  'wasm-ral':               './node_modules/@vscode/wasm-component-model/lib/common/ral.js',
+  'wasm-browser-connection': './node_modules/@vscode/wasm-component-model/lib/browser/connection.js',
 };
 
 const workerConfig = {
@@ -72,6 +81,7 @@ const workerConfig = {
   format: 'iife', // Self-executing function for worker scope
   platform: 'node',
   outfile: 'dist/worker.js',
+  alias: wasmRalAliases,
   plugins: [esbuildProblemMatcherPlugin],
   target: 'es2020', // Modern browsers support WASM
 };
@@ -85,6 +95,7 @@ const workerWebConfig = {
   // Mark Node.js built-ins as external so require() calls throw at runtime
   // (caught by the try/catch in worker.ts) rather than causing build errors.
   external: ['fs', 'worker_threads'],
+  alias: wasmRalAliases,
   plugins: [esbuildProblemMatcherPlugin],
   target: 'es2020',
 };

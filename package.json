@@ -1528,10 +1528,6 @@
         "category": "VaporView"
       },
       {
-        "command": "vaporview.viewVaporViewSidebar",
-        "title": "View VaporView Sidebar"
-      },
-      {
         "command": "vaporview.copyWaveDrom",
         "title": "Copy Selection as WaveDrom"
       },

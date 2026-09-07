@@ -86,10 +86,6 @@ export function registerVaporviewCommands(
     return document.getValuesAtTime(e);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.viewVaporViewSidebar', () => {
-    vscode.commands.executeCommand('workbench.view.extension.vaporView');
-  }));
-
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.clickNetlistItem', (e: { uri: vscode.Uri; netlistId: NetlistId }) => {
     viewerProvider.netlistTreeDataProvider.clickNetlistItem(e.uri, e.netlistId);
   }));

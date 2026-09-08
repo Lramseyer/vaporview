@@ -71,16 +71,18 @@ export class WaveformDataManager {
   handleExitBatchMode() {this.fetch();}
 
   unload() {
-    this.valueChangeData     = [];
-    this.valueChangeDataTemp = [];
-    this.enumTable           = {};
-    this.enumTableTemp       = {};
-    this.waveDromClock       = {netlistId: null, edge: ""};
+    this.valueChangeData       = [];
+    this.valueChangeDataTemp   = [];
+    this.customValueChangeData = [];
+    this.enumTable             = {};
+    this.enumTableTemp         = {};
+    this.waveDromClock         = {netlistId: null, edge: ""};
+    this.nextCustomSignalId    = 0;
 
-    this.requested           = [];
-    this.queued              = [];
-    this.requestActive       = false;
-    this.requestStart        = 0;
+    this.requested             = [];
+    this.queued                = [];
+    this.requestActive         = false;
+    this.requestStart          = 0;
     rowHandler.unload();
   }
 

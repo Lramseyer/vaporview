@@ -5,8 +5,10 @@
 - Merge waveform canvases and rows into a single canvas
 - Added menu option to show Readme
 - Update wellen to 0.25.6
-- Fix glitch with Alt + Down next to collapsed groups
 - Delta Time in the status bar now displays units in Hz
+- New waveform dumps now open zoomed out all the way
+- Fix glitch with Alt + Down next to collapsed groups
+- Fix Custom waveforms not being reloaded properly
 
 ## 1.5.4 - 6/4/2026 - Latest Release
 

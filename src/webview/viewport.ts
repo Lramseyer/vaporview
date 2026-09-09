@@ -248,10 +248,9 @@ export class Viewport {
     this.updateUnits(this.timeUnit, false);
     this.setRulerVscodeContext();
     this.netlistLinkElement.style.display = 'flex';
-    this.updateViewportWidth();
-    this.updateHorizontalScrollbar();
-    this.updateVerticalScrollbar();
-    this.handleZoom(-4, 0, 0);
+    // We have to call the synchronous function, otherwise the viewport may get into a weird state
+    this._doUpdateViewportWidth();
+    this.setViewportRange(0, this.timeStop);
   }
 
   async handleColorChange() {

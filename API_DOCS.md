@@ -291,7 +291,7 @@ Returns the viewer settings in the same schema as the save file
 
 ## waveformViewer.loadViewerState
 
-Loads the viewer settings from a file
+Loads the viewer settings from a file. If you call this command after calling `vaporview.openFile`, make sure to use an `await` when calling `vaporview.openFile` command before loading the settings file.
 
 ### Arguments: object
 

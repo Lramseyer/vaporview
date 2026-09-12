@@ -7,6 +7,7 @@
 - Update wellen to 0.25.6
 - Delta Time in the status bar now displays units in Hz
 - New waveform dumps now open zoomed out all the way
+- Added waveformViewer.loadViewerState command to API
 - Fix glitch with Alt + Down next to collapsed groups
 - Fix Custom waveforms not being reloaded properly
 

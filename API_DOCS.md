@@ -289,6 +289,15 @@ Returns the viewer settings in the same schema as the save file
 
 - **uri** - (Optional) Document URI - if not defined, this function will use the currently active, or last active document
 
+## waveformViewer.loadViewerState
+
+Loads the viewer settings from a file
+
+### Arguments: object
+
+- **documentUri** - (Optional) Document URI - if not defined, this function will use the currently active, or last active document
+- **settingsFileUri** - URI to settings file. This is required.
+
 ## waveformViewer.getValuesAtTime
 
 ### Arguments: object

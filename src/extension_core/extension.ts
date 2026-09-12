@@ -11,6 +11,7 @@ import type {
   VariableActionArgs,
   SetMarkerArgs,
   GetViewerStateArgs,
+  LoadViewerStateArgs,
   GetValuesAtTimeArgs,
   AddVariableByPathArgs,
   ViewerState,
@@ -126,6 +127,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<Vaporv
       const document = viewerProvider.getDocumentFromOptionalUri(args?.uri);
       if (!document) {return undefined;}
       return document.getSettings() as unknown as ViewerState;
+    },
+    async loadViewerState(args: LoadViewerStateArgs) {
+      viewerProvider.loadViewerStateCommand(args);
     },
     async getValuesAtTime(args: GetValuesAtTimeArgs) {
       const document = viewerProvider.getDocumentFromOptionalUri(args.uri);

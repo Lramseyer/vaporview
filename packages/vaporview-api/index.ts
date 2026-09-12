@@ -6,6 +6,7 @@ import type {
   VariableActionArgs,
   SetMarkerArgs,
   GetViewerStateArgs,
+  LoadViewerStateArgs,
   GetValuesAtTimeArgs,
   AddVariableByPathArgs,
   ViewerState,
@@ -60,6 +61,9 @@ export const commands = {
   },
   async getViewerState(args?: GetViewerStateArgs): Promise<ViewerState | undefined> {
     return await vscode.commands.executeCommand<ViewerState>('waveformViewer.getViewerState', args ?? {});
+  },
+  async loadViewerState(args: LoadViewerStateArgs): Promise<void> {
+    await vscode.commands.executeCommand('waveformViewer.loadViewerState', args);
   },
   async getValuesAtTime(args: GetValuesAtTimeArgs): Promise<ValuesAtTimeResult[]> {
     return await vscode.commands.executeCommand('waveformViewer.getValuesAtTime', args);

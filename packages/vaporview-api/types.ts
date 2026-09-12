@@ -160,6 +160,12 @@ export interface GetViewerStateArgs {
   uri?: string;
 }
 
+/** Arguments for `waveformViewer.loadViewerState` */
+export interface LoadViewerStateArgs {
+  documentUri?: string;
+  settingsFileUri: string;
+}
+
 /** Arguments for `waveformViewer.getValuesAtTime` */
 export interface GetValuesAtTimeArgs {
   uri?: string;
@@ -310,6 +316,7 @@ export interface VaporviewCommands {
   setMarker(args: SetMarkerArgs): void;
   getOpenDocuments(): Promise<string[]>;
   getViewerState(args?: GetViewerStateArgs): Promise<ViewerState | undefined>;
+  loadViewerState(args: LoadViewerStateArgs): Promise<void>;
   getValuesAtTime(args: GetValuesAtTimeArgs): Promise<ValuesAtTimeResult[]>;
   addVariableByInstancePath(args: AddVariableByPathArgs): Promise<void>;
 }

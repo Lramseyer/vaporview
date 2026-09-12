@@ -9,6 +9,7 @@ import type {
   SetMarkerArgs,
   RulerWebviewContext,
   GetViewerStateArgs,
+  LoadViewerStateArgs,
   GetValuesAtTimeArgs,
   AddVariableByPathArgs,
   NetlistVariableWebviewContext,
@@ -74,9 +75,12 @@ export function registerVaporviewCommands(
 
   context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.getViewerState', (e: GetViewerStateArgs) => {
     outputLog.appendLine("Command called: 'waveformViewer.getViewerState' " + JSON.stringify(e));
-    const document = viewerProvider.getDocumentFromOptionalUri(e.uri);
-    if (!document) {return;}
-    return document.getSettings();
+    return viewerProvider.getViewerState(e.uri);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.loadViewerState', (e: LoadViewerStateArgs) => {
+    outputLog.appendLine("Command called: 'waveformViewer.loadViewerState' " + JSON.stringify(e));
+    viewerProvider.loadViewerStateCommand(e);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('waveformViewer.getValuesAtTime', (e: GetValuesAtTimeArgs) => {

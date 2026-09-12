@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { type DocumentId, type NetlistId, SignalGroupWebviewContext, SignalId, StateChangeType, WindowMessageType, type MarkerSetEvent, type SignalEvent, type ViewerDropEvent, ExternalKeyDownMessage, SetDisplayFormatMessage, EmitEventMessage, WebviewDropMessage, DisplayFormatProperties, WebviewStateEvent } from '../common/types';
 import { decodeNetlistUri } from '../../packages/vaporview-api';
-import type { VariableActionArgs, VariableAction, SetMarkerArgs, AddVariableByPathArgs, SavedRowItem, ValueLinkEvent, RulerContext, RulerWebviewContext } from '../../packages/vaporview-api/types';
+import type { VariableActionArgs, VariableAction, SetMarkerArgs, AddVariableByPathArgs, SavedRowItem, LoadViewerStateArgs, ValueLinkEvent, RulerContext, RulerWebviewContext } from '../../packages/vaporview-api/types';
 import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
 import { Worker } from 'worker_threads';
 import * as fs from 'fs';
@@ -443,7 +443,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
   revertCustomDocument(document: VaporviewDocument, cancellation: vscode.CancellationToken): Thenable<void> {
     if (document.saveFileUri) {
-      this.loadSettingsFromFileUri(document, document.saveFileUri);
+      this.loadSettingsFromFileUri(document, document.saveFileUri, false);
     }
     return Promise.resolve();
   }
@@ -566,6 +566,16 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     document.saveFileUri = uri;
   }
 
+  public loadViewerStateCommand(args: LoadViewerStateArgs) {
+
+    const document = this.getDocumentFromCommandArgs({uri: args.documentUri});
+
+    if (!document) {return;}
+    if (!args.settingsFileUri) {return;}
+
+    this.loadSettingsFromFileUri(document, vscode.Uri.parse(args.settingsFileUri), true);
+  }
+
   public async loadSettingsFromFile() {
 
     if (!this.activeDocument) {
@@ -595,23 +605,15 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     if (!uri) {return;}
 
-    this.activeDocument.clearDirtyStatus = true;
-    const readSuccess = await this.loadSettingsFromFileUri(this.activeDocument, uri);
-
-    // We have to trick VScode in to thinking that the file was saved so that it clears the dirty status
-    if (readSuccess) {
-      await vscode.commands.executeCommand('workbench.action.files.save');
-    } else {
-      this.activeDocument.clearDirtyStatus = false;
-    }
+    await this.loadSettingsFromFileUri(this.activeDocument, uri, true);
   }
 
-  public async loadSettingsFromFileUri(document: VaporviewDocument, saveFileUri: vscode.Uri): Promise<boolean> {
+  public async loadSettingsFromFileUri(document: VaporviewDocument, saveFileUri: vscode.Uri, saveEvent: boolean): Promise<void> {
     const fileData = await vscode.workspace.fs.readFile(saveFileUri).then((data) => {
       return JSON.parse(new TextDecoder().decode(data));
     });
 
-    if (!fileData) {return false;}
+    if (!fileData) {return;}
     if (fileData.fileName && fileData.fileName !== document.uri.fsPath) {
       vscode.window.showWarningMessage('The settings file may not match the active viewer');
     }
@@ -619,7 +621,13 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     this.log.appendLine('Loading settings from file: ' + fileData.fileName);
     document.saveFileUri = saveFileUri;
     document.applySettings(fileData, StateChangeType.File, false);
-    return true;
+
+    // We have to trick VScode in to thinking that the file was saved so that it clears the dirty status
+    if (saveEvent) {
+      //await vscode.commands.executeCommand('workbench.action.files.save');
+      document.clearDirtyStatus = true;
+      vscode.workspace.save(document.uri);
+    }
   }
 
   public restoreState(state: WebviewStateSettings | undefined, uri: vscode.Uri) {
@@ -641,7 +649,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         if (promptLoadSettings === 'Never') {
           return;
         } else if (promptLoadSettings === 'Always') {
-          this.loadSettingsFromFileUri(document, fileUri);
+          this.loadSettingsFromFileUri(document, fileUri, true);
           return;
         }
 
@@ -652,7 +660,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
           'Yes', 'No', 'Settings'
         ).then((action) => {
           if (action === 'Yes') {
-            this.loadSettingsFromFileUri(document, fileUri);
+            this.loadSettingsFromFileUri(document, fileUri, true);
           } else if (action === 'Settings') {
             // Open the settings page for the extension
             vscode.commands.executeCommand('workbench.action.openSettings', 'vaporview.promptLoadSettings');
@@ -1018,8 +1026,10 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         return;
       } else if (uri.scheme === 'file') {
         // If the file is a JSON file, we can try to load it as a settings file
-        if (uri.fsPath.endsWith('.json')) {
-          this.loadSettingsFromFileUri(document, uri);
+        const fileName = uri.fsPath || uri.path;
+        if (fileName.endsWith('.json')) {
+          const sanitizedUri = vscode.Uri.file(fileName);
+          this.loadSettingsFromFileUri(document, sanitizedUri, true);
           return;
         }
       }

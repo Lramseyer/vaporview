@@ -12,6 +12,7 @@
 - Added waveformViewer.loadViewerState command to API
 - Fix glitch with Alt + Down next to collapsed groups
 - Fix Custom waveforms not being reloaded properly
+- Fix Octal search @haroune-dev
 
 ## 1.5.4 - 6/4/2026 - Latest Release
 

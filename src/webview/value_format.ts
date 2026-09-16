@@ -216,7 +216,7 @@ export const formatOctal: ValueFormat = {
   parseSearchValue: (searchString: string) =>{
     let result = searchString.replace(/_/g, '');
     result = result.split('').map((c) => {
-      if (c.match(/[xXzZ]/)) {return '....';}
+      if (c.match(/[xXzZ]/)) {return '...';}
       return parseInt(c, 8).toString(2).padStart(3, '0');
     }).join('');
     return result;

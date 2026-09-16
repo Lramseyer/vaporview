@@ -7,6 +7,8 @@
 - Update wellen to 0.25.6
 - Delta Time in the status bar now displays units in Hz
 - New waveform dumps now open zoomed out all the way
+- Control bar hides button groups when shrinking tab width
+- Updated styling to match VScode 2026 styling
 - Added waveformViewer.loadViewerState command to API
 - Fix glitch with Alt + Down next to collapsed groups
 - Fix Custom waveforms not being reloaded properly

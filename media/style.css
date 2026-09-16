@@ -4,6 +4,12 @@
   --ruler-height:     36px;
   --scrollbar-width:  14px;
   --scrollbar-height: 12px;
+  --icon-size:        16px;
+  --icon-padding:     3px;
+}
+
+.codicon {
+  font-size: var(--icon-size);
 }
 
 .height1x {
@@ -55,6 +61,24 @@ body {
   grid-row-end: 2;
   border-bottom: 1px solid var(--vscode-widget-border);
   background-color: var(--vscode-editorWidget-background);
+  container-type: inline-size;
+  container-name: controlbar;
+}
+
+@container controlbar (max-width: 790px) {
+  .hide-1 { display: none !important; }
+}
+
+@container controlbar (max-width: 615px) {
+  .hide-2 { display: none !important; }
+}
+
+@container controlbar (max-width: 386px) {
+  .hide-3 { display: none !important; }
+}
+
+@container controlbar (max-width: 248px) {
+  .control-bar-group { padding: 0 2px 0 2px !important; }
 }
 
 .control-bar-group {
@@ -70,10 +94,10 @@ body {
 }
 
 .control-bar-button {
-  padding: 2px 2px 2px 2px;
-  margin: 4px 0px 4px 4px;
-  height: 20px;
-  width: 20px;
+  padding: var(--icon-padding);
+  margin-right: 4px;
+  height: var(--icon-size);
+  width: var(--icon-size);
   fill: var(--vscode-icon-foreground);
   color: var(--vscode-icon-foreground);
 }
@@ -87,13 +111,15 @@ body {
 .custom-icon {
   fill: inherit;
   user-select: none;
+  height: var(--icon-size);
+  width: var(--icon-size);
 }
 
 .icon-text {
   text-anchor: middle;
   dominant-baseline: central;
   font-family: "Segoe WPC", "Segoe UI", "sans-serif";
-  font-size: 8px;
+  font-size: 10px;
   fill: inherit;
 }
 
@@ -104,10 +130,10 @@ body {
   overflow: hidden;
   box-sizing: border-box;
   border: 1px var(--vscode-input-border);
-  border-radius: 2px;
+  border-radius: 4px;
   background-color: var(--vscode-input-background);
   height: 25px;
-  margin-right: 4px;
+  margin-right: 6px;
 }
 
 #search-container.is-focused {
@@ -121,7 +147,7 @@ body {
 .search-input {
   resize: none;
   width: calc(100% - 44px);
-  height: 23px;
+  height: 20px;
   font-size: 13px;
   background-color: inherit;
   color: var(--vscode-input-foreground);
@@ -138,25 +164,25 @@ body {
 }
 
 .search-button {
-  height: 20px;
-  width: 20px;
+  height: var(--icon-size);
+  width: var(--icon-size);
+  padding: 1px;
   fill:  var(--vscode-icon-foreground);
+  border-radius: 3px;
   margin-right: 2px;
-  box-sizing: border-box;
 }
 
 .search-button:hover {
   background-color: var(--vscode-toolbar-hoverBackground);
   cursor: pointer;
-  border-radius: 4px;
 }
 
 .format-button {
-  padding: 2px 2px 2px 2px;
+  padding: var(--icon-padding);
   stroke: none;
   fill: var(--vscode-icon-foreground);
-  height: 20px;
-  width: 20px;
+  height: var(--icon-size);
+  width: var(--icon-size);
   margin-right: 4px;
   flex-shrink: 0;
 }
@@ -487,9 +513,8 @@ body {
 }
 
 .resize-bar.is-idle:hover {
-  animation-delay: 500ms;
   animation-iteration-count: 1;
-  animation: highlight-resize-bar 100ms forwards;
+  animation: highlight-resize-bar 50ms 400ms 1 forwards;
   cursor: w-resize;
 }
 
@@ -607,6 +632,7 @@ body {
 
   height: var(--scrollbar-height);
   width: 17px;
+  border-radius: 4px;
 }
 
 #vertical-scrollbar {
@@ -624,6 +650,7 @@ body {
 
   height: 17px;
   width: var(--scrollbar-width);
+  border-radius: 4px;
 }
 
 .scrollbar {

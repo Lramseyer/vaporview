@@ -554,6 +554,7 @@ export class CustomVariable extends SignalItem implements RowItem {
       width: this.signalWidth,
       preventDefaultContextMenuItems: true,
       rowId: this.rowId,
+      netlistId: this.source[0].netlistId || -1,
       isAnalog: isAnalog,
     };
     this.vscodeContext = `${JSON.stringify(context).replace(/\s/g, '%x20')}`;

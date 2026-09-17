@@ -4,15 +4,17 @@
 
 - Merge waveform canvases and rows into a single canvas
 - Added menu option to show Readme
-- Update wellen to 0.25.6
 - Delta Time in the status bar now displays units in Hz
 - New waveform dumps now open zoomed out all the way
 - Control bar hides button groups when shrinking tab width
 - Updated styling to match VScode 2026 styling
 - Added waveformViewer.loadViewerState command to API
-- Fix glitch with Alt + Down next to collapsed groups
-- Fix Custom waveforms not being reloaded properly
-- Fix Octal search @haroune-dev
+- Update wellen to 0.25.6
+- Fixed:
+  - Custom waveforms now reload properly
+  - Fixed glitch with Alt + Down next to collapsed groups
+  - Show in Netlist View now works with costom variables
+  - Octal search @haroune-dev
 
 ## 1.5.4 - 6/4/2026 - Latest Release
 

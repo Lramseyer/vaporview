@@ -282,6 +282,7 @@ export type CustomVariableContext = {
   width: number;
   preventDefaultContextMenuItems: boolean;
   rowId: RowId;
+  netlistId: NetlistId;
   isAnalog: boolean;
 }
 

@@ -316,12 +316,11 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   public async getNetlistItemFromSignalInfo(signalInfo: SignalInfo | SignalInfoSource, useNetlistId: boolean): Promise<NetlistItem | null> {
-    const name = signalInfo.name;
     let metadata: NetlistItem | null = null;
     if (useNetlistId && signalInfo.netlistId !== undefined) {
       metadata = this.netlistIdTable[signalInfo.netlistId];
     } else {
-      metadata = await this.findTreeItem(name, signalInfo.msb, signalInfo.lsb);
+      metadata = await this.findTreeItem(signalInfo.name, signalInfo.msb, signalInfo.lsb);
     }
     return metadata;
   }
@@ -401,27 +400,36 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public async convertSignalListToSettings(signalList: SignalInfo[], useNetlistId: boolean): Promise<ConvertedSignalListResult> {
     const missingSignals: string[] = [];
     const settings: ParsedSignalData[] = [];
+
+    if (!Array.isArray(signalList)) {
+      return { missingSignals: [], signalList: [] };
+    }
+
     for (const signalInfo of signalList) {
-      if (signalInfo.dataType && signalInfo.dataType === 'signal-group') {
-        const childrenSettings = await this.convertSignalListToSettings(signalInfo.children ?? [], useNetlistId);
-        const groupData = Object.assign({}, signalInfo, {children: childrenSettings.signalList});
-        settings.push(groupData);
-        missingSignals.push(...childrenSettings.missingSignals);
-      } else if (signalInfo.dataType && signalInfo.dataType === 'signal-separator') {
-        settings.push(signalInfo);
-      } else if (signalInfo.dataType && signalInfo.dataType === 'custom-variable') {
-        const result = await this.parseCustomVariableSettings(signalInfo, useNetlistId);
-        settings.push(result.signalData);
-        if (!result.dataValid) {
-          missingSignals.push(...result.missingSignals);
+      try {
+        if (signalInfo.dataType && signalInfo.dataType === 'signal-group') {
+          const childrenSettings = await this.convertSignalListToSettings(signalInfo.children ?? [], useNetlistId);
+          const groupData = Object.assign({}, signalInfo, {children: childrenSettings.signalList});
+          settings.push(groupData);
+          missingSignals.push(...childrenSettings.missingSignals);
+        } else if (signalInfo.dataType && signalInfo.dataType === 'signal-separator') {
+          settings.push(signalInfo);
+        } else if (signalInfo.dataType && signalInfo.dataType === 'custom-variable') {
+          const result = await this.parseCustomVariableSettings(signalInfo, useNetlistId);
+          settings.push(result.signalData);
+          if (!result.dataValid) {
+            missingSignals.push(...result.missingSignals);
+          }
+        } else if (signalInfo.dataType === 'netlist-variable' || signalInfo.dataType === undefined) {
+          const signalData = await this.parseNetlistVariableSettings(signalInfo, useNetlistId);
+          if (signalData !== null) {
+            settings.push(signalData);
+          } else {
+            missingSignals.push(signalInfo.name);
+          }
         }
-      } else if (signalInfo.dataType === 'netlist-variable' || signalInfo.dataType === undefined) {
-        const signalData = await this.parseNetlistVariableSettings(signalInfo, useNetlistId);
-        if (signalData !== null) {
-          settings.push(signalData);
-        } else {
-          missingSignals.push(signalInfo.name);
-        }
+      } catch (e) {
+        console.error('Error parsing signal list:', e);
       }
     }
 
@@ -576,7 +584,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     return strings.join('.') + ' ' + unit;
   }
 
-  public async findTreeItem(scopePath: string, msb: number | undefined, lsb: number | undefined): Promise<NetlistItem | null> {
+  public async findTreeItem(scopePath: string | undefined, msb: number | undefined, lsb: number | undefined): Promise<NetlistItem | null> {
+    if (!scopePath) { return null; }
     const pathArray = scopePath.split('.');
     const module    = this.treeData.find((element) => element.label === pathArray[0]);
     if (!module) { return null; }

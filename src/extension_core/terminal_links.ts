@@ -23,7 +23,7 @@ export class TimestampLinkProvider implements vscode.TerminalLinkProvider {
 
     const uvmTimestampLinks = uvmTimestampMatches.map(match => {
       const line       = context.line;
-      const startIndex = line.indexOf(match[0]);
+      const startIndex = match.index ?? line.indexOf(match[0]);
 
       return {
         startIndex,
@@ -36,7 +36,7 @@ export class TimestampLinkProvider implements vscode.TerminalLinkProvider {
 
     const timeStampWithUnitsLinks = timeStampWithUnitsMatches.map(match => {
       const line       = context.line;
-      const startIndex = line.indexOf(match[0]);
+      const startIndex = match.index ?? line.indexOf(match[0]);
 
       return {
         startIndex,
@@ -49,7 +49,7 @@ export class TimestampLinkProvider implements vscode.TerminalLinkProvider {
 
     const surverUrlLinks = surverUrlMatches.map(match => {
       const line       = context.line;
-      const startIndex = line.indexOf(match[0]);
+      const startIndex = match.index ?? line.indexOf(match[0]);
 
       return {
         startIndex,
@@ -131,7 +131,7 @@ export class NetlistLinkProvider implements vscode.TerminalLinkProvider {
 
     const netlistElementLinks = netlistElementMatches.map(match => {
       const line       = context.line;
-      const startIndex = line.indexOf(match[0]);
+      const startIndex = match.index ?? line.indexOf(match[0]);
 
       return {
         startIndex,

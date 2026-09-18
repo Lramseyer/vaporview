@@ -355,6 +355,7 @@ export function registerVaporviewCommands(
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsFloat', (e: NetlistVariableWebviewContext) => {
     switch (e.width) {
+      case 4:  viewerProvider.setValueFormat(e, undefined, {valueFormat: "float4"}); break;
       case 8:  viewerProvider.setValueFormat(e, undefined, {valueFormat: "float8"}); break;
       case 16: viewerProvider.setValueFormat(e, undefined, {valueFormat: "float16"}); break;
       case 32: viewerProvider.setValueFormat(e, undefined, {valueFormat: "float32"}); break;

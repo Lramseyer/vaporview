@@ -854,7 +854,7 @@
         {
           "command": "vaporview.displayAsFloat",
           "group": "0_default@7",
-          "when": "webviewSection == 'signal' && (width == '8' || width == '16' || width == '32' || width == '64')"
+          "when": "webviewSection == 'signal' && (width == '4' || width == '8' || width == '16' || width == '32' || width == '64')"
         },
         {
           "command": "vaporview.displayAsBFloat",

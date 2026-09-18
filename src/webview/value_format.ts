@@ -338,11 +338,31 @@ const formatSignedInt: ValueFormat = {
   checkWidth: (width: number) => {return width > 1;},
 };
 
+// #region Format Float 4
+export const formatFloat4: ValueFormat = {
+  id: "float4",
+  rightJustify: false,
+  symbolText: "fp4",
+  formatString: (inputString: string, width: number, is2State: boolean) => {
+    if (!is2State) {
+      return formatBinaryStringFloat9State(inputString, 1, 2);
+    }
+    const table = ["0", "0.5", "1", "1.5", "2", "3", "4", "6", "-0", "-0.5", "-1", "-1.5", "-2", "-3", "-4", "-6"];
+    const index = parseInt(inputString, 2);
+    return table[index];
+  },
+  checkValidSearch: checkValidFloat,
+  parseSearchValue: (searchString: string) => {return parseFloatForSearch(searchString, 4, 3);},
+  checkSearchValue: regexMatchBinary,
+  is9State: valueIs9State,
+  checkWidth: (width: number) => {return width === 4;},
+};
+
 // #region Format Float 8
 export const formatFloat8: ValueFormat = {
   id: "float8",
   rightJustify: false,
-  symbolText: "f8",
+  symbolText: "fp8",
   formatString: (inputString: string, width: number, is2State: boolean) => {return formatFloat(inputString, 4, 3, is2State);},
   checkValidSearch: checkValidFloat,
   parseSearchValue: (searchString: string) => {return parseFloatForSearch(searchString, 4, 3);},
@@ -581,6 +601,7 @@ export const valueFormatList: ValueFormat[] = [
   formatDecimal,
   formatOctal,
   formatSignedInt,
+  formatFloat4,
   formatFloat8,
   formatFloat16,
   formatFloat32,

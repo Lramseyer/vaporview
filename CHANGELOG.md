@@ -7,6 +7,7 @@
 - Delta Time in the status bar now displays units in Hz
 - New waveform dumps now open zoomed out all the way
 - Control bar hides button groups when shrinking tab width
+- Added FP4 value format
 - Updated styling to match VScode 2026 styling
 - Added waveformViewer.loadViewerState command to API
 - Update wellen to 0.25.6

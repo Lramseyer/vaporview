@@ -16,7 +16,7 @@ import type {
 } from '../../packages/vaporview-api/types';
 import { VaporviewDocumentCollection, WaveformViewerProvider, type RenameSignalGroupArgs } from './viewer_provider';
 import type { NetlistItem } from './tree_view';
-import { wcpDefaultPort, WCPServer } from './wcp_server';
+import { WCPServer } from './wcp_server';
 import { dirname } from 'path';
 
 // Context menu args for signal group operations (newSignalGroup, newSeparator, etc.)
@@ -32,7 +32,7 @@ export function registerVaporviewCommands(
   outputLog: vscode.OutputChannel,
   viewerProvider: WaveformViewerProvider,
   documentCollection: VaporviewDocumentCollection,
-  wcpServer: WCPServer | null
+  wcpServer: WCPServer
 ) {
 
   // #region External Commands
@@ -590,42 +590,22 @@ export function registerVaporviewCommands(
   }));
 
   // WCP Server commands
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.wcp.start', async () => {
-    if (wcpServer && wcpServer.getIsRunning()) {
-      vscode.window.showInformationMessage(`WCP server is already running on port ${wcpServer.getPort()}`);
-      return;
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.wcp.openWaveform', async (resource?: vscode.Uri | string) => {
+    let uri = typeof resource === 'string' ? vscode.Uri.file(resource) : resource;
+    if (!uri) {
+      const selected = await vscode.window.showOpenDialog({
+        canSelectFiles: true,
+        canSelectFolders: false,
+        canSelectMany: false,
+        filters: { 'Wave files': ['vcd', 'fst', 'ghw', 'fsdb'] },
+        title: 'Open waveform with VaporView',
+      });
+      uri = selected?.[0];
     }
-    
-    const port = vscode.workspace.getConfiguration('vaporview').get<number>('wcp.port', wcpDefaultPort);
-    wcpServer = new WCPServer(viewerProvider, context, port);
-    try {
-      const actualPort = await wcpServer.start();
-      vscode.window.showInformationMessage(`WCP server started on port ${actualPort}`);
-    } catch (error: unknown) {
-      vscode.window.showErrorMessage(`Failed to start WCP server: ${error instanceof Error ? error.message : String(error)}`);
-      wcpServer = null;
+    if (!uri) {
+      throw new Error('No waveform was selected');
     }
+    return await wcpServer.openWaveform(uri);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.wcp.stop', async () => {
-    if (!wcpServer || !wcpServer.getIsRunning()) {
-      vscode.window.showInformationMessage('WCP server is not running');
-      return;
-    }
-    
-    wcpServer.stop();
-    wcpServer = null;
-    await vscode.workspace.getConfiguration('vaporview').update('wcp.enabled', false, vscode.ConfigurationTarget.Global);
-    vscode.window.showInformationMessage('WCP server stopped');
-  }));
-
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.wcp.status', () => {
-    if (wcpServer && wcpServer.getIsRunning()) {
-      const connectionCount = wcpServer.getConnectionCount();
-      const message = `WCP server is running on TCP port ${wcpServer.getPort()} (${connectionCount} connection${connectionCount !== 1 ? 's' : ''})`;
-      vscode.window.showInformationMessage(message);
-    } else {
-      vscode.window.showInformationMessage('WCP server is not running');
-    }
-  }));
 }

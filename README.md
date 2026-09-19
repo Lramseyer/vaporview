@@ -45,6 +45,13 @@ List of extensions that connect to Vaporview:
 
 Vaporview has a set of commands and event emitters that allow interaction with other extensions. This allows for powerful features like RTL linking, in editor debugging, and firmware tracing while being HDL and simulator agnostic. See the [API docs](https://github.com/Lramseyer/vaporview/blob/main/API_DOCS.md) if you are interested in integrating Vaporview into your extension.
 
+### Waveform Control Protocol
+
+VaporView implements the Waveform Viewer Control Protocol (WCP) for controlling
+waveforms from other VS Code extensions and external tools. See the
+[VaporView WCP integration guide](WCP_DOCS.md) for endpoint discovery,
+configuration, supported commands, and protocol details.
+
 ## Remote Waveform Viewing
 
 Vaporview allows you to connect to a remote machine and open up waveforms remotely via [VScode Remote Development](https://code.visualstudio.com/docs/remote/ssh) or [Surfer surver](https://gitlab.com/surfer-project/surfer#server-mode-experimental). Remote development should work out of the box, however to connect to a Surfer surver, you will need to enter in the command "**> vaporview.openRemoteViewer**" and paste in the URL for the Surfer surver. Alternatively, if the URL is in a VScode terminal, it can be connected to automatically by clicking on the link.

@@ -206,6 +206,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     this._handler.postMessageToWebview = webviewPanel.webview.postMessage.bind(webviewPanel.webview);
     //if (this._webviewInitialized) { return; }
     if (!this.metadata.timeTableLoaded) { return; }
+    this._webviewInitialized = false;
     const colorPalette = this._providerDelegate.getColorPalette();
     this.setConfigurationSettings();
     webviewPanel.webview.postMessage({
@@ -218,6 +219,9 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       themeValid: colorPalette.themeValid,
       autoReload: this.webviewContext.autoReload,
     } as InitMessage);
+  }
+
+  public onWebviewInitialized() {
     this._webviewInitialized = true;
   }
 

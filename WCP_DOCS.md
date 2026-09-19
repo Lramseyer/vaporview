@@ -1,339 +1,164 @@
-## Vaporview WCP Server Usage
+# VaporView WCP integration
 
-The Vaporview extension includes a Waveform Control Protocol (WCP) server so external tools can control the viewer over TCP, following the WCP specification ([wcp on GitLab](https://gitlab.com/waveform-control-protocol/wcp)).
+VaporView implements version 0 of the
+[Waveform Viewer Control Protocol (WCP)](https://gitlab.com/waveform-control-protocol/wcp).
+This document covers endpoint discovery and VaporView-specific behavior. The WCP
+repository remains the source of truth for protocol messages and semantics.
 
-This document explains how to enable the server, configure it, and use it from external clients.
+## Supported waveform files
 
----
+VaporView can open VCD, FST, and GHW files. FSDB is also supported when the
+optional native reader and its vendor libraries are installed; see the
+[FSDB setup instructions](GETTING_STARTED.md#optional-build-fsdb-addon).
 
-## Configuration
+The WCP `load` command accepts a local filesystem path or `file:` URI in its
+`source` field.
 
-Vaporview exposes a small set of settings under the `vaporview` configuration section.
+## Connecting to VaporView
 
-- **`vaporview.wcp.enabled`**  
-  - **Type**: boolean  
-  - **Default**: `false`  
-  - **Behavior**:  
-    - When `true`, the WCP server is started automatically when the extension is activated (VS Code startup or first use of Vaporview).
-    - When `false`, the server is not started automatically; you can still start it manually via commands.
+VaporView supports two endpoint-discovery models.
 
-- **`vaporview.wcp.port`**  
-  - **Type**: number  
-  - **Default**: `54322`  
-  - **Range**: `0`–`65535`  
-  - **Behavior**:  
-    - **0**: Ask the OS to auto-assign an available port.  
-    - **Non-zero**: Use the specified TCP port.  
-    - If the port is already in use, the server will fail to start and an error will be logged to the Vaporview output channel.
+### From another VS Code extension
 
-You can edit these settings via:
+A VS Code extension can open a waveform and obtain its WCP endpoint with
+`vaporview.wcp.openWaveform`:
 
-- VS Code Settings UI:  
-  - Open Settings → search for **“vaporview wcp”**.
-- `settings.json`:
-
-```json
-"vaporview.wcp.enabled": true,
-"vaporview.wcp.port": 54322
+```typescript
+const endpoint = await vscode.commands.executeCommand<{
+  host: string;
+  port: number;
+}>("vaporview.wcp.openWaveform", vscode.Uri.file("/path/to/waveform.vcd"));
 ```
 
----
-
-## Starting and Stopping the Server
-
-There are three commands exposed by the extension for controlling the WCP server:
-
-- **`vaporview.wcp.start`**  
-  - Starts the WCP server if it is not already running.  
-  - Uses the value of `vaporview.wcp.port` (default `54322`, `0` for auto-assign).  
-  - Shows a notification with the actual port in use.  
-  - If the server cannot be started (e.g., port in use), an error message is shown.
-
-- **`vaporview.wcp.stop`**  
-  - Stops the server if it is running.  
-  - Shows a notification when the server is stopped.
-
-- **`vaporview.wcp.status`**  
-  - Shows the current state of the server:  
-    - If running: the TCP port and the number of active connections.  
-    - If not running: a simple “not running” message.
-
-These commands can be run from:
-
-- The Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P` → search for **“WCP:”**).  
-- Keybindings or custom commands that you define yourself.
-
----
-
-## When the Server Starts
-
-The server is created and managed by the extension (`src/extension_core/extension.ts`):
-
-- On activation:
-  - The extension reads `vaporview.wcp.enabled` and `vaporview.wcp.port`.
-  - If `vaporview.wcp.enabled` is `true`, it creates a `WCPServer` instance and calls `start()`.
-- On configuration change:
-  - If you toggle `vaporview.wcp.enabled` or change `vaporview.wcp.port`, the extension will:
-    - Start the server if it was disabled and is now enabled.
-    - Stop the server if it was enabled and is now disabled.
-    - Restart the server if it is enabled and the port value changes.
-- On extension shutdown:
-  - The server is stopped as part of the normal VS Code disposal process.
-
-Internally, the server listens only on `127.0.0.1` (loopback) and accepts multiple TCP clients. It keeps track of active connections and exposes this count to the `vaporview.wcp.status` command.
-
----
-
-## Protocol Overview
-
-The server implements the **Waveform Control Protocol (WCP)** as defined in the reference project:  
-[https://gitlab.com/waveform-control-protocol/wcp](https://gitlab.com/waveform-control-protocol/wcp)
-
-- **Transport**:  
-  - TCP, JSON messages separated by newline (`\n`).
-- **Message format**:  
-  - Requests are objects with at least `method` and `id` (and optional `params`).  
-  - Responses include either a `result` field (on success) or an `error` field (on failure), plus the original `id`.
-
-Example request:
-
-```json
-{"method": "greeting", "params": {}, "id": 1}
-```
-
-Example response:
+The argument may be a `vscode.Uri` or a filesystem path string. If it is
+omitted, VaporView displays a file picker. The command opens or reveals the
+waveform and returns an endpoint such as:
 
 ```json
 {
-  "result": {
-    "name": "VaporView",
-    "version": "X.Y.Z",
-    "protocol": "WCP",
-    "protocol_version": "0",
-    "capabilities": ["greeting", "get_item_list", "..."]
-  },
-  "id": 1
+  "host": "127.0.0.1",
+  "port": 49152
 }
 ```
 
-The exact command set and semantics follow the WCP specification where possible. Some commands are specific to Vaporview (e.g., `open_document`, `add_signal`) but still use the same JSON-RPC-like pattern.
+VaporView listens only on the loopback interface and lets the operating system
+choose an available port. Calling the command again for the same open waveform
+reuses its endpoint.
 
----
+Each WCP session controls one active waveform. VaporView creates an endpoint
+for the waveform passed to `openWaveform`; the standard `load` command can
+replace the active waveform on that session.
 
-## Basic Usage from a Client
+### From an external or container process
 
-1. **Start the WCP server**
-   - Ensure VS Code with the Vaporview extension is running.  
-   - Either:
-     - Set `vaporview.wcp.enabled = true` (auto-start on activation), or  
-     - Run `vaporview.wcp.start` from the Command Palette.
+An external process that cannot invoke VS Code commands can enable a stable
+startup endpoint in VS Code's machine settings:
 
-2. **Determine the port**
-   - If you use a fixed port (e.g., `54322`), connect directly to that.  
-   - If you set `vaporview.wcp.port = 0`, retrieve the actual port using:
-     - The notification shown when the server starts.  
-     - The `vaporview.wcp.status` command.
-
-3. **Connect from your client**
-   - Open a TCP connection to `127.0.0.1:<port>`.  
-   - Send newline-delimited JSON WCP requests.  
-   - Read newline-delimited JSON responses.
-
-4. **Typical command sequence**
-   - `greeting` – discover capabilities and verify connectivity.  
-   - `open_document` or `load` – open a waveform file (responds immediately with `ack`, then sends `waveform_loaded` event when loading completes).
-   - Wait for `waveform_loaded` event before proceeding with other commands.
-   - `add_items` / `add_signal` – add signals to the viewer.
-   - `get_item_list`, `get_item_info`, `focus_item`, `set_viewport_to`, etc.
-
-For a full list of commands and expected parameters/results, see the server implementation in `src/extension_core/wcp_server.ts` and the WCP specification ([wcp on GitLab](https://gitlab.com/waveform-control-protocol/wcp)).
-
----
-
-## Troubleshooting
-
-- **Server fails to start (port in use)**  
-  - Choose a different `vaporview.wcp.port` or set it to `0` to let the OS pick an available port.
-
-- **Client cannot connect**  
-  - Confirm the server is running via `vaporview.wcp.status`.  
-  - Check that you are connecting to `127.0.0.1` and the correct port.
-
-- **Commands return errors**  
-  - The `error` object in the response includes a code and message.  
-  - Common causes include invalid parameters (e.g., unknown netlist ID, out-of-range time).
-
----
-
-## Differences from the WCP Reference Specification
-
-Vaporview aims to follow the WCP specification as defined in the reference project ([wcp on GitLab](https://gitlab.com/waveform-control-protocol/wcp)), but there are a few intentional behavior differences and extensions:
-
-- **Document selection via `uri` parameter (all commands)**  
-  - Every WCP command in Vaporview accepts an **optional** `uri` parameter in `params`.  
-  - If `uri` is provided, the command targets that specific document.  
-  - If `uri` is omitted, Vaporview applies the command to the **active document**, or if none is active, the **last active document**.  
-  - This is an extension to the spec to better fit VS Code’s multi-document model.
-
-- **Use of `netlist_id` as Displayed Item Reference**  
-  - Vaporview uses its internal `netlist_id` as the WCP "displayed item" identifier.
-  - Anywhere the WCP spec refers to an item ID (e.g., in `get_item_info`, `get_item_list`, `set_item_color`, `set_value_format`, `focus_item`, etc.), Vaporview uses `netlist_id` values that come from its netlist table.
-
-- **`add_items` return behavior**  
-  - In the reference spec, `add_items` may return IDs of added items and can report errors for items that could not be added.  
-  - In Vaporview:
-    - `add_items` **does not return an error** if no items were added (e.g., nothing matched or all items were skipped). It still returns a successful response.  
-    - On success, `add_items` **always returns**:
-      - `{"ids": []}`  
-      even if items were actually added in the viewer. The command is effectively "fire and forget" from the client's perspective.
-
-- **`waveform_loaded` event for `load`, `reload`, and `open_document`**
-  - Per the WCP specification, the `load` command responds instantly with `ack` if the file is found, and sends a `waveform_loaded` event when loading completes.
-  - Vaporview implements this behavior for `load`, `reload`, and `open_document` commands.
-  - The server preserves the **exact URI format** from the input parameter in both the `ack` response and the `waveform_loaded` event.
-  - Clients should listen for the `waveform_loaded` event **before** sending these commands to avoid race conditions, and wait for the **exact URI** they sent in the command.
-
-These differences should be kept in mind when using generic WCP clients or comparing behavior against the reference implementation described in the WCP project ([wcp on GitLab](https://gitlab.com/waveform-control-protocol/wcp)).
-
----
-
-## Vaporview-Specific Commands
-
-In addition to the standard WCP methods described in the reference project ([wcp on GitLab](https://gitlab.com/waveform-control-protocol/wcp)), the Vaporview server exposes several **Vaporview-specific** commands. Many of these correspond directly to VS Code API commands described in `API_DOCS.md` (for example, `vaporview.openFile`, `waveformViewer.addVariable`, `waveformViewer.removeVariable`, and others).
-
-- **`get_capabilities`**  
-  - Returns a list of all supported server capabilities (both standard WCP and Vaporview-specific methods).  
-  - Clients should use this to discover which methods are available in the running server.
-
-- **`open_document`**  
-  - Convenience wrapper to open a waveform file in Vaporview.  
-  - Internally maps to the `vaporview.openFile` command and supports options like `uri`, `load_all`, and `max_signals`.  
-  - Returns a WCP-style ack object including the document `uri` **immediately** if the file is found.  
-  - The `uri` in the ack response uses the **exact same format** as the `uri` parameter in the request.  
-  - Sends a `waveform_loaded` event to all connected clients when the document is fully loaded, using the same URI format as the input.
-
-- **`add_signal`**  
-  - Adds a single signal to the viewer using either `netlist_id`, `instance_path`, or `scope_path + name`.  
-  - Internally maps to `waveformViewer.addVariable`.  
-  - Returns `{ "success": true }` on success (or an error response on failure).
-
-- **`remove_signal`**  
-  - Removes a single signal from the viewer; accepts the same selectors as `add_signal`.  
-  - Internally maps to `waveformViewer.removeVariable`.  
-  - Returns `{ "success": true }` when the removal command is issued successfully.
-
-- **`set_marker`**  
-  - Sets the main or alternate marker in the viewer at a given time (optionally with units) and marker type (`0` main, `1` alt).  
-  - Internally maps to the `waveformViewer.setMarker` command.
-
-- **`set_value_format`**
-  - Sets the displayed value format for a signal (e.g., binary, hexadecimal, decimal, octal, signed, float formats, etc.).
-  - **Parameters:**
-    - `id` (required): The netlist ID of the signal to format
-    - `format` (required): The format string (see supported formats below)
-    - `uri` (optional): Document URI (defaults to active document)
-  - **Supported formats:**
-    - `binary` - Binary representation
-    - `hexadecimal` - Hexadecimal representation
-    - `decimal` - Decimal representation
-    - `octal` - Octal representation
-    - `signed` - Signed decimal representation
-    - `float8`, `float16`, `float32`, `float64` - Floating point formats
-    - `bfloat16` - BFloat16 format
-    - `tensorfloat32` - TensorFloat32 format
-    - `ascii` - ASCII character representation
-    - `string` - String representation
-  - **Returns:** WCP-style ack response with document URI
-  - **Errors:** Returns error if signal is not found, not displayed, or format is invalid (invalid formats return ack without error, per WCP spec)
-  - **Example:**
-    ```json
-    {
-      "method": "set_value_format",
-      "params": {
-        "id": 123,
-        "format": "hexadecimal"
-      },
-      "id": 1
-    }
-    ```
-
-- **`get_marker`**  
-  - Reads back the current marker time and units for either the main or alternate marker.  
-  - Internally uses `waveformViewer.getViewerState` and translates the result into the WCP `get_marker` response shape.
-
-- **`get_viewer_state`**  
-  - Returns a snapshot of the viewer state including URI, marker times, time unit, zoom ratio, scroll position, and displayed signals.
-  - **Parameters:**
-    - `uri` (optional): Document URI (defaults to active document)
-  - **Response format:**
-    ```json
-    {
-      "uri": "file:///path/to/waveform.vcd",
-      "marker_time": 1000,
-      "alt_marker_time": 2000,
-      "time_unit": "ns",
-      "zoom_ratio": 1.5,
-      "scroll_left": 500,
-      "displayed_signals": [
-        {
-          "name": "top.a",
-          "id": 123
-        },
-        {
-          "name": "top.b",
-          "id": 124
-        }
-      ]
-    }
-    ```
-  - **Response fields:**
-    - `uri`: The document URI
-    - `marker_time`: Main marker time in document time units
-    - `alt_marker_time`: Alternate marker time in document time units
-    - `time_unit`: Display time unit (e.g., "ns", "ps", "us")
-    - `zoom_ratio`: Current zoom ratio
-    - `scroll_left`: Horizontal scroll position in time units
-    - `displayed_signals`: Array of displayed signals, each with `name` (instance path) and `id` (netlist ID)
-  - Internally maps to `waveformViewer.getViewerState` and converts the result into the WCP-style response.
-
-- **`get_values_at_time`**  
-  - Returns the values of one or more signals (specified by `instance_paths`) at a given time.  
-  - Internally maps to `waveformViewer.getValuesAtTime`, then adapts the return value to the WCP `get_values_at_time` result format (list of `{instance_path, value}`).
-
-- **`get_open_documents`**  
-  - Lists all open Vaporview documents and the last active document.  
-  - Internally maps to `waveformViewer.getOpenDocuments` and converts the resulting URIs into strings for WCP clients.
-
-All of these Vaporview-specific WCP methods follow the same transport and request/response structure as the standard WCP commands and respect the optional `uri` parameter described above.
-
----
-
-## Events
-
-The WCP server broadcasts events to all connected clients. Events are JSON messages with `type: "event"` and do not have an `id` field (unlike command responses).
-
-### `waveform_loaded` Event
-
-The `waveform_loaded` event is sent when a waveform document finishes loading. This event is fired by the following commands:
-
-- **`load`** – After the waveform file is fully loaded
-- **`reload`** – After the document is reloaded and ready
-- **`open_document`** – After the waveform file is fully loaded
-
-**Event Format:**
 ```json
 {
-  "type": "event",
-  "event": "waveform_loaded",
-  "uri": "file:///path/to/waveform.vcd"
+  "vaporview.wcp.enabled": true,
+  "vaporview.wcp.port": 54322
 }
 ```
 
-**Important Notes:**
-- The `load`, `reload`, and `open_document` commands return an `ack` response **immediately** if the file is found (per WCP specification).
-- The `waveform_loaded` event is sent **asynchronously** when loading completes.
-- Clients should set up event listeners **before** sending these commands to avoid missing the event due to race conditions.
-- The server **preserves the exact URI format** from the input parameter. The `uri` field in both the `ack` response and the `waveform_loaded` event will match the URI format that was sent in the command.
-- Clients should wait for the **exact URI** they sent in the command (e.g., if you send `/path/to/file.vcd`, wait for `/path/to/file.vcd`; if you send `file:///path/to/file.vcd`, wait for `file:///path/to/file.vcd`).
-- Clients can filter events by URI to wait for a specific document to load.
+These settings use machine scope so they can be supplied by a devcontainer's
+`customizations.vscode.settings`. They can also be set in local or remote User
+settings, but not in workspace or folder settings. VaporView activates after
+VS Code finishes starting and listens on `127.0.0.1` at the configured port.
+The endpoint starts without an active waveform; connect, complete the greeting,
+send `load`, and wait for `waveforms_loaded` before sending document-dependent
+commands.
 
+Setting the port to `0` lets the operating system choose a port, which is
+reported in the VaporView output log. Processes that need a predetermined
+endpoint should configure a nonzero port. Configuration changes start, stop,
+or restart this endpoint automatically; there are no manual WCP start, stop,
+or status commands.
+
+## Transport and greeting
+
+Messages are UTF-8 JSON terminated by a null byte (`U+0000`), not a newline.
+Immediately after connecting, the client sends a WCP greeting. Its `commands`
+array names the events the client wants to receive:
+
+```json
+{"type":"greeting","version":"0","commands":["waveforms_loaded","cursor_set"]}
+```
+
+The server replies with a greeting whose `commands` array lists the commands
+implemented by VaporView. Command messages use `type: "command"` and a
+`command` name. WCP is not JSON-RPC: messages have no `method`, `params`, or
+request ID fields, and responses are returned in command order.
+
+See the [WCP TypeScript bindings](https://gitlab.com/waveform-control-protocol/wcp/-/tree/main/bindings/typescript)
+for generated types and TCP client support.
+
+## Supported WCP commands and events
+
+VaporView currently advertises these commands:
+
+- `get_item_list`
+- `get_item_info`
+- `set_item_color`
+- `add_items`
+- `remove_items`
+- `focus_item`
+- `set_viewport_to`
+- `set_viewport_range`
+- `zoom_to_fit`
+- `set_cursor`
+- `load`
+- `reload`
+- `clear`
+- `shutdown`
+
+It can emit these events when the client advertises them in its greeting:
+
+- `waveforms_loaded`, after a `load` or `reload` finishes
+- `cursor_set`, when the main VaporView cursor moves
+
+## VaporView-specific behavior
+
+- Displayed item references are numeric VaporView netlist IDs. Clients should
+  still treat them as opaque and only use IDs returned by `get_item_list` or
+  `add_items`.
+- `add_items` accepts signal paths and scope paths. A scope adds its direct
+  signals; with `recursive: true`, signals in nested scopes are also added.
+- `set_item_color` recognizes `green`, `orange`, `blue`, `purple`, `custom1`,
+  `custom2`, `custom3`, and `custom4`. Other color names have no effect.
+- `load` acknowledges once the source exists and then loads asynchronously.
+  Advertise and wait for `waveforms_loaded` before issuing commands that depend
+  on the newly loaded waveform.
+
+## The former `uri` extension
+
+Earlier experimental VaporView builds accepted an optional `uri` on almost
+every command and included a URI in acknowledgements and loading events. That
+was a VaporView-specific extension used to multiplex multiple documents over
+one global TCP server; it was never part of WCP.
+
+The extra fields were nonstandard extensions. Together with the former
+JSON-RPC-like envelope and newline framing, they made the old server
+wire-incompatible with standard WCP clients.
+
+The extension has been removed. Select a document by calling
+`vaporview.wcp.openWaveform`, or connect to the configured startup endpoint and
+send `load`. Do not add a `uri` field to WCP commands. Standard WCP uses
+`source` only on `load` and the `waveforms_loaded` event, and an `ack` response
+contains no URI.
+
+Clients of the earlier VaporView dialect must also migrate from newline-framed
+JSON-RPC-like calls to null-delimited WCP messages. The common command mappings
+are `open_document` to `load`, `add_signal` to `add_items`, and
+`waveform_loaded` to `waveforms_loaded`.
+
+## Value formats and other VaporView APIs
+
+WCP version 0 does not define `set_value_format`, `open_document`, `add_signal`,
+or the other commands from VaporView's earlier experimental server. Value
+formatting remains available in VaporView itself, with binary, hexadecimal,
+decimal, signed, octal, floating-point, bfloat16, tensorfloat32, ASCII, epoch,
+string, enum, and fixed-point display modes, but it is not currently
+controllable through WCP.
+
+For non-WCP extension integration, see the [VaporView API documentation](API_DOCS.md).

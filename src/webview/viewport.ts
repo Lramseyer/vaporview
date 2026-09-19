@@ -337,8 +337,8 @@ export class Viewport {
   }
 
   updateWaveformsHeight() {
-    const index  = viewerState.displayedSignalsFlat.length - 1;
-    const rowId  = viewerState.displayedSignalsFlat[index];
+    const index  = viewerState.visibleSignalsFlat.length - 1;
+    const rowId  = viewerState.visibleSignalsFlat[index];
     const bounds = this.getRowIdBounds(rowId);
     if (bounds === null) {
       this.waveformsHeight = 0;

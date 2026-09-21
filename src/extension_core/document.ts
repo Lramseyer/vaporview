@@ -176,7 +176,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     const loadTime    = Date.now();
     await this._handler.loadNetlist();
     const netlistTime = (Date.now() - loadTime) / 1000;
-    this.treeData     = await this._handler.getChildren(undefined);
+    this.treeData     = await this.getScopeChildren(undefined);
     this._providerDelegate.updateViews(this.uri);
     this.setSearchCommandContext();
 

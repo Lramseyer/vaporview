@@ -1,11 +1,25 @@
 import type { NetlistId, SignalId } from '../common/types';
-import type { FsdbWaveformData, FsdbWorkerIpcMessage } from './fsdb_types';
+import type {
+    FsdbScopeChildrenResult,
+    FsdbScopeInfo,
+    FsdbWaveformData,
+    FsdbWorkerIpcMessage,
+} from './fsdb_types';
 
 interface FsdbAddon {
     openFsdb(fsdbPath: string): void;
-    readScopes(scopeCallback: (name: string, type: string, path: string, netlistId: number, scopeOffsetIdx: number) => void, upscopeCallback: () => void): void;
+    readScopes(): FsdbScopeInfo[];
+    getScopeChildren(scopeOffsetIdx: number, startIndex: number): FsdbScopeChildrenResult;
     readMetadata(setMetadataFn: (scopecount: number, varcount: number, timescale: number, timeunit: string) => void, setChunkSizeFn: (chunksize: number, timeend: number) => void): void;
-    readVars(scopePath: string, scopeOffsetIdx: number, varCallback: (...args: Parameters<typeof fsdbVarCallback>) => void, arrayBeginCallback: (name: string, path: string, netlistId: number) => void, arrayEndCallback: (size: number) => void): void;
+    readVars(
+        scopePath: string,
+        scopeOffsetIdx: number,
+        varCallback: (...args: Parameters<typeof fsdbVarCallback>) => void,
+        arrayBeginCallback: (name: string, path: string, netlistId: number) => void,
+        arrayEndCallback: (size: number) => void,
+        structBeginCallback: (name: string, type: string, path: string, netlistId: number) => void,
+        structEndCallback: () => void,
+    ): void;
     loadSignals(signalIdList: number[]): void;
     getValueChanges(signalId: number): FsdbWaveformData;
     getValuesAtTime(signalId: number, time: number): string | string[];
@@ -31,14 +45,25 @@ process.on('message', (message: FsdbWorkerIpcMessage) => {
     process.send!({ id: message.id, result: result });
 });
 
-function handleMessage(message: FsdbWorkerIpcMessage): FsdbWaveformData | string | string[] | undefined {
+function handleMessage(message: FsdbWorkerIpcMessage): FsdbWaveformData | string | string[] | FsdbScopeInfo[] | FsdbScopeChildrenResult | undefined {
     if (!fsdbAddon) { return undefined; }
     switch (message.command) {
         case 'openFsdb': { fsdbAddon.openFsdb(message.fsdbPath); break; }
-        case 'readScopes': { fsdbAddon.readScopes(fsdbScopeCallback, fsdbUpscopeCallback); break; }
+        case 'readScopes': { return fsdbAddon.readScopes(); }
+        case 'getScopeChildren': {
+            return fsdbAddon.getScopeChildren(message.scopeOffsetIdx, message.startIndex);
+        }
         case 'readMetadata': { fsdbAddon.readMetadata(setMetadata, setChunkSize); break; }
         case 'readVars': {
-            fsdbAddon.readVars(message.scopePath, message.scopeOffsetIdx, fsdbVarCallback, fsdbArrayBeginCallback, fsdbArrayEndCallback);
+            fsdbAddon.readVars(
+                message.scopePath,
+                message.scopeOffsetIdx,
+                fsdbVarCallback,
+                fsdbArrayBeginCallback,
+                fsdbArrayEndCallback,
+                fsdbStructBeginCallback,
+                fsdbStructEndCallback,
+            );
             break;
         }
         case 'loadSignals': { fsdbAddon.loadSignals(message.signalIdList); break; }
@@ -48,23 +73,6 @@ function handleMessage(message: FsdbWorkerIpcMessage): FsdbWaveformData | string
         case 'unload': { fsdbAddon.unload(); break; }
     }
     return undefined;
-}
-
-function fsdbScopeCallback(name: string, type: string, path: string, netlistId: number, scopeOffsetIdx: number) {
-    process.send!({
-        command: 'fsdb-scope-callback',
-        name: name,
-        type: type,
-        path: path,
-        netlistId: netlistId,
-        scopeOffsetIdx: scopeOffsetIdx
-    });
-}
-
-function fsdbUpscopeCallback() {
-    process.send!({
-        command: 'fsdb-upscope-callback'
-    });
 }
 
 function setMetadata(scopecount: number, varcount: number, timescale: number, timeunit: string) {
@@ -113,5 +121,21 @@ function fsdbArrayEndCallback(size: number) {
     process.send!({
         command: 'fsdb-array-end-callback',
         size: size,
+    });
+}
+
+function fsdbStructBeginCallback(name: string, type: string, path: string, netlistId: number) {
+    process.send!({
+        command: 'fsdb-struct-begin-callback',
+        name: name,
+        type: type,
+        path: path,
+        netlistId: netlistId
+    });
+}
+
+function fsdbStructEndCallback() {
+    process.send!({
+        command: 'fsdb-struct-end-callback',
     });
 }

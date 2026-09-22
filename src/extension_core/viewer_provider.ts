@@ -630,8 +630,9 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     }
   }
 
-  public restoreState(state: WebviewStateSettings | undefined, uri: vscode.Uri) {
-    let document = this.documentCollection.getDocumentFromUri(uri.toString());
+  public restoreState(state: WebviewStateSettings | undefined, uri: vscode.Uri | string) {
+    const fileUri = typeof uri === 'string' ? vscode.Uri.parse(uri) : uri;
+    let document = this.documentCollection.getDocumentFromUri(fileUri.toString());
     if (!document) {
       document = this.activeDocument;
     }
@@ -641,15 +642,15 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       document.applySettings(state, StateChangeType.Restore, false);
     } else {
       // check the directory for a file with the same name as the document, but with the extension .vaporview.json
-      const filePath = uri.fsPath.match(/^(.*)\.[^.]+$/)?.[1] + '.json';
+      const filePath = fileUri.fsPath.match(/^(.*)\.[^.]+$/)?.[1] + '.json';
       if (fs.existsSync(filePath)) {
-        const fileUri = vscode.Uri.file(filePath);
+        const settingsUri = vscode.Uri.file(filePath);
         const promptLoadSettings = vscode.workspace.getConfiguration('vaporview').get('promptLoadSettings');
 
         if (promptLoadSettings === 'Never') {
           return;
         } else if (promptLoadSettings === 'Always') {
-          this.loadSettingsFromFileUri(document, fileUri, true);
+          this.loadSettingsFromFileUri(document, settingsUri, true);
           return;
         }
 
@@ -660,7 +661,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
           'Yes', 'No', 'Settings'
         ).then((action) => {
           if (action === 'Yes') {
-            this.loadSettingsFromFileUri(document, fileUri, true);
+            this.loadSettingsFromFileUri(document, settingsUri, true);
           } else if (action === 'Settings') {
             // Open the settings page for the extension
             vscode.commands.executeCommand('workbench.action.openSettings', 'vaporview.promptLoadSettings');

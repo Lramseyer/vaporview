@@ -245,13 +245,13 @@ See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.m
 
 I originally built this extension when I worked for an FPGA company. I wanted a good _free_ waveform viewer extension (which didn't exist when I first started this project) and I always thought it would be cool to make my own extension. If you like this extension, share it with your classmates or coworkers.
 
-This is and always will be open source. It's free to use for personal and professional use. There never will be feature regression in favor of a premium tier. In other words, every feature that is currently included, or on the roadmap will be free and open source. Vaporview is licensed as AGPL-3.0, which means that redistribution of unmodified release versions of Vaporview for personal and commercial products _is_ allowed. Any adaptations of the source code for the purposes of redistribution in commercial software is also allowed provided that that all commercially available adapted versions are made open source. See [license](https://github.com/Lramseyer/vaporview?tab=AGPL-3.0-1-ov-file#readme) for details.
+This is and always will be open source. It's free to use for personal and professional use. There never will be feature regression in favor of a premium tier. In other words, every feature that is currently included, or on the roadmap will be free and open source. Vaporview is licensed as GPL-3.0, which means that redistribution of unmodified release versions of Vaporview for personal and commercial products _is_ allowed. Any adaptations of the source code for the purposes of redistribution in commercial software is also allowed provided that that all commercially available adapted versions are made open source. See [license](https://github.com/Lramseyer/vaporview?tab=GPL-3.0-1-ov-file) for details.
 
 This extension was originally written by one person, with a full time job that doesn't involve anything to do with writing javascript or typescript. If you would like to see a feature added or functionality changed, or better yet, if you would like to help contribute please visit the [github repository](https://github.com/Lramseyer/VaporView) and discuss there!
 
 # Acknowledgements
 
-This project uses the [wellen](https://github.com/ekiwi/wellen/tree/new-api) library compiled to WASM for file parsing and back-end data management.
+This project uses the [wellen](https://github.com/ekiwi/wellen) library compiled to WASM for file parsing and back-end data management.
 
 Also special thanks to the Surfer team for their support and encouragement and all they're doing in the open source community! This project is compatible with the surfer surver protocol.
 
@@ -263,6 +263,7 @@ Also special thanks to the Surfer team for their support and encouragement and a
 - [@DGGua](https://github.com/DGGua)
 - [@AndrewNolte](https://github.com/AndrewNolte)
 - [@shlyahtink](https://github.com/shlyahtink)
+- [@haroune-dev](https://github.com/haroune-dev)
 
 ## Misc
 

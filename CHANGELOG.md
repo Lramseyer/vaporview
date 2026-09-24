@@ -10,11 +10,13 @@
 - Added FP4 value format
 - Updated styling to match VScode 2026 styling
 - Added waveformViewer.loadViewerState command to API
+- Updated License to GPL-3.0
 - Update wellen to 0.25.6
 - Fixed:
   - Custom waveforms now reload properly
   - Fixed glitch with Alt + Down next to collapsed groups
   - Show in Netlist View now works with costom variables
+  - Auto Loading signal list file works again
   - Octal search @haroune-dev
 
 ## 1.5.4 - 6/4/2026 - Latest Release

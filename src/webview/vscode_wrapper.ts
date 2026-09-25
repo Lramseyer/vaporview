@@ -471,13 +471,14 @@ export class VscodeWrapper {
 
   setInitComplete() {
     this.initComplete = true;
+    vscode.postMessage({command: 'initialized'});
   }
 
   handleMessage(e: MessageEvent) {
     const message = e.data;
 
     switch (message.command) {
-      case 'initViewport':          {init(message); vscode.postMessage({command: 'initialized'}); break;}
+      case 'initViewport':          {init(message); break;}
       case 'unload':                {unload(); break;}
       case 'getContext':            {this.sendWebviewContext(StateChangeType.None); break;}
       case 'setConfigSettings':     {config.setConfigSettings(message); break;}

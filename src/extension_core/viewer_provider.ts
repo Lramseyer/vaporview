@@ -396,6 +396,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         case 'executeCommand':      {vscode.commands.executeCommand(e.commandName, ...(e.args || [])); break;}
         case 'updateConfiguration': {vscode.workspace.getConfiguration('vaporview').update(e.property, e.value, vscode.ConfigurationTarget.Global); break;}
         case 'ready':               {document.onWebviewReady(webviewPanel); break;}
+        case 'initialized':         {document.onWebviewInitialized(); break;}
         case 'restoreState':        {this.restoreState(e.state, e.uri); break;}
         case 'contextUpdate':       {this.handleUpdateWebviewContext(document, e); break;}
         case 'emitEvent':           {this.emitEvent(e); break;}
@@ -1064,28 +1065,6 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   //  document.renderSignals(netlistIdList, groupPath, index);
   //}
 
-  // This function is only used in WCP command handlers (specifically handleAddItems in wcp_server.ts)
-  public async addItemsToDocument(document: VaporviewDocument, e: AddItemsArgs) {
-    const recursive = e.recursive === true;
-    for (const item of e.items) {
-      if (typeof item !== 'string') {
-        vscode.window.showWarningMessage('Item is not a string: ' + item);
-        return;
-      }
-      const metadata = await this.getNetlistItemFromSignalName(document, item);
-
-      if (metadata === null) {
-        vscode.window.showWarningMessage('Signal or scope not found: ' + item);
-        continue;
-      }
-
-      if (metadata.contextValue === 'netlistScope') {
-        this.addChildVariablesToDocument(document, metadata, recursive, 128, true /* noWarning */);
-      } else if (metadata.contextValue === 'netlistVar') {
-        document.renderSignals([metadata.netlistId], [], undefined);
-      }
-    }
-  }
 
   public async getNetlistItemFromSignalName(document: VaporviewDocument, signalName: string): Promise<NetlistItem | null> {
 

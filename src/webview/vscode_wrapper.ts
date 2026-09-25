@@ -477,7 +477,7 @@ export class VscodeWrapper {
     const message = e.data;
 
     switch (message.command) {
-      case 'initViewport':          {init(message); break;}
+      case 'initViewport':          {init(message); vscode.postMessage({command: 'initialized'}); break;}
       case 'unload':                {unload(); break;}
       case 'getContext':            {this.sendWebviewContext(StateChangeType.None); break;}
       case 'setConfigSettings':     {config.setConfigSettings(message); break;}

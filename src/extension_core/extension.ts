@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import { TimestampLinkProvider, NetlistLinkProvider } from './terminal_links';
 import { registerVaporviewCommands } from './commands';
 import { WaveformViewerProvider, VaporviewDocumentCollection } from './viewer_provider';
-import { updateWCPServerFromConfiguration, WCPServer } from './wcp_server';
+import { WCPServer } from './wcp_server';
 import type {
   VaporviewApi,
   OpenFileArgs,
@@ -46,23 +46,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<Vaporv
   );
 
   // Initialize WCP Server
-  let wcpServer: WCPServer | null = null;
-  updateWCPServerFromConfiguration(wcpServer, viewerProvider, context);
-
-  // Store wcpServer reference for cleanup
-  context.subscriptions.push({
-    dispose: () => {
-      if (wcpServer) {
-        wcpServer.stop();
-        wcpServer = null;
-      }
-    }
-  });
+  const wcpServer = new WCPServer(viewerProvider, context);
+  context.subscriptions.push(wcpServer);
 
   // Listen for configuration changes
   context.subscriptions.push(vscode.workspace.onDidChangeConfiguration((e) => {
     if (e.affectsConfiguration('vaporview.wcp.enabled') || e.affectsConfiguration('vaporview.wcp.port')) {
-      updateWCPServerFromConfiguration(wcpServer, viewerProvider, context);
+      void wcpServer.updateConfiguration();
     }
 
     if (e.affectsConfiguration('workbench.colorTheme')) {
@@ -85,6 +75,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Vaporv
 
   // Register commands (there are a lot of commands, so we register them in a separate file for cleanliness)
   registerVaporviewCommands(context, outputLog, viewerProvider, documentCollection, wcpServer);
+  await wcpServer.updateConfiguration();
 
   outputLog.appendLine('Vaporview Activated');
 

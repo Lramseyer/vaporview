@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": false,
+    "declarationMap": false,
+    "outDir": "./out/wcp-test",
+    "sourceMap": false,
+    "types": ["node"]
+  },
+  "include": [
+    "src/extension_core/wcp/**/*.ts",
+    "src/extension_core/test/wcp_server.test.ts"
+  ]
+}

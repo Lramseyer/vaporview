@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 import { Connection, RAL } from '@vscode/wasm-component-model';
-import { filehandler } from './filehandler';
+import { filehandler } from '../wellen_parser/filehandler';
 
 async function main(): Promise<void> {
 	const connection = await Connection.createWorker(filehandler._);

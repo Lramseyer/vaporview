@@ -4,6 +4,7 @@
 wit_bindgen::generate!({
   // the name of the world in the `*.wit` input file
   world: "filehandler",
+  path: "src/wellen_parser",
 });
 
 use std::io::{self, BufReader, Cursor, Read, Seek, SeekFrom, Write};

@@ -3,7 +3,7 @@ import { Worker } from 'worker_threads';
 import type { EnumQueueEntry, SignalId, ValueChangeDataChunk, CompressedValueChangeDataChunk, EnumDataChunk, WaveformDumpMetadata } from '../common/types';
 
 import type { VaporviewDocumentDelegate } from './viewer_provider';
-import { filehandler } from './filehandler';
+import { filehandler } from '../wellen_parser/filehandler';
 import { type NetlistItem, createScope, createVar } from './tree_view';
 import type { WaveformFileParser, NetlistSearchResult } from './document';
 import type { ValuesAtTimeResult } from '../../packages/vaporview-api/types';

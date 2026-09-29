@@ -24,6 +24,6 @@
         "noUnusedLocals": false,
         "noUnusedParameters": false
     },
-    "include": ["src/extension_core/**/*.ts", "src/common/**/*.ts", "packages/vaporview-api/types.ts"],
+    "include": ["src/extension_core/**/*.ts", "src/common/**/*.ts", "packages/vaporview-api/types.ts", "src/wellen_parser/filehandler.ts"],
     "exclude": ["src/webview/**/*.ts"]
 }

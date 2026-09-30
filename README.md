@@ -22,6 +22,8 @@ Vaporview is an open source waveform viewer extension for VScode.
 
 Vaporview Also supports FSDB files where external libraries are present (see [build FSDB addon](https://github.com/Lramseyer/vaporview/blob/main/GETTING_STARTED.md#optional-build-fsdb-addon)). For use of other waveform dump formats such as LXT, VZT, GTKwave offers conversion tools. Proprietary formats such as WLF and VPD can also be converted, but require you to compile GTKwave. See the [GTKwave Manual](https://gtkwave.sourceforge.net/gtkwave.pdf) for details - page 16, and 69 for an overview.
 
+WDB formats can now be converted directly to FST files using [wdbcvt](https://github.com/filmil/wdbcvt).
+
 # VScode IDE Integration
 
 ## Terminal Links
@@ -40,6 +42,7 @@ List of extensions that connect to Vaporview:
 
 - [SV Pathfinder](https://marketplace.visualstudio.com/items?itemName=heyfey.sv-pathfinder) - RTL Linking and tracing - [Github](https://github.com/heyfey/sv-pathfinder)
 - [slang-server](https://marketplace.visualstudio.com/items?itemName=Hudson-River-Trading.vscode-slang) - System Verilog Language Server - [Github](https://github.com/hudson-trading/slang-server)
+- [ossschem](https://github.com/markusdd/ossschem) - open-source RTL schematic tracer
 
 ### API details
 

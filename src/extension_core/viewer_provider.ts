@@ -3,7 +3,6 @@ import { type DocumentId, type NetlistId, SignalGroupWebviewContext, SignalId, S
 import { decodeNetlistUri } from '../../packages/vaporview-api';
 import type { VariableActionArgs, VariableAction, SetMarkerArgs, AddVariableByPathArgs, SavedRowItem, LoadViewerStateArgs, ValueLinkEvent, RulerContext, RulerWebviewContext } from '../../packages/vaporview-api/types';
 import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
-import { Worker } from 'worker_threads';
 import * as fs from 'fs';
 import { } from './extension';
 import { VaporviewDocument, NetlistSearchQuickPick, type WaveformFileParser, type WebviewStateSettings } from './document';

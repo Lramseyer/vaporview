@@ -74,9 +74,9 @@ export class SurferFormatHandler implements WaveformFileParser {
   private readonly service: filehandler.Imports.Promisified = {
     log: (msg: string) => { console.log(msg); },
     outputlog: (msg: string) => { this.providerDelegate.logOutputChannel(msg); },
-    fsread: (fd: number, offset: bigint, length: number): Uint8Array => {
-      // Remote server doesn't use direct file reads, return empty buffer
-      return new Uint8Array(Math.max(0, length));
+    fsreadptr: (_fd: number, _offset: bigint, _ptr: number, _length: number): number => {
+      // Remote server doesn't use direct file reads
+      return 0;
     },
     getsize: (fd: number): bigint => {
       // Remote server doesn't use direct file access

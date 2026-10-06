@@ -11,7 +11,6 @@ use std::io::{self, BufReader, Cursor, Read, Seek, SeekFrom, Write};
 //use std::result;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
-use std::sync::Arc;
 use std::cmp::max;
 use wellen::{FileFormat, Hierarchy, Item, ScopeRef, Signal, SignalRef, SignalSource, TimeTable, TimescaleUnit, WellenError, VarRef, Var, Scope};
 use wellen::viewers::{read_body, read_header, ReadBodyContinuation, HeaderResult};
@@ -65,15 +64,11 @@ struct WasmFileReader {
   fd: u32,
   file_size: u64,
   cursor: u64,
-  read_callback: Arc<dyn Fn(u32, u64, u32) -> Vec<u8> + Send + Sync>,
 }
 
 impl WasmFileReader {
   fn new(fd: u32, file_size: u64) -> Self {
-    //let file_size = getsize(fd);
-    let read_callback = Arc::new(|fd, cursor, size| {fsread(fd, cursor, size)});
-    let reader = WasmFileReader { fd, file_size, cursor: 0, read_callback };
-    reader
+    WasmFileReader { fd, file_size, cursor: 0 }
   }
 }
 
@@ -306,17 +301,16 @@ fn parse_value_change_data_lz4(signal: &Signal, time_index: &[u32], signalid: u3
 
 impl Read for WasmFileReader {
   fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-    //log(&format!("Reading data from offset: {:?}, size: {:?}", self.cursor, buf.len()));
-
-    let mut bytes_read = 0;
-    let read_size = std::cmp::min(buf.len() as u32, self.file_size as u32 - self.cursor as u32) as usize;
-    while bytes_read < read_size {
-      let chunk_size = std::cmp::min(read_size - bytes_read, 32768);
-      let data = (self.read_callback)(self.fd, self.cursor, chunk_size as u32);
-      buf[bytes_read..bytes_read + chunk_size].copy_from_slice(&data);
-      self.cursor += chunk_size as u64;
-      bytes_read += chunk_size;
+    let available = (self.file_size - self.cursor) as usize;
+    if available == 0 {
+      return Ok(0);
     }
+    let read_size = std::cmp::min(buf.len(), available);
+    // Pass a raw pointer into the caller's buffer directly.
+    // The Worker writes file bytes at that WASM linear-memory address — zero copies.
+    let ptr = buf.as_mut_ptr() as u32;
+    let bytes_read = fsreadptr(self.fd, self.cursor, ptr, read_size as u32) as usize;
+    self.cursor += bytes_read as u64;
     Ok(bytes_read)
   }
 

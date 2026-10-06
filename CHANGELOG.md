@@ -3,6 +3,7 @@
 # 1.6.0 - Upcoming release
 
 - Merge waveform canvases and rows into a single canvas
+- Moved file reader to WASM worker resulting in ~25% faster file loading times
 - Added menu option to show Readme
 - Delta Time in the status bar now displays units in Hz
 - New waveform dumps now open zoomed out all the way

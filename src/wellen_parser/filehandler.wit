@@ -16,7 +16,12 @@ world filehandler {
 
 	import log: func(msg: string);
   import outputlog: func(msg: string);
-	import fsread: func(fd: u32, offset: u64, length: u32) -> list<u8>;
+	// Zero-copy file read: the Worker thread handles this locally without IPC.
+	// For local files it calls fs.readSync; for workspace/virtual-FS files it reads
+	// from a pre-loaded in-memory buffer sent via a setup-file message before loadfile.
+	// `ptr` is a raw WASM linear-memory address; the host writes `length` bytes there
+	// and returns the number of bytes actually written.
+	import fsreadptr: func(fd: u32, offset: u64, ptr: u32, length: u32) -> u32;
 	import getsize: func(fd: u32) -> u64;
 	import setscopetop: func(name: string, id: u32, tpe: string);
   import setvartop: func(name: string, id: u32, signalid: u32, tpe: string, encoding: string, width: u32, msb: s32, lsb: s32, enumtype: string);

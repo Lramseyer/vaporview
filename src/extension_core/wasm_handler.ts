@@ -89,8 +89,6 @@ export class WasmFormatHandler implements WaveformFileParser {
   private wasmWorker: Worker;
   private wasmModule: WebAssembly.Module;
   private wasmApi: filehandler.Exports.Promisified | undefined;
-  private fileBuffer: Uint8Array = new Uint8Array(65536);
-
   private parametersLoaded: boolean = false;
 
   // Top level netlist items
@@ -148,13 +146,10 @@ export class WasmFormatHandler implements WaveformFileParser {
   private readonly service: filehandler.Imports.Promisified = {
     log: (msg: string) => { console.log(msg); },
     outputlog: (msg: string) => { this.providerDelegate.logOutputChannel(msg); },
-    fsread: (fd: number, offset: bigint, length: number): Uint8Array => {
-      const bytesRead = this.fileReader.readSlice(fd, this.fileBuffer, 0, length, Number(offset));
-      return this.fileBuffer.subarray(0, bytesRead);
-    },
-    getsize: (fd: number): bigint => {
-      return BigInt(this.fileReader.fileSize);
-    },
+    // fsreadptr is handled entirely inside worker.ts (Worker-local shim).
+    // This stub satisfies the TypeScript interface; it is never dispatched here.
+    fsreadptr: (_fd: number, _offset: bigint, _ptr: number, _length: number): number => {return 0;},
+    getsize: (fd: number): bigint => { return BigInt(this.fileReader.fileSize); },
     setscopetop: (name: string, id: number, tpe: string) => {
       const scope = createScope(name, tpe, [], id, -1, this.uri);
       this.netlistTop.push(scope);
@@ -213,6 +208,18 @@ export class WasmFormatHandler implements WaveformFileParser {
   async loadNetlist(): Promise<void> {
     this.providerDelegate.logOutputChannel("Using " + this.fileReader.type + " - Loading " + this.fileType + " file: " + this.uri.fsPath);
     await this.fileReader.loadFile(this.uri, this.fileType);
+
+    if (this.fileReader.type === 'nodeFs') {
+      this.wasmWorker.postMessage({ type: 'setup-file', fd: this.fileReader.fd });
+    } else {
+      // Workspace / virtual-FS path.
+      // vscode.workspace.fs.readFile() already put the file into a plain ArrayBuffer.
+      // Transfer ownership directly to the Worker — zero extra copies.
+      // After postMessage the buffer is detached here, which is fine: all subsequent
+      // reads go through the Worker's fsreadptrLocal anyway.
+      const buf = this.fileReader.fileData!.buffer as ArrayBuffer;
+      this.wasmWorker.postMessage({ type: 'setup-file', fd: 0, data: buf }, [buf]);
+    }
 
     if (this.fileType === 'fst' && this.fileReader.loadStatic === false) {
       const fstMaxStaticLoadSize = vscode.workspace.getConfiguration('vaporview').get('fstMaxStaticLoadSize');

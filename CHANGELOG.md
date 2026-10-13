@@ -12,7 +12,8 @@
 - Updated styling to match VScode 2026 styling
 - Added waveformViewer.loadViewerState command to API
 - Updated License to GPL-3.0
-- Update wellen to 0.25.6
+- Update wellen to 0.25.7
+  - ~50% speedup in signal load times for FST files.
 - Fixed:
   - Custom waveforms now reload properly
   - Fixed glitch with Alt + Down next to collapsed groups

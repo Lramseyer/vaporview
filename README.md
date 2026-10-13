@@ -234,6 +234,27 @@ This extension requires VScode 1.102.0 or later
 
 # Development Roadmap
 
+## 1.6.0 - Upcoming release
+
+- Merge waveform canvases and rows into a single canvas
+- Moved file reader to WASM worker resulting in ~25% faster file loading times
+- Added menu option to show Readme
+- Delta Time in the status bar now displays units in Hz
+- New waveform dumps now open zoomed out all the way
+- Control bar hides button groups when shrinking tab width
+- Added FP4 value format
+- Updated styling to match VScode 2026 styling
+- Added waveformViewer.loadViewerState command to API
+- Updated License to GPL-3.0
+- Update wellen to 0.25.7
+  - ~50% speedup in signal load times for FST files.
+- Fixed:
+  - Custom waveforms now reload properly
+  - Fixed glitch with Alt + Down next to collapsed groups
+  - Show in Netlist View now works with costom variables
+  - Auto Loading signal list file works again
+  - Octal search @haroune-dev
+
 ## 1.5.4 - 6/4/2026 - Latest Release
 
 - Updated search functionality to constrain search to a particular scope

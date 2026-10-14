@@ -503,7 +503,7 @@ export class WaveformDataManager {
     this.valueChangeData.forEach((data) => {
       Object.entries(data.formattedValues).forEach(([key, formatData]) => {
         if (formatData.users <= 0) {
-          delete data.formattedValues[Number(key)];
+          delete data.formattedValues[key];
         }
       });
     });

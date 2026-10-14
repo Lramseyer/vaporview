@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { NetlistId, SignalId, VariableEncoding, WebviewStateEvent } from '../common/types';
-import { bitRangeString, createInstancePath, parseParamValue, timeHz } from '../common/functions';
+import { bitRangeString, createInstancePath, parseParamValue, timeHz, toStringWithCommas } from '../common/functions';
 import type { VaporviewDocument } from './document';
 import { WaveformViewerProvider } from './viewer_provider';
 import type { NetlistTreeItemData, SignalEvent } from '../../packages/vaporview-api/types';
@@ -445,7 +445,7 @@ export class VaporviewStatusBar {
 
       if (event.transitionCount !== undefined && event.transitionCount !== null) {
         const plural = event.transitionCount === 1 ? ')' : 's)';
-        this.selectedSignalStatusBarItem.text += ' (' + event.transitionCount + ' value change' + plural;
+        this.selectedSignalStatusBarItem.text += ' (' + toStringWithCommas(event.transitionCount) + ' value change' + plural;
       }
       this.selectedSignalStatusBarItem.show();
     } else if (event.selectedSignalCount !== undefined && event.selectedSignalCount > 1) {

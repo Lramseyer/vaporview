@@ -724,7 +724,7 @@ export class RowHandler {
 
   handleRemoveVariable(rowIdList: RowId[], recursive: boolean) {
 
-    let disposedRowIdList: RowId[] = [];
+    const disposedRowIdList: RowId[] = [];
     rowIdList.forEach(rowId => {
       const signalItem = this.rowItems[rowId];
       if (!signalItem) {return;}
@@ -734,7 +734,9 @@ export class RowHandler {
       const indexInGroup = getIndexInGroup(rowId, parentGroupId);
 
       if (recursive) {
-        disposedRowIdList = signalItem.getFlattenedRowIdList(false, -1);
+        signalItem.getFlattenedRowIdList(false, -1).forEach((id) => {
+          if (!disposedRowIdList.includes(id)) {disposedRowIdList.push(id);}
+        });
       } else if (signalItem instanceof SignalGroup) {
         signalItem.collapseState = CollapseState.Expanded;
         signalItem.showHideViewportRows();

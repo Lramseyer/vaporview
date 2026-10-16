@@ -190,6 +190,7 @@ export class Viewport {
     const horizontalAxis = this.horizontalAxis();
     const verticalAxis   = this.verticalAxis();
     overlayCanvas.addEventListener('mousedown',      (e) => {this.handleScrollAreaMouseDown(e);});
+    rulerCanvas.addEventListener('mousedown',        (e) => {this.handleRulerMouseDown(e);});
     horizontalScrollbar.addEventListener('pointerdown', (e) => {this.handleScrollbarDrag(e, horizontalAxis);});
     ScrollbarContainerH.addEventListener('pointerdown', (e) => {this.handleScrollbarContainerClick(e, horizontalAxis);});
     verticalScrollbar.addEventListener('pointerdown',   (e) => {this.handleScrollbarDrag(e, verticalAxis);});
@@ -595,6 +596,32 @@ export class Viewport {
     const newScroll   = Math.round((newPosition / axis.maxPosition()) * axis.maxScroll());
     // No need to clamp the value, because handleScrollEvent() clamps it for us
     axis.scrollTo(newScroll);
+  }
+
+  handleRulerMouseDown(event: MouseEvent | PointerEvent) {
+    const startTime = viewerState.markerTime || this.getTimeFromClick(event);
+
+    dragController.begin(event, {
+      kind: 'pointer',
+      focusOnStart: true,
+      preventDefault: true,
+      onMove: (e)        => {this.handleRulerDragMove(e);},
+      onEnd:  (e, abort) => {this.handleRulerDragEnd(e, abort, startTime);}
+    });
+  }
+
+  handleRulerDragMove(e: MouseEvent) {
+    const time = this.getTimeFromClick(e);
+    if (!this.isInView(time)) {return;}
+    this.events.markerSet(time, 0, true);
+  }
+
+  handleRulerDragEnd(event: MouseEvent | DragEvent | KeyboardEvent | null, abort: boolean, startTime: number) {
+    const aborted     = abort || event === null || event instanceof KeyboardEvent;
+    const time        = aborted ? startTime            : this.getTimeFromClick(event);
+    const stateChange = aborted ? StateChangeType.None : StateChangeType.User;
+    this.events.markerSet(time, 0, !aborted);
+    vscodeWrapper.sendWebviewContext(stateChange);
   }
 
   highlightZoom(abort: boolean) {

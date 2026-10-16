@@ -8,6 +8,7 @@
 - Delta Time in the status bar now displays units in Hz
 - New waveform dumps now open zoomed out all the way
 - Control bar hides button groups when shrinking tab width
+- Added feature to drag time marker via the time ruler
 - Added FP4 value format
 - Updated styling to match VScode 2026 styling
 - Added waveformViewer.loadViewerState command to API
@@ -17,7 +18,7 @@
 - Fixed:
   - Custom waveforms now reload properly
   - Fixed glitch with Alt + Down next to collapsed groups
-  - Show in Netlist View now works with costom variables
+  - Show in Netlist View now works with custom variables
   - Auto Loading signal list file works again
   - Octal search @haroune-dev
 

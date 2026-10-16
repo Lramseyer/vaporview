@@ -235,24 +235,24 @@ export function registerVaporviewCommands(
     viewerProvider.copyValueAtMarker(e);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.saveViewerSettings', async (e: { documentId: string }) => {
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.saveViewerSession', async (e: { documentId: string }) => {
     const document = viewerProvider.getDocumentFromId(e.documentId);
     if (!document) {return;}
     const filePath = document.uri.fsPath;
     const fileName = path.basename(filePath);
     const saveFileName = fileName.replace(/\.[^/.]+$/, '') + '.json' || 'untitled.json';
     const uri = await vscode.window.showSaveDialog({
-      saveLabel: 'Save settings',
+      saveLabel: 'Save session',
       filters: {JSON: ['json']},
       defaultUri: vscode.Uri.file(path.join(dirname(filePath), saveFileName)),
     });
     if (uri) {
-      viewerProvider.saveSettingsToFile(document, uri);
+      viewerProvider.saveSessionToFile(document, uri);
     }
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vaporview.loadViewerSettings', () => {
-    viewerProvider.loadSettingsFromFile();
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.loadViewerSession', () => {
+    viewerProvider.loadSessionFromFile();
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.reloadFile', (e: vscode.Uri) => {

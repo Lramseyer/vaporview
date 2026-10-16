@@ -71,8 +71,8 @@ Custom context menu items can be added to the waveform viewer webview. All attri
   - New Group
   - Rename Group
 - 4_saveLoad
-  - Save Viewer Settings
-  - Load Viewer Settings
+  - Save Viewer Session
+  - Load Viewer Session
 - 5_waveDrom
   - **Submenu vaporview.waveDrom** -  WaveDrom
 
@@ -151,8 +151,8 @@ ie: `'when': view == 'waveformViewerNetlistView'`
 - 2_addVariable
   - Add Variable By Name
 - 3_saveLoad
-  - Save Viewer Settings
-  - Load Viewer Settings
+  - Save Viewer Session
+  - Load Viewer Session
 - 4_reload
   - Reload File
 
@@ -283,7 +283,7 @@ Remember that to get a valid return value, all vscode commands must be called wi
 
 ### Return: object
 
-Returns the viewer settings in the same schema as the save file
+Returns the viewer state in the same schema as the save file
 
 ### Arguments: object
 
@@ -291,12 +291,12 @@ Returns the viewer settings in the same schema as the save file
 
 ## waveformViewer.loadViewerState
 
-Loads the viewer settings from a file. If you call this command after calling `vaporview.openFile`, make sure to use an `await` when calling `vaporview.openFile` command before loading the settings file.
+Loads the viewer session state from a file. If you call this command after calling `vaporview.openFile`, make sure to use an `await` when calling `vaporview.openFile` command before loading the session file.
 
 ### Arguments: object
 
 - **documentUri** - (Optional) Document URI - if not defined, this function will use the currently active, or last active document
-- **settingsFileUri** - URI to settings file. This is required.
+- **sessionFileUri** - URI to session file. This is required.
 
 ## waveformViewer.getValuesAtTime
 

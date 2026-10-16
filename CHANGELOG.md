@@ -10,8 +10,9 @@
 - Control bar hides button groups when shrinking tab width
 - Added feature to drag time marker via the time ruler
 - Added FP4 value format
+- Changed "settings" to "session" in the context of loading/saving viewer state
 - Updated styling to match VScode 2026 styling
-- Added setting: vaproview.defaultTimeUnit
+- Added setting: vaproview.defaultTimeUnit for default time 
 - Added waveformViewer.loadViewerState command to API
 - Updated License to GPL-3.0
 - Update wellen to 0.25.7
@@ -30,7 +31,7 @@
 - Deprecated feature which groups similar signals in the netlist view
 - Alt + Left/Right Arrow now moves secondary marker
 - Floating/detached tabs now work properly
-- Added drag and drop support for .json viewer settings files
+- Added drag and drop support for .json viewer session files
 - Added user setting for default signal naming style in viewer
 - Added setting for waveform CRT glow effect
 - Update wellen to 0.24.0
@@ -78,7 +79,7 @@
 - Allow for bit slices to be reversed
 - Added feature to split bit vector into individual nibbles, bytes, words, dwords, qwords, and custom length
 - Added User settings:
-  - Default load settings behavior
+  - Default load session behavior
   - Animations enabled and duration
   - Disable Analog Renderer optimizations
   - Override window.devicePixelRatio
@@ -128,7 +129,7 @@
 - Added Signal Separators
 - Updated control bar tooltips to match VScode style
 - Multi signal select now batch configures number format
-- Added check for saved config file and prompts user to reload saved settings
+- Added check for saved config file and prompts user to reload saved session
 - Added Ctrl/Cmd + A keybinding to select all signals
 - Variables added to the viewer default to showing up under the selected signal instead of at the end
 - Added WCP support @heyfey
@@ -223,7 +224,7 @@
   - Zoom to Fit button on control bar
 - Fixed issues:
   - Context menu items now appear when right clicking on value display column
-  - "Load/Save Vaporview Settings" Menus appearing where they shouldn't
+  - "Load/Save Vaporview Session" Menus appearing where they shouldn't
   - Terminal Links only match for paths with valid top level scopes
 
 ## 1.3.2 - 3/18/2025
@@ -297,7 +298,7 @@
 - Removed checkboxes for scope \[module\] items in netlist viewer to reduce confusion
 - Variables loaded into viewer show up before waveform data is loaded as a better visual acknowledgement to user action
 - Scroll Position now limited to end of trace rather than the end of the last chunk
-- Save/Load viewer settings has been added as context menu item for easier access
+- Save/Load viewer session has been added as context menu item for easier access
 - Fixed issues with netlists loading into the wrong view on load
 
 # 1.1.0 - 10/8/2024

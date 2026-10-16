@@ -5,7 +5,7 @@ import type { VariableActionArgs, VariableAction, SetMarkerArgs, AddVariableByPa
 import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
 import * as fs from 'fs';
 import { } from './extension';
-import { VaporviewDocument, NetlistSearchQuickPick, type WaveformFileParser, type WebviewStateSettings } from './document';
+import { VaporviewDocument, NetlistSearchQuickPick, type WaveformFileParser, type WebviewSession } from './document';
 import { WasmFormatHandler } from './wasm_handler';
 import { FsdbFormatHandler } from './fsdb_handler';
 import { SurferFormatHandler } from './surfer_handler';
@@ -443,7 +443,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
   revertCustomDocument(document: VaporviewDocument, cancellation: vscode.CancellationToken): Thenable<void> {
     if (document.saveFileUri) {
-      this.loadSettingsFromFileUri(document, document.saveFileUri, false);
+      this.loadSessionFromFileUri(document, document.saveFileUri, false);
     }
     return Promise.resolve();
   }
@@ -453,12 +453,12 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     if (document.clearDirtyStatus) {
       document.clearDirtyStatus = false;
     } else {
-      await this.saveSettingsToFile(document, document.saveFileUri, cancellation);
+      await this.saveSessionToFile(document, document.saveFileUri, cancellation);
     }
   }
 
   async saveCustomDocumentAs(document: VaporviewDocument, destination: vscode.Uri, cancellation: vscode.CancellationToken): Promise<void> {
-    await this.saveSettingsToFile(document, destination, cancellation);
+    await this.saveSessionToFile(document, destination, cancellation);
   }
 
   public getDocumentFromOptionalUri(uri: string | undefined): VaporviewDocument | undefined {
@@ -473,7 +473,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   public getViewerState(uri: string | undefined) {
     const document = this.getDocumentFromOptionalUri(uri);
     if (!document) {return;}
-    return document.getSettings();
+    return document.getWebviewSession();
   }
 
   public async getRemoteConnectionInfo(uri: vscode.Uri) {
@@ -529,14 +529,14 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     }
   }
 
-  public async saveSettingsToFile(specifiedDocument: VaporviewDocument | undefined, saveFileUri: vscode.Uri | undefined, cancellation?: vscode.CancellationToken) {
+  public async saveSessionToFile(specifiedDocument: VaporviewDocument | undefined, saveFileUri: vscode.Uri | undefined, cancellation?: vscode.CancellationToken) {
     let document: VaporviewDocument | undefined = specifiedDocument;
     if (!document) {
       document = this.activeDocument;
     }
 
     if (!document) {
-      vscode.window.showErrorMessage('No viewer is active. Please select the viewer you wish to save settings.');
+      vscode.window.showErrorMessage('No viewer is active. Please select the viewer you wish to save session.');
       throw new Error('No active document to save');
     }
 
@@ -549,7 +549,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       const fileName = path.basename(filePath);
       const saveFileName = fileName.replace(/\.[^/.]+$/, '') + '.json' || 'untitled.json';
       uri = await vscode.window.showSaveDialog({
-        saveLabel: 'Save settings',
+        saveLabel: 'Save session',
         filters: {JSON: ['json']},
         defaultUri: vscode.Uri.file(path.join(dirname(filePath), saveFileName)),
       });
@@ -560,7 +560,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       throw new Error('Save cancelled, or location was not provided');
     }
 
-    const saveData       = document.getSettings();
+    const saveData       = document.getWebviewSession();
     const saveDataString = JSON.stringify(saveData, null, 2);
     await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(saveDataString));
     document.saveFileUri = uri;
@@ -571,15 +571,15 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     const document = this.getDocumentFromCommandArgs({uri: args.documentUri});
 
     if (!document) {return;}
-    if (!args.settingsFileUri) {return;}
+    if (!args.sessionFileUri) {return;}
 
-    this.loadSettingsFromFileUri(document, vscode.Uri.parse(args.settingsFileUri), true);
+    this.loadSessionFromFileUri(document, vscode.Uri.parse(args.sessionFileUri), true);
   }
 
-  public async loadSettingsFromFile() {
+  public async loadSessionFromFile() {
 
     if (!this.activeDocument) {
-      vscode.window.showErrorMessage('No viewer is active. Please select the viewer you wish to load settings.');
+      vscode.window.showErrorMessage('No viewer is active. Please select the viewer you wish to load session into.');
       return;
     }
 
@@ -590,7 +590,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         canSelectFiles: true,
         canSelectFolders: false,
         canSelectMany: false,
-        openLabel: 'Load settings',
+        openLabel: 'Load session',
         filters: { JSON: ['json'] }
       }).then((uri) => {
         if (uri) {
@@ -605,22 +605,22 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
 
     if (!uri) {return;}
 
-    await this.loadSettingsFromFileUri(this.activeDocument, uri, true);
+    await this.loadSessionFromFileUri(this.activeDocument, uri, true);
   }
 
-  public async loadSettingsFromFileUri(document: VaporviewDocument, saveFileUri: vscode.Uri, saveEvent: boolean): Promise<void> {
+  public async loadSessionFromFileUri(document: VaporviewDocument, saveFileUri: vscode.Uri, saveEvent: boolean): Promise<void> {
     const fileData = await vscode.workspace.fs.readFile(saveFileUri).then((data) => {
       return JSON.parse(new TextDecoder().decode(data));
     });
 
     if (!fileData) {return;}
     if (fileData.fileName && fileData.fileName !== document.uri.fsPath) {
-      vscode.window.showWarningMessage('The settings file may not match the active viewer');
+      vscode.window.showWarningMessage('The session file may not match the active viewer');
     }
 
-    this.log.appendLine('Loading settings from file: ' + fileData.fileName);
+    this.log.appendLine('Loading session state from file: ' + fileData.fileName);
     document.saveFileUri = saveFileUri;
-    document.applySettings(fileData, StateChangeType.File, false);
+    document.applySessionState(fileData, StateChangeType.File, false);
 
     // We have to trick VScode in to thinking that the file was saved so that it clears the dirty status
     if (saveEvent) {
@@ -630,7 +630,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     }
   }
 
-  public restoreState(state: WebviewStateSettings | undefined, uri: vscode.Uri | string) {
+  public restoreState(state: WebviewSession | undefined, uri: vscode.Uri | string) {
     const fileUri = typeof uri === 'string' ? vscode.Uri.parse(uri) : uri;
     let document = this.documentCollection.getDocumentFromUri(fileUri.toString());
     if (!document) {
@@ -639,18 +639,18 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     if (!document) {return;}
 
     if (state) {
-      document.applySettings(state, StateChangeType.Restore, false);
+      document.applySessionState(state, StateChangeType.Restore, false);
     } else {
       // check the directory for a file with the same name as the document, but with the extension .vaporview.json
       const filePath = fileUri.fsPath.match(/^(.*)\.[^.]+$/)?.[1] + '.json';
       if (fs.existsSync(filePath)) {
-        const settingsUri = vscode.Uri.file(filePath);
-        const promptLoadSettings = vscode.workspace.getConfiguration('vaporview').get('promptLoadSettings');
+        const sessionFileUri = vscode.Uri.file(filePath);
+        const promptLoadSession = vscode.workspace.getConfiguration('vaporview').get('promptLoadSettings');
 
-        if (promptLoadSettings === 'Never') {
+        if (promptLoadSession === 'Never') {
           return;
-        } else if (promptLoadSettings === 'Always') {
-          this.loadSettingsFromFileUri(document, settingsUri, true);
+        } else if (promptLoadSession === 'Always') {
+          this.loadSessionFromFileUri(document, sessionFileUri, true);
           return;
         }
 
@@ -661,7 +661,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
           'Yes', 'No', 'Settings'
         ).then((action) => {
           if (action === 'Yes') {
-            this.loadSettingsFromFileUri(document, settingsUri, true);
+            this.loadSessionFromFileUri(document, sessionFileUri, true);
           } else if (action === 'Settings') {
             // Open the settings page for the extension
             vscode.commands.executeCommand('workbench.action.openSettings', 'vaporview.promptLoadSettings');
@@ -683,7 +683,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     if (!document) {return;}
     if (document.uri.fsPath !== this.activeDocument.uri.fsPath) {return;}
 
-    //const settings = document.getSettings();
+    //const session = document.getWebviewSession();
     this.netlistTreeDataProvider.hide();
     await document.reload();
   }
@@ -1026,11 +1026,11 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         }
         return;
       } else if (uri.scheme === 'file') {
-        // If the file is a JSON file, we can try to load it as a settings file
+        // If the file is a JSON file, we can try to load it as a session file
         const fileName = uri.fsPath || uri.path;
         if (fileName.endsWith('.json')) {
           const sanitizedUri = vscode.Uri.file(fileName);
-          this.loadSettingsFromFileUri(document, sanitizedUri, true);
+          this.loadSessionFromFileUri(document, sanitizedUri, true);
           return;
         }
       }

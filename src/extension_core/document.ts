@@ -50,7 +50,7 @@ export type CustomVariableParseResult = {
 };
 
 // TODO: Combine with WebviewStateEvent in /common/types.ts and WebviewState class
-export type WebviewStateSettings = {
+export type WebviewSession = {
   extensionVersion: string | undefined;
   markerTime?: number | null;
   altMarkerTime?: number | null;
@@ -305,7 +305,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     return isDirty;
   }
 
-  public getSettings() {
+  public getWebviewSession() {
     return {
       extensionVersion: vscode.extensions.getExtension('Lramseyer.vaporview')?.packageJSON.version,
       fileName: this.uri.fsPath,
@@ -317,7 +317,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       scrollLeft: this.webviewContext.scrollLeft,
       defaultPixelTime: this.webviewContext.defaultPixelTime,
       displayedSignals: this.webviewContext.displayedSignals
-    } as WebviewStateSettings;
+    } as WebviewSession;
   }
 
   public async getNetlistItemFromSignalInfo(signalInfo: SignalInfo | SignalInfoSource, useNetlistId: boolean): Promise<NetlistItem | null> {
@@ -444,30 +444,30 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     };
   }
 
-  public async applySettings(settings: WebviewStateSettings, stateChangeType: StateChangeType, useNetlistId: boolean) {
+  public async applySessionState(session: WebviewSession, stateChangeType: StateChangeType, useNetlistId: boolean) {
 
     //this.netlistTreeDataProvider.loadDocument(document);
-    //console.log('applySettings', settings);
-    const signalListSettings = await this.convertSignalListToSettings((settings.displayedSignals || []) as unknown as SignalInfo[], useNetlistId);
+    //console.log('applySessionState', session);
+    const signalListSettings = await this.convertSignalListToSettings((session.displayedSignals || []) as unknown as SignalInfo[], useNetlistId);
     //console.log('signalListSettings', signalListSettings);
-    const documentSettings: WebviewStateSettings = {
-      extensionVersion: settings.extensionVersion,
+    const documentState: WebviewSession = {
+      extensionVersion: session.extensionVersion,
       displayedSignals: signalListSettings.signalList,
-      markerTime: settings.markerTime,
-      altMarkerTime: settings.altMarkerTime,
-      displayTimeUnit: settings.displayTimeUnit,
-      selectedSignal: settings.selectedSignal,
-      zoomRatio: settings.zoomRatio,
-      scrollLeft: settings.scrollLeft,
-      defaultPixelTime: settings.defaultPixelTime,
-      autoReload: settings.autoReload,
+      markerTime: session.markerTime,
+      altMarkerTime: session.altMarkerTime,
+      displayTimeUnit: session.displayTimeUnit,
+      selectedSignal: session.selectedSignal,
+      zoomRatio: session.zoomRatio,
+      scrollLeft: session.scrollLeft,
+      defaultPixelTime: session.defaultPixelTime,
+      autoReload: session.autoReload,
     };
 
     //console.log(stateChangeType);
 
     this.webviewPanel?.webview.postMessage({
       command: 'apply-state',
-      settings: documentSettings,
+      state: documentState,
       stateChangeType: stateChangeType,
     });
 
@@ -488,14 +488,14 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     if (this.undoStack.length === 0) {return;}
     const lastState = this.undoStack.pop();
     this.redoStack.push(JSON.stringify(this.webviewContext));
-    this.applySettings(JSON.parse(lastState || '{}'), StateChangeType.Undo, false);
+    this.applySessionState(JSON.parse(lastState || '{}'), StateChangeType.Undo, false);
   }
   
   redo() {
     if (this.redoStack.length === 0) {return;}
     const lastState = this.redoStack.pop();
     this.undoStack.push(JSON.stringify(this.webviewContext));
-    this.applySettings(JSON.parse(lastState || '{}'), StateChangeType.Redo, false);
+    this.applySessionState(JSON.parse(lastState || '{}'), StateChangeType.Redo, false);
   }
 
   // #region File watching

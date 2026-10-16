@@ -163,7 +163,7 @@ export interface GetViewerStateArgs {
 /** Arguments for `waveformViewer.loadViewerState` */
 export interface LoadViewerStateArgs {
   documentUri?: string;
-  settingsFileUri: string;
+  sessionFileUri: string;
 }
 
 /** Arguments for `waveformViewer.getValuesAtTime` */

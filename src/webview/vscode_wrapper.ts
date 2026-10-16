@@ -486,7 +486,7 @@ export class VscodeWrapper {
       case 'unload':                {unload(); break;}
       case 'getContext':            {this.sendWebviewContext(StateChangeType.None); break;}
       case 'setConfigSettings':     {config.setConfigSettings(message); break;}
-      case 'apply-state':           {rowHandler.applyState(message.settings, message.stateChangeType); break;}
+      case 'apply-state':           {rowHandler.applyState(message.state, message.stateChangeType); break;}
       case 'add-variable':          {rowHandler.addVariable(message.signalList, message.groupPath, undefined, message.index); break;}
       case 'add-separator':         {rowHandler.addSeparator(message.name, message.groupPath, message.parentGroupId, message.eventRowId, message.moveSelected); break;}
       case 'add-bit-slice':         {rowHandler.addCustomVariable(message.name, message.groupPath, message.parentGroupId, message.eventRowId, undefined, message.msb, message.lsb, undefined); break;}

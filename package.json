@@ -204,7 +204,7 @@
               "Never"
             ],
             "scope": "application",
-            "description": "When opening a waveform dump file, if a .json file with the same name is found in the same directory, should the viewer load the settings from that file?"
+            "description": "When opening a waveform dump file, if a .json file with the same name is found in the same directory, should the viewer load the session from that file?"
           },
           "vaporview.fsdbAddonPath": {
             "type": "string",
@@ -639,12 +639,12 @@
           "group": "2_addVariable"
         },
         {
-          "command": "vaporview.saveViewerSettings",
+          "command": "vaporview.saveViewerSession",
           "when": "view == 'waveformViewerNetlistView'",
           "group": "3_saveLoad@1"
         },
         {
-          "command": "vaporview.loadViewerSettings",
+          "command": "vaporview.loadViewerSession",
           "when": "view == 'waveformViewerNetlistView'",
           "group": "3_saveLoad@2"
         },
@@ -819,12 +819,12 @@
           "group": "3_groups@9"
         },
         {
-          "command": "vaporview.saveViewerSettings",
+          "command": "vaporview.saveViewerSession",
           "group": "4_saveLoad@1",
           "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
         },
         {
-          "command": "vaporview.loadViewerSettings",
+          "command": "vaporview.loadViewerSession",
           "group": "4_saveLoad@2",
           "when": "activeCustomEditorId == 'vaporview.waveformViewer'"
         },
@@ -1562,12 +1562,12 @@
         "title": "Unset WaveDrom Clock"
       },
       {
-        "command": "vaporview.saveViewerSettings",
-        "title": "Save Vaporview Settings..."
+        "command": "vaporview.saveViewerSession",
+        "title": "Save Vaporview Session..."
       },
       {
-        "command": "vaporview.loadViewerSettings",
-        "title": "Load Vaporview Settings..."
+        "command": "vaporview.loadViewerSession",
+        "title": "Load Vaporview Session..."
       },
       {
         "command": "vaporview.reloadFile",

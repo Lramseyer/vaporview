@@ -202,9 +202,9 @@ Alternatively, signals can be automatically split into all individual bits, nibb
 
 You can change the Time Units in one of 2 ways: clicking the Time Status Bar in the lower right hand corner of the window, or by right clicking on the time ruler and selecting units from the **Time Unit** menu.
 
-## Saving and loading opened signals
+## Saving and loading sessions
 
-VaporView allows you to save and load your signal list. This can be done either by right clicking anywhere in the viewer or netlist and selecting **"Save Vaporview Settings"** or **"Load Vaporview Settings"**. You can also save settings by pressing **Ctrl + S**. Saved user settings are tracked like a text document in VScode. So once you specify a file (by either saving or loading a file) VScode will track changes and automatically update the file when pressing **Ctrl + S**. If you make changes and close without saving, it will prompt you about unsaved changes.
+VaporView allows you to save and load your signal list. This can be done either by right clicking anywhere in the viewer or netlist and selecting **"Save Vaporview Session"** or **"Load Vaporview Session"**. You can also save a session by pressing **Ctrl + S**. Saved user sessions are tracked like a text document in VScode. So once you specify a file (by either saving or loading a file) VScode will track changes and automatically update the file when pressing **Ctrl + S**. If you make changes and close without saving, it will prompt you about unsaved changes.
 
 ## Copying selection as WaveDrom
 
@@ -244,8 +244,9 @@ This extension requires VScode 1.102.0 or later
 - Control bar hides button groups when shrinking tab width
 - Added feature to drag time marker via the time ruler
 - Added FP4 value format
+- Changed "settings" to "session" in the context of loading/saving viewer state
 - Updated styling to match VScode 2026 styling
-- Added setting: vaproview.defaultTimeUnit
+- Added setting: vaproview.defaultTimeUnit for default time 
 - Added waveformViewer.loadViewerState command to API
 - Updated License to GPL-3.0
 - Update wellen to 0.25.7
@@ -264,7 +265,7 @@ This extension requires VScode 1.102.0 or later
 - Deprecated feature which groups similar signals in the netlist view
 - Alt + Left/Right Arrow now moves secondary marker
 - Floating/detached tabs now work properly
-- Added drag and drop support for .json viewer settings files
+- Added drag and drop support for .json viewer session files
 - Added user setting for default signal naming style in viewer
 - Added setting for waveform CRT glow effect
 - Update wellen to 0.24.0

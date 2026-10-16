@@ -117,7 +117,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Vaporv
     async getViewerState(args?: GetViewerStateArgs) {
       const document = viewerProvider.getDocumentFromOptionalUri(args?.uri);
       if (!document) {return undefined;}
-      return document.getSettings() as unknown as ViewerState;
+      return document.getWebviewSession() as unknown as ViewerState;
     },
     async loadViewerState(args: LoadViewerStateArgs) {
       viewerProvider.loadViewerStateCommand(args);

@@ -282,7 +282,7 @@ export class RowHandler {
       }
       reorder = true;
     } else if (parentGroup !== null) {
-      // Command was sent to reload settings
+      // Command was sent to reload session
       parentGroupId = parentGroup.groupId;
       index = parentGroup.children.length;
       reorder = true;
@@ -550,42 +550,42 @@ export class RowHandler {
     });
   }
 
-  applyState(settings: ApplyStateSettings, stateChangeType: number) {
+  applyState(session: ApplyStateSettings, stateChangeType: number) {
     //this.flushRowCache(true);
-    //console.log('applyState()', settings);
+    //console.log('applyState()', session);
 
     this.events.enterBatchMode();
     try {
       if (viewerState.displayedSignals.length > 0) {
         this.events.removeVariable(viewerState.visibleSignalsFlat, true);
       }
-      this.addSignalList(settings.displayedSignals, 0);
+      this.addSignalList(session.displayedSignals, 0);
       dataManager.garbageCollectValueFormats();
     } catch (error) {console.error(error);}
 
-    if (settings.markerTime !== undefined) {
-      this.events.markerSet(settings.markerTime, 0, false);
+    if (session.markerTime !== undefined) {
+      this.events.markerSet(session.markerTime, 0, false);
     }
-    if (settings.altMarkerTime !== undefined) {
-      this.events.markerSet(settings.altMarkerTime, 1, false);
+    if (session.altMarkerTime !== undefined) {
+      this.events.markerSet(session.altMarkerTime, 1, false);
     }
-    if (settings.displayTimeUnit !== undefined) {
-      viewport.updateUnits(settings.displayTimeUnit, false);
+    if (session.displayTimeUnit !== undefined) {
+      viewport.updateUnits(session.displayTimeUnit, false);
     }
-    if (settings.selectedSignal) {
-      const rowIdList = this.getRowIdsFromNetlistId(settings.selectedSignal);
+    if (session.selectedSignal) {
+      const rowIdList = this.getRowIdsFromNetlistId(session.selectedSignal);
       let lastSelectedSignal: RowId | null = rowIdList[0];
       if (rowIdList.length === 0) {lastSelectedSignal = null;}
       this.events.signalSelect(rowIdList, lastSelectedSignal);
     }
-    if (settings.defaultPixelTime !== undefined) {
-      viewport.updateRulerNumberBasis(settings.defaultPixelTime, false);
+    if (session.defaultPixelTime !== undefined) {
+      viewport.updateRulerNumberBasis(session.defaultPixelTime, false);
     }
 
-    if (settings.zoomRatio !== undefined && settings.scrollLeft !== undefined) {
+    if (session.zoomRatio !== undefined && session.scrollLeft !== undefined) {
       if (!viewport.updatePending) {
-        const endTime = settings.scrollLeft + (viewport.viewerWidth / settings.zoomRatio);
-        viewport.setViewportRange(settings.scrollLeft, endTime);
+        const endTime = session.scrollLeft + (viewport.viewerWidth / session.zoomRatio);
+        viewport.setViewportRange(session.scrollLeft, endTime);
       }
     }
 

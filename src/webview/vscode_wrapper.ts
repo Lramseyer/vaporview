@@ -33,6 +33,7 @@ export class Configuration {
   fillMultiBitValues: boolean       = false;
   multiBitFixedHeight: boolean      = true;
   removeGlitchTransitions: boolean  = false;
+  defaultTimeUnit: string           = "none";
   enableAnimations: boolean         = true;
   animationDuration: number         = 50;
   useGlow: boolean                  = false;
@@ -68,6 +69,9 @@ export class Configuration {
         this.rulerLines = settings.rulerLines;
         viewport.updateBackgroundCanvas();
       }
+    }
+    if (settings.defaultTimeUnit !== undefined) {
+      this.defaultTimeUnit = settings.defaultTimeUnit;
     }
 
     // Renderer Settings

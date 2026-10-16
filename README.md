@@ -245,6 +245,7 @@ This extension requires VScode 1.102.0 or later
 - Added feature to drag time marker via the time ruler
 - Added FP4 value format
 - Updated styling to match VScode 2026 styling
+- Added setting: vaproview.defaultTimeUnit
 - Added waveformViewer.loadViewerState command to API
 - Updated License to GPL-3.0
 - Update wellen to 0.25.7

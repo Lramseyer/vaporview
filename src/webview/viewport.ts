@@ -246,7 +246,7 @@ export class Viewport {
     this.pixelTime        = 1 / this.zoomRatio;
     this.maxZoomRatio     = this.zoomRatio * 256;
     this.adjustedLogTimeScale   = 0;
-    this.updateUnits(this.timeUnit, false);
+    this.updateUnits(config.defaultTimeUnit, false);
     this.setRulerVscodeContext();
     this.netlistLinkElement.style.display = 'flex';
     // We have to call the synchronous function, otherwise the viewport may get into a weird state

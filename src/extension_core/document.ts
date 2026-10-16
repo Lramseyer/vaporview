@@ -243,6 +243,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       fillMultiBitValues:                 config.get('fillMultiBitValues'),
       multiBitFixedHeight:                config.get('multiBitFixedHeight'),
       removeGlitchTransitions:            config.get('removeGlitchTransitions'),
+      defaultTimeUnit:                    config.get('defaultTimeUnit'),
       enableAnimations:                   config.get('enableAnimations'),
       animationDuration:                  config.get('animationDuration'),
       useGlow:                            config.get('useGlow'),

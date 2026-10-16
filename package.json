@@ -168,6 +168,13 @@
             "default": false,
             "scope": "application",
             "description": "Remove glitch transitions (multiple value changes in a single time step) in the waveform viewer. Files must be reloaded for this setting to take effect."
+          },
+          "vaporview.defaultTimeUnit": {
+            "type": "string",
+            "enum": ["fs", "ps", "ns", "µs", "ms", "s", "none"],
+            "default": "none",
+            "scope": "resource",
+            "description": "When opeining a new wavefom dump file, users can specify a default time unit to convert to."
           }
         }
       },

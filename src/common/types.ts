@@ -111,6 +111,7 @@ export interface ConfigSettingsMessage {
   fillMultiBitValues?: boolean;
   multiBitFixedHeight?: boolean;
   removeGlitchTransitions?: boolean;
+  defaultTimeUnit?: string;
   enableAnimations?: boolean;
   animationDuration?: number;
   useGlow?: boolean;

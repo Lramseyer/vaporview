@@ -279,16 +279,11 @@ export class ThemeColors {
       }
     }
 
-    // Somebody help me with this, because I don't have all of these fonts
-    switch (usedFont) {
-      case 'Monaco':          this.characterWidth = 7.20; break;
-      case 'Menlo':           this.characterWidth = 7.22; break;
-      case 'Consolas':        this.characterWidth = 7.69; this.baselineOffset = 1; break;
-      case 'Droid Sans Mono': this.characterWidth = 7.69; break;
-      case 'Inconsolata':     this.characterWidth = 7.69; break;
-      case 'Courier New':     this.characterWidth = 7.69; break;
-      default:                this.characterWidth = 7.69; break;
-    }
+    const sample        = '0'.repeat(100);
+    const ctx           = viewport.overlayCanvas;
+    ctx.font            = this.fontStyle;
+    this.characterWidth = ctx.measureText(sample).width / sample.length;
+    this.baselineOffset = (usedFont === 'Consolas') ? 1 : 0;
 
     this.rowHeight   = parseInt(style.getPropertyValue('--waveform-height'));
     this.rowPadding  = parseInt(style.getPropertyValue('--waveform-padding'));

@@ -10,6 +10,43 @@ import type { FsdbFormatHandler } from './fsdb_handler';
 
 export type NetlistIdTable = NetlistItem[];
 
+// Tracks whether the webview has initialized, and lets callers await it.
+// The webview reports 'initialized' only after both the waveform file is parsed and the
+// webview has loaded, so awaiting this covers both regardless of which finishes first.
+// The state is resettable, since the webview goes back to uninitialized on reload.
+class WebviewInitState {
+  private _initialized: boolean = false;
+  private _promise!: Promise<void>;
+  private _resolve!: () => void;
+  private _reject!: (reason: unknown) => void;
+  public get initialized(): boolean {return this._initialized;}
+
+  constructor() {this.createPromise();}
+
+  public wait(): Promise<void> { return this._promise; }
+  public cancel(reason: unknown) {this._reject(reason);}
+
+  private createPromise() {
+    this._promise = new Promise<void>((resolve, reject) => {
+      this._resolve = resolve;
+      this._reject  = reject;
+    });
+    // Mark as handled so a rejection with no waiters doesn't surface as an unhandled rejection.
+    // Callers that await the promise still receive the rejection.
+    this._promise.catch(() => {});
+  }
+  
+  public setInitialized() {
+    this._initialized = true;
+    this._resolve();
+  }
+  
+  public setNotInitialized() {
+    if (this._initialized) {this.createPromise();}
+    this._initialized = false;
+  }
+}
+
 export type SignalInfo = {
   name: string;
   netlistId?: NetlistId;
@@ -120,7 +157,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   private readonly _handler: WaveformFileParser;
   // Webview
   public webviewPanel: vscode.WebviewPanel | undefined = undefined;
-  private _webviewInitialized: boolean = false;
+  private readonly _webviewInitState: WebviewInitState = new WebviewInitState();
   public metadata: WaveformDumpMetadata;
   public webviewContext: WebviewState = new WebviewState();
   // State management
@@ -158,7 +195,11 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
 
   // #region Public getters
   public get netlistIdTable(): NetlistIdTable { return this._netlistIdTable; }
-  public get webviewInitialized(): boolean { return this._webviewInitialized; }
+  public get webviewInitialized(): boolean { return this._webviewInitState.initialized; }
+
+  // Await this before sending state or signals to the webview from outside the
+  // webview lifecycle (commands, API calls). Rejects if the document is disposed first.
+  public whenWebviewInitialized(): Promise<void> { return this._webviewInitState.wait(); }
   public get fileUpdated(): boolean { return this._fileUpdated; }
   public get reloadPending(): boolean { return this._reloadPending; }
   //public get handler(): WaveformFileParser { return this._handler; }
@@ -204,9 +245,9 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public onWebviewReady(webviewPanel: vscode.WebviewPanel) {
     this.webviewPanel = webviewPanel;
     this._handler.postMessageToWebview = webviewPanel.webview.postMessage.bind(webviewPanel.webview);
-    //if (this._webviewInitialized) { return; }
+    //if (this._webviewInitState.initialized) { return; }
     if (!this.metadata.timeTableLoaded) { return; }
-    this._webviewInitialized = false;
+    this._webviewInitState.setNotInitialized();
     const colorPalette = this._providerDelegate.getColorPalette();
     this.setConfigurationSettings();
     webviewPanel.webview.postMessage({
@@ -222,7 +263,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   public onWebviewInitialized() {
-    this._webviewInitialized = true;
+    this._webviewInitState.setInitialized();
   }
 
   public setConfigurationSettings() {
@@ -720,7 +761,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   public async unloadWebview() {
-    this._webviewInitialized = false;
+    this._webviewInitState.setNotInitialized();
     if (!this.webviewPanel) { return; }
     try {
       this.webviewPanel?.webview.postMessage({ command: 'unload' });
@@ -774,6 +815,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   }
 
   public dispose(): void {
+    this._webviewInitState.cancel(new Error('Viewer was closed before it finished initializing: ' + this.uri.toString()));
     this._handler.dispose();
     this._providerDelegate.updateViews(this.uri);
     this._providerDelegate.removeFromCollection(this.uri, this);

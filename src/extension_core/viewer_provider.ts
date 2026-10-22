@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { type DocumentId, type NetlistId, SignalGroupWebviewContext, SignalId, StateChangeType, WindowMessageType, type MarkerSetEvent, type SignalEvent, type ViewerDropEvent, ExternalKeyDownMessage, SetDisplayFormatMessage, EmitEventMessage, WebviewDropMessage, DisplayFormatProperties, WebviewStateEvent } from '../common/types';
 import { decodeNetlistUri } from '../../packages/vaporview-api';
-import type { VariableActionArgs, VariableAction, SetMarkerArgs, AddVariableByPathArgs, SavedRowItem, LoadViewerStateArgs, ValueLinkEvent, RulerContext, RulerWebviewContext } from '../../packages/vaporview-api/types';
+import type { VariableActionArgs, VariableAction, SetMarkerArgs, AddVariableByPathArgs, SavedRowItem, LoadViewerStateArgs, OpenFileArgs, ValueLinkEvent, RulerContext, RulerWebviewContext } from '../../packages/vaporview-api/types';
 import { scaleFromUnits, logScaleFromUnits } from '../common/functions';
 import * as fs from 'fs';
 import { } from './extension';
@@ -566,14 +566,28 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     document.saveFileUri = uri;
   }
 
-  public loadViewerStateCommand(args: LoadViewerStateArgs) {
+  // Opens a waveform file and resolves only once the webview is initialized, so callers
+  // can immediately send state/signals. 'vscode.openWith' alone only waits for
+  // resolveCustomEditor, which returns before the webview script has even run.
+  public async openFileCommand(args: OpenFileArgs) {
+    if (!args?.uri) {return;}
+    await vscode.commands.executeCommand('vscode.openWith', args.uri, 'vaporview.waveformViewer');
+    const document = this.documentCollection.getDocumentFromUri(args.uri.toString());
+    if (!document) {return;}
+    await document.whenWebviewInitialized();
+    if (args.loadAll) {this.loadAllVariablesFromFile(args.uri.toString(), args.maxSignals || 64);}
+  }
+
+  public async loadViewerStateCommand(args: LoadViewerStateArgs) {
 
     const document = this.getDocumentFromCommandArgs({uri: args.documentUri});
 
     if (!document) {return;}
     if (!args.sessionFileUri) {return;}
 
-    this.loadSessionFromFileUri(document, vscode.Uri.parse(args.sessionFileUri), true);
+    // The document can exist before its webview is ready to receive 'apply-state'
+    await document.whenWebviewInitialized();
+    await this.loadSessionFromFileUri(document, vscode.Uri.parse(args.sessionFileUri), true);
   }
 
   public async loadSessionFromFile() {

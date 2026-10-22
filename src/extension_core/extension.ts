@@ -92,9 +92,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Vaporv
 
     // Commands
     async openFile(args: OpenFileArgs) {
-      if (!args.uri) {return;}
-      await vscode.commands.executeCommand('vscode.openWith', args.uri, 'vaporview.waveformViewer');
-      if (args.loadAll) {viewerProvider.loadAllVariablesFromFile(args.uri.toString(), args.maxSignals || 64);}
+      await viewerProvider.openFileCommand(args);
     },
     async addVariable(args: VariableActionArgs) {
       viewerProvider.variableActionCommandHandler(args, "add");
@@ -120,7 +118,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Vaporv
       return document.getWebviewSession() as unknown as ViewerState;
     },
     async loadViewerState(args: LoadViewerStateArgs) {
-      viewerProvider.loadViewerStateCommand(args);
+      await viewerProvider.loadViewerStateCommand(args);
     },
     async getValuesAtTime(args: GetValuesAtTimeArgs) {
       const document = viewerProvider.getDocumentFromOptionalUri(args.uri);

@@ -173,7 +173,7 @@
             "type": "string",
             "enum": ["fs", "ps", "ns", "µs", "ms", "s", "none"],
             "default": "none",
-            "scope": "resource",
+            "scope": "window",
             "description": "When opeining a new wavefom dump file, users can specify a default time unit to convert to."
           }
         }
@@ -184,7 +184,7 @@
           "vaporview.defaultAutoReload": {
             "type": "boolean",
             "default": false,
-            "scope": "application",
+            "scope": "window",
             "description": "Recommended: false (unchecked) - default state for the 'Auto Reload' checkbox in the control bar. When enabled, files opened will have auto reload enabled by default."
           },
           "vaporview.fstMaxStaticLoadSize": {
@@ -203,7 +203,7 @@
               "Ask",
               "Never"
             ],
-            "scope": "application",
+            "scope": "window",
             "description": "When opening a waveform dump file, if a .json file with the same name is found in the same directory, should the viewer load the session from that file?"
           },
           "vaporview.fsdbAddonPath": {

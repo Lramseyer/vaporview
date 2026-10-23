@@ -502,7 +502,31 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     return connectionInfo;
   }
 
+  // True when the URL is plain http:// to a host other than this machine, i.e. a
+  // bearer token sent to it would cross the network unencrypted.
+  private isPlaintextNonLoopback(serverUrl: string): boolean {
+    let url: URL;
+    try { url = new URL(serverUrl);}
+    catch { return false; }
+    if (url.protocol !== 'http:') {return false;}
+    const host = url.hostname.toLowerCase();
+    const isLoopback = host === 'localhost' || host.endsWith('.localhost') ||
+      host === '[::1]' || /^127(\.\d{1,3}){3}$/.test(host);
+    return !isLoopback;
+  }
+
   public async openRemoteViewer(serverUrl: string, bearerToken?: string) {
+    if (bearerToken && this.isPlaintextNonLoopback(serverUrl)) {
+      const choice = await vscode.window.showWarningMessage(
+        `${serverUrl} uses unencrypted HTTP. Your bearer token will be sent in plain text and can be read by anyone on the network path.`,
+        { modal: true },
+        'Connect Anyway'
+      );
+      if (choice !== 'Connect Anyway') {
+        this.log.appendLine(`Remote viewer connection to ${serverUrl} cancelled: bearer token over plain HTTP`);
+        return;
+      }
+    }
     try {
       // Create a URI with the custom vaporview-remote scheme
       const sanitizedUrl = serverUrl.replace(/[^a-zA-Z0-9.-]/g, '_');

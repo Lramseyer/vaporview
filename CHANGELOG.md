@@ -1,6 +1,6 @@
 # Change Log
 
-# 1.6.0 - Upcoming release
+# 1.6.0 - 10/25/2026 - Latest Release
 
 - Merge waveform canvases and rows into a single canvas
 - Moved file reader to WASM worker resulting in ~25% faster file loading times
@@ -23,8 +23,9 @@
   - Show in Netlist View now works with custom variables
   - Auto Loading signal list file works again
   - Octal search @haroune-dev
+  - Text sizing in multi-bit renderer is more accurate
 
-## 1.5.4 - 6/4/2026 - Latest Release
+## 1.5.4 - 6/4/2026
 
 - Updated search functionality to constrain search to a particular scope
 - Added user setting to remove glitch transitions

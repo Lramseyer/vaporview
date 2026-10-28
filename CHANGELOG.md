@@ -3,6 +3,7 @@
 ## 1.6.1 - Upcoming release
 
 - X/Z values draw at half height
+- Fixed color theme loading on VScode SSH (with helper extension)
 
 # 1.6.0 - 10/25/2026 - Latest Release
 

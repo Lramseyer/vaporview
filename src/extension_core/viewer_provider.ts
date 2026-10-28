@@ -30,6 +30,8 @@ interface ThemeEntry {
   settings?: ThemeRule[];
 }
 
+type UserTheme = [themeName: string, themeData: ThemeEntry[]];
+
 interface WebviewMessageEvent {
   messageType: WindowMessageType;
   message: string;
@@ -145,7 +147,9 @@ export class VaporviewDocumentCollection {
   }
 
   // Build a color palette from the current theme
-  // Step 1: Get the color theme and settings from the user's theme (handled by vscode-shiki-bridge)
+  // Step 1: Get the color theme and settings
+  //      A: Try reading the user's theme by vscode-shiki-bridge
+  //      B: Try using the 'shiki.getUserTheme' command
   // Step 2: create a set of unique colors
   // Step 3: Use a commonly used scope list to map the colors to a color palette
   //         The scope list has an established order, so we can use it to build a
@@ -154,10 +158,49 @@ export class VaporviewDocumentCollection {
   //         If a the palette is full, then we can stop. If it's not, then we can
   //         select from the remaining colors in the unique color set.
   async getTokenColorsForTheme() {
+    const theme: UserTheme | undefined = await this.fetchUserTheme();
 
-    try {
-    const [themeName, themeData] = await getUserTheme();
+    if (theme) {
+      const [_themeName, themeData] = theme;
+      this.processThemeRules(themeData);
+    } else {
+      vscode.window.showErrorMessage(
+        "Error getting user theme. If you are seeing this while using " +
+        "VS Code SSH, you will need to use this helper extension: " +
+        "https://github.com/Lramseyer/shiki-service"
+      );
+      this.setDefaultThemeRules();
+    }
 
+    this.broadcast((document) => {
+      document.webviewPanel?.webview.postMessage({
+        command: 'updateColorPalette',
+        colorPalette: this.colorPalette,
+        errorColorPalette: this.errorColorPalette,
+        themeValid: this.themeValid,
+      });
+    });
+  }
+
+  // Try each theme source in order; return undefined if all fail.
+  // Note: `return await` is required so rejections are caught by each try.
+  private async fetchUserTheme(): Promise<UserTheme | undefined> {
+    // A: vscode-shiki-bridge
+    try {return await getUserTheme() as UserTheme;}
+    catch { /* fall through to B */ }
+
+    // B: 'shiki.getUserTheme' command (helper extension, e.g. for VS Code SSH)
+    try {return await vscode.commands.executeCommand<UserTheme>('shiki.getUserTheme');}
+    catch {return undefined;}
+  }
+
+  setDefaultThemeRules() {
+    this.colorPalette = ['#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC'];
+    this.errorColorPalette = ['#C00000'];
+    this.themeValid = false;
+  }
+
+  processThemeRules(themeData: ThemeEntry[]) {
     const scopeList = [
       "constant.numeric",
       "string",
@@ -234,25 +277,6 @@ export class VaporviewDocumentCollection {
     this.colorPalette = colorPalette;
     this.errorColorPalette = errorColorPalette;
     this.themeValid = true;
-
-    } catch (error) {
-      vscode.window.showErrorMessage("Error getting user theme: " + error);
-      this.colorPalette = ['#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC', '#CCCCCC'];
-      this.errorColorPalette = ['#C00000'];
-      this.themeValid = false;
-    }
-
-    this.broadcast((document) => {
-      const webview = document.webviewPanel;
-      if (webview) {
-        webview.webview.postMessage({
-          command: 'updateColorPalette',
-          colorPalette: this.colorPalette,
-          errorColorPalette: this.errorColorPalette,
-          themeValid: this.themeValid
-        });
-      }
-    });
   }
 
   getColorPalette() {

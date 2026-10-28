@@ -284,6 +284,7 @@ Also special thanks to the Surfer team for their support and encouragement and a
 - [@AndrewNolte](https://github.com/AndrewNolte)
 - [@shlyahtink](https://github.com/shlyahtink)
 - [@haroune-dev](https://github.com/haroune-dev)
+- [@amikhalev](https://github.com/@amikhalev)
 
 ## Misc
 

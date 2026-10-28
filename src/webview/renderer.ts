@@ -462,11 +462,13 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     const rowHeight        = netlistData.rowHeight * styles.rowHeight;
     const canvasHeight     = rowHeight - (styles.rowPadding * 2);
 
+    let drawLine           = true;
     if (valueIs9State(initialValue)) {
       initialValue2state = 0;
+      drawLine = false;
     }
     const startScreenX    = -10 * viewport.pixelTime;
-    const accumulatedPath = [[startScreenX, 0], [startScreenX, initialValue2state]];
+    const accumulatedPath: [number, number, boolean][] = [[startScreenX, 0, true], [startScreenX, initialValue2state, true]];
     let value2state       = 0;
     // No Draw Code
     let lastDrawTime             = 0;
@@ -488,28 +490,43 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
 
         if (noDrawFlag) {
           initialValue2state = parseInt(initialValue);
-          if (valueIs9State(initialValue)) {initialValue2state = 0;}
+          if (valueIs9State(initialValue)) {
+            initialValue2state = 0;
+            drawLine = false;
+          }
 
           const adjustedLastDrawTime = lastDrawTime - timeScrollLeft;
           const adjustedLastNoDrawTime = lastNoDrawTime - timeScrollLeft;
           noDrawPath.push([adjustedLastDrawTime, adjustedLastNoDrawTime, 0]);
-          accumulatedPath.push([adjustedLastDrawTime, 0]);
-          accumulatedPath.push([adjustedLastNoDrawTime, 0]);
-          accumulatedPath.push([adjustedLastNoDrawTime, initialValue2state]);
+          accumulatedPath.push([adjustedLastDrawTime,   0, true]);
+          accumulatedPath.push([adjustedLastNoDrawTime, 0, true]);
+          accumulatedPath.push([adjustedLastNoDrawTime, initialValue2state, true]);
           noDrawFlag = false;
         }
 
         const timeLeft = time - timeScrollLeft;
         if (valueIs9State(initialValue)) {
           xzPath.push([initialTimeOrStart - timeScrollLeft, timeLeft]);
+          drawLine = false;
         }
 
-        value2state = parseInt(value);
-        if (valueIs9State(value)) {value2state =  0;}
-
         // Draw the current transition to the main path
-        accumulatedPath.push([timeLeft, initialValue2state]);
-        accumulatedPath.push([timeLeft, value2state]);
+        accumulatedPath.push([timeLeft, initialValue2state, drawLine]);
+
+        // Check for 9 state, or previous 9 state values
+        value2state = parseInt(value);
+        if (valueIs9State(value)) {
+          value2state = 0;
+          accumulatedPath.push([timeLeft, 0.5, drawLine]);
+          drawLine = false;
+        } else {
+          if (!drawLine) {
+            accumulatedPath.push([timeLeft, 0.5, drawLine]);
+          }
+          drawLine = true;
+        }
+
+        accumulatedPath.push([timeLeft, value2state, drawLine]);
 
         lastDrawValue      = value2state;
         lastDrawTime       = time;
@@ -522,14 +539,17 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     }
 
     initialValue2state = parseInt(initialValue);
-    if (valueIs9State(initialValue)) {initialValue2state = 0;}
+    if (valueIs9State(initialValue)) {
+      initialValue2state = 0;
+      drawLine = false;
+    }
 
     if (postState[0] - initialTime < minDrawWidth) {
 
         const adjustedLastDrawTime = lastDrawTime - timeScrollLeft;
         noDrawPath.push([adjustedLastDrawTime, timeScrollRight, 1]);
-        accumulatedPath.push([adjustedLastDrawTime, 0]);
-        accumulatedPath.push([timeScrollRight, 0]);
+        accumulatedPath.push([adjustedLastDrawTime, 0, true]);
+        accumulatedPath.push([timeScrollRight, 0, true]);
 
     } else {
 
@@ -538,9 +558,9 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
         const adjustedLastDrawTime = lastDrawTime - timeScrollLeft;
         const adjustedLastNoDrawTime = lastNoDrawTime - timeScrollLeft;
         noDrawPath.push([adjustedLastDrawTime, adjustedLastNoDrawTime, 2]);
-        accumulatedPath.push([adjustedLastDrawTime, 0]);
-        accumulatedPath.push([adjustedLastNoDrawTime, 0]);
-        accumulatedPath.push([adjustedLastNoDrawTime, initialValue2state]);
+        accumulatedPath.push([adjustedLastDrawTime, 0, true]);
+        accumulatedPath.push([adjustedLastNoDrawTime, 0, true]);
+        accumulatedPath.push([adjustedLastNoDrawTime, initialValue2state, true]);
       }
 
       if (valueIs9State(initialValue))  {
@@ -554,9 +574,9 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     }
 
     // Guarantee a 1 -> 0 transition offscreen, otherwise we get rendering artifacts
-    accumulatedPath.push([timeScrollRight + (15 * viewport.pixelTime), initialValue2state]);
-    accumulatedPath.push([timeScrollRight + (15 * viewport.pixelTime), 1]);
-    accumulatedPath.push([timeScrollRight + (15 * viewport.pixelTime), 0]);
+    accumulatedPath.push([timeScrollRight + (15 * viewport.pixelTime), initialValue2state, drawLine]);
+    accumulatedPath.push([timeScrollRight + (15 * viewport.pixelTime), 1, true]);
+    accumulatedPath.push([timeScrollRight + (15 * viewport.pixelTime), 0, true]);
 
     const waveHeight = canvasHeight - styles.rowPadding;
     const waveOffset = waveHeight + (canvasHeight - waveHeight) / 2;
@@ -569,9 +589,14 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     ctx.translate(0.5, waveOffset + 0.5);
     ctx.transform(viewport.zoomRatio, 0, 0, -waveHeight, 0, 0);
     ctx.beginPath();
-    accumulatedPath.forEach(([x, y]) => {ctx.lineTo(x, y);});
+    accumulatedPath.forEach(([x, y, lt]) => {ctx.lineTo(x, y);});
     ctx.globalAlpha = 0.1;
     ctx.fill();
+    ctx.beginPath();
+    accumulatedPath.forEach(([x, y, lt]) => {
+      if (lt) {ctx.lineTo(x, y);}
+      else    {ctx.moveTo(x, y);}
+    });
     ctx.globalAlpha = 1;
     ctx.restore();
     ctx.lineWidth = 1;
@@ -609,13 +634,18 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     xzPath.forEach(([startTime, EndTime]) => {
       ctx.moveTo(startTime, 0);
       ctx.lineTo(EndTime, 0);
-      ctx.lineTo(EndTime, 1);
-      ctx.lineTo(startTime, 1);
+      ctx.lineTo(EndTime, 0.5);
+      ctx.lineTo(startTime, 0.5);
       ctx.lineTo(startTime, 0);
     });
     ctx.fillStyle   = xzColor;
     ctx.globalAlpha = 0.1;
     ctx.fill();
+    ctx.beginPath();
+    xzPath.forEach(([startTime, EndTime]) => {
+      ctx.moveTo(startTime, 0.5);
+      ctx.lineTo(EndTime, 0.5);
+    });
     ctx.restore();
     ctx.lineWidth = 1;
     ctx.strokeStyle = xzColor;

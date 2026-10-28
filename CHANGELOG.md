@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.6.1 - Upcoming release
+
+- X/Z values draw at half height
+
 # 1.6.0 - 10/25/2026 - Latest Release
 
 - Merge waveform canvases and rows into a single canvas

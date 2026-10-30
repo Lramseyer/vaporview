@@ -5,6 +5,7 @@
 - X/Z values draw at half height
 - Fixed color theme loading on VScode SSH (with helper extension)
 - Improve performance with large FSDB design files @amikhalev
+- Refactor Multi-bit renderer - fix #228
 
 # 1.6.0 - 10/25/2026 - Latest Release
 

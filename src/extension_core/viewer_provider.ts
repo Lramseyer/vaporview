@@ -1262,7 +1262,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
       return element.contextValue === 'netlistVar';
     }).map((element) => element.netlistId);
 
-    if ((elementList.length > 24) && !noWarning) {
+    if ((elementList.length > 48) && !noWarning) {
       // show warning message
       vscode.window.showWarningMessage('You are about to add a large number of signals to the waveform viewer. This may cause performance issues. Do you want to continue?', 'Yes', 'No').then((response) => {
         if (response === 'Yes') {

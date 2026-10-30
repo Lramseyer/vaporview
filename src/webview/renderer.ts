@@ -18,6 +18,9 @@ export interface WaveformRenderer {
   draw(valueChangeChunk: RenderBounds, netlistData: NetlistVariable | CustomVariable): void;
 }
 
+type Coordinate = [number, number];
+type MultiBitShape = Coordinate[];
+
 function clipCanvas(ctx: CanvasRenderingContext2D, signalItem: NetlistVariable | CustomVariable, canvasHeight: number,  viewerWidth: number) {
   const topBounds    = signalItem.topBounds;
   if (topBounds === null) {return;}
@@ -104,44 +107,22 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     return [text, adjustedXValue, centerText] as [string, number, boolean];
   }
 
-  private outlineBusValue(ctx: CanvasRenderingContext2D, drawColor: string, canvasHeight: number) {
-    ctx.restore();
-    ctx.save();
-    ctx.clip();
-    ctx.clearRect(0, 0, viewport.viewerWidth, canvasHeight);
-    ctx.globalAlpha = 0.1;
-    ctx.fillStyle = drawColor;
-    ctx.fill();
-    ctx.restore();
-    ctx.strokeStyle = drawColor;
-    ctx.lineWidth = 1;
-    ctx.shadowColor = drawColor;
-    ctx.shadowBlur  = styles.glowBlur;
-    ctx.stroke();
-    ctx.save();
-    ctx.clip();
-    ctx.beginPath();
-    ctx.moveTo(0, 0.5);
-    ctx.lineTo(viewport.viewerWidth, 0.5);
-    ctx.moveTo(0, canvasHeight - 0.5);
-    ctx.lineTo(viewport.viewerWidth, canvasHeight - 0.5);
-    ctx.shadowColor = drawColor;
-    ctx.shadowBlur  = styles.glowBlur;
-    ctx.stroke();
-    ctx.restore();
-    ctx.save();
-    ctx.shadowBlur  = 0;
+  private createShape(left: number, right: number, width: number, cornerOffset: number, yMultiplier: number, maxYposition: number, fixedHeight: boolean): MultiBitShape {
+    const xPosition   = (width / 2) + left;
+    const yPosition   = fixedHeight ? maxYposition : Math.min(width * yMultiplier, maxYposition);
+    const cornerLeft  = Math.min(left + cornerOffset, xPosition);
+    const cornerRight = Math.max(right - cornerOffset, xPosition);
+    return [[left, 0], [cornerLeft, yPosition], [cornerRight, yPosition], [right, 0], [cornerRight, -yPosition], [cornerLeft, -yPosition]];
   }
 
-  private busValueNoDraw(ctx: CanvasRenderingContext2D, alpha: number, lineWidth: number, viewerWidth: number) {
-    ctx.globalAlpha = alpha;
-    ctx.lineWidth = lineWidth;
-    ctx.shadowColor = ctx.strokeStyle as string;
-    ctx.shadowBlur  = styles.glowBlur;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(viewerWidth, 0);
-    ctx.stroke();
+  private drawShape(ctx: CanvasRenderingContext2D, shape: MultiBitShape) {
+    ctx.moveTo(shape[0][0], shape[0][1]);
+    ctx.lineTo(shape[1][0], shape[1][1]);
+    ctx.lineTo(shape[2][0], shape[2][1]);
+    ctx.lineTo(shape[3][0], shape[3][1]);
+    ctx.lineTo(shape[4][0], shape[4][1]);
+    ctx.lineTo(shape[5][0], shape[5][1]);
+    ctx.lineTo(shape[0][0], shape[0][1]);
   }
 
   public draw(valueChangeChunk: RenderBounds, netlistData: NetlistVariable | CustomVariable) {
@@ -168,24 +149,20 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     let is4State        = false;
     let value           = initialState[1];
     let time            = initialState[0];
-    let xPosition       = 0;
-    let yPosition       = 0;
-    const adjustedTime  = time - viewport.timeScrollLeft;
-    const points        = [[adjustedTime, 0]];
-    const endPoints     = [[adjustedTime, 0]];
-    const xzPoints: number[][][] = [];
-    //const xzValues: string[] = [];
+
+    const binShapes: MultiBitShape[] = [];
+    const xzShapes: MultiBitShape[]  = [];
     const textElements: [string, number, boolean][] = [];
     let moveCursor      = false;
-    let drawBackgroundStrokes = false;
     const minTextWidth  = 12 * viewport.pixelTime;
     const minDrawWidth  = viewport.pixelTime / viewport.pixelRatio;
     const drawColor     = netlistData.color;
     const xzColor       = styles.xzColor;
     const fillShape     = config.fillMultiBitValues;
     const fixedHeight   = config.multiBitFixedHeight;
-    const minYPosition  = fixedHeight ? halfCanvasHeight / viewport.zoomRatio : 0;
+    const maxYPosition  = (halfCanvasHeight - 0.5) / viewport.zoomRatio;
     const yMultiplier   = 2 * netlistData.rowHeight;
+    const cornerOffset  = ((halfCanvasHeight - 0.5) / (2 * yMultiplier)) / viewport.zoomRatio;
     let lastDrawTime    = 0;
     let parsedValue;
     const noDrawRanges: number[][] = [];
@@ -201,50 +178,38 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
         const adjustedTimeEnd = adjustedTime + elementWidth;
 
         if (moveCursor) {
-          points.push([adjustedTime, 0]);
-          endPoints.push([adjustedTime, 0]);
           moveCursor = false;
           noDrawRanges.push([lastDrawTime, adjustedTime]);
         }
 
         is4State  = valueIs9State(value);
-        xPosition = (elementWidth / 2) + adjustedTime;
-        //yPosition =  elementWidth * 2;
-        yPosition =  Math.max(elementWidth * yMultiplier, minYPosition);
+        const shape = this.createShape(adjustedTime, adjustedTimeEnd, elementWidth, cornerOffset, yMultiplier, maxYPosition, fixedHeight);
         if (is4State) {
-          xzPoints.push([[adjustedTime, 0], [xPosition, yPosition], [adjustedTimeEnd, 0], [xPosition, -yPosition]]);
+          xzShapes.push(shape);
         } else {
-          points.push([xPosition, yPosition]);
-          endPoints.push([xPosition, -yPosition]);
+          binShapes.push(shape);
         }
 
         // Don't even bother rendering text if the element is too small. Since 
         // there's an upper limit to the number of larger elements that will be 
         // displayed, we can spend a little more time rendering them and making them
         // readable in all cases.
-        // We group the empty text elements that are too small to render together to
-        // reduce the number of DOM operations
         if (elementWidth > minTextWidth) {
           if (formatCached) {
             parsedValue = formattedValues[i - 1];
           } else {
             parsedValue = parseValue(value, signalWidth, !is4State);
           }
-          //spansChunk = spansChunk || (transitionData[i][0] > viewport.timeScrollRight);
           textElements.push(this.busValue(time, elementWidth, parsedValue, rightJustify));
         }
 
-        points.push([adjustedTimeEnd, 0]);
-        endPoints.push([adjustedTimeEnd, 0]);
         lastDrawTime = adjustedTimeEnd;
       } else {
-        drawBackgroundStrokes = true;
         moveCursor = true;
       }
 
       time  = transitionData[i][0];
       value = transitionData[i][1];
-      //spansChunk   = false;
     }
 
     elementWidth = postState[0] - time;
@@ -255,21 +220,16 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
       const adjustedTimeEnd = postState[0] - viewport.timeScrollLeft;
 
       if (moveCursor) {
-        points.push([adjustedTime, 0]);
-        endPoints.push([adjustedTime, 0]);
         moveCursor = false;
         noDrawRanges.push([lastDrawTime, adjustedTime]);
       }
 
-      xPosition = (elementWidth / 2) + adjustedTime;
-      yPosition =  Math.max(elementWidth * yMultiplier, minYPosition);
       is4State  = valueIs9State(value);
+      const shape = this.createShape(adjustedTime, adjustedTimeEnd, elementWidth, cornerOffset, yMultiplier, maxYPosition, fixedHeight);
       if (is4State) {
-        xzPoints.push([[adjustedTime, 0], [xPosition, yPosition], [adjustedTimeEnd, 0], [xPosition, -yPosition]]);
+        xzShapes.push(shape);
       } else {
-        points.push([xPosition, yPosition]);
-        points.push([adjustedTimeEnd, 0]);
-        endPoints.push([xPosition, -yPosition]);
+        binShapes.push(shape);
       }
     } else {
       if (moveCursor) {
@@ -290,123 +250,96 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     ctx.save();
     clipCanvas(ctx, netlistData, canvasHeight, viewport.viewerWidth);
     ctx.save();
-    ctx.translate(0, halfCanvasHeight);
 
-    // No Draw Line
-    if (!fixedHeight) {
-      ctx.strokeStyle = drawColor;
-      if (fillShape) {
-        this.busValueNoDraw(ctx, 0.4, 3, viewport.viewerWidth);
-        this.busValueNoDraw(ctx, 0.8, 1, viewport.viewerWidth);
-      } else {
-        this.busValueNoDraw(ctx, 0.5, 6, viewport.viewerWidth);
-        this.busValueNoDraw(ctx, 1, 5, viewport.viewerWidth);
-      }
-      ctx.moveTo(0, 0);
-    }
+    // Draw diamonds - both binary and 9 state
+    for (const i in [0,1]) {
+      const shapes = [binShapes, xzShapes][i];
+      const color  = [drawColor, xzColor][i];
 
-    // Draw diamonds
-    ctx.restore();
-    ctx.save();
-    ctx.translate(0.5, halfCanvasHeight);
-    ctx.globalAlpha = 1;
-    ctx.transform(viewport.zoomRatio, 0, 0, viewport.zoomRatio, 0, 0);
-    ctx.beginPath();
-    ctx.moveTo(-viewport.pixelTime * 2, 0); // This seems to fix a Windows render glitch, but cause another one
-    points.forEach(([x, y]) => {ctx.lineTo(x, y);});
-    endPoints.reverse().forEach(([x, y]) => {ctx.lineTo(x, y);});
+      ctx.translate(0.5, halfCanvasHeight);
+      ctx.transform(viewport.zoomRatio, 0, 0, viewport.zoomRatio, 0, 0);
 
-    if (fillShape) {
-      ctx.fillStyle = drawColor;
-      ctx.shadowColor = drawColor;
+      ctx.beginPath();
+      ctx.moveTo(-viewport.pixelTime * 2, 0); // This seems to fix a Windows render glitch, but cause another one
+      shapes.forEach(s => this.drawShape(ctx, s));
+
+      ctx.globalAlpha = fillShape ? 1 : 0.1;
+      ctx.fillStyle   = color;
+      ctx.shadowColor = color;
       ctx.shadowBlur  = styles.glowBlur;
       ctx.fill();
       ctx.restore();
       ctx.save();
-      if (fixedHeight) {
-        ctx.strokeStyle = drawColor;
-        ctx.lineWidth = 1;
-        ctx.shadowColor = drawColor;
+      if (fixedHeight || !fillShape) {
+        ctx.lineWidth   = 1;
+        ctx.strokeStyle = color;
+        ctx.shadowColor = color;
         ctx.shadowBlur  = styles.glowBlur;
         ctx.stroke();
       }
-    } else {
-      this.outlineBusValue(ctx, drawColor, canvasHeight);
+
+      ctx.restore();
+      ctx.save();
     }
 
     ctx.translate(0.5, halfCanvasHeight);
     ctx.transform(viewport.zoomRatio, 0, 0, viewport.zoomRatio, 0, 0);
 
+    // for fixed height, we draw boxes,
+    ctx.fillStyle   = drawColor;
+    ctx.shadowColor = drawColor;
+    ctx.shadowBlur  = styles.glowBlur;
+    ctx.beginPath();
     if (fixedHeight) {
-      ctx.fillStyle = drawColor;
-      ctx.shadowColor = drawColor;
-      ctx.shadowBlur  = styles.glowBlur;
-      ctx.beginPath();
       noDrawRanges.forEach(([start, end]) => {
-        ctx.moveTo(start, minYPosition);
-        ctx.lineTo(end, minYPosition);
-        ctx.lineTo(end, -minYPosition);
-        ctx.lineTo(start, -minYPosition);
+        ctx.moveTo(start,  maxYPosition);
+        ctx.lineTo(end,    maxYPosition);
+        ctx.lineTo(end,   -maxYPosition);
+        ctx.lineTo(start, -maxYPosition);
       });
       ctx.fill();
-    }
-
-    // Draw non-2-state values
-    ctx.beginPath();
-    xzPoints.forEach(set => {
-      ctx.moveTo(set[0][0], set[0][1]);
-      ctx.lineTo(set[1][0], set[1][1]);
-      ctx.lineTo(set[2][0], set[2][1]);
-      ctx.lineTo(set[3][0], set[3][1]);
-      ctx.lineTo(set[0][0], set[0][1]);
-    });
-
-    if (fillShape) {
-      ctx.fillStyle = xzColor;
-      ctx.shadowColor = xzColor;
-      ctx.shadowBlur  = styles.glowBlur;
-      ctx.fill();
       ctx.restore();
-      if (fixedHeight) {
-        ctx.strokeStyle = xzColor;
-        ctx.lineWidth = 1;
-        ctx.shadowColor = xzColor;
-        ctx.shadowBlur  = styles.glowBlur;
-        ctx.stroke();
-      }
+      ctx.save();
     } else {
-      this.outlineBusValue(ctx, xzColor, canvasHeight);
+      noDrawRanges.forEach(([start, end]) => {
+        ctx.moveTo(start, 0);
+        ctx.lineTo(end,   0);
+      });
+      ctx.restore();
+      ctx.save();
+      ctx.strokeStyle = drawColor;
+      ctx.globalAlpha = fillShape ? 0.4 : 0.5;
+      ctx.lineWidth   = fillShape ? 3   : 6;
+      ctx.stroke();
+      ctx.globalAlpha = fillShape ? 0.8 : 1;
+      ctx.lineWidth   = fillShape ? 1   : 5;
+      ctx.stroke();
     }
+
+    ctx.beginPath();
+    ctx.moveTo(0,0);
 
     // Draw Text
     const textY = halfCanvasHeight + 1;
     const fontWeight = fillShape ? 'bold ' : '';
     const textColor  = fillShape ? styles.backgroundColor : styles.textColor;
+    ctx.restore();
     ctx.save();
     ctx.translate(0.5, 0);
-    
+
     ctx.font          = fontWeight + styles.fontStyle;
     ctx.fillStyle     = textColor;
     // Glow the bus text in the trace color, but keep the glyphs readable by
     // not blooming the (often dark) filled-shape text color.
     ctx.shadowColor   = fillShape ? drawColor : textColor;
     ctx.shadowBlur    = styles.textGlowBlur;
-    ctx.textAlign     = 'center';
     ctx.textBaseline  = 'middle';
     ctx.imageSmoothingEnabled = false;
     ctx.textRendering = 'optimizeLegibility';
     textElements.forEach(([text, xValue, center], i) => {
-      if (center) {
-        ctx.fillText(text, xValue, textY);
-        if (i === netlistData.valueLinkIndex) {ctx.fillText("_".repeat(text.length), xValue, textY);}
-      }
-    });
-    ctx.textAlign = justifyDirection;
-    textElements.forEach(([text, xValue, center], i) => {
-      if (!center) {
-        ctx.fillText(text, xValue, textY);
-        if (i === netlistData.valueLinkIndex) {ctx.fillText("_".repeat(text.length), xValue, textY);}
-      }
+      ctx.textAlign = center ? 'center' : justifyDirection;
+      ctx.fillText(text, xValue, textY);
+      if (i === netlistData.valueLinkIndex) {ctx.fillText("_".repeat(text.length), xValue, textY);}
     });
 
     // Render Signal Link Underline

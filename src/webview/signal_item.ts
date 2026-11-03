@@ -334,7 +334,8 @@ export class NetlistVariable extends SignalItem implements RowItem {
     return {
       dataType:         "netlist-variable",
       netlistId:        this.netlistId,
-      name:             createInstancePath(this.scopePath, this.signalName),
+      name:             this.signalName,
+      scopePath:        this.scopePath,
       numberFormat:     this.valueFormat.id,
       colorIndex:       this.colorIndex,
       rowHeight:        this.rowHeight,

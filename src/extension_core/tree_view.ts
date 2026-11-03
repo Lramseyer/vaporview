@@ -247,7 +247,9 @@ export class NetlistTreeDataProvider implements vscode.TreeDataProvider<NetlistI
 
   public getParent(element: NetlistItem): vscode.ProviderResult<NetlistItem> {
     if (this.document && element.scopePath.length !== 0) {
-      return Promise.resolve(this.document.findTreeItem(element.scopePath.join('.'), undefined, undefined));
+      const name = element.scopePath[element.scopePath.length - 1];
+      const scopePath = element.scopePath.slice(0, -1);
+      return Promise.resolve(this.document.findTreeItem(scopePath, name, undefined, undefined));
     }
     return null;
   }

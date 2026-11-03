@@ -890,7 +890,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   async showInNetlistViewByName(signalName: string) {
     if (!this.lastActiveDocument) {return;}
     const document = this.lastActiveDocument;
-    const metadata = await document.findTreeItem(signalName, undefined, undefined);
+    const metadata = await document.findTreeItem(undefined, signalName, undefined, undefined);
     if (metadata !== null) {
       this.netlistView.reveal(metadata, {select: true, focus: false, expand: 3});
     }
@@ -971,7 +971,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
         }
         path = (path ?? '') + (e.name ?? '');
       }
-      metadata = await document.findTreeItem(path ?? '', e.msb, e.lsb);
+      metadata = await document.findTreeItem(undefined, path ?? '', e.msb, e.lsb);
     }
 
     return metadata;
@@ -1137,7 +1137,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
     const lookup = instancePath.replace(regex, '');
     const msb   = field ? parseInt(field[1], 10) : undefined;
     const lsb   = field ? parseInt(field[2], 10) : msb;
-    return await document.findTreeItem(lookup, msb, lsb);
+    return await document.findTreeItem(undefined, lookup, msb, lsb);
   }
 
   public async addSignalByNameToDocument(signalName: string) {
@@ -1221,7 +1221,7 @@ export class WaveformViewerProvider implements vscode.CustomEditorProvider<Vapor
   public async addChildVariablesToDocumentByName(name: string, recursive: boolean, maxChildren: number) {
     if (!this.activeDocument) {return;}
     const document = this.activeDocument;
-    const netlistItem = await document.findTreeItem(name, undefined, undefined);
+    const netlistItem = await document.findTreeItem(undefined, name, undefined, undefined);
     if (netlistItem === null || netlistItem.contextValue !== 'netlistScope') {
       vscode.window.showWarningMessage('Scope not found: ' + name);
       return;

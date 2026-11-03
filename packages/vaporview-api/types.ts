@@ -26,6 +26,7 @@ export type SavedNetlistVariable = {
   dataType: 'netlist-variable';
   netlistId: NetlistId | undefined;
   name: string;
+  scopePath: string[];
   numberFormat: string;
   colorIndex: number;
   rowHeight: number;
@@ -58,6 +59,7 @@ export enum NameType {
 
 export type BitRangeSource = {
   name: string;
+  scopePath: string[];
   netlistId: NetlistId | undefined;
   signalId: SignalId | undefined;
   signalWidth: number;

@@ -388,7 +388,8 @@ export class RowHandler {
 
     // Create custom signal
     const source: BitRangeSource = {
-      name: createInstancePath(sourceSignalItem.scopePath, sourceSignalItem.signalName),
+      name: sourceSignalItem.signalName,
+      scopePath: sourceSignalItem.scopePath,
       netlistId: sourceSignalItem.netlistId,
       signalId: sourceSignalId,
       signalWidth: sourceSignalItem.signalWidth,

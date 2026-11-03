@@ -6,6 +6,7 @@
 - Fixed color theme loading on VScode SSH (with helper extension)
 - Improve performance with large FSDB design files @amikhalev
 - Refactor Multi-bit renderer - fix #228
+- Fix session reload for instance paths with "." in them
 
 # 1.6.0 - 10/25/2026 - Latest Release
 

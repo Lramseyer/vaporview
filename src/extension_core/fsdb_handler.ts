@@ -97,7 +97,7 @@ export class FsdbFormatHandler implements WaveformFileParser {
   private fsdbChildrenStack: NetlistItem[][] = [];
   private fsdbStructNameStack: string[] = [];
   // Need a reference to findTreeItem for getValuesAtTime
-  public findTreeItemFn: (scopePath: string, msb: number | undefined, lsb: number | undefined) => Promise<NetlistItem | null>;
+  public findTreeItemFn: (scopePath: string[] | undefined, name: string, msb: number | undefined, lsb: number | undefined) => Promise<NetlistItem | null>;
 
   // Top level netlist items
   public netlistSearchable: boolean = false;
@@ -125,7 +125,7 @@ export class FsdbFormatHandler implements WaveformFileParser {
   constructor(
     providerDelegate: VaporviewDocumentDelegate,
     uri: vscode.Uri,
-    findTreeItemFn: (scopePath: string, msb: number | undefined, lsb: number | undefined) => Promise<NetlistItem | null>,
+    findTreeItemFn: (scopePath: string[] | undefined, name: string, msb: number | undefined, lsb: number | undefined) => Promise<NetlistItem | null>,
   ) {
     this.providerDelegate = providerDelegate;
     this.uri = uri;
@@ -474,7 +474,7 @@ export class FsdbFormatHandler implements WaveformFileParser {
     const instancePath2signalId: Map<string, number> = new Map();
     const signalId2values: Map<number, string | string[]> = new Map();
     for (const instancePath of instancePaths) {
-      const netlistItem = await this.findTreeItemFn(instancePath, undefined, undefined);
+      const netlistItem = await this.findTreeItemFn(undefined, instancePath, undefined, undefined);
       if (netlistItem) {
         instancePath2signalId.set(instancePath, netlistItem.signalId);
         signalId2values.set(netlistItem.signalId, []);

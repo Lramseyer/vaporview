@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { type SignalId, type NetlistId, StateChangeType, type QueueEntry, type EnumQueueEntry, type DocumentId, type SavedRowItem, VariableEncoding, type BitRangeSource, type AddVariableSignal, InitMessage, WaveformDumpMetadata, ConfigSettingsMessage, EmitEventMessage, type WebviewStateEvent } from '../common/types';
 import type { GetValuesAtTimeArgs, SignalEvent, ValuesAtTimeResult } from '../../packages/vaporview-api/types';
-import { bitRangeString, logScaleFromUnits, parseParamValue, toStringWithCommas } from '../common/functions';
+import { bitRangeString, logScaleFromUnits, parseParamValue, toStringWithCommas, createInstancePath } from '../common/functions';
 import { NetlistLinkProvider } from './terminal_links';
 import * as path from 'path';
 import type { VaporviewDocumentCollection, VaporviewDocumentDelegate } from './viewer_provider';
@@ -49,6 +49,7 @@ class WebviewInitState {
 
 export type SignalInfo = {
   name: string;
+  scopePath?: string[];
   netlistId?: NetlistId;
   msb?: number;
   lsb?: number;
@@ -59,6 +60,7 @@ export type SignalInfo = {
 
 export type SignalInfoSource = {
   name: string;
+  scopePath?: string[];
   netlistId?: NetlistId;
   signalWidth: number;
   msb: number;
@@ -366,7 +368,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     if (useNetlistId && signalInfo.netlistId !== undefined) {
       metadata = this.netlistIdTable[signalInfo.netlistId];
     } else {
-      metadata = await this.findTreeItem(signalInfo.name, signalInfo.msb, signalInfo.lsb);
+      metadata = await this.findTreeItem(signalInfo.scopePath, signalInfo.name, signalInfo.msb, signalInfo.lsb);
     }
     return metadata;
   }
@@ -406,6 +408,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
       const metadata = await this.getNetlistItemFromSignalInfo(item, useNetlistId);
       const defaultSource: BitRangeSource = {
         name: item.name,
+        scopePath: item.scopePath || [],
         netlistId: undefined,
         signalId: undefined,
         signalWidth: item.signalWidth,
@@ -423,7 +426,8 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
         return defaultSource;
       }
       const source: BitRangeSource = {
-        name: metadata.instancePath(),
+        name: metadata.name,
+        scopePath: metadata.scopePath,
         netlistId: metadata.netlistId,
         signalId: metadata.signalId,
         signalWidth: metadata.width,
@@ -630,9 +634,14 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
     return strings.join('.') + ' ' + unit;
   }
 
-  public async findTreeItem(scopePath: string | undefined, msb: number | undefined, lsb: number | undefined): Promise<NetlistItem | null> {
-    if (!scopePath) { return null; }
-    const pathArray = scopePath.split('.');
+  public async findTreeItem(scopePath: string[] | undefined, name: string, msb: number | undefined, lsb: number | undefined): Promise<NetlistItem | null> {
+    if (!name) { return null; }
+    let pathArray;
+    if (scopePath === undefined) {
+      pathArray = name.split('.');
+    } else {
+      pathArray = scopePath.concat(name);
+    }
     const module    = this.treeData.find((element) => element.label === pathArray[0]);
     if (!module) { return null; }
     return await module.findChild(pathArray.slice(1), this, msb, lsb);
@@ -951,7 +960,7 @@ export class NetlistSearchQuickPick {
     if (!selected) {return;}
 
     if (selected.isVar) {
-      const metadata = await this.document.findTreeItem(selected.instancePath, selected.msb, selected.lsb);
+      const metadata = await this.document.findTreeItem(undefined, selected.instancePath, selected.msb, selected.lsb);
       if (metadata) {this.document.renderSignals([metadata.netlistId], [], undefined);}
       this.quickPick.hide();
     } else {

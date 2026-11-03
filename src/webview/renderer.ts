@@ -426,6 +426,8 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
           if (valueIs9State(initialValue)) {
             initialValue2state = 0;
             drawLine = false;
+          } else {
+            drawLine = true;
           }
 
           const adjustedLastDrawTime = lastDrawTime - timeScrollLeft;
@@ -475,6 +477,8 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     if (valueIs9State(initialValue)) {
       initialValue2state = 0;
       drawLine = false;
+    } else {
+      drawLine = true;
     }
 
     if (postState[0] - initialTime < minDrawWidth) {

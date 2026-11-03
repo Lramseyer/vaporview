@@ -8,5 +8,5 @@ node_modules
 .DS_Store
 *.fsdb
 target/
-src/extension_core/filehandler.ts
+src/wellen_parser/filehandler.ts
 *.tsbuildinfo

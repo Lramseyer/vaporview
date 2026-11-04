@@ -985,11 +985,16 @@ impl Guest for Filecontext {
     let mut global_body = _body.lock().unwrap();
     let mut global_hierarchy = _hierarchy.lock().unwrap();
     let mut global_file_format = _file_format.lock().unwrap();
+    let mut global_param_table = _param_table.lock().unwrap();
+    let mut global_param_id_list = _param_id_list.lock().unwrap();
+
     *global_signal_source = None;
     *global_time_table = None;
     *global_body = ReadBodyEnum::None;
     *global_hierarchy = None;
     *global_file_format = FileFormat::Unknown;
+    *global_param_table = None;
+    *global_param_id_list = None;
   }
 }
 

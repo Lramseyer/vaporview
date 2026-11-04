@@ -767,6 +767,7 @@ export class VaporviewDocument extends vscode.Disposable implements vscode.Custo
   public async unloadTreeData() {
     this.treeData = [];
     this._netlistIdTable = [];
+    this._providerDelegate.updateViews(this.uri);
   }
 
   public async unloadWebview() {

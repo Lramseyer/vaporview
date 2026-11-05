@@ -21,15 +21,17 @@ export interface WaveformRenderer {
 type Coordinate = [number, number];
 type MultiBitShape = Coordinate[];
 
-function clipCanvas(ctx: CanvasRenderingContext2D, signalItem: NetlistVariable | CustomVariable, canvasHeight: number,  viewerWidth: number) {
+function clipCanvas(ctx: CanvasRenderingContext2D, signalItem: NetlistVariable | CustomVariable, canvasHeight: number, clip: boolean) {
   const topBounds    = signalItem.topBounds;
   if (topBounds === null) {return;}
   const windowTop    = topBounds + styles.rowPadding - viewport.pseudoScrollTop;
 
-  ctx.rect(0, windowTop, viewerWidth, canvasHeight);
-  ctx.clip();
+  ctx.rect(0, windowTop, viewport.viewerWidth, canvasHeight);
+  if (clip) {
+    ctx.clip();
+  }
   ctx.translate(0, windowTop);
-  ctx.clearRect(0, 0, viewerWidth, canvasHeight);
+  ctx.clearRect(0, 0, viewport.viewerWidth, canvasHeight);
 }
 
 export function setRenderBounds(netlistData: NetlistVariable | CustomVariable, waveformData: WaveformData) {
@@ -248,7 +250,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
     }
 
     ctx.save();
-    clipCanvas(ctx, netlistData, canvasHeight, viewport.viewerWidth);
+    clipCanvas(ctx, netlistData, canvasHeight, false);
     ctx.save();
 
     // Draw diamonds - both binary and 9 state
@@ -275,6 +277,7 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
         ctx.strokeStyle = color;
         ctx.shadowColor = color;
         ctx.shadowBlur  = styles.glowBlur;
+        ctx.lineJoin    = "round";
         ctx.stroke();
       }
 
@@ -300,6 +303,12 @@ export class MultiBitWaveformRenderer implements WaveformRenderer {
       ctx.fill();
       ctx.restore();
       ctx.save();
+      ctx.lineWidth   = 1;
+      ctx.strokeStyle = drawColor;
+      ctx.shadowColor = drawColor;
+      ctx.shadowBlur  = styles.glowBlur;
+      ctx.lineJoin = "round";
+      ctx.stroke();
     } else {
       noDrawRanges.forEach(([start, end]) => {
         ctx.moveTo(start, 0);
@@ -519,7 +528,7 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     const waveOffset = waveHeight + (canvasHeight - waveHeight) / 2;
 
     ctx.save();
-    clipCanvas(ctx, netlistData, canvasHeight, viewport.viewerWidth);
+    clipCanvas(ctx, netlistData, canvasHeight, false);
     ctx.save();
     ctx.strokeStyle = drawColor;
     ctx.fillStyle   = drawColor;
@@ -588,6 +597,7 @@ export class BinaryWaveformRenderer implements WaveformRenderer {
     ctx.strokeStyle = xzColor;
     ctx.shadowColor = xzColor;
     ctx.shadowBlur  = styles.glowBlur;
+    ctx.lineCap = "square";
     ctx.stroke();
     ctx.shadowBlur  = 0;
     ctx.restore();
@@ -725,7 +735,7 @@ function createAnalogWaveform(valueChangeChunk: RenderBounds, netlistData: Netli
   const translateY = 0.5 + (max / (max - min)) * waveOffset;
 
   ctx.save();
-  clipCanvas(ctx, netlistData, canvasHeight, viewport.viewerWidth);
+  clipCanvas(ctx, netlistData, canvasHeight, true);
   ctx.save();
   ctx.strokeStyle = drawColor;
   ctx.fillStyle   = drawColor;
@@ -741,6 +751,7 @@ function createAnalogWaveform(valueChangeChunk: RenderBounds, netlistData: Netli
   ctx.strokeStyle = drawColor;
   ctx.shadowColor = drawColor;
   ctx.shadowBlur  = styles.glowBlur;
+  ctx.lineJoin    = stepped ? "miter" : "round";
   ctx.stroke();
 
   // NoDraw Elements

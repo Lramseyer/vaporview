@@ -235,30 +235,15 @@ This extension requires VScode 1.102.0 or later
 
 # Development Roadmap
 
-# 1.6.0 - 10/25/2026 - Latest Release
+## 1.6.1 - 11/6/2026 - Latest Release
 
-- Merge waveform canvases and rows into a single canvas
-- Moved file reader to WASM worker resulting in ~25% faster file loading times
-- Added menu option to show Readme
-- Delta Time in the status bar now displays units in Hz
-- New waveform dumps now open zoomed out all the way
-- Control bar hides button groups when shrinking tab width
-- Added feature to drag time marker via the time ruler
-- Added FP4 value format
-- Changed "settings" to "session" in the context of loading/saving viewer state
-- Updated styling to match VScode 2026 styling
-- Added setting: vaproview.defaultTimeUnit for default time 
-- Added waveformViewer.loadViewerState command to API
-- Updated License to GPL-3.0
-- Update wellen to 0.25.7
-  - ~50% speedup in signal load times for FST files.
-- Fixed:
-  - Custom waveforms now reload properly
-  - Fixed glitch with Alt + Down next to collapsed groups
-  - Show in Netlist View now works with custom variables
-  - Auto Loading signal list file works again
-  - Octal search @haroune-dev
-  - Text sizing in multi-bit renderer is more accurate
+- X/Z values draw at half height
+- Added base 64 number format
+- Fixed color theme loading on VScode SSH (with helper extension)
+- Improve performance with large FSDB design files @amikhalev
+- Refactor Multi-bit renderer - fix #228
+- Fix session reload for instance paths with "." in them
+- Hex and Octal value formatting respect upper/lower case X and Z conventions in IEEE 1800 spec
 
 See the [Changelog](https://github.com/Lramseyer/vaporview/blob/main/CHANGELOG.md) for more details
 

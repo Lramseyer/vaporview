@@ -1,6 +1,6 @@
 # Change Log
 
-## 1.6.1 - Upcoming release
+## 1.6.1 - 11/6/2026 - Latest Release
 
 - X/Z values draw at half height
 - Added base 64 number format
@@ -10,7 +10,7 @@
 - Fix session reload for instance paths with "." in them
 - Hex and Octal value formatting respect upper/lower case X and Z conventions in IEEE 1800 spec
 
-# 1.6.0 - 10/25/2026 - Latest Release
+# 1.6.0 - 10/25/2026
 
 - Merge waveform canvases and rows into a single canvas
 - Moved file reader to WASM worker resulting in ~25% faster file loading times

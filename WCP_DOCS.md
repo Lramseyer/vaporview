@@ -157,7 +157,7 @@ are `open_document` to `load`, `add_signal` to `add_items`, and
 WCP version 0 does not define `set_value_format`, `open_document`, `add_signal`,
 or the other commands from VaporView's earlier experimental server. Value
 formatting remains available in VaporView itself, with binary, hexadecimal,
-decimal, signed, octal, floating-point, bfloat16, tensorfloat32, ASCII, epoch,
+decimal, signed, octal, base64, floating-point, bfloat16, tensorfloat32, ASCII, epoch,
 string, enum, and fixed-point display modes, but it is not currently
 controllable through WCP.
 

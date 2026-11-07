@@ -352,6 +352,10 @@ export function registerVaporviewCommands(
     viewerProvider.setValueFormat(e, undefined, {valueFormat: "octal"});
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsBase64', (e: NetlistVariableWebviewContext) => {
+    viewerProvider.setValueFormat(e, undefined, {valueFormat: "base64"});
+  }));
+
   context.subscriptions.push(vscode.commands.registerCommand('vaporview.displayAsFloat', (e: NetlistVariableWebviewContext) => {
     switch (e.width) {
       case 4:  viewerProvider.setValueFormat(e, undefined, {valueFormat: "float4"}); break;

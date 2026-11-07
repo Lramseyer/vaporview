@@ -20,7 +20,7 @@ export function  valueIs9State(value: string): boolean {
 }
 
 function formatBinaryString(inputString: string) {
-  return inputString.replace(/\B(?=(\w{4})+(?!\w))/g, "_");
+  return groupDigits(inputString, 4);
 }
 
 function signedBinaryStringToInt(inputString: string) {
@@ -95,6 +95,63 @@ function regexMatchString(inputString: string, binaryString: string, formattedSt
   return formattedString.match(new RegExp(inputString, 'ig')) !== null;
 }
 
+// Priority order matters: if a nibble mixes symbols, the earliest one here wins.
+const NINE_STATE_PRIORITY = ['x', 'z', 'u', 'w', 'l', 'h'];
+const HEX_DIGITS = "0123456789abcdef";
+const BASE64_DIGITS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"; // RFC 4648 base64 alphabet
+
+function chunkFromRight(input: string, size: number, func: (s: string) => string): string[] {
+  const len = input.length;
+  if (len <= size) {return [func(input)];}
+  const head = len % size;
+  const result = new Array<string>(Math.ceil(len / size));
+  let n = 0;
+  let i = 0;
+  if (head !== 0) {
+    result[n++] = func(input.slice(0, head));
+    i = head;
+  }
+  for (; i < len; i += size) {
+    result[n++] = func(input.slice(i, i + size));
+  }
+  return result;
+}
+
+function nibbleToDigit(nibble: string): string {
+  if (/^[01]+$/.test(nibble)) {return binToDigit(nibble);}
+  for (const c of NINE_STATE_PRIORITY) {
+    if (nibble.includes(c)) {
+      return nibble === c.repeat(nibble.length) ? c : c.toUpperCase();
+    }
+  }
+  if (nibble.includes('-')) {return "-";}
+  return "?";
+}
+
+// Parses a short string of '0'/'1' (MSB first) into its integer value.
+// '0' is char code 48 and '1' is 49, so (code & 1) is the bit value.
+function binToIndex(s: string): number {
+  let v = 0;
+  for (let j = 0; j < s.length; j++) {
+    v = (v << 1) | (s.charCodeAt(j) & 1);
+  }
+  return v;
+}
+
+function binToDigit(s: string): string {return HEX_DIGITS[binToIndex(s)];}
+
+// Inserts an underscore every set of characters, counted from the right.
+function groupDigits(digits: string, groupSize: number): string {
+  const len = digits.length;
+  if (len <= groupSize) {return digits;}
+  const first = len % groupSize || groupSize;
+  let out = digits.slice(0, first);
+  for (let i = first; i < len; i += groupSize) {
+    out += "_" + digits.slice(i, i + groupSize);
+  }
+  return out;
+}
+
 // #region Value Format Interface
 // The interface is defined by the ValueFormat interface:
 export interface ValueFormat {
@@ -134,27 +191,8 @@ export const formatHex: ValueFormat = {
   symbolText: "hex",
 
   formatString: (inputString: string, width: number, is2State: boolean) => {
-  // If number format is hexadecimal
-    if (!is2State) {
-      const stringArray = inputString.replace(/\B(?=(.{4})+(?!.))/g, "_").split("_");
-      return stringArray.map((chunk) => {
-
-        if (chunk.match(/[z]/)) {return "z";}
-        if (chunk.match(/[x]/)) {return "x";}
-        if (chunk.match(/[u]/)) {return "u";}
-        if (chunk.match(/[w]/)) {return "w";}
-        if (chunk.match(/[l]/)) {return "l";}
-        if (chunk.match(/[h]/)) {return "h";}
-        if (chunk.match(/[-]/)) {return "-";}
-        return parseInt(chunk, 2).toString(16);
-      }).join('').replace(/\B(?=(.{4})+(?!.))/g, "_");
-    } else {
-      const stringArray = inputString.replace(/\B(?=(\d{16})+(?!\d))/g, "_").split("_");
-      return stringArray.map((chunk) => {
-        const digits = Math.ceil(chunk.length / 4);
-        return parseInt(chunk, 2).toString(16).padStart(digits, '0');
-      }).join('_');
-    }
+    const parseDigit = is2State ? binToDigit : nibbleToDigit;
+    return groupDigits(chunkFromRight(inputString, 4, parseDigit).join(""), 4);
   },
 
   checkValidSearch: (searchString: string) => {
@@ -184,28 +222,9 @@ export const formatOctal: ValueFormat = {
   rightJustify: true,
   symbolText: "oct",
 
-  formatString: (binaryString: string, width: number, is2State: boolean) => {
-  // If number format is hexadecimal
-    if (!is2State) {
-      const stringArray = binaryString.replace(/\B(?=(.{3})+(?!.))/g, "_").split("_");
-      return stringArray.map((chunk) => {
-
-        if (chunk.match(/[z]/)) {return "z";}
-        if (chunk.match(/[x]/)) {return "x";}
-        if (chunk.match(/[u]/)) {return "u";}
-        if (chunk.match(/[w]/)) {return "w";}
-        if (chunk.match(/[l]/)) {return "l";}
-        if (chunk.match(/[h]/)) {return "h";}
-        if (chunk.match(/[-]/)) {return "-";}
-        return parseInt(chunk, 2).toString(16);
-      }).join('');
-    } else {
-      const stringArray = binaryString.replace(/\B(?=(\d{3})+(?!\d))/g, "_").split("_");
-      return stringArray.map((chunk) => {
-        const digits = Math.ceil(chunk.length / 3);
-        return parseInt(chunk, 2).toString(8).padStart(digits, '0');
-      }).join('');
-    }
+  formatString: (inputString: string, width: number, is2State: boolean) => {
+    const parseDigit = is2State ? binToDigit : nibbleToDigit;
+    return chunkFromRight(inputString, 3, parseDigit).join("");
   },
 
   checkValidSearch: (searchString: string) => {
@@ -223,6 +242,52 @@ export const formatOctal: ValueFormat = {
   },
 
   checkSearchValue: regexMatchBinary,
+
+  is9State: valueIs9State,
+
+  checkWidth: (width: number) => {return width > 1;},
+};
+
+// #region Format Base64
+// Standard RFC 4648 base64 of the value's bytes (big-endian: the most
+// significant byte is encoded first), so the output matches `base64` and
+// btoa() for the same bytes, e.g. when comparing an encryption key against
+// firmware. Widths that aren't a multiple of 8 are zero-extended on the left
+// to a whole number of bytes. 9-state values can't be represented in the
+// alphabet, so they fall back to binary (like decimal does).
+export const formatBase64: ValueFormat = {
+  id: "base64",
+  rightJustify: false,
+  symbolText: "b64",
+
+  formatString: (inputString: string, width: number, is2State: boolean) => {
+    if (!is2State) {return formatBinaryString(inputString);}
+    let bits = inputString;
+    const byteAlign = (8 - bits.length % 8) % 8;
+    if (byteAlign !== 0) {bits = "0".repeat(byteAlign) + bits;}
+    const sextetAlign = (6 - bits.length % 6) % 6;
+    if (sextetAlign !== 0) {bits += "0".repeat(sextetAlign);}
+
+    let out = "";
+    for (let i = 0; i < bits.length; i += 6) {
+      out += BASE64_DIGITS[binToIndex(bits.slice(i, i + 6))];
+    }
+    return out + "=".repeat((4 - out.length % 4) % 4);
+  },
+
+  checkValidSearch: (searchString: string) => {
+    if (searchString.match(/^[A-Za-z0-9+/=]+$/)) {return true;}
+    else {return false;}
+  },
+
+  // Padding and alignment depend on the full value, so search compares the
+  // text against the formatted string instead of translating it to bits.
+  parseSearchValue: (searchString: string) => searchString,
+
+  // Case-sensitive: 'a' and 'A' are different base64 digits
+  checkSearchValue: (parsedSearchValue: string, binaryString: string, formattedValue: string) => {
+    return formattedValue.includes(parsedSearchValue);
+  },
 
   is9State: valueIs9State,
 
@@ -600,6 +665,7 @@ export const valueFormatList: ValueFormat[] = [
   formatHex,
   formatDecimal,
   formatOctal,
+  formatBase64,
   formatSignedInt,
   formatFloat4,
   formatFloat8,

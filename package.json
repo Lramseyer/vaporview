@@ -380,7 +380,7 @@
             "type": "boolean",
             "default": false,
             "scope": "application",
-            "description": "Enable glow effect for the waveform viewer. This is aesthetic only and will probably impact performance."
+            "description": "Enable CRT glow effect for the waveform viewer. This is aesthetic only and may impact performance."
           },
           "vaporview.overrideDevicePixelRatio": {
             "order": 4,
@@ -856,48 +856,53 @@
           "when": "webviewSection == 'signal' && width > '1'"
         },
         {
-          "command": "vaporview.displayAsDecimal",
+          "command": "vaporview.displayAsBase64",
           "group": "0_default@5",
           "when": "webviewSection == 'signal' && width > '1'"
         },
         {
-          "command": "vaporview.displayAsDecimalSigned",
+          "command": "vaporview.displayAsDecimal",
           "group": "0_default@6",
           "when": "webviewSection == 'signal' && width > '1'"
         },
         {
-          "command": "vaporview.displayAsFloat",
+          "command": "vaporview.displayAsDecimalSigned",
           "group": "0_default@7",
+          "when": "webviewSection == 'signal' && width > '1'"
+        },
+        {
+          "command": "vaporview.displayAsFloat",
+          "group": "0_default@8",
           "when": "webviewSection == 'signal' && (width == '4' || width == '8' || width == '16' || width == '32' || width == '64')"
         },
         {
           "command": "vaporview.displayAsBFloat",
-          "group": "0_default@8",
+          "group": "0_default@9",
           "when": "webviewSection == 'signal' && width == '16'"
         },
         {
           "command": "vaporview.displayAsTFloat",
-          "group": "0_default@9",
+          "group": "0_default@10",
           "when": "webviewSection == 'signal' && width == '19'"
         },
         {
           "command": "vaporview.displayAsFixedPoint",
-          "group": "0_default@10",
-          "when": "webviewSection == 'signal' && width > '1'"
-        },
-        {
-          "command": "vaporview.displayAsFixedPointSigned",
           "group": "0_default@11",
           "when": "webviewSection == 'signal' && width > '1'"
         },
         {
-          "command": "vaporview.displayAsAscii",
+          "command": "vaporview.displayAsFixedPointSigned",
           "group": "0_default@12",
           "when": "webviewSection == 'signal' && width > '1'"
         },
         {
-          "command": "vaporview.displayAsEpochTimeNs",
+          "command": "vaporview.displayAsAscii",
           "group": "0_default@13",
+          "when": "webviewSection == 'signal' && width > '1'"
+        },
+        {
+          "command": "vaporview.displayAsEpochTimeNs",
+          "group": "0_default@14",
           "when": "webviewSection == 'signal' && width >= '64'"
         }
       ],
@@ -1327,6 +1332,10 @@
       {
         "command": "vaporview.displayAsOctal",
         "title": "Octal"
+      },
+      {
+        "command": "vaporview.displayAsBase64",
+        "title": "Base64"
       },
       {
         "command": "vaporview.displayAsFloat",

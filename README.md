@@ -167,6 +167,7 @@ Vaporview can display values in different number formats. To change the value fo
 | Octal          | ✅ Yes                | Right             |
 | Decimal        | ❌ No                 | Left              |
 | Fixed Point    | ❌ No                 | Left              |
+| Base64         | ❌ No                 | Left             |
 | Floating Point | ❌ No                 | Left              |
 | ASCII          | ❌ No                 | Left              |
 | Epoch Time (ns)| ❌ No                 | Left              |

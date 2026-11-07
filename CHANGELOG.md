@@ -3,10 +3,12 @@
 ## 1.6.1 - Upcoming release
 
 - X/Z values draw at half height
+- Added base 64 number format
 - Fixed color theme loading on VScode SSH (with helper extension)
 - Improve performance with large FSDB design files @amikhalev
 - Refactor Multi-bit renderer - fix #228
 - Fix session reload for instance paths with "." in them
+- Hex and Octal value formatting respect upper/lower case X and Z conventions in IEEE 1800 spec
 
 # 1.6.0 - 10/25/2026 - Latest Release
 

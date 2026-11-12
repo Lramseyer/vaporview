@@ -565,9 +565,9 @@ export class WaveformDataManager {
     return r;
   }
 
-  public getValueAtTime(waveforms: WaveformData | undefined, time: number | null) {
+  public getValueIndexAtTime(waveforms: WaveformData | undefined, time: number | null) {
 
-    const result: string[] = [];
+    const result: number[] = [];
 
     if (time === null) {return result;}
     if (!waveforms) {return result;}
@@ -582,13 +582,13 @@ export class WaveformDataManager {
         index--;
       }
       while (index < data.length && data[index][0] <= time) {
-        result.push(data[index][1]);
+        result.push(index);
         index++;
       }
 
     } else {
       const newIndex = Math.max(0, index - 1);
-      result.push(data[newIndex][1]);
+      result.push(newIndex);
     }
 
     return result;

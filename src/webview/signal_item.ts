@@ -91,7 +91,7 @@ export abstract class SignalItem {
   public getFlattenedRowIdList(ignoreCollapsed: boolean, ignoreRowId: number): number[] {return [this.rowId];}
   public rowIdCount(ignoreCollapsed: boolean, stopIndex: number): number {return 1;}
   public findParentGroupId(rowId: RowId): number | null {return null;}
-  public formatValue(value: string): string {return "";}
+  public formatValue(value: string): [string, boolean] {return ["", false];}
   public getWaveformData(): WaveformData | undefined {return undefined;}
   public renderWaveform() {return;}
   public handleValueLink(time: number, snapToTime: number) {return false;}
@@ -299,12 +299,9 @@ export class NetlistVariable extends SignalItem implements RowItem {
     const selectorClass = isSelectedClass + ' ' + lastSelectedClass;
     const height        = getRowHeightCssClass(this.rowHeight);
     const joinString    = '<p style="color:var(--vscode-foreground)">-></p>';
-    const parseValue    = this.valueFormat.formatString;
-    const valueIs9State = this.valueFormat.is9State;
     const pElement      = value.map((v: string) => {
-      const is9State     = valueIs9State(v);
+      const [displayValue, is9State] = this.formatValue(v);
       const colorStyle   = is9State ? styles.xzColor : this.color;
-      const displayValue = parseValue(v, this.signalWidth, !is9State);
       return `<p style="color:${colorStyle}">${displayValue}</p>`;
     }).join(joinString);
 
@@ -379,10 +376,18 @@ export class NetlistVariable extends SignalItem implements RowItem {
     this.wasRendered = true;
   }
 
+  public formatValue(value: string): [string, boolean] {
+    const parseValue    = this.valueFormat.formatString;
+    const valueIs9State = this.valueFormat.is9State;
+    const is9State = valueIs9State(value);
+    return [parseValue(value, this.signalWidth, !is9State), is9State];
+  }
+
   public getValueAtTime(time: number | null) {
     if (this.signalId === undefined) {return [];}
     const data = dataManager.valueChangeData[this.signalId];
-    return dataManager.getValueAtTime(data, time);
+    const indices = dataManager.getValueIndexAtTime(data, time);
+    return indices.map(i => data.valueChangeData[i][1]);
   }
 
   public getNearestTransition(time: number | null): ValueChange | null {
@@ -533,12 +538,9 @@ export class CustomVariable extends SignalItem implements RowItem {
       const selectorClass = isSelectedClass + ' ' + lastSelectedClass;
       const height        = getRowHeightCssClass(this.rowHeight);
       const joinString    = '<p style="color:var(--vscode-foreground)">-></p>';
-      const parseValue    = this.valueFormat.formatString;
-      const valueIs9State = this.valueFormat.is9State;
       const pElement      = value.map((v: string) => {
-        const is9State     = valueIs9State(v);
+        const [displayValue, is9State] = this.formatValue(v);
         const colorStyle   = is9State ? styles.xzColor : this.color;
-        const displayValue = parseValue(v, this.signalWidth, !is9State);
         return `<p style="color:${colorStyle}">${displayValue}</p>`;
       }).join(joinString);
   
@@ -613,7 +615,8 @@ export class CustomVariable extends SignalItem implements RowItem {
   public getValueAtTime(time: number | null) {
     if (this.customSignalId === undefined) {return [];}
     const data = dataManager.customValueChangeData[this.customSignalId];
-    return dataManager.getValueAtTime(data, time);
+    const indices = dataManager.getValueIndexAtTime(data, time);
+    return indices.map(i => data.valueChangeData[i][1]);
   }
 
   public getNearestTransition(time: number | null): ValueChange | null {

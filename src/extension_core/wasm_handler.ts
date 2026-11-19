@@ -20,51 +20,57 @@ interface fsWrapper {
   fileData?: Uint8Array;
   loadFile: (uri: vscode.Uri, fileType: string) => void;
   readSlice: (fd: number, buffer: Uint8Array, offset: number, length: number, position: number) => number;
-  close: (fd: number) => void;
+  close: (fd: number) => void | Promise<void>;
 }
 
-const nodeFsWrapper: fsWrapper = {
-  type: 'nodeFs',
-  loadStatic: false,
-  fd: 0,
-  fileSize: 0,
-  bufferSize: 60 * 1024,
-  loadFile: async (uri: vscode.Uri, fileType: string) => {
-    const open                 = promisify(fs.open);
-    const stats                = fs.statSync(uri.fsPath);
-    nodeFsWrapper.fd           = await open(uri.fsPath, 'r');
-    nodeFsWrapper.fileSize     = stats.size;
-    const fstMaxStaticLoadSize = vscode.workspace.getConfiguration('vaporview').get('fstMaxStaticLoadSize');
-    const maxStaticSize        = Number(fstMaxStaticLoadSize) * 1048576;
-    nodeFsWrapper.loadStatic   = (stats.size < maxStaticSize);
+const createNodeFsWrapper = (): fsWrapper => {
+  const wrapper: fsWrapper = {
+    type: 'nodeFs',
+    loadStatic: false,
+    fd: 0,
+    fileSize: 0,
+    bufferSize: 60 * 1024,
+    loadFile: async (uri: vscode.Uri, fileType: string) => {
+      const open                 = promisify(fs.open);
+      const stats                = fs.statSync(uri.fsPath);
+      wrapper.fd                 = await open(uri.fsPath, 'r');
+      wrapper.fileSize           = stats.size;
+      const fstMaxStaticLoadSize = vscode.workspace.getConfiguration('vaporview').get('fstMaxStaticLoadSize');
+      const maxStaticSize        = Number(fstMaxStaticLoadSize) * 1048576;
+      wrapper.loadStatic         = (stats.size < maxStaticSize);
 
-    // For VCD files, we stream the file, so we want to use a larger buffer size
-    // For FST files, we want to use Rust's default buffer size of 8192 bytes,
-    // but we don't care about buffer size if we statically load the file
-    if (fileType === 'fst' && nodeFsWrapper.loadStatic === false) {
-      nodeFsWrapper.bufferSize = 8192;
-    }
-  },
-  readSlice: fs.readSync,
-  close: promisify(fs.close)
+      // For VCD files, we stream the file, so we want to use a larger buffer size
+      // For FST files, we want to use Rust's default buffer size of 8192 bytes,
+      // but we don't care about buffer size if we statically load the file
+      if (fileType === 'fst' && wrapper.loadStatic === false) {
+        wrapper.bufferSize = 8192;
+      }
+    },
+    readSlice: fs.readSync,
+    close: promisify(fs.close)
+  };
+  return wrapper;
 };
 
-const workspaceFsWrapper: fsWrapper = {
-  type: "workspace",
-  loadStatic: true,
-  fd: 0,
-  fileSize: 0,
-  bufferSize: 60 * 1024,
-  loadFile: async (uri: vscode.Uri, fileType: string) => {
-    const stats                 = await vscode.workspace.fs.stat(uri);
-    workspaceFsWrapper.fileData = await vscode.workspace.fs.readFile(uri);
-    workspaceFsWrapper.fileSize = stats.size;
-  },
-  readSlice: (fd: number, buffer: Uint8Array, offset: number, length: number, position: number) => {
-    buffer.set(workspaceFsWrapper.fileData!.subarray(position, position + length), offset);
-    return length;
-  },
-  close: (fd: number) => {}
+const createWorkspaceFsWrapper = (): fsWrapper => {
+  const wrapper: fsWrapper = {
+    type: "workspace",
+    loadStatic: true,
+    fd: 0,
+    fileSize: 0,
+    bufferSize: 60 * 1024,
+    loadFile: async (uri: vscode.Uri, fileType: string) => {
+      const stats      = await vscode.workspace.fs.stat(uri);
+      wrapper.fileData = await vscode.workspace.fs.readFile(uri);
+      wrapper.fileSize = stats.size;
+    },
+    readSlice: (fd: number, buffer: Uint8Array, offset: number, length: number, position: number) => {
+      buffer.set(wrapper.fileData!.subarray(position, position + length), offset);
+      return length;
+    },
+    close: (fd: number) => {}
+  };
+  return wrapper;
 };
 
 // Adapted from the VScode hex editor extension source
@@ -73,11 +79,11 @@ export const getFsWrapper = async (uri: vscode.Uri): Promise<fsWrapper> => {
     try {
       const fileStats = await fs.promises.stat(uri.fsPath);
       if (fileStats.isFile()) {
-        return nodeFsWrapper;
+        return createNodeFsWrapper();
       }
     } catch { /* probably not node.js, or file does not exist */  }
   }
-  return workspaceFsWrapper;
+  return createWorkspaceFsWrapper();
 };
 
 // #region WasmFormatHandler
@@ -346,7 +352,13 @@ export class WasmFormatHandler implements WaveformFileParser {
   }
 
   async unload(): Promise<void> {
-    this.fileReader.close(this.fileReader.fd);
+    const fd = this.fileReader.fd;
+    if (fd !== 0) {
+      this.fileReader.fd = 0;
+      Promise.resolve(this.fileReader.close(fd)).catch((error) => {
+        this.providerDelegate.logOutputChannel("Failed to close " + this.uri.fsPath + ": " + error);
+      });
+    }
     if (this.wasmApi) {
       await this.wasmApi.unload();
     }
